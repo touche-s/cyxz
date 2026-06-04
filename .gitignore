@@ -1,20 +1,52 @@
-# Maven target directories
+# Maven
 **/target/
 *.class
 *.jar
 *.war
+*.ear
+.mvn/wrapper/maven-wrapper.jar
 
 # IDE files
 .idea/
 *.iml
+*.iws
 .vscode/
 .settings/
 .project
 .classpath
+.factorypath
+.metadata/
 
 # OS files
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Log files
 *.log
+spring-boot.log
+hs_err_pid*.log
+replay_pid*.log
+
+# Test & Coverage
+*.exec
+cobertura.ser
+.jacoco/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+*.orig
+
+# Environment & Secrets
+.env
+*.env
+*.env.local
+
+# JRebel
+rebel.xml
+
+# Build tools
+dependency-reduced-pom.xml
