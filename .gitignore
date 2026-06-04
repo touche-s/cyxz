@@ -45,6 +45,10 @@ cobertura.ser
 *.env
 *.env.local
 
+# Dev environment configs (local development only)
+**/application-dev.yml
+**/application-local.yml
+
 # JRebel
 rebel.xml
 
