@@ -20,3 +20,8 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
       database: ${REDIS_DB:0}
+
+# JWT 配置
+jwt:
+  secret: ${JWT_SECRET:default-secret-key-at-least-32-chars}
+  expiration: ${JWT_EXPIRATION:86400}
