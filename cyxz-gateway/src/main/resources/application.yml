@@ -7,15 +7,20 @@ spring:
   cloud:
     nacos:
       discovery:
-        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+        server-addr: ${NACOS_SERVER_ADDR}
       config:
-        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+        server-addr: ${NACOS_SERVER_ADDR}
         file-extension: yml
   config:
     import:
       - optional:nacos:
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DB:0}
 
-# JWT 配置
 jwt:
-  secret: ${JWT_SECRET:default-secret-key-at-least-32-chars}
+  secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:86400}
