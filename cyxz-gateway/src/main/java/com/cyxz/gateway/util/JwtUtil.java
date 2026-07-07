@@ -32,6 +32,8 @@ public class JwtUtil {
 
     /**
      * 设置 JWT 密钥（由配置类注入）
+     *
+     * @param secret JWT 签名密钥
      */
     public void init(String secret) {
         this.secret = secret;
