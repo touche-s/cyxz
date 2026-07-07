@@ -11,12 +11,12 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
- * JWT 工具类
- * <p>负责 Token 的解析、验签以及 Redis 黑名单管理
+ * JWT 工具类（网关专用）
+ * <p>负责 Token 的解析、验签以及 Redis 黑名单检查。
+ * <p>注意：Token 签发由 cyxz-auth 服务负责，网关只做校验。
  */
 @Slf4j
 @Component
@@ -25,7 +25,6 @@ public class JwtUtil {
     private final RedisTemplate<String, Object> redisTemplate;
 
     private String secret;
-    private long expirationSeconds;
 
     public JwtUtil(RedisTemplate<String, Object> redisTemplate) {
         this.redisTemplate = redisTemplate;
@@ -34,9 +33,8 @@ public class JwtUtil {
     /**
      * 设置 JWT 密钥（由配置类注入）
      */
-    public void init(String secret, long expirationSeconds) {
+    public void init(String secret) {
         this.secret = secret;
-        this.expirationSeconds = expirationSeconds;
     }
 
     /**
@@ -45,28 +43,6 @@ public class JwtUtil {
     private SecretKey getSigningKey() {
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
         return new SecretKeySpec(keyBytes, 0, keyBytes.length, "HmacSHA256");
-    }
-
-    // ==================== Token 签发 ====================
-
-    /**
-     * 生成 JWT Token
-     *
-     * @param userId 用户ID
-     * @return JWT Token 字符串
-     */
-    public String generateToken(Long userId) {
-        String jti = UUID.randomUUID().toString().replace("-", "");
-        Date now = new Date();
-        Date expiration = new Date(now.getTime() + expirationSeconds * 1000);
-
-        return Jwts.builder()
-                .subject(String.valueOf(userId))
-                .id(jti)
-                .issuedAt(now)
-                .expiration(expiration)
-                .signWith(getSigningKey())
-                .compact();
     }
 
     // ==================== Token 解析 ====================

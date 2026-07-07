@@ -2,7 +2,6 @@ package com.cyxz.gateway.config;
 
 import com.cyxz.gateway.util.JwtUtil;
 import jakarta.annotation.PostConstruct;
-import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
@@ -11,14 +10,10 @@ import org.springframework.context.annotation.Configuration;
  * <p>从配置文件读取 JWT 密钥和过期时间，并注入到 JwtUtil 中
  */
 @Configuration
-@Data
 public class JwtConfig {
 
     @Value("${jwt.secret}")
     private String secret;
-
-    @Value("${jwt.expiration:86400}")
-    private long expirationSeconds;
 
     private final JwtUtil jwtUtil;
 
@@ -28,6 +23,6 @@ public class JwtConfig {
 
     @PostConstruct
     public void init() {
-        jwtUtil.init(secret, expirationSeconds);
+        jwtUtil.init(secret);
     }
 }
