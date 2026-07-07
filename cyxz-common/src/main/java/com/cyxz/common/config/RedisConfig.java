@@ -14,6 +14,11 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import java.time.Duration;
 
+/**
+ * Redis 自动配置
+ * <p>仅在 classpath 存在 RedisTemplate 时生效（条件装配），
+ * 提供统一的序列化方案和缓存管理器。
+ */
 @Configuration
 @ConditionalOnClass(RedisTemplate.class)
 public class RedisConfig {
@@ -21,6 +26,13 @@ public class RedisConfig {
     @Value("${spring.data.redis.cache-ttl-minutes:30}")
     private long cacheTtlMinutes;
 
+    /**
+     * RedisTemplate Bean
+     * <p>Key 使用 String 序列化，Value 使用 JSON 序列化。
+     *
+     * @param factory Redis 连接工厂
+     * @return RedisTemplate 实例
+     */
     @Bean
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory factory) {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
@@ -33,6 +45,13 @@ public class RedisConfig {
         return template;
     }
 
+    /**
+     * CacheManager Bean
+     * <p>默认 TTL 由配置项 spring.data.redis.cache-ttl-minutes 控制。
+     *
+     * @param factory Redis 连接工厂
+     * @return RedisCacheManager 实例
+     */
     @Bean
     public RedisCacheManager cacheManager(RedisConnectionFactory factory) {
         RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
