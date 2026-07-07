@@ -1,6 +1,6 @@
 package com.cyxz.auth.util;
 
-import com.cyxz.common.CacheKeyConstants;
+import com.cyxz.common.constant.CacheKeyConstants;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import lombok.extern.slf4j.Slf4j;

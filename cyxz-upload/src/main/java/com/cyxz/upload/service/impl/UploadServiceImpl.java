@@ -1,7 +1,7 @@
 package com.cyxz.upload.service.impl;
 
-import com.cyxz.common.BusinessException;
-import com.cyxz.common.ErrorCode;
+import com.cyxz.common.base.BusinessException;
+import com.cyxz.common.base.ErrorCode;
 import com.cyxz.upload.config.MinioConfig;
 import com.cyxz.upload.service.UploadService;
 import io.minio.MinioClient;

@@ -1,6 +1,6 @@
 package com.cyxz.upload.controller;
 
-import com.cyxz.common.Result;
+import com.cyxz.common.base.Result;
 import com.cyxz.upload.service.UploadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
