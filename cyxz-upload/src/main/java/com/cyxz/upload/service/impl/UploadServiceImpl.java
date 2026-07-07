@@ -16,6 +16,11 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
+/**
+ * 文件上传服务实现
+ * <p>所有文件通过 MinIO 客户端上传至配置的 Bucket，
+ * 返回可直接访问的 URL。
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -53,6 +58,13 @@ public class UploadServiceImpl implements UploadService {
         }
     }
 
+    /**
+     * 执行实际上传
+     *
+     * @param file       文件
+     * @param objectName MinIO 对象路径
+     * @return 文件访问 URL
+     */
     private String upload(MultipartFile file, String objectName) {
         try {
             minioClient.putObject(
@@ -72,6 +84,12 @@ public class UploadServiceImpl implements UploadService {
         }
     }
 
+    /**
+     * 生成唯一文件名
+     *
+     * @param file 原始文件
+     * @return UUID + 原始扩展名
+     */
     private String generateFileName(MultipartFile file) {
         String originalFilename = file.getOriginalFilename();
         String extension = "";

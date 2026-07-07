@@ -6,6 +6,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * MinIO 客户端配置
+ * <p>从配置文件读取连接信息，创建 MinioClient Bean。
+ */
 @Data
 @Configuration
 public class MinioConfig {
@@ -22,6 +26,11 @@ public class MinioConfig {
     @Value("${minio.bucket-name}")
     private String bucketName;
 
+    /**
+     * MinIO 客户端 Bean
+     *
+     * @return MinioClient 实例
+     */
     @Bean
     public MinioClient minioClient() {
         return MinioClient.builder()
