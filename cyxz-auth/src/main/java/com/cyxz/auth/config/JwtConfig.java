@@ -26,6 +26,9 @@ public class JwtConfig {
         this.jwtUtil = jwtUtil;
     }
 
+    /**
+     * 初始化 JwtUtil，注入密钥和过期时间
+     */
     @PostConstruct
     public void init() {
         jwtUtil.init(secret, expirationSeconds);

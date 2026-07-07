@@ -118,6 +118,15 @@ public class JwtUtil {
         return claims.getId();
     }
 
+    /**
+     * 获取 Token 过期时间（秒）
+     *
+     * @return 过期秒数
+     */
+    public long getExpirationSeconds() {
+        return expirationSeconds;
+    }
+
     // ==================== Token 验签 ====================
 
     /**

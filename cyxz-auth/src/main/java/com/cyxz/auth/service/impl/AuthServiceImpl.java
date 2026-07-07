@@ -19,6 +19,11 @@ import org.springframework.util.StringUtils;
 
 import java.util.concurrent.TimeUnit;
 
+/**
+ * 认证服务实现
+ * <p>处理登录、注册、登出和 Token 刷新的业务逻辑。
+ * 不使用 Spring Security 过滤器链，直接查表校验密码。
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -31,6 +36,13 @@ public class AuthServiceImpl implements AuthService {
 
     private static final String CAPTCHA_PREFIX = "captcha:";
 
+    /**
+     * 用户登录
+     * <p>1. 校验验证码 2. 查用户 3. BCrypt 比对密码 4. 签发 JWT
+     *
+     * @param request 登录请求
+     * @return 认证响应（token + userId + username）
+     */
     @Override
     public AuthResponse login(LoginRequest request) {
         validateCaptcha(request.getCaptcha(), request.getCaptchaUuid());
@@ -59,6 +71,12 @@ public class AuthServiceImpl implements AuthService {
         return new AuthResponse(token, "Bearer", expiresIn, user.getId(), user.getUsername());
     }
 
+    /**
+     * 用户注册
+     * <p>1. 校验验证码 2. 校验两次密码一致 3. 查重 4. BCrypt 加密入库
+     *
+     * @param request 注册请求
+     */
     @Override
     public void register(RegisterRequest request) {
         validateCaptcha(request.getCaptcha(), request.getCaptchaUuid());
@@ -84,6 +102,12 @@ public class AuthServiceImpl implements AuthService {
         log.info("用户注册成功: userId={}, username={}", user.getId(), user.getUsername());
     }
 
+    /**
+     * 用户登出
+     * <p>Token 加入 Redis 黑名单，清除登录缓存。
+     *
+     * @param token 待失效的 Token
+     */
     @Override
     public void logout(String token) {
         jwtUtil.blacklistToken(token);
@@ -92,6 +116,13 @@ public class AuthServiceImpl implements AuthService {
         log.info("用户登出成功: userId={}", userId);
     }
 
+    /**
+     * 刷新 Token
+     * <p>校验旧 Token 有效后签发新 Token，旧 Token 同时失效。
+     *
+     * @param oldToken 旧 Token（需未过期且不在黑名单）
+     * @return 新的认证响应
+     */
     @Override
     public AuthResponse refreshToken(String oldToken) {
         if (!jwtUtil.validateToken(oldToken) || jwtUtil.isExpired(oldToken)) {

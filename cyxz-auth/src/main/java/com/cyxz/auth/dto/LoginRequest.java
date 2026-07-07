@@ -3,6 +3,9 @@ package com.cyxz.auth.dto;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
+/**
+ * 登录请求
+ */
 @Data
 public class LoginRequest {
 
