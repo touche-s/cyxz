@@ -19,6 +19,7 @@
         <module>cyxz-post</module>
         <module>cyxz-message</module>
         <module>cyxz-search</module>
+        <module>cyxz-upload</module>
     </modules>
 
     <properties>
@@ -35,9 +36,8 @@
         <commons-lang3.version>3.14.0</commons-lang3.version>
         <jjwt.version>0.12.3</jjwt.version>
         <mybatis-plus.version>3.5.5</mybatis-plus.version>
-        <mybatis-spring.version>3.0.3</mybatis-spring.version>
         <mysql.version>8.0.33</mysql.version>
-        <aliyun-oss.version>3.17.4</aliyun-oss.version>
+        <minio.version>8.5.7</minio.version>
     </properties>
 
     <dependencyManagement>
@@ -116,11 +116,6 @@
                 <artifactId>mybatis-plus-boot-starter</artifactId>
                 <version>${mybatis-plus.version}</version>
             </dependency>
-            <dependency>
-                <groupId>org.mybatis</groupId>
-                <artifactId>mybatis-spring</artifactId>
-                <version>${mybatis-spring.version}</version>
-            </dependency>
 
             <!-- MySQL -->
             <dependency>
@@ -129,11 +124,11 @@
                 <version>${mysql.version}</version>
             </dependency>
 
-            <!-- Aliyun OSS -->
+            <!-- MinIO -->
             <dependency>
-                <groupId>com.aliyun.oss</groupId>
-                <artifactId>aliyun-sdk-oss</artifactId>
-                <version>${aliyun-oss.version}</version>
+                <groupId>io.minio</groupId>
+                <artifactId>minio</artifactId>
+                <version>${minio.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

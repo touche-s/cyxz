@@ -42,11 +42,6 @@
         </dependency>
 
         <dependency>
-            <groupId>org.mybatis</groupId>
-            <artifactId>mybatis-spring</artifactId>
-        </dependency>
-
-        <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
         </dependency>
@@ -62,7 +57,7 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>3.5.2</version>
+                <version>${spring-boot.version}</version>
                 <executions>
                     <execution>
                         <goals>
