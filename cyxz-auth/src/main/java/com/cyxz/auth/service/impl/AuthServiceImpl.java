@@ -10,14 +10,13 @@ import com.cyxz.auth.service.AuthService;
 import com.cyxz.auth.util.JwtUtil;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
+import com.cyxz.common.constant.CacheKeyConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-
-import java.util.concurrent.TimeUnit;
 
 /**
  * 认证服务实现
@@ -33,8 +32,6 @@ public class AuthServiceImpl implements AuthService {
     private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
     private final StringRedisTemplate stringRedisTemplate;
-
-    private static final String CAPTCHA_PREFIX = "captcha:";
 
     /**
      * 用户登录
@@ -63,9 +60,6 @@ public class AuthServiceImpl implements AuthService {
 
         String token = jwtUtil.generateToken(user.getId());
         long expiresIn = jwtUtil.getExpirationSeconds();
-
-        String cacheKey = "user:login:" + user.getId();
-        stringRedisTemplate.opsForValue().set(cacheKey, "1", 5, TimeUnit.MINUTES);
 
         log.info("用户登录成功: userId={}, username={}", user.getId(), user.getUsername());
         return new AuthResponse(token, "Bearer", expiresIn, user.getId(), user.getUsername());
@@ -104,16 +98,14 @@ public class AuthServiceImpl implements AuthService {
 
     /**
      * 用户登出
-     * <p>Token 加入 Redis 黑名单，清除登录缓存。
+     * <p>Token 加入 Redis 黑名单。
      *
      * @param token 待失效的 Token
      */
     @Override
     public void logout(String token) {
         jwtUtil.blacklistToken(token);
-        Long userId = jwtUtil.getUserId(token);
-        stringRedisTemplate.delete("user:login:" + userId);
-        log.info("用户登出成功: userId={}", userId);
+        log.info("用户登出成功: userId={}", jwtUtil.getUserId(token));
     }
 
     /**
@@ -143,11 +135,19 @@ public class AuthServiceImpl implements AuthService {
         return new AuthResponse(newToken, "Bearer", expiresIn, userId, user.getUsername());
     }
 
+    /**
+     * 校验短信验证码
+     * <p>从 Redis 中根据 captchaUuid 取出存储的验证码，与用户输入进行比对（忽略大小写）。
+     * 校验通过后删除验证码（一次性有效），失败则抛出对应异常。
+     *
+     * @param captcha     用户输入的验证码
+     * @param captchaUuid 验证码唯一标识（前端返回的 UUID）
+     */
     private void validateCaptcha(String captcha, String captchaUuid) {
         if (!StringUtils.hasText(captcha) || !StringUtils.hasText(captchaUuid)) {
             throw new BusinessException(ErrorCode.CAPTCHA_ERROR, "验证码不能为空");
         }
-        String key = CAPTCHA_PREFIX + captchaUuid;
+        String key = CacheKeyConstants.getCaptchaKey(captchaUuid);
         String storedCaptcha = stringRedisTemplate.opsForValue().get(key);
         if (storedCaptcha == null) {
             throw new BusinessException(ErrorCode.CAPTCHA_EXPIRED);

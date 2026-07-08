@@ -11,7 +11,6 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
-import java.util.concurrent.TimeUnit;
 
 /**
  * JWT 工具类（网关专用）
@@ -125,26 +124,6 @@ public class JwtUtil {
     }
 
     // ==================== 黑名单管理 ====================
-
-    /**
-     * 将 Token 加入黑名单（退出登录）
-     *
-     * @param token JWT Token
-     */
-    public void blacklistToken(String token) {
-        try {
-            String jti = getJti(token);
-            Date expiration = getExpiration(token);
-            long ttl = Math.max((expiration.getTime() - System.currentTimeMillis()) / 1000, 1);
-            String key = CacheKeyConstants.TOKEN_BLACKLIST_PREFIX + jti;
-            redisTemplate.opsForValue().set(key, "1", ttl, TimeUnit.SECONDS);
-            log.info("Token 已加入黑名单, jti={}, ttl={}s", jti, ttl);
-        } catch (Exception e) {
-            log.error("Token 加入黑名单失败", e);
-        }
-    }
-
-    /**
      * 检查 Token 是否在黑名单中
      *
      * @param token JWT Token
@@ -153,7 +132,7 @@ public class JwtUtil {
     public boolean isBlacklisted(String token) {
         try {
             String jti = getJti(token);
-            String key = CacheKeyConstants.TOKEN_BLACKLIST_PREFIX + jti;
+            String key = CacheKeyConstants.getTokenBlacklistKey(jti);
             return Boolean.TRUE.equals(redisTemplate.hasKey(key));
         } catch (Exception e) {
             log.warn("检查黑名单失败: {}", e.getMessage());

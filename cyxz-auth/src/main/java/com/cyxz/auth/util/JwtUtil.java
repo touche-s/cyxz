@@ -167,7 +167,7 @@ public class JwtUtil {
             String jti = getJti(token);
             Date expiration = getExpiration(token);
             long ttl = Math.max((expiration.getTime() - System.currentTimeMillis()) / 1000, 1);
-            String key = CacheKeyConstants.TOKEN_BLACKLIST_PREFIX + jti;
+            String key = CacheKeyConstants.getTokenBlacklistKey(jti);
             redisTemplate.opsForValue().set(key, "1", ttl, TimeUnit.SECONDS);
             log.info("Token 已加入黑名单, jti={}, ttl={}s", jti, ttl);
         } catch (Exception e) {
@@ -184,7 +184,7 @@ public class JwtUtil {
     public boolean isBlacklisted(String token) {
         try {
             String jti = getJti(token);
-            String key = CacheKeyConstants.TOKEN_BLACKLIST_PREFIX + jti;
+            String key = CacheKeyConstants.getTokenBlacklistKey(jti);
             return Boolean.TRUE.equals(redisTemplate.hasKey(key));
         } catch (Exception e) {
             log.warn("检查黑名单失败: {}", e.getMessage());

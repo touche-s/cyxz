@@ -4,6 +4,7 @@ import com.cyxz.auth.dto.AuthResponse;
 import com.cyxz.auth.dto.LoginRequest;
 import com.cyxz.auth.dto.RegisterRequest;
 import com.cyxz.auth.service.AuthService;
+import com.cyxz.auth.util.TokenUtil;
 import com.cyxz.common.base.Result;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -55,8 +56,8 @@ public class AuthController {
      */
     @PostMapping("/logout")
     public Result<Void> logout(@RequestHeader(value = "Authorization", required = false) String authHeader) {
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
+        String token = TokenUtil.extractBearerToken(authHeader);
+        if (token != null) {
             authService.logout(token);
         }
         return Result.success("登出成功");
@@ -71,10 +72,10 @@ public class AuthController {
      */
     @PostMapping("/refresh")
     public Result<AuthResponse> refreshToken(@RequestHeader(value = "Authorization", required = false) String authHeader) {
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        String token = TokenUtil.extractBearerToken(authHeader);
+        if (token == null) {
             return Result.fail(401, "无效的Token");
         }
-        String token = authHeader.substring(7);
         AuthResponse response = authService.refreshToken(token);
         return Result.success("刷新成功", response);
     }

@@ -30,9 +30,6 @@ public final class CacheKeyConstants {
     /** 帖子详情缓存 Key 集合（用于批量管理） */
     public static final String POST_DETAIL_KEYS_SET = "post:detail:keys";
 
-    /** 用户登录缓存前缀 */
-    public static final String USER_LOGIN_PREFIX = "user:login:";
-
     /** 用户点赞缓存前缀 */
     public static final String USER_LIKED_PREFIX = "user:liked:";
 
@@ -45,14 +42,11 @@ public final class CacheKeyConstants {
     /** Token 黑名单前缀 */
     public static final String TOKEN_BLACKLIST_PREFIX = "token:blacklist:";
 
-    /** 默认缓存过期时间（分钟） */
-    public static final long CACHE_EXPIRE_MINUTES = 30;
+    /** 图形验证码缓存前缀 */
+    public static final String CAPTCHA_PREFIX = "captcha:";
 
-    /** 缓存过期随机抖动上限（分钟），防止缓存雪崩 */
-    public static final long CACHE_EXPIRE_JITTER_MINUTES = 10;
-
-    /** 用户状态缓存过期时间（分钟） */
-    public static final long USER_STATUS_EXPIRE_MINUTES = 5;
+    /** 图形验证码过期时间（分钟） */
+    public static final long CAPTCHA_EXPIRE_MINUTES = 5;
 
     /**
      * 获取用户点赞 Key
@@ -77,23 +71,13 @@ public final class CacheKeyConstants {
     }
 
     /**
-     * 获取用户登录缓存 Key
-     *
-     * @param userId 用户 ID
-     * @return Redis Key
-     */
-    public static String getUserLoginKey(Long userId) {
-        return USER_LOGIN_PREFIX + userId;
-    }
-
-    /**
      * 获取 Token 黑名单 Key
      *
-     * @param token JWT Token 字符串
+     * @param jti JWT ID（Token 唯一标识）
      * @return Redis Key
      */
-    public static String getTokenBlacklistKey(String token) {
-        return TOKEN_BLACKLIST_PREFIX + token;
+    public static String getTokenBlacklistKey(String jti) {
+        return TOKEN_BLACKLIST_PREFIX + jti;
     }
 
     /**
@@ -107,6 +91,16 @@ public final class CacheKeyConstants {
     }
 
     /**
+     * 获取验证码缓存 Key
+     *
+     * @param uuid 验证码唯一标识
+     * @return Redis Key
+     */
+    public static String getCaptchaKey(String uuid) {
+        return CAPTCHA_PREFIX + uuid;
+    }
+
+    /**
      * 获取用户获赞数缓存 Key
      *
      * @param userId 用户 ID
@@ -114,14 +108,5 @@ public final class CacheKeyConstants {
      */
     public static String getUserLikesCountKey(Long userId) {
         return USER_LIKES_COUNT_PREFIX + userId;
-    }
-
-    /**
-     * 获取带随机抖动的过期时间，防止缓存雪崩
-     *
-     * @return 过期时间（分钟）
-     */
-    public static long getExpireMinutesWithJitter() {
-        return CACHE_EXPIRE_MINUTES + (long) (Math.random() * CACHE_EXPIRE_JITTER_MINUTES);
     }
 }
