@@ -21,12 +21,12 @@ public class UploadController {
      * 上传用户头像
      *
      * @param file   图片文件
-     * @param userId 用户 ID
+     * @param userId 当前登录用户 ID（由 Gateway 注入）
      * @return 文件访问 URL
      */
     @PostMapping("/avatar")
     public Result<String> uploadAvatar(@RequestParam MultipartFile file,
-                                       @RequestParam Long userId) {
+                                       @RequestHeader("X-User-Id") Long userId) {
         String url = uploadService.uploadAvatar(file, userId);
         return Result.success(url);
     }

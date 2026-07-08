@@ -10,10 +10,15 @@ import io.minio.RemoveObjectArgs;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.ImageIO;
+import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -26,17 +31,22 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UploadServiceImpl implements UploadService {
 
+    private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png", ".gif");
+    private static final Set<String> ALLOWED_IMAGE_CONTENT_TYPES = Set.of("image/jpeg", "image/png", "image/gif");
+
     private final MinioClient minioClient;
     private final MinioConfig minioConfig;
 
     @Override
     public String uploadAvatar(MultipartFile file, Long userId) {
+        validateImage(file, "头像");
         String objectName = "avatar/" + userId + "/" + generateFileName(file);
         return upload(file, objectName);
     }
 
     @Override
     public String uploadPostImage(MultipartFile file) {
+        validateImage(file, "帖子图片");
         String datePath = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM"));
         String objectName = "post/" + datePath + "/" + generateFileName(file);
         return upload(file, objectName);
@@ -66,13 +76,13 @@ public class UploadServiceImpl implements UploadService {
      * @return 文件访问 URL
      */
     private String upload(MultipartFile file, String objectName) {
-        try {
+        try (InputStream inputStream = file.getInputStream()) {
             minioClient.putObject(
                     PutObjectArgs.builder()
                             .bucket(minioConfig.getBucketName())
                             .object(objectName)
-                            .stream(file.getInputStream(), file.getSize(), -1)
-                            .contentType(file.getContentType())
+                            .stream(inputStream, file.getSize(), -1)
+                            .contentType(normalizeContentType(file.getContentType()))
                             .build()
             );
             String url = minioConfig.getEndpoint() + "/" + minioConfig.getBucketName() + "/" + objectName;
@@ -91,11 +101,49 @@ public class UploadServiceImpl implements UploadService {
      * @return UUID + 原始扩展名
      */
     private String generateFileName(MultipartFile file) {
-        String originalFilename = file.getOriginalFilename();
-        String extension = "";
-        if (originalFilename != null && originalFilename.contains(".")) {
-            extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-        }
+        String extension = getExtension(file.getOriginalFilename());
         return UUID.randomUUID().toString().replace("-", "") + extension;
+    }
+
+    private void validateImage(MultipartFile file, String bizType) {
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, bizType + "不能为空");
+        }
+
+        String originalFilename = file.getOriginalFilename();
+        if (!StringUtils.hasText(originalFilename)) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, bizType + "文件名不能为空");
+        }
+
+        String extension = getExtension(originalFilename);
+        if (!ALLOWED_IMAGE_EXTENSIONS.contains(extension)) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, bizType + "仅支持 jpg、jpeg、png、gif 格式");
+        }
+
+        String contentType = normalizeContentType(file.getContentType());
+        if (!ALLOWED_IMAGE_CONTENT_TYPES.contains(contentType)) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, bizType + "类型不合法");
+        }
+
+        try (InputStream inputStream = file.getInputStream()) {
+            if (ImageIO.read(inputStream) == null) {
+                throw new BusinessException(ErrorCode.PARAM_ERROR, bizType + "内容不合法");
+            }
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, bizType + "内容不合法", e);
+        }
+    }
+
+    private String getExtension(String fileName) {
+        if (StringUtils.hasText(fileName) && fileName.contains(".")) {
+            return fileName.substring(fileName.lastIndexOf(".")).toLowerCase(Locale.ROOT);
+        }
+        return "";
+    }
+
+    private String normalizeContentType(String contentType) {
+        return contentType == null ? "" : contentType.toLowerCase(Locale.ROOT);
     }
 }
