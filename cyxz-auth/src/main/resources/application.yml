@@ -33,5 +33,5 @@ mybatis-plus:
     map-underscore-to-camel-case: true
 
 jwt:
-  secret: ${JWT_SECRET:cyxz-dev-secret-key-for-local-testing-only}
+  secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:86400}

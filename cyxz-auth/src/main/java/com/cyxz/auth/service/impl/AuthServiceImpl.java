@@ -14,6 +14,7 @@ import com.cyxz.common.constant.CacheKeyConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -91,7 +92,11 @@ public class AuthServiceImpl implements AuthService {
         user.setUsername(request.getUsername());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setStatus(1);
-        sysUserMapper.insert(user);
+        try {
+            sysUserMapper.insert(user);
+        } catch (DuplicateKeyException e) {
+            throw new BusinessException(ErrorCode.USERNAME_EXISTS);
+        }
 
         log.info("用户注册成功: userId={}, username={}", user.getId(), user.getUsername());
     }
@@ -136,7 +141,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
-     * 校验短信验证码
+     * 校验图形验证码
      * <p>从 Redis 中根据 captchaUuid 取出存储的验证码，与用户输入进行比对（忽略大小写）。
      * 校验通过后删除验证码（一次性有效），失败则抛出对应异常。
      *

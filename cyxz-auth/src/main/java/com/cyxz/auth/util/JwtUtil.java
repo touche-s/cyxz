@@ -1,5 +1,7 @@
 package com.cyxz.auth.util;
 
+import com.cyxz.common.base.BusinessException;
+import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.constant.CacheKeyConstants;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -172,6 +174,7 @@ public class JwtUtil {
             log.info("Token 已加入黑名单, jti={}, ttl={}s", jti, ttl);
         } catch (Exception e) {
             log.error("Token 加入黑名单失败", e);
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "Token失效失败，请稍后重试", e);
         }
     }
 
@@ -188,7 +191,7 @@ public class JwtUtil {
             return Boolean.TRUE.equals(redisTemplate.hasKey(key));
         } catch (Exception e) {
             log.warn("检查黑名单失败: {}", e.getMessage());
-            return false;
+            return true;
         }
     }
 }

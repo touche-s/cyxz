@@ -57,9 +57,10 @@ public class AuthController {
     @PostMapping("/logout")
     public Result<Void> logout(@RequestHeader(value = "Authorization", required = false) String authHeader) {
         String token = TokenUtil.extractBearerToken(authHeader);
-        if (token != null) {
-            authService.logout(token);
+        if (token == null) {
+            return Result.fail(401, "无效的Token");
         }
+        authService.logout(token);
         return Result.success("登出成功");
     }
 
