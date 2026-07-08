@@ -124,7 +124,8 @@ public class JwtUtil {
     }
 
     // ==================== 黑名单管理 ====================
-     * 检查 Token 是否在黑名单中
+
+     /* 检查 Token 是否在黑名单中
      *
      * @param token JWT Token
      * @return 是否在黑名单

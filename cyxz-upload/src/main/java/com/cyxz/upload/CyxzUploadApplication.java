@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 /**
  * 上传服务启动类
  */
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = {"com.cyxz.upload", "com.cyxz.common"})
 public class CyxzUploadApplication {
 
     public static void main(String[] args) {

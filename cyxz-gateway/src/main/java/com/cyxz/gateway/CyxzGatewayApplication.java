@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 /**
  * 网关启动类
  */
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = {"com.cyxz.gateway", "com.cyxz.common"})
 public class CyxzGatewayApplication {
 
     public static void main(String[] args) {
