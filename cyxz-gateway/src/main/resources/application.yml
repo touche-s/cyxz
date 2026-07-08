@@ -11,37 +11,9 @@ spring:
       config:
         server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
         file-extension: yml
-    gateway:
-      routes:
-        - id: auth
-          uri: lb://cyxz-auth
-          predicates:
-            - Path=/api/auth/**
-        - id: user
-          uri: lb://cyxz-user
-          predicates:
-            - Path=/api/user/**,/api/history/**
-        - id: post
-          uri: lb://cyxz-post
-          predicates:
-            - Path=/api/posts/**,/api/comment/**,/api/category/**
-        - id: message
-          uri: lb://cyxz-message
-          predicates:
-            - Path=/api/message/**,/api/notification/**
-        - id: search
-          uri: lb://cyxz-search
-          predicates:
-            - Path=/api/search/**
-        - id: upload
-          uri: lb://cyxz-upload
-          predicates:
-            - Path=/api/upload/**
-      default-filters:
-        - StripPrefix=1
-  config:
-    import:
-      - "optional:nacos:${spring.application.name}.yml"
+        import-check:
+          enabled: false
+
   data:
     redis:
       host: ${REDIS_HOST:127.0.0.1}
