@@ -11,6 +11,7 @@ import com.cyxz.auth.util.JwtUtil;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.constant.CacheKeyConstants;
+import com.cyxz.common.feign.UserFeignClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -33,6 +34,7 @@ public class AuthServiceImpl implements AuthService {
     private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
     private final StringRedisTemplate stringRedisTemplate;
+    private final UserFeignClient userFeignClient;
 
     /**
      * 用户登录
@@ -99,6 +101,8 @@ public class AuthServiceImpl implements AuthService {
         }
 
         log.info("用户注册成功: userId={}, username={}", user.getId(), user.getUsername());
+
+        userFeignClient.initDefaultProfile(user.getId());
     }
 
     /**
