@@ -6,7 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 /**
  * 认证服务启动类
  */
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = {"com.cyxz.auth", "com.cyxz.common"})
 public class CyxzAuthApplication {
 
     public static void main(String[] args) {
