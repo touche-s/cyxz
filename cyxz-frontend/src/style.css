@@ -1,0 +1,36 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --pink: #ff6b9d;
+  --pink-light: #ff8db5;
+  --purple: #c084fc;
+  --purple-light: #d4a8ff;
+  --blue: #818cf8;
+  --yellow: #fbbf24;
+  --bg: #fef6ff;
+  --card: #fff;
+  --text: #2d1b3d;
+  --text-dim: #9a7e9e;
+  --border: rgba(255, 182, 215, 0.25);
+  --shadow: 0 4px 24px rgba(255, 107, 157, 0.08);
+  --radius: 18px;
+  --radius-sm: 12px;
+}
+
+body {
+  font-family: 'Noto Sans SC', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 107, 157, 0.2);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 107, 157, 0.4); }
+
+a { text-decoration: none; color: inherit; }
