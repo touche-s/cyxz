@@ -2,6 +2,7 @@ package com.cyxz.gateway.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsWebFilter;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
@@ -15,6 +16,9 @@ import java.util.List;
 @Configuration
 public class CorsConfig {
 
+    @Value("#{'${app.security.cors.allowed-origin-patterns:http://localhost:*,http://127.0.0.1:*}'.split(',')}")
+    private List<String> allowedOriginPatterns;
+
     /**
      * 跨域过滤器
      *
@@ -23,7 +27,7 @@ public class CorsConfig {
     @Bean
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*"));
+        config.setAllowedOriginPatterns(allowedOriginPatterns);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);

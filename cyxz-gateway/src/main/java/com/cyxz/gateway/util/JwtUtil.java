@@ -137,7 +137,7 @@ public class JwtUtil {
             return Boolean.TRUE.equals(redisTemplate.hasKey(key));
         } catch (Exception e) {
             log.warn("检查黑名单失败: {}", e.getMessage());
-            return false;
+            return true;
         }
     }
 }

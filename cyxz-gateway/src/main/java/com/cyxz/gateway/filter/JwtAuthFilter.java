@@ -88,7 +88,10 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
         Long userId = jwtUtil.getUserId(token);
         ServerHttpRequest mutatedRequest = request.mutate()
-                .header("X-User-Id", String.valueOf(userId))
+                .headers(headers -> {
+                    headers.remove("X-User-Id");
+                    headers.set("X-User-Id", String.valueOf(userId));
+                })
                 .build();
 
         return chain.filter(exchange.mutate().request(mutatedRequest).build());
