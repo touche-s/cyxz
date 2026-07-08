@@ -102,7 +102,7 @@ public class AuthServiceImpl implements AuthService {
 
         log.info("用户注册成功: userId={}, username={}", user.getId(), user.getUsername());
 
-        userFeignClient.initDefaultProfile(user.getId());
+        userFeignClient.initDefaultProfile(user.getId(), user.getUsername());
     }
 
     /**

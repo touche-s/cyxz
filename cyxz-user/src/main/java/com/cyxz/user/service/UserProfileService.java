@@ -27,7 +27,8 @@ public interface UserProfileService {
     /**
      * 创建默认资料（内部接口，注册时 auth 服务通过 Feign 调用）
      *
-     * @param userId 用户 ID
+     * @param userId   用户 ID
+     * @param username 用户名
      */
-    void initDefaultProfile(Long userId);
+    void initDefaultProfile(Long userId, String username);
 }

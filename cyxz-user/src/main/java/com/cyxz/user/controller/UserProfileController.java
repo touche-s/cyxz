@@ -44,14 +44,14 @@ public class UserProfileController {
 
     /**
      * 创建默认资料（内部接口，注册时 auth 服务通过 Feign 调用）
-     * <p>userId 由 Feign 通过 X-User-Id 请求头传递，不在 URL 上暴露。
      *
-     * @param userId 用户 ID（从请求头获取）
+     * @param userId 用户 ID
+     * @param username 用户名
      * @return 操作结果
      */
-    @PostMapping("/internal/profile/init")
-    public Result<Void> initDefault(@RequestHeader("X-User-Id") Long userId) {
-        profileService.initDefaultProfile(userId);
+    @PostMapping("/internal/profile/init/{userId}/{username}")
+    public Result<Void> initDefault(@PathVariable("userId") Long userId, @PathVariable("username") String username) {
+        profileService.initDefaultProfile(userId, username);
         return Result.success();
     }
 }

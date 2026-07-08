@@ -76,19 +76,20 @@ public class UserProfileServiceImpl implements UserProfileService {
 
     /**
      * 创建默认资料
-     * <p>新用户注册时调用，设置默认昵称"用户{userId}"，性别未知，其余为空。
+     * <p>新用户注册时调用，默认昵称为注册用户名。
      *
-     * @param userId 用户 ID
+     * @param userId   用户 ID
+     * @param username 注册用户名
      */
     @Override
-    public void initDefaultProfile(Long userId) {
+    public void initDefaultProfile(Long userId, String username) {
         UserProfilePO po = new UserProfilePO();
         po.setUserId(userId);
-        po.setNickname("用户" + userId);
+        po.setNickname(username);
         po.setAvatar("");
         po.setGender(0);
         po.setBio("");
         profileMapper.insert(po);
-        log.info("创建默认用户资料: userId={}", userId);
+        log.info("创建默认用户资料: userId={}, username={}", userId, username);
     }
 }
