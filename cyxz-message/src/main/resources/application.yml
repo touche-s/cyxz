@@ -7,13 +7,13 @@ spring:
   cloud:
     nacos:
       discovery:
-        server-addr: ${NACOS_SERVER_ADDR}
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
       config:
-        server-addr: ${NACOS_SERVER_ADDR}
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
         file-extension: yml
   config:
     import:
-      - optional:nacos:
+      - "optional:nacos:${spring.application.name}.yml"
   datasource:
     url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/cyxz_message?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
     username: ${DB_USERNAME:root}

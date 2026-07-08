@@ -7,9 +7,9 @@ spring:
   cloud:
     nacos:
       discovery:
-        server-addr: ${NACOS_SERVER_ADDR}
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
       config:
-        server-addr: ${NACOS_SERVER_ADDR}
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
         file-extension: yml
     gateway:
       routes:
@@ -41,7 +41,7 @@ spring:
         - StripPrefix=1
   config:
     import:
-      - optional:nacos:
+      - "optional:nacos:${spring.application.name}.yml"
   data:
     redis:
       host: ${REDIS_HOST:127.0.0.1}
