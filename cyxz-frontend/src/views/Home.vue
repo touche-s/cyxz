@@ -40,7 +40,7 @@
 
     <div class="section-label">
       精选内容
-      <a href="#">查看更多 →</a>
+      <a href="#">查看更多 <span class="arrow-icon">→</span></a>
     </div>
 
     <div class="content-grid">
@@ -103,28 +103,52 @@ const cards = [
   padding: 0 32px;
 }
 
+/* ===== Hero Banner ===== */
 .hero-banner {
   position: relative;
-  background: linear-gradient(135deg, rgba(255, 182, 215, 0.35), rgba(192, 132, 252, 0.25), rgba(129, 140, 248, 0.15));
+  background:
+    radial-gradient(circle at 10% 20%, #FFD6E8 0%, transparent 60%),
+    radial-gradient(circle at 90% 80%, #E2D9FF 0%, transparent 60%),
+    linear-gradient(135deg, #FFD6E8, #E2D9FF);
   border-radius: 20px;
   padding: 48px 44px;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
   overflow: hidden;
-  border: 1.5px solid rgba(255, 182, 215, 0.2);
+  border: 1.5px solid rgba(255, 182, 215, 0.25);
   display: flex;
   align-items: center;
   gap: 40px;
+  box-shadow: 0 8px 32px rgba(180, 132, 255, 0.1);
+}
+
+/* Floating decorations */
+.hero-banner::before {
+  content: '';
+  position: absolute;
+  top: 20px;
+  right: 10%;
+  width: 100px;
+  height: 100px;
+  background: radial-gradient(circle, rgba(255, 138, 200, 0.12), transparent 70%);
+  border-radius: 50%;
+  animation: decoFloat 5s ease-in-out infinite;
 }
 
 .hero-banner::after {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: 6px;
-  background: linear-gradient(180deg, var(--pink), var(--purple), var(--blue));
-  border-radius: 0 3px 3px 0;
+  bottom: 30px;
+  left: 60%;
+  width: 60px;
+  height: 60px;
+  background: radial-gradient(circle, rgba(180, 132, 255, 0.1), transparent 70%);
+  border-radius: 50%;
+  animation: decoFloat 4s ease-in-out infinite 1s;
+}
+
+@keyframes decoFloat {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-10px) scale(1.1); }
 }
 
 .hero-text { flex: 1; z-index: 1; }
@@ -133,22 +157,27 @@ const cards = [
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 14px;
+  padding: 6px 16px;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.75);
-  border: 1.5px solid rgba(255, 182, 215, 0.3);
+  background: rgba(255, 138, 200, 0.12);
+  border: 1.5px solid rgba(255, 138, 200, 0.25);
   font-size: 11px;
   font-weight: 700;
   color: var(--pink);
-  margin-bottom: 16px;
+  margin-bottom: 18px;
   letter-spacing: 2px;
+  transition: all 0.22s ease-out;
+}
+.hero-eyebrow:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 138, 200, 0.18);
 }
 
 .pulse-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--pink);
+  background: linear-gradient(135deg, var(--pink), var(--purple));
   animation: pulse 2s ease-in-out infinite;
 }
 
@@ -158,18 +187,20 @@ const cards = [
 }
 
 .hero-text h1 {
-  font-size: 38px;
+  font-size: 40px;
   font-weight: 900;
-  line-height: 1.2;
-  margin-bottom: 12px;
+  line-height: 1.25;
+  margin-bottom: 14px;
   color: var(--text);
+  text-shadow: 0 2px 12px rgba(255, 107, 157, 0.08);
 }
 
 .hero-text h1 em {
   font-style: normal;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: linear-gradient(135deg, #FF8AC8, #B484FF);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  font-weight: 900;
 }
 
 .hero-text p {
@@ -177,19 +208,40 @@ const cards = [
   color: var(--text-dim);
   line-height: 1.7;
   max-width: 400px;
+  opacity: 0.85;
 }
 
-.hero-stats { display: flex; gap: 28px; margin-top: 20px; }
+/* Stats with dividers */
+.hero-stats {
+  display: flex;
+  gap: 0;
+  margin-top: 24px;
+  align-items: center;
+}
 
-.hero-stat { font-size: 12px; color: var(--text-dim); }
+.hero-stat {
+  font-size: 12px;
+  color: var(--text-dim);
+  padding: 8px 24px;
+  border-radius: 12px;
+  transition: all 0.22s ease-out;
+  cursor: default;
+}
+.hero-stat:hover {
+  background: rgba(255, 138, 200, 0.06);
+}
+.hero-stat + .hero-stat {
+  border-left: 1.5px solid rgba(180, 132, 255, 0.15);
+}
 
 .hero-stat b {
   display: block;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 900;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: linear-gradient(135deg, #FF8AC8, #B484FF);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  margin-bottom: 2px;
 }
 
 .hero-illust {
@@ -236,27 +288,28 @@ const cards = [
   50% { transform: translateY(-8px); }
 }
 
+/* ===== Category Tabs ===== */
 .cat-row {
   display: flex;
   gap: 8px;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
   overflow-x: auto;
-  padding: 4px 0;
+  padding: 4px 4px;
 }
 
 .cat-row::-webkit-scrollbar { display: none; }
 
 .cat-pill {
-  padding: 8px 18px;
-  border-radius: 14px;
+  padding: 9px 20px;
+  border-radius: 12px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  border: 1.5px solid var(--border);
+  border: 1.5px solid rgba(255, 138, 200, 0.2);
   background: white;
   color: var(--text-dim);
-  transition: all 0.25s;
+  transition: all 0.22s ease-out;
   flex-shrink: 0;
 }
 
@@ -264,32 +317,51 @@ const cards = [
   background: linear-gradient(135deg, var(--pink), var(--purple));
   color: white;
   border-color: transparent;
-  box-shadow: 0 4px 16px rgba(255, 107, 157, 0.25);
+  box-shadow:
+    0 4px 16px rgba(255, 107, 157, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .cat-pill:hover:not(.active) {
-  border-color: rgba(255, 107, 157, 0.3);
-  color: var(--pink);
-  background: rgba(255, 240, 247, 0.7);
+  border-color: rgba(255, 138, 200, 0.4);
+  color: #B484FF;
+  background: rgba(180, 132, 255, 0.04);
+  transform: translateY(-1px);
 }
 
+/* ===== Section Label ===== */
 .section-label {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 17px;
+  font-weight: 800;
   color: var(--text);
-  margin-bottom: 16px;
+  margin-bottom: 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
 .section-label a {
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--pink);
   text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.22s ease-out;
+}
+.section-label a:hover {
+  color: #B484FF;
+}
+.section-label a:hover .arrow-icon {
+  transform: translateX(4px);
+}
+.arrow-icon {
+  display: inline-block;
+  transition: transform 0.22s ease-out;
 }
 
+/* ===== Content Grid ===== */
 .content-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -299,17 +371,18 @@ const cards = [
 
 .card {
   background: white;
-  border-radius: var(--radius);
+  border-radius: 16px;
   overflow: hidden;
   border: 1.5px solid var(--border);
-  transition: all 0.3s;
+  box-shadow: 0 4px 12px rgba(180, 132, 255, 0.08);
+  transition: all 0.22s ease-out;
   cursor: pointer;
 }
 
 .card:hover {
-  transform: translateY(-5px);
-  border-color: rgba(255, 107, 157, 0.35);
-  box-shadow: 0 12px 36px rgba(255, 107, 157, 0.12);
+  transform: translateY(-4px) scale(1.02);
+  border-color: rgba(180, 132, 255, 0.3);
+  box-shadow: 0 12px 36px rgba(180, 132, 255, 0.15);
 }
 
 .card-cover {
@@ -331,13 +404,12 @@ const cards = [
   top: 12px;
   left: 12px;
   padding: 4px 10px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(8px);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(255, 138, 200, 0.9), rgba(180, 132, 255, 0.9));
   font-size: 10px;
   font-weight: 700;
-  color: var(--pink);
-  border: 1px solid rgba(255, 182, 215, 0.3);
+  color: white;
+  backdrop-filter: blur(8px);
 }
 
 .card-save {
@@ -346,8 +418,8 @@ const cards = [
   right: 12px;
   width: 32px;
   height: 32px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
@@ -355,17 +427,22 @@ const cards = [
   font-size: 16px;
   cursor: pointer;
   border: none;
-  transition: all 0.2s;
+  transition: all 0.22s ease-out;
   color: var(--text-dim);
 }
 
-.card-save:hover { color: var(--pink); background: white; }
+.card-save:hover {
+  color: var(--pink);
+  background: white;
+  transform: scale(1.15);
+  box-shadow: 0 2px 12px rgba(255, 107, 157, 0.2);
+}
 
 .card-body { padding: 14px 16px; }
 
 .card-title {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -386,17 +463,26 @@ const cards = [
 .card-avatar {
   width: 26px;
   height: 26px;
-  border-radius: 10px;
+  border-radius: 50%;
   background: linear-gradient(135deg, var(--pink), var(--purple));
   border: 2px solid white;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 4px rgba(180, 132, 255, 0.15);
 }
 
-.card-author-name { font-size: 12px; color: var(--text-dim); font-weight: 500; }
+.card-author-name {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-weight: 500;
+  transition: color 0.22s ease-out;
+}
+.card-author-name:hover {
+  color: var(--pink);
+}
 
 .card-stats { display: flex; gap: 12px; font-size: 12px; color: var(--text-dim); }
 .card-stats span { display: flex; align-items: center; gap: 3px; }
 
+/* ===== Footer ===== */
 .footer {
   text-align: center;
   padding: 40px 0 20px;
@@ -416,6 +502,7 @@ const cards = [
 
 .footer-copy { font-size: 11px; color: #c4a0b8; }
 
+/* ===== Responsive ===== */
 @media (max-width: 1200px) {
   .content-grid { grid-template-columns: repeat(3, 1fr); }
 }
@@ -430,5 +517,7 @@ const cards = [
   .hero-text h1 { font-size: 28px; }
   .main-content { padding: 90px 0 60px; }
   .content-grid { grid-template-columns: 1fr; }
+  .hero-stats { flex-wrap: wrap; }
+  .hero-stat + .hero-stat { border-left: none; }
 }
 </style>

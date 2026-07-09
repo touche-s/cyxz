@@ -2,7 +2,9 @@
   <header class="header-bar">
     <div class="header-left">
       <div class="logo-wrap">
-        <div class="logo-icon"></div>
+        <div class="logo-icon">
+          <img src="@/assets/logo.png" alt="logo" class="logo-img" />
+        </div>
         <span class="logo-text">次元小站</span>
       </div>
     </div>
@@ -25,7 +27,10 @@
       </button>
       <template v-if="userStore.isLoggedIn">
         <el-dropdown trigger="click" @command="handleCommand">
-          <div class="avatar">{{ (userStore.userInfo?.nickname || 'U').charAt(0) }}</div>
+          <div class="avatar">
+            <img v-if="userStore.userInfo?.avatar" :src="userStore.userInfo.avatar" alt="avatar" class="avatar-img" />
+            <span v-else>{{ (userStore.userInfo?.nickname || 'U').charAt(0) }}</span>
+          </div>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="profile">
@@ -123,14 +128,22 @@ async function handleCommand(cmd: string) {
 .logo-icon {
   width: 38px;
   height: 38px;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
-  color: white;
+  overflow: hidden;
   box-shadow: 0 4px 16px rgba(255, 107, 157, 0.3);
+  transition: all 0.22s ease-out;
+}
+.logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.logo-wrap:hover .logo-icon {
+  box-shadow: 0 4px 24px rgba(255, 107, 157, 0.45);
+  transform: scale(1.05);
 }
 
 .logo-text {
@@ -140,6 +153,7 @@ async function handleCommand(cmd: string) {
   background: linear-gradient(135deg, var(--pink), var(--purple));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 20px rgba(255, 107, 157, 0.15);
 }
 
 .search-wrap {
@@ -147,20 +161,21 @@ async function handleCommand(cmd: string) {
   align-items: center;
   gap: 10px;
   background: rgba(255, 240, 247, 0.7);
-  border: 1.5px solid rgba(255, 182, 215, 0.3);
-  border-radius: 14px;
+  border: 1.5px solid rgba(255, 138, 200, 0.2);
+  border-radius: 12px;
   padding: 9px 16px;
-  transition: all 0.3s;
+  transition: all 0.22s ease-out;
 }
 
 .search-wrap:focus-within {
-  border-color: var(--pink);
+  border-color: #B484FF;
   background: white;
-  box-shadow: 0 0 0 4px rgba(255, 107, 157, 0.08);
+  box-shadow: 0 0 0 3px rgba(180, 132, 255, 0.1);
 }
 
 .search-wrap .el-icon {
-  color: #c4a0b8;
+  color: #B484FF;
+  transition: color 0.22s ease-out;
 }
 
 .search-wrap input {
@@ -178,7 +193,7 @@ async function handleCommand(cmd: string) {
 
 .nav {
   display: flex;
-  gap: 6px;
+  gap: 4px;
 }
 
 .nav a {
@@ -188,17 +203,30 @@ async function handleCommand(cmd: string) {
   font-weight: 600;
   padding: 8px 16px;
   border-radius: 12px;
-  transition: all 0.25s;
+  transition: all 0.22s ease-out;
+  position: relative;
 }
 
 .nav a:hover {
-  color: var(--pink);
-  background: rgba(255, 107, 157, 0.06);
+  color: #B484FF;
 }
 
 .nav a.active {
-  color: var(--pink);
-  background: linear-gradient(135deg, rgba(255, 107, 157, 0.1), rgba(192, 132, 252, 0.1));
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+}
+.nav a.active::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 16px;
+  right: 16px;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--pink), var(--purple));
 }
 
 .btn-create {
@@ -211,15 +239,18 @@ async function handleCommand(cmd: string) {
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 4px 16px rgba(255, 107, 157, 0.25);
-  transition: all 0.3s;
+  transition: all 0.22s ease-out;
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
 .btn-create:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 24px rgba(255, 107, 157, 0.35);
+  transform: scale(1.04);
+  box-shadow: 0 6px 24px rgba(180, 132, 255, 0.35);
+}
+.btn-create:active {
+  transform: scale(0.97);
 }
 
 .btn-login {
@@ -252,6 +283,12 @@ async function handleCommand(cmd: string) {
   font-weight: 800;
   border: 2.5px solid white;
   box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 @media (max-width: 768px) {

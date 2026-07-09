@@ -11,7 +11,10 @@
       <!-- Profile info (和内容区左对齐) -->
       <div class="profile-on-banner" v-if="profile">
         <div class="avatar-wrapper" @click="isSelf && startEdit()">
-          <div class="profile-avatar">{{ (profile.nickname || 'U').charAt(0) }}</div>
+          <div class="profile-avatar">
+            <img v-if="profile.avatar" :src="profile.avatar" alt="avatar" class="profile-avatar-img" />
+            <span v-else>{{ (profile.nickname || 'U').charAt(0) }}</span>
+          </div>
           <div v-if="isSelf" class="avatar-edit-badge" title="编辑资料">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
@@ -106,12 +109,44 @@
             <button class="edit-close" @click="cancelEdit">✕</button>
             <h3 class="edit-title">编辑资料</h3>
             <div class="edit-divider"></div>
+
+            <!-- Avatar Upload -->
+            <div class="avatar-upload-row">
+              <div class="avatar-preview" @click="triggerUpload">
+                <img v-if="editForm.avatar" :src="editForm.avatar" alt="avatar" />
+                <span v-else class="avatar-placeholder">{{ (editForm.nickname || 'U').charAt(0) }}</span>
+                <div class="avatar-upload-mask">
+                  <svg class="avatar-upload-camera" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                  </svg>
+                  <span>更换头像</span>
+                </div>
+              </div>
+              <input
+                ref="fileInput"
+                type="file"
+                accept="image/png,image/jpeg,image/gif"
+                style="display:none"
+                @change="handleAvatarChange"
+              />
+              <div class="avatar-upload-hint">支持 PNG / JPG / GIF，最大 10MB</div>
+            </div>
+
             <el-form :model="editForm" label-position="top">
               <el-form-item label="昵称">
                 <el-input v-model="editForm.nickname" maxlength="20" placeholder="输入你的昵称" />
               </el-form-item>
               <el-form-item label="简介">
                 <el-input v-model="editForm.bio" type="textarea" :rows="3" maxlength="200" placeholder="介绍一下自己吧~" />
+              </el-form-item>
+              <el-form-item label="生日">
+                <el-date-picker
+                  v-model="editForm.birthday"
+                  type="date"
+                  placeholder="选择你的生日"
+                  class="birthday-picker"
+                />
               </el-form-item>
               <el-form-item label="性别" class="gender-item">
                 <el-radio-group v-model="editForm.gender" class="gender-group">
@@ -138,6 +173,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getUserProfile, updateUserProfile } from '@/api/user'
 import type { UserInfo } from '@/api/user'
+import { uploadAvatar } from '@/api/upload'
 import { useUserStore } from '@/stores/user'
 
 const route = useRoute()
@@ -147,11 +183,15 @@ const profile = ref<UserInfo | null>(null)
 const loading = ref(true)
 const showEdit = ref(false)
 const saving = ref(false)
+const uploading = ref(false)
+const fileInput = ref<HTMLInputElement>()
 
 const editForm = reactive({
   nickname: '',
   bio: '',
   gender: 0,
+  avatar: '',
+  birthday: '',
 })
 
 // 示例内容（后续对接真实接口）
@@ -180,24 +220,72 @@ function startEdit() {
   editForm.nickname = profile.value.nickname
   editForm.bio = profile.value.bio || ''
   editForm.gender = profile.value.gender ?? 0
+  editForm.avatar = profile.value.avatar || ''
+  editForm.birthday = profile.value.birthday || ''
   showEdit.value = true
+}
+
+function triggerUpload() {
+  fileInput.value?.click()
+}
+
+async function handleAvatarChange(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  if (file.size > 10 * 1024 * 1024) {
+    ElMessage.warning('图片大小不能超过 10MB')
+    return
+  }
+
+  uploading.value = true
+  try {
+    const res = await uploadAvatar(file)
+    const data = (res.data as any).data || res.data
+    const url = typeof data === 'string' ? data : data?.url
+    if (url) {
+      editForm.avatar = url
+      ElMessage.success('头像上传成功')
+    }
+  } catch {
+    ElMessage.error('头像上传失败')
+  } finally {
+    uploading.value = false
+    input.value = ''
+  }
 }
 
 function cancelEdit() {
   showEdit.value = false
 }
 
+function formatDate(date: Date | string): string {
+  if (!date) return ''
+  const d = typeof date === 'string' ? new Date(date) : date
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 async function saveEdit() {
   saving.value = true
   try {
-    await updateUserProfile(editForm)
+    const payload = {
+      ...editForm,
+      birthday: editForm.birthday ? formatDate(editForm.birthday) : '',
+    }
+    await updateUserProfile(payload)
     if (profile.value) {
       profile.value.nickname = editForm.nickname
       profile.value.bio = editForm.bio
       profile.value.gender = editForm.gender
+      profile.value.avatar = editForm.avatar
+      profile.value.birthday = editForm.birthday
     }
     if (isSelf.value && userStore.userInfo) {
-      userStore.setUserInfo({ ...userStore.userInfo, nickname: editForm.nickname } as any)
+      userStore.setUserInfo({ ...userStore.userInfo, nickname: editForm.nickname, avatar: editForm.avatar } as any)
     }
     ElMessage.success('保存成功')
     showEdit.value = false
@@ -312,6 +400,12 @@ async function saveEdit() {
   border: 4px solid white;
   box-shadow: 0 4px 20px rgba(255,107,157,0.3);
   transition: transform 0.2s;
+  overflow: hidden;
+}
+.profile-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .avatar-wrapper:hover .profile-avatar {
   transform: scale(1.03);
@@ -544,6 +638,78 @@ async function saveEdit() {
   font-size: 14px;
 }
 
+/* Avatar upload */
+.avatar-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.avatar-preview {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 3px solid rgba(255,138,200,0.15);
+}
+.avatar-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #FF8AC8, #B484FF);
+  color: white;
+  font-size: 28px;
+  font-weight: 800;
+}
+.avatar-upload-mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.avatar-upload-mask span {
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+}
+.avatar-upload-camera {
+  width: 24px;
+  height: 24px;
+  transition: transform 0.3s ease;
+}
+.avatar-preview:hover .avatar-upload-mask {
+  opacity: 1;
+}
+.avatar-preview:hover .avatar-upload-camera {
+  animation: cameraPop 0.4s ease-out;
+}
+
+@keyframes cameraPop {
+  0% { transform: scale(0.3); opacity: 0; }
+  60% { transform: scale(1.3); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.avatar-upload-hint {
+  font-size: 12px;
+  color: #999;
+}
+
 /* Edit Modal */
 .edit-overlay {
   position: fixed;
@@ -695,6 +861,9 @@ async function saveEdit() {
 .gender-group {
   display: flex;
   gap: 24px;
+}
+.birthday-picker {
+  width: 100%;
 }
 .edit-modal :deep(.el-radio) {
   margin-right: 0;
