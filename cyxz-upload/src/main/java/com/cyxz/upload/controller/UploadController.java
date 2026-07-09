@@ -25,10 +25,10 @@ public class UploadController {
      * @return 文件访问 URL
      */
     @PostMapping("/avatar")
-    public Result<String> uploadAvatar(@RequestParam MultipartFile file,
+    public Result<String> uploadAvatar(@RequestParam("file") MultipartFile file,
                                        @RequestHeader("X-User-Id") Long userId) {
         String url = uploadService.uploadAvatar(file, userId);
-        return Result.success(url);
+        return Result.success("操作成功", url);
     }
 
     /**
@@ -38,8 +38,8 @@ public class UploadController {
      * @return 文件访问 URL
      */
     @PostMapping("/post-image")
-    public Result<String> uploadPostImage(@RequestParam MultipartFile file) {
+    public Result<String> uploadPostImage(@RequestParam("file") MultipartFile file) {
         String url = uploadService.uploadPostImage(file);
-        return Result.success(url);
+        return Result.success("操作成功", url);
     }
 }

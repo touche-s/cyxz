@@ -20,4 +20,7 @@ public class UpdateProfileRequest {
 
     /** 个人简介 */
     private String bio;
+
+    /** 生日（yyyy-MM-dd） */
+    private String birthday;
 }

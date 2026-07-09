@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -70,6 +71,9 @@ public class UserProfileServiceImpl implements UserProfileService {
         }
         if (request.getBio() != null) {
             po.setBio(request.getBio());
+        }
+        if (request.getBirthday() != null && !request.getBirthday().isEmpty()) {
+            po.setBirthday(LocalDate.parse(request.getBirthday()));
         }
         profileMapper.updateById(po);
     }

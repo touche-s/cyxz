@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 import java.io.Serializable;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -36,7 +37,7 @@ public class UserProfilePO implements Serializable {
     private String bio;
 
     /** 生日 */
-    private LocalDateTime birthday;
+    private LocalDate birthday;
 
     /** 创建时间 */
     @TableField(fill = FieldFill.INSERT)
