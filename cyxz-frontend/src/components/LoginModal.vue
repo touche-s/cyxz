@@ -1,53 +1,147 @@
 <template>
-  <el-dialog
-    :model-value="visible"
-    @update:model-value="$emit('update:visible', $event)"
-    :width="420"
-    :close-on-click-modal="false"
-    align-center
-    destroy-on-close
-    class="login-dialog"
-  >
-    <template #header>
-      <div class="dialog-header">
-        <span :class="{ active: tab === 'login' }" @click="tab = 'login'">登录</span>
-        <span class="divider">|</span>
-        <span :class="{ active: tab === 'register' }" @click="tab = 'register'">注册</span>
-      </div>
-    </template>
+  <Teleport to="body">
+    <Transition name="fade">
+      <div v-if="visible" class="auth-overlay" @click.self="close">
+        <div class="auth-modal">
+          <!-- 左侧：平台介绍 -->
+          <div class="auth-left">
+            <div class="auth-left-inner">
+              <div class="brand">
+                <h1>次元小站</h1>
+                <p class="brand-en">CYXZ Community</p>
+              </div>
+              <div class="features">
+                <div class="feature-item">
+                  <span class="feature-icon">🎨</span>
+                  <div>
+                    <h3>创作分享</h3>
+                    <p>发布绘画、摄影、Cosplay，展示你的创意世界</p>
+                  </div>
+                </div>
+                <div class="feature-item">
+                  <span class="feature-icon">🌸</span>
+                  <div>
+                    <h3>同好社区</h3>
+                    <p>找到志同道合的伙伴，一起追番聊番</p>
+                  </div>
+                </div>
+                <div class="feature-item">
+                  <span class="feature-icon">✨</span>
+                  <div>
+                    <h3>发现灵感</h3>
+                    <p>探索海量优质内容，每一次浏览都是惊喜</p>
+                  </div>
+                </div>
+              </div>
+              <div class="left-footer">
+                <div class="footer-divider"></div>
+                <p class="footer-quote">"每一个热爱，都值得被看见"</p>
+                <div class="footer-tags">
+                  <span>绘画</span>
+                  <span>摄影</span>
+                  <span>Cosplay</span>
+                  <span>追番</span>
+                  <span>同人</span>
+                </div>
+              </div>
+            </div>
+          </div>
 
-    <el-form :model="form" :rules="rules" ref="formRef" label-position="top" @submit.prevent>
-      <el-form-item v-if="tab === 'login'" prop="username" label="手机号">
-        <el-input v-model="form.username" placeholder="请输入手机号" maxlength="11" />
-      </el-form-item>
-      <el-form-item v-if="tab === 'register'" prop="username" label="手机号">
-        <el-input v-model="form.username" placeholder="请输入手机号注册" maxlength="11" />
-      </el-form-item>
+          <!-- 右侧：登录注册表单 -->
+          <div class="auth-right">
+            <button class="close-btn" @click="close">✕</button>
 
-      <el-form-item prop="password" :label="tab === 'register' ? '设置密码' : '密码'">
-        <el-input v-model="form.password" type="password" placeholder="请输入密码" show-password />
-      </el-form-item>
+            <h2 class="form-title">
+              {{ tab === 'login' ? '欢迎回来' : '加入次元小站' }}
+            </h2>
+            <p class="form-subtitle">
+              {{ tab === 'login' ? '登录你的账号，继续探索' : '创建账号，开启你的创作之旅' }}
+            </p>
 
-      <el-form-item v-if="tab === 'register'" prop="confirmPassword" label="确认密码">
-        <el-input v-model="form.confirmPassword" type="password" placeholder="请再次输入密码" show-password />
-      </el-form-item>
+            <el-form
+              :model="form"
+              :rules="rules"
+              ref="formRef"
+              label-position="top"
+              @submit.prevent
+              class="auth-form"
+            >
+              <el-form-item prop="username">
+                <el-input
+                  v-model="form.username"
+                  placeholder="请输入账号"
+                  maxlength="11"
+                  size="large"
+                  prefix-icon="User"
+                />
+              </el-form-item>
 
-      <el-form-item prop="captcha" label="验证码">
-        <div class="captcha-row">
-          <el-input v-model="form.captcha" placeholder="请输入验证码" maxlength="4" />
-          <img :src="captchaImage" @click="loadCaptcha" class="captcha-img" alt="验证码" />
+              <el-form-item prop="password">
+                <el-input
+                  v-model="form.password"
+                  type="password"
+                  :placeholder="tab === 'register' ? '设置密码（至少6位）' : '请输入密码'"
+                  show-password
+                  size="large"
+                  prefix-icon="Lock"
+                />
+              </el-form-item>
+
+              <el-form-item v-if="tab === 'register'" prop="confirmPassword">
+                <el-input
+                  v-model="form.confirmPassword"
+                  type="password"
+                  placeholder="请再次输入密码"
+                  show-password
+                  size="large"
+                  prefix-icon="Lock"
+                />
+              </el-form-item>
+
+              <el-form-item prop="captcha">
+                <div class="captcha-row">
+                  <el-input
+                    v-model="form.captcha"
+                    placeholder="请输入验证码"
+                    maxlength="4"
+                    size="large"
+                    prefix-icon="Key"
+                  />
+                  <img
+                    :src="captchaImage"
+                    @click="loadCaptcha"
+                    class="captcha-img"
+                    alt="验证码"
+                  />
+                </div>
+              </el-form-item>
+
+              <el-button
+                type="primary"
+                :loading="submitting"
+                @click="handleSubmit"
+                class="submit-btn"
+                size="large"
+              >
+                {{ tab === 'login' ? '登 录' : '注 册' }}
+              </el-button>
+            </el-form>
+
+            <div class="form-footer">
+              <span v-if="tab === 'login'">
+                还没有账号？
+                <a @click="tab = 'register'">立即注册</a>
+              </span>
+              <span v-else>
+                已有账号？
+                <a @click="tab = 'login'">去登录</a>
+              </span>
+            </div>
+          </div>
         </div>
-      </el-form-item>
-    </el-form>
-
-    <template #footer>
-      <div class="dialog-footer">
-        <el-button type="primary" :loading="submitting" @click="handleSubmit" class="submit-btn">
-          {{ tab === 'login' ? '登录' : '注册' }}
-        </el-button>
       </div>
-    </template>
-  </el-dialog>
+    </Transition>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -80,8 +174,7 @@ const form = reactive<LoginRequest & RegisterRequest>({
 
 const rules: FormRules = {
   username: [
-    { required: true, message: '请输入手机号', trigger: 'blur' },
-    { pattern: /^1\d{10}$/, message: '请输入正确的手机号', trigger: 'blur' },
+    { required: true, message: '请输入账号', trigger: 'blur' },
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
@@ -100,6 +193,10 @@ const rules: FormRules = {
     },
   ],
   captcha: [{ required: true, message: '请输入验证码', trigger: 'blur' }],
+}
+
+function close() {
+  emit('update:visible', false)
 }
 
 watch(() => props.visible, (val) => {
@@ -180,31 +277,199 @@ async function handleSubmit() {
 </script>
 
 <style scoped>
-.login-dialog :deep(.el-dialog__header) { margin: 0; padding: 20px 24px 12px; }
-.login-dialog :deep(.el-dialog__body) { padding: 8px 24px 0; }
-.login-dialog :deep(.el-dialog__footer) { padding: 12px 24px 20px; }
+/* Overlay */
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
-.dialog-header {
-  text-align: center;
-  font-size: 18px;
+/* Modal */
+.auth-modal {
+  width: 860px;
+  max-width: 95vw;
+  height: 520px;
+  max-height: 90vh;
+  background: white;
+  border-radius: 20px;
+  display: flex;
+  overflow: hidden;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.15);
+  position: relative;
+}
+
+/* ===== Left Side ===== */
+.auth-left {
+  width: 380px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #ff6b9d 0%, #c084fc 50%, #60a5fa 100%);
+  padding: 48px 36px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+.auth-left::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 80%, rgba(255,255,255,0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255,255,255,0.1) 0%, transparent 40%);
+}
+.auth-left-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.brand {
+  margin-bottom: 40px;
+}
+.brand h1 {
+  color: white;
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: 2px;
+}
+.brand-en {
+  color: rgba(255,255,255,0.75);
+  font-size: 12px;
+  letter-spacing: 3px;
+  margin-top: 4px;
+}
+
+.features {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.feature-item {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.feature-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.feature-item h3 {
+  color: white;
+  font-size: 15px;
   font-weight: 700;
+  margin: 0 0 4px;
+}
+.feature-item p {
+  color: rgba(255,255,255,0.8);
+  font-size: 12px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.left-footer {
+  margin-top: auto;
+}
+.footer-divider {
+  width: 40px;
+  height: 2px;
+  background: rgba(255,255,255,0.4);
+  border-radius: 2px;
+  margin-bottom: 16px;
+}
+.footer-quote {
+  color: rgba(255,255,255,0.85);
+  font-size: 13px;
+  font-style: italic;
+  margin: 0 0 14px;
+  letter-spacing: 1px;
+}
+.footer-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.footer-tags span {
+  padding: 4px 14px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.18);
+  backdrop-filter: blur(4px);
+  color: rgba(255,255,255,0.9);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* ===== Right Side ===== */
+.auth-right {
+  flex: 1;
+  padding: 24px 44px 40px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow-y: auto;
+}
+
+.close-btn {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #999;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.close-btn:hover {
+  background: #f5f0f7;
   color: var(--text);
 }
 
-.dialog-header span {
-  cursor: pointer;
-  transition: color 0.2s;
+.form-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 8px 0 6px;
+}
+.form-subtitle {
+  font-size: 13px;
   color: var(--text-dim);
+  margin: 0 0 28px;
 }
 
-.dialog-header span.active {
-  color: var(--pink);
+/* Form */
+.auth-form :deep(.el-form-item) {
+  margin-bottom: 18px;
 }
-
-.dialog-header .divider {
-  margin: 0 12px;
-  cursor: default;
-  color: var(--border);
+.auth-form :deep(.el-input__wrapper) {
+  border-radius: 12px;
+  box-shadow: none;
+  border: 1.5px solid var(--border);
+  padding: 4px 14px;
+  height: 46px;
+  transition: border-color 0.2s;
+}
+.auth-form :deep(.el-input__wrapper:hover) {
+  border-color: #e0b0d0;
+}
+.auth-form :deep(.el-input__wrapper.is-focus) {
+  border-color: var(--pink);
+  box-shadow: 0 0 0 3px rgba(255,107,157,0.1);
 }
 
 .captcha-row {
@@ -212,27 +477,79 @@ async function handleSubmit() {
   gap: 12px;
   align-items: center;
 }
-
+.captcha-row :deep(.el-input__wrapper) {
+  flex: 1;
+}
 .captcha-img {
-  height: 40px;
+  height: 46px;
   width: 120px;
-  border-radius: 8px;
+  border-radius: 12px;
   cursor: pointer;
   border: 1.5px solid var(--border);
+  flex-shrink: 0;
+  transition: border-color 0.2s;
+}
+.captcha-img:hover {
+  border-color: var(--pink);
 }
 
 .submit-btn {
   width: 100%;
-  height: 44px;
+  height: 48px;
   border-radius: 14px;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
+  letter-spacing: 4px;
   background: linear-gradient(135deg, var(--pink), var(--purple));
   border: none;
-  box-shadow: 0 4px 16px rgba(255, 107, 157, 0.25);
+  box-shadow: 0 4px 20px rgba(255,107,157,0.3);
+  margin-top: 8px;
+}
+.submit-btn:hover {
+  box-shadow: 0 6px 28px rgba(255,107,157,0.4);
 }
 
-.submit-btn:hover {
-  box-shadow: 0 6px 24px rgba(255, 107, 157, 0.35);
+.form-footer {
+  text-align: center;
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.form-footer a {
+  color: var(--pink);
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: none;
+}
+.form-footer a:hover {
+  text-decoration: underline;
+}
+
+/* Animation */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .auth-modal {
+    flex-direction: column;
+    height: auto;
+    max-height: 95vh;
+  }
+  .auth-left {
+    width: 100%;
+    padding: 32px 28px;
+  }
+  .features { display: none; }
+  .brand { margin-bottom: 0; }
+  .auth-right {
+    padding: 28px 24px;
+  }
 }
 </style>

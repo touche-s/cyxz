@@ -1,7 +1,7 @@
 import request from '@/utils/request'
 
 export interface UserInfo {
-  userId: number
+  userId: string
   nickname: string
   avatar: string
   gender: number
@@ -9,6 +9,6 @@ export interface UserInfo {
   birthday: string
 }
 
-export const getUserProfile = (userId: number) => request.get(`/user/${userId}`)
+export const getUserProfile = (userId: string | number) => request.get(`/user/${userId}`)
 
 export const updateUserProfile = (data: Partial<UserInfo>) => request.put('/user/profile', data)

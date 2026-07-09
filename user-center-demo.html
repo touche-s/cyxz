@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>次元小站 - 个人中心</title>
+<style>
+  :root {
+    --bg: #fef6fb;
+    --card: #ffffff;
+    --pink: #ff6b9d;
+    --purple: #c084fc;
+    --blue: #60a5fa;
+    --text: #2d2d3a;
+    --text-dim: #8b8b9e;
+    --border: #f0dce8;
+    --radius: 18px;
+    --shadow: 0 4px 20px rgba(192, 132, 252, 0.08);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ===== Header (和主页一致) ===== */
+  .header-bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(254, 246, 255, 0.85);
+    backdrop-filter: blur(24px) saturate(1.4);
+    border-bottom: 1px solid var(--border);
+    padding: 0 44px; height: 66px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .header-left {
+    position: absolute; left: 44px;
+    display: flex; align-items: center; gap: 32px;
+  }
+  .header-center { display: flex; align-items: center; gap: 32px; }
+  .header-right {
+    position: absolute; right: 44px;
+    display: flex; gap: 10px; align-items: center;
+  }
+  .logo-wrap { display: flex; align-items: center; gap: 10px; }
+  .logo-icon {
+    width: 38px; height: 38px;
+    background: linear-gradient(135deg, var(--pink), var(--purple));
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; color: white;
+    box-shadow: 0 4px 16px rgba(255, 107, 157, 0.3);
+  }
+  .logo-text {
+    font-size: 22px; font-weight: 900; letter-spacing: 1px;
+    background: linear-gradient(135deg, var(--pink), var(--purple));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .search-wrap {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(255, 240, 247, 0.7);
+    border: 1.5px solid rgba(255, 182, 215, 0.3);
+    border-radius: 14px; padding: 9px 16px;
+    transition: all 0.3s;
+  }
+  .search-wrap:focus-within {
+    border-color: var(--pink); background: white;
+    box-shadow: 0 0 0 4px rgba(255, 107, 157, 0.08);
+  }
+  .search-wrap .icon { color: #c4a0b8; font-size: 16px; }
+  .search-wrap input {
+    border: none; background: none; outline: none;
+    font-size: 13px; width: 220px; color: var(--text);
+  }
+  .search-wrap input::placeholder { color: #c4a0b8; }
+  .nav { display: flex; gap: 6px; }
+  .nav a {
+    text-decoration: none; color: var(--text-dim);
+    font-size: 13px; font-weight: 600;
+    padding: 8px 16px; border-radius: 12px; transition: all 0.25s;
+  }
+  .nav a:hover { color: var(--pink); background: rgba(255,107,157,0.06); }
+  .nav a.active {
+    color: var(--pink);
+    background: linear-gradient(135deg, rgba(255,107,157,0.1), rgba(192,132,252,0.1));
+  }
+  .btn-create {
+    padding: 9px 20px; border-radius: 14px; border: none;
+    background: linear-gradient(135deg, var(--pink), var(--purple));
+    color: white; font-size: 13px; font-weight: 700;
+    cursor: pointer; box-shadow: 0 4px 16px rgba(255,107,157,0.25);
+    transition: all 0.3s; display: flex; align-items: center; gap: 6px;
+  }
+  .btn-create:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(255,107,157,0.35); }
+  .header-avatar {
+    width: 38px; height: 38px; border-radius: 12px; cursor: pointer;
+    background: linear-gradient(135deg, var(--pink), var(--purple));
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 15px; font-weight: 800;
+    border: 2.5px solid white; box-shadow: var(--shadow);
+  }
+
+  /* ===== Cover Banner ===== */
+  .cover-banner {
+    margin-top: 66px;
+    width: 100%; height: 260px;
+    background: linear-gradient(135deg, #fce4ec 0%, #e8eaf6 40%, #f3e5f5 70%, #fce4ec 100%);
+    position: relative; overflow: visible;
+  }
+  .cover-banner::before {
+    content: ''; position: absolute; inset: 0;
+    background:
+      radial-gradient(circle at 20% 50%, rgba(255,107,157,0.15) 0%, transparent 50%),
+      radial-gradient(circle at 80% 30%, rgba(192,132,252,0.15) 0%, transparent 50%),
+      radial-gradient(circle at 60% 80%, rgba(96,165,250,0.1) 0%, transparent 40%);
+  }
+  .cover-deco {
+    position: absolute; font-size: 60px; opacity: 0.12;
+  }
+  .cover-deco:nth-child(1) { top: 20px; left: 10%; }
+  .cover-deco:nth-child(2) { top: 60px; left: 30%; font-size: 40px; }
+  .cover-deco:nth-child(3) { bottom: 10px; left: 55%; font-size: 50px; }
+  .cover-deco:nth-child(4) { top: 30px; right: 15%; font-size: 45px; }
+  .cover-deco:nth-child(5) { bottom: 20px; right: 30%; font-size: 35px; }
+
+  /* ===== Profile Info on Banner ===== */
+  .profile-on-banner {
+    position: absolute;
+    bottom: 20px;
+    left: calc((100vw - 1500px) / 2 + 32px);
+    display: flex; align-items: flex-end; gap: 20px;
+    z-index: 10;
+  }
+  .profile-avatar {
+    width: 86px; height: 86px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--pink), var(--purple));
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 34px; font-weight: 800;
+    border: 4px solid white;
+    box-shadow: 0 4px 20px rgba(255,107,157,0.3);
+    flex-shrink: 0;
+  }
+  .profile-detail { padding-bottom: 10px; }
+  .profile-detail h2 {
+    font-size: 22px; font-weight: 700; color: white;
+    display: flex; align-items: center; gap: 10px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  .level-badge {
+    display: inline-flex; align-items: center;
+    background: linear-gradient(135deg, var(--pink), var(--purple));
+    color: white; font-size: 11px; font-weight: 700;
+    padding: 2px 8px; border-radius: 10px;
+  }
+  .profile-bio {
+    font-size: 13px; color: rgba(255,255,255,0.9);
+    margin-top: 4px;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  }
+
+  /* ===== Stats + Tab Bar (同一行) ===== */
+  .info-bar {
+    background: white;
+    border-bottom: 1px solid var(--border);
+  }
+  .info-bar-inner {
+    max-width: 1500px; margin: 0 auto;
+    padding: 0 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 64px;
+  }
+  .tab-nav { display: flex; gap: 4px; }
+  .tab-nav a {
+    text-decoration: none; color: var(--text-dim);
+    font-size: 14px; font-weight: 600;
+    padding: 18px 20px; border-bottom: 3px solid transparent;
+    transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+  }
+  .tab-nav a:first-child { padding-left: 0; }
+  .tab-nav a:hover { color: var(--pink); }
+  .tab-nav a.active {
+    color: var(--pink); border-bottom-color: var(--pink);
+  }
+  .tab-search {
+    display: flex; align-items: center; gap: 8px;
+    background: #f5f0f7; border-radius: 20px;
+    padding: 8px 16px;
+  }
+  .tab-search input {
+    border: none; background: none; outline: none;
+    font-size: 12px; width: 140px; color: var(--text);
+  }
+  .tab-search input::placeholder { color: #bbb; }
+  .tab-search .icon { color: #bbb; font-size: 14px; }
+
+  /* Stats on the right side of info bar */
+  .profile-stats {
+    display: flex; gap: 8px; align-items: center;
+    flex-shrink: 0;
+  }
+  .profile-stat {
+    text-align: center; cursor: pointer;
+    padding: 6px 16px;
+    border-radius: 12px;
+    transition: background 0.2s;
+  }
+  .profile-stat:hover {
+    background: rgba(255,107,157,0.06);
+  }
+  .profile-stat .num {
+    font-size: 20px; font-weight: 800;
+    background: linear-gradient(135deg, var(--pink), var(--purple));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .profile-stat .label {
+    font-size: 11px; color: var(--text-dim); margin-top: 2px;
+  }
+
+  /* ===== Content Area (no sidebar) ===== */
+  .content-area {
+    max-width: 1500px; margin: 0 auto;
+    padding: 24px 32px 60px;
+  }
+
+  /* Content Grid */
+  .content-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .content-card {
+    background: white; border-radius: var(--radius);
+    border: 1.5px solid var(--border); box-shadow: var(--shadow);
+    overflow: hidden; transition: all 0.2s; cursor: pointer;
+  }
+  .content-card:hover { transform: translateY(-3px); box-shadow: 0 8px 30px rgba(192,132,252,0.15); }
+  .card-cover {
+    width: 100%; aspect-ratio: 16/10;
+    background: linear-gradient(135deg, #fce4ec, #e8eaf6);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 40px;
+  }
+  .card-body { padding: 12px 14px; }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card-meta { font-size: 11px; color: var(--text-dim); display: flex; gap: 12px; }
+
+  /* Edit Modal */
+  .overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.3); backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s;
+  }
+  .overlay.show { opacity: 1; pointer-events: auto; }
+  .edit-card {
+    background: white; border-radius: var(--radius);
+    padding: 32px; width: 460px; max-width: 90vw;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.15);
+    transform: translateY(20px); transition: transform 0.25s;
+  }
+  .overlay.show .edit-card { transform: translateY(0); }
+  .edit-card h3 { font-size: 18px; font-weight: 700; margin-bottom: 24px; }
+  .form-group { margin-bottom: 18px; }
+  .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .form-group input, .form-group textarea {
+    width: 100%; padding: 10px 14px; border: 1.5px solid var(--border);
+    border-radius: 12px; font-size: 14px; outline: none;
+    font-family: inherit; transition: border-color 0.2s;
+  }
+  .form-group input:focus, .form-group textarea:focus { border-color: var(--pink); }
+  .form-group textarea { resize: vertical; min-height: 80px; }
+  .radio-group { display: flex; gap: 16px; }
+  .radio-group label {
+    display: flex; align-items: center; gap: 6px; cursor: pointer;
+    font-weight: 400; font-size: 14px;
+  }
+  .radio-group input[type="radio"] { accent-color: var(--pink); }
+  .edit-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+  .btn-cancel {
+    padding: 10px 24px; border-radius: 20px; font-size: 14px;
+    border: 1.5px solid var(--border); background: white;
+    color: var(--text); cursor: pointer; font-weight: 600;
+  }
+  .btn-save {
+    padding: 10px 24px; border-radius: 20px; font-size: 14px;
+    border: none; background: linear-gradient(135deg, var(--pink), var(--purple));
+    color: white; cursor: pointer; font-weight: 600;
+    box-shadow: 0 4px 12px rgba(255,107,157,0.2);
+  }
+
+  @media (max-width: 768px) {
+    .header-bar { padding: 0 16px; }
+    .nav { display: none; }
+    .profile-on-banner { left: 20px; }
+    .info-bar-inner { flex-direction: column; padding: 0 16px; }
+    .tab-nav { overflow-x: auto; }
+    .tab-search { display: none; }
+    .profile-stats { gap: 20px; padding: 12px 0; }
+    .content-area { padding: 16px; }
+    .content-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header (和主页一致) -->
+<header class="header-bar">
+  <div class="header-left">
+    <div class="logo-wrap">
+      <div class="logo-icon">✦</div>
+      <span class="logo-text">次元小站</span>
+    </div>
+  </div>
+  <div class="header-center">
+    <div class="search-wrap">
+      <span class="icon">🔍</span>
+      <input type="text" placeholder="搜索感兴趣的内容..." />
+    </div>
+    <nav class="nav">
+      <a href="#">首页</a>
+      <a href="#">发现</a>
+      <a href="#">关注</a>
+      <a href="#">社区</a>
+    </nav>
+  </div>
+  <div class="header-right">
+    <button class="btn-create"> 发布</button>
+    <div class="header-avatar" title="小次元">小</div>
+  </div>
+</header>
+
+<!-- Cover Banner -->
+<div class="cover-banner">
+  <span class="cover-deco">🌸</span>
+  <span class="cover-deco">⭐</span>
+  <span class="cover-deco">🎮</span>
+  <span class="cover-deco">🎨</span>
+  <span class="cover-deco">✨</span>
+
+  <!-- Profile info (往右移) -->
+  <div class="profile-on-banner">
+    <div class="profile-avatar">小</div>
+    <div class="profile-detail">
+      <h2>小次元 <span class="level-badge">LV6</span></h2>
+      <p class="profile-bio">拥抱悲伤的极光</p>
+    </div>
+  </div>
+</div>
+
+<!-- Stats + Tab Bar (同一行) -->
+<div class="info-bar">
+  <div class="info-bar-inner">
+    <div class="tab-nav">
+      <a href="#" class="active">🏠 主页</a>
+      <a href="#"> 动态</a>
+      <a href="#">📝 投稿 12</a>
+      <a href="#">📦 合集和系列</a>
+      <a href="#">⭐ 收藏 3</a>
+      <a href="#">❤️ 追番追剧</a>
+      <a href="#">⚙️ 设置</a>
+    </div>
+    <div style="display:flex;align-items:center;gap:24px;">
+      <div class="tab-search">
+        <span class="icon"></span>
+        <input type="text" placeholder="搜索视频、动态" />
+      </div>
+      <div class="profile-stats">
+        <div class="profile-stat">
+          <div class="num">89</div>
+          <div class="label">关注</div>
+        </div>
+        <div class="profile-stat">
+          <div class="num">256</div>
+          <div class="label">粉丝</div>
+        </div>
+        <div class="profile-stat">
+          <div class="num">1.2k</div>
+          <div class="label">获赞</div>
+        </div>
+        <div class="profile-stat">
+          <div class="num">3.4k</div>
+          <div class="label">浏览</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Content Area (no sidebar) -->
+<div class="content-area">
+  <div class="content-grid">
+    <div class="content-card">
+      <div class="card-cover">🌸</div>
+      <div class="card-body">
+        <div class="card-title">春日赏花攻略分享</div>
+        <div class="card-meta"><span>❤️ 42</span><span>💬 8</span></div>
+      </div>
+    </div>
+    <div class="content-card">
+      <div class="card-cover"></div>
+      <div class="card-body">
+        <div class="card-title">新游戏推荐：原神4.0</div>
+        <div class="card-meta"><span>❤️ 128</span><span>💬 23</span></div>
+      </div>
+    </div>
+    <div class="content-card">
+      <div class="card-cover"></div>
+      <div class="card-body">
+        <div class="card-title">板绘练习打卡 Day30</div>
+        <div class="card-meta"><span>❤️ 67</span><span>💬 12</span></div>
+      </div>
+    </div>
+    <div class="content-card">
+      <div class="card-cover">📚</div>
+      <div class="card-body">
+        <div class="card-title">本月读书清单分享</div>
+        <div class="card-meta"><span>❤️ 31</span><span> 5</span></div>
+      </div>
+    </div>
+    <div class="content-card">
+      <div class="card-cover">🎵</div>
+      <div class="card-body">
+        <div class="card-title">推荐几首治愈系音乐</div>
+        <div class="card-meta"><span>❤️ 89</span><span>💬 15</span></div>
+      </div>
+    </div>
+    <div class="content-card">
+      <div class="card-cover">🍱</div>
+      <div class="card-body">
+        <div class="card-title">今日便当记录</div>
+        <div class="card-meta"><span>❤️ 56</span><span>💬 9</span></div>
+      </div>
+    </div>
+    <div class="content-card">
+      <div class="card-cover">✈️</div>
+      <div class="card-body">
+        <div class="card-title">周末短途旅行日记</div>
+        <div class="card-meta"><span>❤️ 73</span><span>💬 11</span></div>
+      </div>
+    </div>
+    <div class="content-card">
+      <div class="card-cover"></div>
+      <div class="card-body">
+        <div class="card-title">我家猫主子的日常</div>
+        <div class="card-meta"><span>❤️ 102</span><span>� 20</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="overlay" id="editOverlay" onclick="closeEdit(event)">
+  <div class="edit-card">
+    <h3>编辑资料</h3>
+    <div class="form-group">
+      <label>昵称</label>
+      <input type="text" value="小次元" maxlength="20" />
+    </div>
+    <div class="form-group">
+      <label>简介</label>
+      <textarea maxlength="200" placeholder="介绍一下自己吧...">拥抱悲伤的极光</textarea>
+    </div>
+    <div class="form-group">
+      <label>生日</label>
+      <input type="date" value="2000-01-01" />
+    </div>
+    <div class="form-group">
+      <label>性别</label>
+      <div class="radio-group">
+        <label><input type="radio" name="gender" value="0" /> 保密</label>
+        <label><input type="radio" name="gender" value="1" checked /> 男</label>
+        <label><input type="radio" name="gender" value="2" /> 女</label>
+      </div>
+    </div>
+    <div class="edit-actions">
+      <button class="btn-cancel" onclick="closeEdit()">取消</button>
+      <button class="btn-save" onclick="saveEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.tab-nav a').forEach(tab => {
+    tab.addEventListener('click', (e) => {
+      e.preventDefault();
+      document.querySelectorAll('.tab-nav a').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+    });
+  });
+
+  document.querySelectorAll('.nav a').forEach(a => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      document.querySelectorAll('.nav a').forEach(n => n.classList.remove('active'));
+      a.classList.add('active');
+    });
+  });
+
+  function closeEdit(e) {
+    if (!e || e.target === document.getElementById('editOverlay')) {
+      document.getElementById('editOverlay').classList.remove('show');
+    }
+  }
+  function saveEdit() {
+    alert('保存成功！（Demo 演示）');
+    closeEdit();
+  }
+</script>
+</body>
+</html>

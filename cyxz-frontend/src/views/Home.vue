@@ -1,5 +1,6 @@
 <template>
   <main class="main-content">
+    <div class="page-inner">
     <div class="hero-banner">
       <div class="hero-text">
         <div class="hero-eyebrow">
@@ -74,6 +75,7 @@
       </div>
       <div class="footer-copy">© 2026 次元小站. All rights reserved.</div>
     </footer>
+    </div>
   </main>
 </template>
 
@@ -92,7 +94,13 @@ const cards = [
 
 <style scoped>
 .main-content {
-  padding: 90px 44px 60px;
+  padding: 90px 0 60px;
+}
+
+.page-inner {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 0 32px;
 }
 
 .hero-banner {
@@ -420,7 +428,7 @@ const cards = [
   .hero-banner { flex-direction: column; padding: 32px 24px; gap: 24px; }
   .hero-illust { width: 200px; height: 160px; }
   .hero-text h1 { font-size: 28px; }
-  .main-content { padding: 90px 16px 60px; }
+  .main-content { padding: 90px 0 60px; }
   .content-grid { grid-template-columns: 1fr; }
 }
 </style>
