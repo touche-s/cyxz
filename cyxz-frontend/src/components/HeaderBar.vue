@@ -18,6 +18,7 @@
         <router-link to="/discover" :class="{ active: $route.path === '/discover' }">发现</router-link>
         <router-link to="/following" :class="{ active: $route.path === '/following' }">关注</router-link>
         <router-link to="/community" :class="{ active: $route.path === '/community' }">社区</router-link>
+        <router-link to="/creator" :class="{ active: $route.path === '/creator' }">创作中心</router-link>
       </nav>
     </div>
     <div class="header-right">
@@ -49,7 +50,7 @@
 </template>
 
 <script setup lang="ts">
-import { Search, Plus, UserFilled, SwitchButton } from '@element-plus/icons-vue'
+import { Search, Plus, UserFilled, SwitchButton, EditPen } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
 import { logout } from '@/api/auth'
@@ -71,6 +72,8 @@ async function handleCommand(cmd: string) {
   if (cmd === 'profile') {
     const uid = userStore.userInfo?.id
     if (uid) router.push(`/user/${uid}`)
+  } else if (cmd === 'creator') {
+    router.push('/creator')
   } else if (cmd === 'logout') {
     try { await logout() } catch { /* ignore */ }
     userStore.clearAuth()

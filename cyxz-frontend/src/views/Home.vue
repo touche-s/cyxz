@@ -24,18 +24,23 @@
     </div>
 
     <div class="cat-row">
-      <span class="cat-pill active">⭐ 推荐</span>
-      <span class="cat-pill">🎨 绘画</span>
-      <span class="cat-pill">📷 摄影</span>
-      <span class="cat-pill">🍰 美食</span>
-      <span class="cat-pill">👗 穿搭</span>
-      <span class="cat-pill">✈️ 旅行</span>
-      <span class="cat-pill">🧵 手作</span>
-      <span class="cat-pill">📚 读书</span>
-      <span class="cat-pill">🎵 音乐</span>
-      <span class="cat-pill">🐱 萌宠</span>
-      <span class="cat-pill">💄 美妆</span>
-      <span class="cat-pill">🎮 游戏</span>
+      <span 
+        class="cat-pill" 
+        :class="{ active: selectedCategoryId === null }"
+        @click="selectCategory(null)"
+      >
+        ⭐ 推荐
+      </span>
+      <span 
+        v-for="cat in categories" 
+        :key="cat.id"
+        class="cat-pill"
+        :title="cat.description"
+        :class="{ active: selectedCategoryId === cat.id }"
+        @click="selectCategory(cat.id)"
+      >
+        {{ cat.name }}
+      </span>
     </div>
 
     <div class="section-label">
@@ -43,27 +48,38 @@
       <a href="#">查看更多 <span class="arrow-icon">→</span></a>
     </div>
 
-    <div class="content-grid">
-      <div class="card" v-for="item in cards" :key="item.title">
+    <div class="content-grid" v-if="!loading">
+      <div class="card" v-for="post in posts" :key="post.id" @click="viewPost(post.id)">
         <div class="card-cover">
-          <div class="img" :style="{ background: item.gradient }"></div>
-          <span class="card-badge">{{ item.badge }}</span>
-          <button class="card-save">♡</button>
+          <img v-if="post.cover" :src="post.cover" class="img" alt="cover" />
+          <div v-else class="img" :style="{ background: getGradient(post.id) }"></div>
+          <span class="card-badge" v-if="post.categoryName">{{ post.categoryName }}</span>
+          <button class="card-save" @click.stop="toggleSave(post.id)">♡</button>
         </div>
         <div class="card-body">
-          <div class="card-title">{{ item.title }}</div>
+          <div class="card-title">{{ post.title }}</div>
           <div class="card-meta">
             <div class="card-author">
-              <div class="card-avatar"></div>
-              <span class="card-author-name">{{ item.author }}</span>
+              <div class="card-avatar" v-if="!post.authorAvatar"></div>
+              <img v-else :src="post.authorAvatar" class="card-avatar" alt="avatar" />
+              <span class="card-author-name">{{ post.authorName || '匿名用户' }}</span>
             </div>
             <div class="card-stats">
-              <span>♡ {{ item.likes }}</span>
-              <span>💬 {{ item.comments }}</span>
+              <span>♡ {{ formatNumber(post.likes) }}</span>
+              <span>💬 {{ post.comments }}</span>
             </div>
           </div>
         </div>
       </div>
+    </div>
+
+    <div v-else class="loading-container">
+      <div class="loading-spinner"></div>
+      <p>加载中...</p>
+    </div>
+
+    <div v-if="!loading && posts.length === 0" class="empty-state">
+      <p>暂无内容</p>
     </div>
 
     <footer class="footer">
@@ -80,16 +96,88 @@
 </template>
 
 <script setup lang="ts">
-const cards = [
-  { title: '新番推荐｜本季神作盘点，错过一部都是损失', author: '动漫达人', badge: '🔥 热门', likes: '8.2k', comments: '326', gradient: 'linear-gradient(135deg, #ffd4e8, #ffa8c8, #ff8db5)' },
-  { title: '插画教程｜从零画出一张好看的氛围感插图', author: '画师小窝', badge: '✨ 精选', likes: '5.4k', comments: '198', gradient: 'linear-gradient(135deg, #d4e8ff, #a8c8ff, #8db5ff)' },
-  { title: 'Cosplay分享｜第一次出cos的完整记录', author: 'Coser酱', badge: '🆕 最新', likes: '3.7k', comments: '152', gradient: 'linear-gradient(135deg, #f0d4ff, #d8b0ff, #c084fc)' },
-  { title: '周末探店｜藏在巷子里的宝藏咖啡店', author: '小鹿喝咖啡', badge: '🔥 热门', likes: '2.3k', comments: '87', gradient: 'linear-gradient(135deg, #fff0d4, #ffe0a8, #ffd08d)' },
-  { title: '穿搭分享｜秋季温柔系日常 look', author: '穿搭日记', badge: '✨ 精选', likes: '5.1k', comments: '213', gradient: 'linear-gradient(135deg, #d4ffe8, #a8ffd0, #8dffb5)' },
-  { title: '手作日记｜用黏土做了超可爱的桌面摆件', author: '手工达人', badge: '🆕 最新', likes: '1.6k', comments: '64', gradient: 'linear-gradient(135deg, #ffe8d4, #ffc8a8, #ffa88d)' },
-  { title: '游戏评测｜年度最佳独立游戏的魅力', author: '游戏编辑部', badge: '🔥 热门', likes: '6.9k', comments: '278', gradient: 'linear-gradient(135deg, #e8d4ff, #d0b0ff)' },
-  { title: '旅行日记｜京都红枫季的美到窒息', author: '旅行者笔记', badge: '✨ 精选', likes: '4.2k', comments: '156', gradient: 'linear-gradient(135deg, #c8ffe8, #a0ffd0)' },
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { getPostList, getCategoryList } from '@/api/post'
+import type { PostVO, CategoryVO } from '@/api/post'
+
+const router = useRouter()
+
+const posts = ref<PostVO[]>([])
+const categories = ref<CategoryVO[]>([])
+const selectedCategoryId = ref<number | null>(null)
+const loading = ref(false)
+
+// 渐变色数组（用于没有封面的帖子）
+const gradients = [
+  'linear-gradient(135deg, #ffd4e8, #ffa8c8, #ff8db5)',
+  'linear-gradient(135deg, #d4e8ff, #a8c8ff, #8db5ff)',
+  'linear-gradient(135deg, #f0d4ff, #d8b0ff, #c084fc)',
+  'linear-gradient(135deg, #fff0d4, #ffe0a8, #ffd08d)',
+  'linear-gradient(135deg, #d4ffe8, #a8ffd0, #8dffb5)',
+  'linear-gradient(135deg, #ffe8d4, #ffc8a8, #ffa88d)',
+  'linear-gradient(135deg, #e8d4ff, #d0b0ff)',
+  'linear-gradient(135deg, #c8ffe8, #a0ffd0)',
 ]
+
+const getGradient = (id: number) => {
+  return gradients[id % gradients.length]
+}
+
+const formatNumber = (num: number) => {
+  if (num >= 1000) {
+    return (num / 1000).toFixed(1) + 'k'
+  }
+  return num.toString()
+}
+
+const loadCategories = async () => {
+  try {
+    const res = await getCategoryList()
+    if (res.data.code === 200) {
+      categories.value = res.data.data
+    }
+  } catch (error) {
+    console.error('加载分类失败:', error)
+  }
+}
+
+const loadPosts = async () => {
+  loading.value = true
+  try {
+    const params: any = { page: 1, size: 12 }
+    if (selectedCategoryId.value !== null) {
+      params.categoryId = selectedCategoryId.value
+    }
+    const res = await getPostList(params)
+    if (res.data.code === 200) {
+      posts.value = res.data.data
+    }
+  } catch (error) {
+    console.error('加载帖子失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+const selectCategory = (categoryId: number | null) => {
+  selectedCategoryId.value = categoryId
+  loadPosts()
+}
+
+const viewPost = (postId: number) => {
+  router.push(`/post/${postId}`)
+}
+
+const toggleSave = (postId: number) => {
+  console.log('收藏帖子:', postId)
+  // TODO: 实现收藏功能
+}
+
+onMounted(() => {
+  loadCategories()
+  loadPosts()
+})
 </script>
 
 <style scoped>
@@ -481,6 +569,44 @@ const cards = [
 
 .card-stats { display: flex; gap: 12px; font-size: 12px; color: var(--text-dim); }
 .card-stats span { display: flex; align-items: center; gap: 3px; }
+
+/* ===== Loading & Empty States ===== */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  gap: 16px;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 107, 157, 0.2);
+  border-top-color: var(--pink);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-container p {
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 80px 20px;
+}
+
+.empty-state p {
+  font-size: 16px;
+  color: var(--text-dim);
+}
 
 /* ===== Footer ===== */
 .footer {

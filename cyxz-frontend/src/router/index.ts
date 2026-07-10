@@ -28,6 +28,29 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/UserCenter.vue'),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/creator',
+    name: 'CreatorCenter',
+    component: () => import('@/views/CreatorCenter.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/post/create',
+    name: 'PostCreate',
+    component: () => import('@/views/PostCreate.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/post/edit/:id',
+    name: 'PostEdit',
+    component: () => import('@/views/PostCreate.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/post/:id',
+    name: 'PostDetail',
+    component: () => import('@/views/PostDetail.vue'),
+  },
 ]
 
 const router = createRouter({
