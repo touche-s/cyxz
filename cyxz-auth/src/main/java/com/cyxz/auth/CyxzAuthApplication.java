@@ -7,7 +7,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 /**
  * 认证服务启动类
  */
-@EnableFeignClients(basePackages = "com.cyxz.common.feign")
+@EnableFeignClients(basePackages = "com.cyxz.user.feign")
 @SpringBootApplication(scanBasePackages = {"com.cyxz.auth", "com.cyxz.common"})
 public class CyxzAuthApplication {
 
