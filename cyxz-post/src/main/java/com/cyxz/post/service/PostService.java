@@ -1,0 +1,75 @@
+package com.cyxz.post.service;
+
+import com.cyxz.post.dto.CreatePostRequest;
+import com.cyxz.post.dto.UpdatePostRequest;
+import com.cyxz.post.vo.PostVO;
+
+import java.util.List;
+
+/**
+ * 帖子服务接口
+ */
+public interface PostService {
+
+    /**
+     * 创建帖子
+     * <p>将前端传入的标题、正文、图片、标签等信息持久化到 post 表。
+     * 图片和标签以逗号分隔的字符串形式存储。
+     *
+     * @param userId  当前登录用户 ID
+     * @param request 创建帖子请求
+     * @return 新创建的帖子 ID
+     */
+    Long createPost(Long userId, CreatePostRequest request);
+
+    /**
+     * 更新帖子
+     * <p>仅更新非 null 字段，不做全量覆盖。
+     * 校验帖子归属权，非作者本人无权修改。
+     *
+     * @param userId  当前登录用户 ID
+     * @param request 更新帖子请求（须包含帖子 ID）
+     */
+    void updatePost(Long userId, UpdatePostRequest request);
+
+    /**
+     * 删除帖子（逻辑删除）
+     * <p>将帖子状态设为 2（已删除），不做物理删除。
+     * 校验帖子归属权，非作者本人无权删除。
+     *
+     * @param userId 当前登录用户 ID
+     * @param postId 帖子 ID
+     */
+    void deletePost(Long userId, Long postId);
+
+    /**
+     * 根据 ID 查询帖子详情
+     * <p>已删除的帖子不可查看，会抛出 POST_NOT_FOUND 异常。
+     *
+     * @param postId 帖子 ID
+     * @return 帖子视图对象（含作者信息、分类名称）
+     */
+    PostVO getById(Long postId);
+
+    /**
+     * 分页查询帖子列表（仅已发布）
+     * <p>按创建时间倒序排列，可按分类筛选。
+     *
+     * @param categoryId 分类 ID（可为 null，null 时查全部分类）
+     * @param page       页码（从 1 开始）
+     * @param size       每页条数
+     * @return 帖子视图列表
+     */
+    List<PostVO> listPosts(Long categoryId, int page, int size);
+
+    /**
+     * 查询用户的帖子列表
+     * <p>包含草稿和已发布，不包含已删除，按创建时间倒序。
+     *
+     * @param userId 用户 ID
+     * @param page   页码（从 1 开始）
+     * @param size   每页条数
+     * @return 帖子视图列表
+     */
+    List<PostVO> listByUserId(Long userId, int page, int size);
+}

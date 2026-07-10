@@ -35,3 +35,55 @@ CREATE TABLE IF NOT EXISTS user_profile (
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB COMMENT='用户资料表';
+
+-- ==================== post 库 ====================
+CREATE DATABASE IF NOT EXISTS cyxz_post DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+
+USE cyxz_post;
+
+-- 分类表
+CREATE TABLE IF NOT EXISTS category (
+    id BIGINT PRIMARY KEY COMMENT '分类 ID（雪花算法）',
+    name VARCHAR(50) NOT NULL COMMENT '分类名称',
+    description VARCHAR(200) COMMENT '分类描述',
+    sort_order INT NOT NULL DEFAULT 0 COMMENT '排序值（越小越靠前）',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '0=禁用 1=启用',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE INDEX uk_name (name)
+) ENGINE=InnoDB COMMENT='分类表';
+
+-- 帖子表
+CREATE TABLE IF NOT EXISTS post (
+    id BIGINT PRIMARY KEY COMMENT '帖子 ID（雪花算法）',
+    user_id BIGINT NOT NULL COMMENT '作者 ID',
+    category_id BIGINT COMMENT '分类 ID',
+    title VARCHAR(100) NOT NULL COMMENT '标题',
+    content TEXT COMMENT '正文内容',
+    cover VARCHAR(500) COMMENT '封面图 URL',
+    images TEXT COMMENT '图片列表 JSON',
+    tags VARCHAR(255) COMMENT '标签 JSON 数组',
+    status TINYINT NOT NULL DEFAULT 0 COMMENT '0=草稿 1=已发布 2=已删除',
+    likes INT NOT NULL DEFAULT 0 COMMENT '点赞数',
+    comments INT NOT NULL DEFAULT 0 COMMENT '评论数',
+    views INT NOT NULL DEFAULT 0 COMMENT '浏览数',
+    collections INT NOT NULL DEFAULT 0 COMMENT '收藏数',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_user_id (user_id),
+    INDEX idx_category_id (category_id),
+    INDEX idx_status (status),
+    INDEX idx_create_time (create_time)
+) ENGINE=InnoDB COMMENT='帖子表';
+
+-- ==================== 分类初始化数据 ====================
+INSERT INTO category (id, name, description, sort_order, status, create_time, update_time) VALUES
+(1, '动漫', '番剧安利、作品讨论、新番扫雷', 1, 1, NOW(), NOW()),
+(2, '游戏', '二次元手游、单机大作、联机开黑', 2, 1, NOW(), NOW()),
+(3, '绘画', '同人图、原创插画、绘画教程', 3, 1, NOW(), NOW()),
+(4, 'COS', 'Cosplay正片、妆造分享、道具制作', 4, 1, NOW(), NOW()),
+(5, '漫展', '漫展活动信息、返图、参展攻略', 5, 1, NOW(), NOW()),
+(6, '同人', '同人文、轻小说创作、阅读推荐', 6, 1, NOW(), NOW()),
+(7, '周边', '手办开箱、模型评测、周边交流', 7, 1, NOW(), NOW()),
+(8, '闲聊', '水区、吐槽、二次元杂谈', 8, 1, NOW(), NOW()),
+(9, '资源', '壁纸、音乐、表情包、工具资源', 9, 1, NOW(), NOW());
