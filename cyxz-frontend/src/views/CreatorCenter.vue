@@ -1,77 +1,73 @@
 <template>
   <div class="creator-container">
     <aside class="sidebar">
-      <div class="sidebar-header">
-        <div class="logo-wrapper">
-          <div class="logo-icon"></div>
-          <span class="logo-text">次元小站</span>
-        </div>
-      </div>
-
       <nav class="sidebar-nav">
         <div class="nav-section">
-          <button class="nav-item active">
-            <span class="nav-icon">🏠</span>
-            <span class="nav-text">创作首页</span>
-          </button>
-        </div>
+        <button class="nav-item nav-item-primary" :class="{ active: activeNav === 'publish' }" @click="goPublish">
+          <img src="@/assets/icons/edit.svg" class="nav-icon" />
+          <span class="nav-text">发布</span>
+        </button>
+        <button class="nav-item" :class="{ active: activeNav === 'home' }" @click="activeNav = 'home'">
+          <img src="@/assets/icons/home-nav.svg" class="nav-icon" />
+          <span class="nav-text">创作首页</span>
+        </button>
+      </div>
+
+        <div class="nav-divider"></div>
 
         <div class="nav-section">
-          <div class="section-title">内容管理</div>
-          <button class="nav-item">
-            <span class="nav-icon">📝</span>
+          <button class="nav-item" :class="{ active: activeNav === 'content' }" @click="activeNav = 'content'">
+            <img src="@/assets/icons/content-nav.svg" class="nav-icon" />
             <span class="nav-text">内容管理</span>
           </button>
-          <button class="nav-item">
-            <span class="nav-icon">📊</span>
+          <button class="nav-item" :class="{ active: activeNav === 'data' }" @click="activeNav = 'data'">
+            <img src="@/assets/icons/data-nav.svg" class="nav-icon" />
             <span class="nav-text">数据中心</span>
           </button>
         </div>
 
+        <div class="nav-divider"></div>
+
         <div class="nav-section">
-          <div class="section-title">粉丝管理</div>
-          <button class="nav-item">
-            <span class="nav-icon">👥</span>
+          <button class="nav-item" :class="{ active: activeNav === 'fans' }" @click="activeNav = 'fans'">
+            <img src="@/assets/icons/fans-nav.svg" class="nav-icon" />
             <span class="nav-text">粉丝管理</span>
           </button>
-          <button class="nav-item">
-            <span class="nav-icon">💬</span>
+          <button class="nav-item" :class="{ active: activeNav === 'interaction' }" @click="activeNav = 'interaction'">
+            <img src="@/assets/icons/interaction-nav.svg" class="nav-icon" />
             <span class="nav-text">互动管理</span>
           </button>
         </div>
 
+        <div class="nav-divider"></div>
+
         <div class="nav-section">
-          <div class="section-title">创作设置</div>
-          <button class="nav-item">
-            <span class="nav-icon">🎨</span>
-            <span class="nav-text">头像</span>
-          </button>
-          <button class="nav-item">
-            <span class="nav-icon">⚙️</span>
-            <span class="nav-text">创作设置</span>
+          <button class="nav-item" :class="{ active: activeNav === 'magic' }" @click="activeNav = 'magic'">
+            <img src="@/assets/icons/magic-nav.svg" class="nav-icon" />
+            <span class="nav-text">妙笔</span>
           </button>
         </div>
 
+        <div class="nav-divider"></div>
+
         <div class="nav-section">
-          <button class="nav-item">
-            <span class="nav-icon">🌸</span>
-            <span class="nav-text">花生</span>
+          <button class="nav-item" :class="{ active: activeNav === 'agreement' }" @click="activeNav = 'agreement'">
+            <img src="@/assets/icons/community-agreement-nav.svg" class="nav-icon" />
+            <span class="nav-text">社区公约</span>
           </button>
         </div>
       </nav>
     </aside>
 
     <main class="main-content">
-      <header class="page-header">
-        <div class="header-left">
-          <h1>创作中心</h1>
-          <p>管理你的作品，查看数据表现</p>
-        </div>
-        <button class="publish-btn" @click="goCreate">
-          <span class="btn-icon">✏️</span>
-          <span>发布帖子</span>
-        </button>
-      </header>
+      <PostCreate v-if="activeNav === 'publish'" @go-back="activeNav = 'home'" />
+      <template v-else-if="activeNav === 'home'">
+        <header class="page-header">
+          <div class="header-left">
+            <h1>创作中心</h1>
+            <p>管理你的作品，查看数据表现</p>
+          </div>
+        </header>
 
       <div class="banner-section">
         <div class="banner">
@@ -86,7 +82,7 @@
         <div class="stats-grid">
           <div class="stat-card">
             <div class="stat-icon-wrapper works-icon">
-              <span class="stat-icon">📝</span>
+              <img src="@/assets/icons/edit.svg" alt="edit" class="stat-icon" />
             </div>
             <div class="stat-info">
               <span class="stat-value">{{ stats.totalPosts }}</span>
@@ -95,7 +91,7 @@
           </div>
           <div class="stat-card">
             <div class="stat-icon-wrapper views-icon">
-              <span class="stat-icon">👁️</span>
+              <img src="@/assets/icons/eye.svg" alt="eye" class="stat-icon" />
             </div>
             <div class="stat-info">
               <span class="stat-value">{{ formatNumber(stats.totalViews) }}</span>
@@ -104,7 +100,7 @@
           </div>
           <div class="stat-card">
             <div class="stat-icon-wrapper likes-icon">
-              <span class="stat-icon">❤️</span>
+              <img src="@/assets/icons/like.svg" alt="like" class="stat-icon" />
             </div>
             <div class="stat-info">
               <span class="stat-value">{{ formatNumber(stats.totalLikes) }}</span>
@@ -113,7 +109,7 @@
           </div>
           <div class="stat-card">
             <div class="stat-icon-wrapper collections-icon">
-              <span class="stat-icon">⭐</span>
+              <img src="@/assets/icons/favorite.svg" alt="favorite" class="stat-icon" />
             </div>
             <div class="stat-info">
               <span class="stat-value">{{ formatNumber(stats.totalCollections) }}</span>
@@ -152,10 +148,10 @@
                 <span class="post-time">{{ formatTime(post.createTime) }}</span>
               </div>
               <div class="card-stats">
-                <span>👁️ {{ post.views }}</span>
-                <span>❤️ {{ post.likes }}</span>
-                <span>💬 {{ post.comments }}</span>
-                <span>⭐ {{ post.collections }}</span>
+                <img src="@/assets/icons/eye.svg" alt="eye" class="stat-mini-icon" /> {{ post.views }}
+                <img src="@/assets/icons/like.svg" alt="like" class="stat-mini-icon" /> {{ post.likes }}
+                <img src="@/assets/icons/comment.svg" alt="comment" class="stat-mini-icon" /> {{ post.comments }}
+                <img src="@/assets/icons/favorite.svg" alt="favorite" class="stat-mini-icon" /> {{ post.collections }}
               </div>
             </div>
             <div class="card-status">
@@ -165,7 +161,7 @@
             </div>
             <div class="card-actions">
               <button class="action-btn" @click="editPost(post.id)" title="编辑">
-                <span>✏️</span>
+                <img src="@/assets/icons/edit.svg" alt="edit" class="action-icon" />
               </button>
               <button 
                 v-if="post.status === 0" 
@@ -173,7 +169,7 @@
                 @click="publishPost(post.id)" 
                 title="发布"
               >
-                <span>🚀</span>
+                <img src="@/assets/icons/rocket.svg" alt="rocket" class="action-icon" />
               </button>
               <button 
                 v-if="post.status === 2" 
@@ -181,17 +177,17 @@
                 @click="restorePost(post.id)" 
                 title="恢复"
               >
-                <span>🔄</span>
+                <img src="@/assets/icons/refresh.svg" alt="refresh" class="action-icon" />
               </button>
               <button class="action-btn delete" @click="confirmDelete(post)" title="删除">
-                <span>🗑️</span>
+                <img src="@/assets/icons/trash.svg" alt="trash" class="action-icon" />
               </button>
             </div>
           </div>
         </div>
 
         <div class="empty-container" v-else-if="!loading">
-          <div class="empty-icon">📭</div>
+          <img src="@/assets/icons/empty.svg" alt="empty" class="empty-icon" />
           <p>还没有{{ activeTab === 'published' ? '已发布的' : activeTab === 'draft' ? '草稿' : activeTab === 'deleted' ? '已删除的' : '' }}作品</p>
           <button class="create-btn" @click="goCreate">去创作</button>
         </div>
@@ -213,6 +209,474 @@
           {{ tab.label }}
         </button>
       </div>
+      </template>
+
+      <template v-else-if="activeNav === 'content'">
+        <div class="page-container">
+          <header class="page-header">
+            <div class="header-left">
+              <h1>内容管理</h1>
+              <p>管理你的所有作品</p>
+            </div>
+            <button class="publish-btn" @click="goCreate">
+              <img src="@/assets/icons/edit.svg" alt="edit" class="btn-icon" />
+              <span>发布新作品</span>
+            </button>
+          </header>
+
+          <div class="filter-bar">
+            <div class="filter-group">
+              <button 
+                v-for="tab in contentTabs" 
+                :key="tab.value"
+                class="filter-btn"
+                :class="{ active: activeContentTab === tab.value }"
+                @click="activeContentTab = tab.value"
+              >
+                {{ tab.label }}
+                <span class="filter-count">{{ tab.count }}</span>
+              </button>
+            </div>
+            <div class="search-box">
+              <input type="text" placeholder="搜索作品标题..." class="search-input" />
+              <button class="search-btn">🔍</button>
+            </div>
+          </div>
+
+          <div class="content-list">
+            <div class="content-item" v-for="item in contentList" :key="item.id">
+              <div class="content-cover">
+                <img v-if="item.cover" :src="item.cover" alt="cover" />
+                <div v-else class="cover-placeholder">
+                  <span>📷</span>
+                </div>
+              </div>
+              <div class="content-info">
+                <h3 class="content-title">{{ item.title }}</h3>
+                <div class="content-meta">
+                  <span class="category-tag">{{ item.category }}</span>
+                  <span class="content-time">{{ item.time }}</span>
+                </div>
+                <div class="content-stats">
+                  <img src="@/assets/icons/eye.svg" alt="eye" class="stat-mini-icon" /> {{ item.views }}
+                  <img src="@/assets/icons/like.svg" alt="like" class="stat-mini-icon" /> {{ item.likes }}
+                  <img src="@/assets/icons/comment.svg" alt="comment" class="stat-mini-icon" /> {{ item.comments }}
+                </div>
+              </div>
+              <div class="content-status">
+                <span class="status-tag" :class="item.statusClass">{{ item.status }}</span>
+              </div>
+              <div class="content-actions">
+                <button class="action-btn" title="编辑"><img src="@/assets/icons/edit.svg" alt="edit" class="action-icon" /></button>
+                <button v-if="item.status === '草稿'" class="action-btn publish" title="发布"><img src="@/assets/icons/rocket.svg" alt="rocket" class="action-icon" /></button>
+                <button v-if="item.status === '已删除'" class="action-btn restore" title="恢复"><img src="@/assets/icons/refresh.svg" alt="refresh" class="action-icon" /></button>
+                <button class="action-btn delete" title="删除"><img src="@/assets/icons/trash.svg" alt="trash" class="action-icon" /></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="empty-container" v-if="contentList.length === 0">
+            <img src="@/assets/icons/empty.svg" alt="empty" class="empty-icon" />
+            <p>还没有作品</p>
+            <button class="create-btn" @click="goCreate">去创作</button>
+          </div>
+        </div>
+      </template>
+
+      <template v-else-if="activeNav === 'data'">
+        <div class="page-container">
+          <header class="page-header">
+            <div class="header-left">
+              <h1>数据中心</h1>
+              <p>查看你的作品数据表现</p>
+            </div>
+            <div class="time-filter">
+              <button 
+                v-for="time in timeFilters" 
+                :key="time.value"
+                class="time-btn"
+                :class="{ active: activeTimeFilter === time.value }"
+                @click="activeTimeFilter = time.value"
+              >
+                {{ time.label }}
+              </button>
+            </div>
+          </header>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon-wrapper works-icon">
+                <img src="@/assets/icons/edit.svg" alt="edit" class="stat-icon" />
+              </div>
+              <div class="stat-info">
+                <span class="stat-value">12</span>
+                <span class="stat-label">发布作品</span>
+                <span class="stat-trend up">↑ 20%</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon-wrapper views-icon">
+                <img src="@/assets/icons/eye.svg" alt="eye" class="stat-icon" />
+              </div>
+              <div class="stat-info">
+                <span class="stat-value">3.2k</span>
+                <span class="stat-label">总浏览量</span>
+                <span class="stat-trend up">↑ 15%</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon-wrapper likes-icon">
+                <img src="@/assets/icons/like.svg" alt="like" class="stat-icon" />
+              </div>
+              <div class="stat-info">
+                <span class="stat-value">456</span>
+                <span class="stat-label">总点赞数</span>
+                <span class="stat-trend up">↑ 25%</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon-wrapper collections-icon">
+              <img src="@/assets/icons/favorite.svg" alt="favorite" class="stat-icon" />
+            </div>
+              <div class="stat-info">
+                <span class="stat-value">128</span>
+                <span class="stat-label">总收藏数</span>
+                <span class="stat-trend down">↓ 5%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="charts-section">
+            <div class="chart-card">
+              <div class="chart-header">
+                <h3>浏览量趋势</h3>
+              </div>
+              <div class="chart-placeholder">
+                <div class="mini-chart">
+                  <div class="bar" style="height: 40%"></div>
+                  <div class="bar" style="height: 65%"></div>
+                  <div class="bar" style="height: 50%"></div>
+                  <div class="bar" style="height: 80%"></div>
+                  <div class="bar" style="height: 70%"></div>
+                  <div class="bar" style="height: 90%"></div>
+                  <div class="bar" style="height: 75%"></div>
+                </div>
+                <p>近7天浏览量数据</p>
+              </div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header">
+                <h3>互动数据对比</h3>
+              </div>
+              <div class="chart-placeholder">
+                <div class="mini-chart">
+                  <div class="bar" style="height: 70%; background: #ff6b9d"></div>
+                  <div class="bar" style="height: 85%; background: #b484ff"></div>
+                  <div class="bar" style="height: 55%; background: #ffc0cb"></div>
+                </div>
+                <p>点赞 · 评论 · 收藏</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="ranking-section">
+            <h3>作品排行榜</h3>
+            <div class="ranking-list">
+              <div class="ranking-item" v-for="(item, index) in rankingList" :key="item.id">
+                <div class="rank-num" :class="'rank-' + (index + 1)">{{ index + 1 }}</div>
+                <div class="rank-cover">
+                  <img v-if="item.cover" :src="item.cover" alt="" />
+                  <div v-else class="cover-placeholder-small">📷</div>
+                </div>
+                <div class="rank-info">
+                  <h4>{{ item.title }}</h4>
+                  <div class="rank-stats">
+                    <img src="@/assets/icons/eye.svg" alt="eye" class="stat-mini-icon" /> {{ item.views }}
+                    <img src="@/assets/icons/like.svg" alt="like" class="stat-mini-icon" /> {{ item.likes }}
+                  </div>
+                </div>
+                <div class="rank-trend" :class="item.trend">
+                  {{ item.trend === 'up' ? '↑' : '↓' }} {{ item.trendValue }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <template v-else-if="activeNav === 'fans'">
+        <div class="page-container">
+          <header class="page-header">
+            <div class="header-left">
+              <h1>粉丝管理</h1>
+              <p>管理你的粉丝关系</p>
+            </div>
+            <div class="fan-stats">
+              <span class="fan-count">1.2k</span>
+              <span class="fan-label">粉丝总数</span>
+            </div>
+          </header>
+
+          <div class="fans-overview">
+            <div class="overview-card">
+              <img src="@/assets/icons/chart.svg" alt="chart" class="overview-icon" />
+              <div class="overview-info">
+                <span class="overview-value">+23</span>
+                <span class="overview-label">本周新增</span>
+              </div>
+            </div>
+            <div class="overview-card">
+              <img src="@/assets/icons/hot.svg" alt="hot" class="overview-icon" />
+              <div class="overview-info">
+                <span class="overview-value">85%</span>
+                <span class="overview-label">活跃粉丝</span>
+              </div>
+            </div>
+            <div class="overview-card">
+              <img src="@/assets/icons/comment.svg" alt="comment" class="overview-icon" />
+              <div class="overview-info">
+                <span class="overview-value">42</span>
+                <span class="overview-label">本周互动</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="fans-list">
+            <div class="fan-item" v-for="fan in fansList" :key="fan.id">
+              <div class="fan-avatar">
+                <img v-if="fan.avatar" :src="fan.avatar" alt="" />
+                <div v-else class="avatar-placeholder">👤</div>
+              </div>
+              <div class="fan-info">
+                <h4 class="fan-name">{{ fan.name }}</h4>
+                <span class="fan-time">{{ fan.followTime }}</span>
+              </div>
+              <div class="fan-tags">
+                <span v-for="tag in fan.tags" :key="tag" class="fan-tag">{{ tag }}</span>
+              </div>
+              <button class="fan-action" :class="{ followed: fan.following }">
+                {{ fan.following ? '已关注' : '回关' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="empty-container" v-if="fansList.length === 0">
+            <img src="@/assets/icons/empty.svg" alt="empty" class="empty-icon" />
+            <p>还没有粉丝</p>
+            <p class="empty-hint">发布更多优质内容，吸引粉丝关注</p>
+          </div>
+        </div>
+      </template>
+
+      <template v-else-if="activeNav === 'interaction'">
+        <div class="page-container">
+          <header class="page-header">
+            <div class="header-left">
+              <h1>互动管理</h1>
+              <p>查看点赞和评论</p>
+            </div>
+          </header>
+
+          <div class="interaction-tabs">
+            <button 
+              v-for="tab in interactionTabs" 
+              :key="tab.value"
+              class="interaction-tab-btn"
+              :class="{ active: activeInteractionTab === tab.value }"
+              @click="activeInteractionTab = tab.value"
+            >
+              {{ tab.label }}
+              <span class="tab-badge">{{ tab.count }}</span>
+            </button>
+          </div>
+
+          <div v-if="activeInteractionTab === 'likes'" class="interaction-content">
+            <div class="like-list">
+              <div class="like-item" v-for="like in likesList" :key="like.id">
+                <div class="like-avatar">
+                  <img v-if="like.avatar" :src="like.avatar" alt="" />
+                  <div v-else class="avatar-placeholder">👤</div>
+                </div>
+                <div class="like-info">
+                  <h4 class="like-name">{{ like.name }}</h4>
+                  <span class="like-time">{{ like.time }}</span>
+                </div>
+                <div class="like-post">
+                  <div class="post-preview">
+                    <img v-if="like.postCover" :src="like.postCover" alt="" />
+                    <div v-else class="cover-placeholder-small">📷</div>
+                  </div>
+                  <span class="post-title">{{ like.postTitle }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="empty-container" v-if="likesList.length === 0">
+              <img src="@/assets/icons/empty.svg" alt="empty" class="empty-icon" />
+              <p>还没有人点赞你的作品</p>
+            </div>
+          </div>
+
+          <div v-else-if="activeInteractionTab === 'comments'" class="interaction-content">
+            <div class="comment-list">
+              <div class="comment-item" v-for="comment in commentsList" :key="comment.id">
+                <div class="comment-avatar">
+                  <img v-if="comment.avatar" :src="comment.avatar" alt="" />
+                  <div v-else class="avatar-placeholder">👤</div>
+                </div>
+                <div class="comment-body">
+                  <div class="comment-header">
+                    <h4 class="comment-name">{{ comment.name }}</h4>
+                    <span class="comment-time">{{ comment.time }}</span>
+                  </div>
+                  <p class="comment-content">{{ comment.content }}</p>
+                  <div class="comment-post">
+                    <span class="post-title">{{ comment.postTitle }}</span>
+                  </div>
+                  <div class="comment-actions">
+                    <button class="reply-btn"><img src="@/assets/icons/comment.svg" alt="comment" class="action-icon" />回复</button>
+                    <button class="like-btn"><img src="@/assets/icons/like.svg" alt="like" class="action-icon" />{{ comment.likes }}</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="empty-container" v-if="commentsList.length === 0">
+              <img src="@/assets/icons/empty.svg" alt="empty" class="empty-icon" />
+              <p>还没有评论</p>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <template v-else-if="activeNav === 'magic'">
+        <div class="page-container magic-page">
+          <header class="page-header">
+            <div class="header-left">
+              <h1><img src="@/assets/icons/sparkle.svg" alt="sparkle" class="title-icon" />妙笔</h1>
+              <p>AI辅助创作工具</p>
+            </div>
+          </header>
+
+          <div class="magic-banner">
+            <div class="magic-banner-content">
+              <h2>让AI帮你创作</h2>
+              <p>智能选题、文案生成、排版优化</p>
+            </div>
+          </div>
+
+          <div class="magic-features">
+            <div class="magic-card" v-for="feature in magicFeatures" :key="feature.title">
+              <img :src="feature.icon" :alt="feature.title" class="magic-icon" />
+              <h3>{{ feature.title }}</h3>
+              <p>{{ feature.desc }}</p>
+              <button class="magic-btn">{{ feature.btnText }}</button>
+            </div>
+          </div>
+
+          <div class="magic-tips">
+            <div class="tips-header">
+              <h3><img src="@/assets/icons/lightbulb.svg" alt="lightbulb" class="title-icon" />使用提示</h3>
+            </div>
+            <ul class="tips-list">
+              <li>输入关键词或主题，AI会帮你生成相关选题</li>
+              <li>可以选择不同风格的文案生成（轻松、正式、幽默等）</li>
+              <li>生成的内容需要人工审核后再发布</li>
+              <li>建议结合自己的风格进行修改和润色</li>
+            </ul>
+          </div>
+        </div>
+      </template>
+
+      <template v-else-if="activeNav === 'agreement'">
+        <div class="agreement-page">
+          <div class="agreement-container">
+            <header class="agreement-page-header">
+              <h1><img src="@/assets/icons/info.svg" alt="info" class="title-icon" />社区公约</h1>
+              <p>共同维护健康的社区环境</p>
+            </header>
+
+            <div class="agreement-intro">
+              <p><strong>次元小站</strong>是一个由大家共同创建的内容社区。社区鼓励大家围绕各自的爱好认真创作和交流，结识同好，收获成长。为了能让所有用户享有开放、友善和有收获感的社区，我们希望以下能成为社区的共识：</p>
+            </div>
+
+            <div class="agreement-principles">
+              <div class="principle-card">
+                <img src="@/assets/icons/edit.svg" alt="edit" class="principle-icon" />
+                <h3>认真创作</h3>
+                <p>我们鼓励大家创作真实的内容，分享自己的见解和作品。尊重原创，不抄袭、不搬运，对自己发布的内容负责。</p>
+              </div>
+              <div class="principle-card">
+                <img src="@/assets/icons/handshake.svg" alt="handshake" class="principle-icon" />
+                <h3>友善交流</h3>
+                <p>尊重不同观点，理性讨论。避免人身攻击和恶意言论，营造和谐友好的交流氛围。</p>
+              </div>
+              <div class="principle-card">
+                <img src="@/assets/icons/shield.svg" alt="shield" class="principle-icon" />
+                <h3>拥抱创新</h3>
+                <p>鼓励探索新的表达方式和创作形式，支持创意和灵感的碰撞，让社区充满活力。</p>
+              </div>
+            </div>
+
+            <div class="agreement-content">
+              <div class="content-section">
+                <h2>一、内容规范</h2>
+                <div class="content-item">
+                  <h4>1.1 禁止发布的内容</h4>
+                  <ul>
+                    <li>违法、违规、色情、暴力等不良内容</li>
+                    <li>广告、营销推广等商业性质内容</li>
+                    <li>虚假信息、谣言等不实内容</li>
+                    <li>人身攻击、恶意诋毁等言论</li>
+                    <li>侵犯他人隐私的内容</li>
+                  </ul>
+                </div>
+                <div class="content-item">
+                  <h4>1.2 内容审核机制</h4>
+                  <p>平台有权对用户发布的内容进行审核，对于违反社区公约的内容，平台有权采取删除、屏蔽等措施。</p>
+                </div>
+              </div>
+
+              <div class="content-section">
+                <h2>二、版权声明</h2>
+                <div class="content-item">
+                  <h4>2.1 原创内容保护</h4>
+                  <p>用户发布的内容需保证原创或拥有合法授权，禁止抄袭、盗用他人作品。</p>
+                </div>
+                <div class="content-item">
+                  <h4>2.2 平台权利</h4>
+                  <p>平台有权对侵权内容进行处理，并保留追究法律责任的权利。</p>
+                </div>
+              </div>
+
+              <div class="content-section">
+                <h2>三、社区行为</h2>
+                <div class="content-item">
+                  <h4>3.1 互动规范</h4>
+                  <ul>
+                    <li>尊重他人，友好交流</li>
+                    <li>遵守平台规则，维护社区秩序</li>
+                    <li>合理使用平台功能，不滥用资源</li>
+                    <li>不进行恶意刷屏、灌水等行为</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div class="content-section">
+                <h2>四、违规处理</h2>
+                <div class="content-item">
+                  <h4>4.1 处理方式</h4>
+                  <p>对于违反社区公约的用户，平台将根据情节轻重采取警告、限制功能、封禁账号等措施。</p>
+                </div>
+                <div class="content-item">
+                  <h4>4.2 申诉渠道</h4>
+                  <p>用户对处理结果有异议的，可以通过平台申诉渠道进行申诉。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
     </main>
 
     <div class="modal-overlay" v-if="showDeleteModal" @click="cancelDelete">
@@ -226,25 +690,99 @@
         </div>
       </div>
     </div>
+
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+
 import { getUserPosts, deletePost, updatePost } from '@/api/post'
 import { useUserStore } from '@/stores/user'
 import type { PostVO } from '@/api/post'
+import PostCreate from '@/views/PostCreate.vue'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 
 const posts = ref<PostVO[]>([])
 const loading = ref(false)
 const activeTab = ref<'all' | 'published' | 'draft' | 'deleted'>('all')
 const showDeleteModal = ref(false)
+const activeNav = ref<'home' | 'content' | 'data' | 'fans' | 'interaction' | 'magic' | 'agreement' | 'publish'>('home')
+
 const postToDelete = ref<PostVO | null>(null)
+
+const activeContentTab = ref<'all' | 'published' | 'draft' | 'deleted'>('all')
+const activeTimeFilter = ref<'week' | 'month' | 'year'>('week')
+const activeInteractionTab = ref<'likes' | 'comments'>('likes')
+
+const contentTabs = computed(() => [
+  { label: '全部', value: 'all' as const, count: 12 },
+  { label: '已发布', value: 'published' as const, count: 8 },
+  { label: '草稿', value: 'draft' as const, count: 3 },
+  { label: '已删除', value: 'deleted' as const, count: 1 },
+])
+
+const timeFilters = computed(() => [
+  { label: '本周', value: 'week' as const },
+  { label: '本月', value: 'month' as const },
+  { label: '本年', value: 'year' as const },
+])
+
+const interactionTabs = computed(() => [
+  { label: '点赞', value: 'likes' as const, count: 45 },
+  { label: '评论', value: 'comments' as const, count: 12 },
+])
+
+const contentList = ref([
+  { id: 1, title: '二次元插画创作心得分享', category: '插画', cover: '', time: '2小时前', views: 320, likes: 45, comments: 12, status: '已发布', statusClass: 'status-1' },
+  { id: 2, title: '如何画出可爱的Q版角色', category: '教程', cover: '', time: '1天前', views: 856, likes: 78, comments: 23, status: '已发布', statusClass: 'status-1' },
+  { id: 3, title: '新作品预告', category: '动态', cover: '', time: '3天前', views: 156, likes: 32, comments: 8, status: '已发布', statusClass: 'status-1' },
+  { id: 4, title: '关于色彩搭配的一些思考', category: '教程', cover: '', time: '1周前', views: 523, likes: 67, comments: 15, status: '已发布', statusClass: 'status-1' },
+  { id: 5, title: '草稿：幻想世界设定', category: '设定', cover: '', time: '2周前', views: 0, likes: 0, comments: 0, status: '草稿', statusClass: 'status-0' },
+  { id: 6, title: '废弃作品：旧版角色设计', category: '设计', cover: '', time: '1个月前', views: 0, likes: 0, comments: 0, status: '已删除', statusClass: 'status-2' },
+])
+
+const rankingList = ref([
+  { id: 1, title: '如何画出可爱的Q版角色', cover: '', views: 856, likes: 78, trend: 'up', trendValue: '+12%' },
+  { id: 2, title: '关于色彩搭配的一些思考', cover: '', views: 523, likes: 67, trend: 'up', trendValue: '+8%' },
+  { id: 3, title: '二次元插画创作心得分享', cover: '', views: 320, likes: 45, trend: 'down', trendValue: '-5%' },
+])
+
+const fansList = ref([
+  { id: 1, name: '小明同学', avatar: '', followTime: '关注于3天前', tags: ['活跃', '插画爱好者'], following: true },
+  { id: 2, name: '二次元迷', avatar: '', followTime: '关注于1周前', tags: ['互动频繁'], following: false },
+  { id: 3, name: '画画新手', avatar: '', followTime: '关注于2周前', tags: ['教程学习者'], following: true },
+  { id: 4, name: '动漫爱好者', avatar: '', followTime: '关注于1个月前', tags: [], following: false },
+])
+
+const likesList = ref([
+  { id: 1, name: '小明同学', avatar: '', time: '5分钟前', postTitle: '二次元插画创作心得分享', postCover: '' },
+  { id: 2, name: '画画新手', avatar: '', time: '30分钟前', postTitle: '如何画出可爱的Q版角色', postCover: '' },
+  { id: 3, name: '二次元迷', avatar: '', time: '1小时前', postTitle: '关于色彩搭配的一些思考', postCover: '' },
+])
+
+const commentsList = ref([
+  { id: 1, name: '小明同学', avatar: '', time: '2小时前', content: '太棒了！学到了很多技巧！', postTitle: '如何画出可爱的Q版角色', likes: 5 },
+  { id: 2, name: '画画新手', avatar: '', time: '5小时前', content: '请问这个软件是什么呀？', postTitle: '二次元插画创作心得分享', likes: 3 },
+  { id: 3, name: '动漫爱好者', avatar: '', time: '1天前', content: '期待更多教程！', postTitle: '关于色彩搭配的一些思考', likes: 8 },
+])
+
+import iconLightbulb from '@/assets/icons/lightbulb.svg'
+import iconEdit from '@/assets/icons/edit.svg'
+import iconImage from '@/assets/icons/image.svg'
+import iconChart from '@/assets/icons/chart.svg'
+
+const magicFeatures = ref([
+  { icon: iconLightbulb, title: '智能选题', desc: '输入关键词，AI帮你生成热门选题', btnText: '开始选题' },
+  { icon: iconEdit, title: '文案生成', desc: '根据主题生成不同风格的文案', btnText: '生成文案' },
+  { icon: iconImage, title: '图片建议', desc: '根据内容推荐配图方案', btnText: '获取建议' },
+  { icon: iconChart, title: '排版优化', desc: '智能优化文章排版和格式', btnText: '优化排版' },
+])
 
 const stats = computed(() => {
   const activePosts = posts.value.filter(p => p.status !== 2)
@@ -338,8 +876,12 @@ const switchTab = (tab: 'all' | 'published' | 'draft' | 'deleted') => {
   activeTab.value = tab
 }
 
+const goPublish = () => {
+  activeNav.value = 'publish'
+}
+
 const goCreate = () => {
-  router.push('/post/create')
+  activeNav.value = 'publish'
 }
 
 const viewPost = (postId: number) => {
@@ -347,7 +889,7 @@ const viewPost = (postId: number) => {
 }
 
 const editPost = (postId: number) => {
-  router.push(`/post/edit/${postId}`)
+  activeNav.value = 'publish'
 }
 
 const publishPost = async (postId: number) => {
@@ -412,16 +954,17 @@ onMounted(() => {
 }
 
 .sidebar {
-  width: 220px;
+  width: 200px;
   background: white;
   border-right: 1.5px solid var(--border);
   padding: 20px 0;
   flex-shrink: 0;
   position: fixed;
   left: 0;
-  top: 0;
+  top: 66px;
   bottom: 0;
   overflow-y: auto;
+  z-index: 99;
 }
 
 .sidebar-header {
@@ -451,32 +994,29 @@ onMounted(() => {
 }
 
 .sidebar-nav {
-  padding: 16px 8px;
+  padding: 16px 20px;
 }
 
 .nav-section {
-  margin-bottom: 20px;
+  margin-bottom: 8px;
 }
 
-.section-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-dim);
-  padding: 0 12px 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+.nav-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+  margin: 16px 0;
 }
 
 .nav-item {
   width: 100%;
-  padding: 10px 12px;
+  padding: 10px 14px;
   border-radius: 10px;
   border: none;
   background: transparent;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   font-size: 14px;
   font-weight: 500;
   color: var(--text-secondary);
@@ -494,14 +1034,37 @@ onMounted(() => {
   font-weight: 600;
 }
 
+.nav-item-primary {
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  color: white;
+  margin-bottom: 8px;
+}
+
+.nav-item-primary:hover {
+  background: linear-gradient(135deg, #ff7ba1, #c084fc);
+  color: white;
+}
+
+.nav-item-primary.active {
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  color: white;
+}
+
+.nav-item-primary .nav-icon {
+  filter: brightness(0) invert(1);
+}
+
 .nav-icon {
-  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  object-fit: contain;
 }
 
 .main-content {
   flex: 1;
-  margin-left: 220px;
-  padding: 24px 32px;
+  margin-left: 200px;
+  padding: 90px 32px 24px;
   min-height: 100vh;
 }
 
@@ -547,6 +1110,9 @@ onMounted(() => {
 
 .btn-icon {
   font-size: 16px;
+  width: 16px;
+  height: 16px;
+  filter: brightness(0) invert(1);
 }
 
 .banner-section {
@@ -654,6 +1220,46 @@ onMounted(() => {
 
 .stat-icon {
   font-size: 24px;
+  width: 24px;
+  height: 24px;
+}
+
+.stat-mini-icon {
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+}
+
+.action-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.empty-icon {
+  width: 64px;
+  height: 64px;
+}
+
+.title-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+}
+
+.principle-icon {
+  width: 24px;
+  height: 24px;
+  margin-right: 12px;
+}
+
+.magic-icon {
+  width: 40px;
+  height: 40px;
+}
+
+.overview-icon {
+  width: 24px;
+  height: 24px;
 }
 
 .stat-info {
@@ -1066,6 +1672,7 @@ onMounted(() => {
 @media (max-width: 1024px) {
   .sidebar {
     width: 60px;
+    top: 66px;
   }
   
   .sidebar-header {
@@ -1098,7 +1705,7 @@ onMounted(() => {
   
   .main-content {
     margin-left: 60px;
-    padding: 20px;
+    padding: 90px 20px 20px;
   }
   
   .stats-grid {
@@ -1161,5 +1768,1030 @@ onMounted(() => {
   .status-tab-btn {
     flex: 1 1 calc(50% - 4px);
   }
+}
+
+.page-container {
+  background: white;
+  border-radius: 20px;
+  padding: 24px;
+  border: 1.5px solid var(--border);
+  box-shadow: 0 4px 12px rgba(180, 132, 255, 0.06);
+}
+
+.filter-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.filter-group {
+  display: flex;
+  gap: 8px;
+}
+
+.filter-btn {
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  transition: all 0.22s ease-out;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filter-btn.active {
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  color: white;
+}
+
+.filter-count {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.filter-btn.active .filter-count {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 107, 157, 0.05);
+  border-radius: 25px;
+  padding: 8px 16px;
+  border: 1.5px solid transparent;
+  transition: all 0.22s ease-out;
+}
+
+.search-box:focus-within {
+  border-color: rgba(255, 107, 157, 0.3);
+}
+
+.search-input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 14px;
+  padding: 4px 8px;
+  width: 200px;
+}
+
+.search-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.content-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.content-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(255, 107, 157, 0.03);
+  border: 1.5px solid transparent;
+  transition: all 0.22s ease-out;
+}
+
+.content-item:hover {
+  border-color: rgba(180, 132, 255, 0.3);
+  background: rgba(255, 107, 157, 0.05);
+}
+
+.content-cover {
+  width: 80px;
+  height: 80px;
+  border-radius: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.content-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.content-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.content-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.content-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.content-time {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.content-stats {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.content-status {
+  flex-shrink: 0;
+}
+
+.content-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.time-filter {
+  display: flex;
+  gap: 8px;
+}
+
+.time-btn {
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1.5px solid var(--border);
+  background: white;
+  color: var(--text-secondary);
+  transition: all 0.22s ease-out;
+}
+
+.time-btn.active {
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  color: white;
+  border-color: transparent;
+}
+
+.stat-trend {
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.stat-trend.up {
+  color: #10b981;
+}
+
+.stat-trend.down {
+  color: #ef4444;
+}
+
+.charts-section {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.chart-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  border: 1.5px solid var(--border);
+  box-shadow: 0 4px 12px rgba(180, 132, 255, 0.06);
+}
+
+.chart-header {
+  margin-bottom: 16px;
+}
+
+.chart-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.chart-placeholder {
+  height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(255, 107, 157, 0.03);
+  border-radius: 12px;
+}
+
+.mini-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  height: 100px;
+}
+
+.bar {
+  width: 24px;
+  background: linear-gradient(180deg, var(--pink), var(--purple));
+  border-radius: 6px 6px 0 0;
+  transition: height 0.3s ease-out;
+}
+
+.chart-placeholder p {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.ranking-section {
+  margin-top: 24px;
+}
+
+.ranking-section h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 16px;
+}
+
+.ranking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ranking-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(255, 107, 157, 0.03);
+  border: 1.5px solid transparent;
+  transition: all 0.22s ease-out;
+}
+
+.ranking-item:hover {
+  border-color: rgba(180, 132, 255, 0.3);
+}
+
+.rank-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  background: var(--border);
+  color: var(--text-dim);
+}
+
+.rank-num.rank-1 {
+  background: linear-gradient(135deg, #ffd700, #ffb700);
+  color: white;
+}
+
+.rank-num.rank-2 {
+  background: linear-gradient(135deg, #c0c0c0, #a0a0a0);
+  color: white;
+}
+
+.rank-num.rank-3 {
+  background: linear-gradient(135deg, #cd7f32, #b87333);
+  color: white;
+}
+
+.rank-cover {
+  width: 50px;
+  height: 50px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.rank-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cover-placeholder-small {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #f0e6ff, #ffe6f0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.rank-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.rank-info h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rank-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.rank-trend {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 8px;
+}
+
+.rank-trend.up {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.rank-trend.down {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.fan-stats {
+  text-align: right;
+}
+
+.fan-count {
+  font-size: 28px;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: block;
+}
+
+.fan-label {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.fans-overview {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.overview-card {
+  background: rgba(255, 107, 157, 0.05);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.overview-icon {
+  font-size: 32px;
+}
+
+.overview-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.overview-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.overview-label {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.fans-list {
+  margin-top: 24px;
+}
+
+.fan-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(255, 107, 157, 0.03);
+  border: 1.5px solid transparent;
+  transition: all 0.22s ease-out;
+  margin-bottom: 12px;
+}
+
+.fan-item:hover {
+  border-color: rgba(180, 132, 255, 0.3);
+}
+
+.fan-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.fan-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #ffd1dc, #e6e6fa);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.fan-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.fan-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.fan-time {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.fan-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.fan-tag {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: rgba(255, 107, 157, 0.1);
+  color: var(--pink);
+}
+
+.fan-action {
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1.5px solid var(--pink);
+  background: transparent;
+  color: var(--pink);
+  transition: all 0.22s ease-out;
+}
+
+.fan-action:hover {
+  background: rgba(255, 107, 157, 0.1);
+}
+
+.fan-action.followed {
+  border-color: var(--border);
+  color: var(--text-dim);
+  cursor: default;
+}
+
+.interaction-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.interaction-tab-btn {
+  padding: 10px 24px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  transition: all 0.22s ease-out;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.interaction-tab-btn.active {
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  color: white;
+}
+
+.tab-badge {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.interaction-tab-btn.active .tab-badge {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.interaction-content {
+  min-height: 300px;
+}
+
+.like-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.like-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(255, 107, 157, 0.03);
+  border: 1.5px solid transparent;
+  transition: all 0.22s ease-out;
+}
+
+.like-item:hover {
+  border-color: rgba(180, 132, 255, 0.3);
+}
+
+.like-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.like-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.like-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.like-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.like-time {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.like-post {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.post-preview {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.post-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.like-post .post-title {
+  font-size: 13px;
+  color: var(--text-secondary);
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.comment-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.comment-item {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(255, 107, 157, 0.03);
+  border: 1.5px solid transparent;
+  transition: all 0.22s ease-out;
+}
+
+.comment-item:hover {
+  border-color: rgba(180, 132, 255, 0.3);
+}
+
+.comment-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.comment-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.comment-body {
+  flex: 1;
+}
+
+.comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.comment-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.comment-time {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.comment-content {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.comment-post .post-title {
+  font-size: 12px;
+  color: var(--text-dim);
+  background: rgba(255, 107, 157, 0.1);
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.reply-btn, .like-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.22s ease-out;
+}
+
+.reply-btn:hover, .like-btn:hover {
+  color: var(--pink);
+}
+
+.magic-page {
+  padding: 0;
+}
+
+.magic-banner {
+  background: linear-gradient(135deg, #ff85a2 0%, #b484ff 100%);
+  border-radius: 20px;
+  padding: 40px;
+  color: white;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.magic-banner-content h2 {
+  font-size: 28px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.magic-banner-content p {
+  font-size: 15px;
+  opacity: 0.9;
+}
+
+.magic-features {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.magic-card {
+  background: rgba(255, 107, 157, 0.05);
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  border: 1.5px solid transparent;
+  transition: all 0.22s ease-out;
+}
+
+.magic-card:hover {
+  border-color: rgba(255, 107, 157, 0.3);
+  transform: translateY(-2px);
+}
+
+.magic-icon {
+  font-size: 36px;
+  margin-bottom: 12px;
+}
+
+.magic-card h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.magic-card p {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.magic-btn {
+  padding: 10px 24px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  color: white;
+  transition: all 0.22s ease-out;
+}
+
+.magic-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(255, 107, 157, 0.3);
+}
+
+.magic-tips {
+  background: rgba(255, 193, 7, 0.1);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1.5px solid rgba(255, 193, 7, 0.3);
+}
+
+.tips-header h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.tips-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.tips-list li {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 2;
+  margin-bottom: 6px;
+}
+
+.empty-hint {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin-top: 8px;
+}
+
+.agreement-page {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.agreement-container {
+  background: white;
+  border-radius: 20px;
+  padding: 32px;
+  border: 1.5px solid var(--border);
+  box-shadow: 0 8px 32px rgba(180, 132, 255, 0.08);
+}
+
+.agreement-page-header {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.agreement-page-header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 8px 0;
+}
+
+.agreement-page-header p {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.agreement-intro {
+  background: linear-gradient(135deg, rgba(255, 107, 157, 0.08), rgba(180, 132, 255, 0.08));
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 28px;
+  border: 1px solid rgba(255, 107, 157, 0.15);
+}
+
+.agreement-intro p {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.8;
+  margin: 0;
+}
+
+.agreement-intro strong {
+  color: var(--pink);
+}
+
+.agreement-principles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.principle-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+  border: 1.5px solid var(--border);
+  box-shadow: 0 4px 12px rgba(180, 132, 255, 0.06);
+  transition: all 0.22s ease-out;
+}
+
+.principle-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(180, 132, 255, 0.12);
+  border-color: rgba(255, 107, 157, 0.2);
+}
+
+.principle-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+.principle-card h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 8px 0;
+}
+
+.principle-card p {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.agreement-content {
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.content-section {
+  margin-bottom: 28px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.content-section:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.content-section h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.content-section h2::before {
+  content: '';
+  width: 4px;
+  height: 18px;
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  border-radius: 2px;
+}
+
+.content-item {
+  margin-bottom: 16px;
+}
+
+.content-item:last-child {
+  margin-bottom: 0;
+}
+
+.content-item h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 8px 0;
+}
+
+.content-item p {
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.8;
+  margin: 0;
+  padding-left: 12px;
+}
+
+.content-item ul {
+  margin: 0;
+  padding-left: 28px;
+}
+
+.content-item li {
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.8;
+  margin-bottom: 6px;
+}
+
+.content-item li:last-child {
+  margin-bottom: 0;
 }
 </style>
