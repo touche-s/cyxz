@@ -13,44 +13,52 @@
         <el-icon><Search /></el-icon>
         <input type="text" placeholder="搜索感兴趣的内容..." />
       </div>
+    </div>
+    <div class="header-right">
       <nav class="nav">
         <router-link to="/" :class="{ active: $route.path === '/' }">首页</router-link>
         <router-link to="/discover" :class="{ active: $route.path === '/discover' }">发现</router-link>
         <router-link to="/following" :class="{ active: $route.path === '/following' }">关注</router-link>
         <router-link to="/community" :class="{ active: $route.path === '/community' }">社区</router-link>
         <router-link to="/creator" :class="{ active: $route.path === '/creator' }">创作中心</router-link>
+        <template v-if="userStore.isLoggedIn">
+          <el-dropdown trigger="hover" @command="handleCommand" placement="bottom">
+            <div class="nav-avatar">
+              <img v-if="userStore.userInfo?.avatar" :src="userStore.userInfo.avatar" alt="avatar" class="avatar-img" />
+              <span v-else>{{ (userStore.userInfo?.nickname || 'U').charAt(0) }}</span>
+            </div>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="profile">
+                  <el-icon><UserFilled /></el-icon>个人空间
+                </el-dropdown-item>
+                <el-dropdown-item command="user-center">
+                  <el-icon><Setting /></el-icon>个人中心
+                </el-dropdown-item>
+                <el-dropdown-item command="logout" divided>
+                  <el-icon><SwitchButton /></el-icon>退出登录
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+        </template>
+        <button v-else class="btn-login" @click="$emit('openLogin')">登录</button>
       </nav>
-    </div>
-    <div class="header-right">
+      <div class="header-icons">
+        <button class="icon-btn"><el-icon><Star /></el-icon></button>
+        <button class="icon-btn"><el-icon><ChatLineSquare /></el-icon></button>
+        <button class="icon-btn"><el-icon><Bell /></el-icon></button>
+      </div>
       <button class="btn-create" @click="handleCreate">
         <el-icon><Plus /></el-icon>
         发布
       </button>
-      <template v-if="userStore.isLoggedIn">
-        <el-dropdown trigger="click" @command="handleCommand">
-          <div class="avatar">
-            <img v-if="userStore.userInfo?.avatar" :src="userStore.userInfo.avatar" alt="avatar" class="avatar-img" />
-            <span v-else>{{ (userStore.userInfo?.nickname || 'U').charAt(0) }}</span>
-          </div>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="profile">
-                <el-icon><UserFilled /></el-icon>个人中心
-              </el-dropdown-item>
-              <el-dropdown-item command="logout" divided>
-                <el-icon><SwitchButton /></el-icon>退出登录
-              </el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
-      </template>
-      <button v-else class="btn-login" @click="$emit('openLogin')">登录</button>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
-import { Search, Plus, UserFilled, SwitchButton, EditPen } from '@element-plus/icons-vue'
+import { Search, Plus, UserFilled, SwitchButton, EditPen, Setting, Bell, ChatLineSquare, Star } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
 import { logout } from '@/api/auth'
@@ -66,12 +74,15 @@ function handleCreate() {
     ElMessage.warning('请先登录')
     return
   }
+  router.push('/creator')
 }
 
 async function handleCommand(cmd: string) {
   if (cmd === 'profile') {
     const uid = userStore.userInfo?.id
     if (uid) router.push(`/user/${uid}`)
+  } else if (cmd === 'user-center') {
+    router.push('/user-center')
   } else if (cmd === 'creator') {
     router.push('/creator')
   } else if (cmd === 'logout') {
@@ -97,28 +108,23 @@ async function handleCommand(cmd: string) {
   height: 66px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
 }
 
 .header-left {
-  position: absolute;
-  left: 44px;
   display: flex;
   align-items: center;
-  gap: 32px;
+  gap: 24px;
 }
 
 .header-center {
   display: flex;
   align-items: center;
-  gap: 32px;
 }
 
 .header-right {
-  position: absolute;
-  right: 44px;
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
 }
 
@@ -197,6 +203,7 @@ async function handleCommand(cmd: string) {
 .nav {
   display: flex;
   gap: 4px;
+  align-items: center;
 }
 
 .nav a {
@@ -292,6 +299,101 @@ async function handleCommand(cmd: string) {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.nav-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 14px;
+  font-weight: 800;
+  border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nav-avatar:hover {
+  transform: scale(1.15);
+  box-shadow: 0 4px 16px rgba(255, 107, 157, 0.3);
+}
+
+.nav-avatar .avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.header-icons {
+  display: flex;
+  gap: 4px;
+}
+
+.icon-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.22s ease-out;
+}
+
+.icon-btn .el-icon {
+  color: var(--text-dim);
+  font-size: 18px;
+}
+
+.icon-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.icon-btn:hover .el-icon {
+  color: var(--pink);
+}
+
+:deep(.el-dropdown-menu) {
+  border-radius: 14px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  border: none;
+  padding: 8px 0;
+  min-width: 170px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  margin-top: 10px !important;
+}
+
+:deep(.el-dropdown-menu__item) {
+  padding: 12px 20px;
+  font-size: 14px;
+  color: #333;
+  border-radius: 10px;
+  margin: 2px 10px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+:deep(.el-dropdown-menu__item:hover) {
+  background: linear-gradient(135deg, rgba(255, 182, 193, 0.18), rgba(180, 132, 255, 0.18));
+  color: var(--pink);
+  transform: translateX(4px);
+}
+
+:deep(.el-dropdown-menu__item--divided) {
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  margin-top: 6px;
+  padding-top: 14px;
 }
 
 @media (max-width: 768px) {

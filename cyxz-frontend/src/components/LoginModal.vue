@@ -12,21 +12,21 @@
               </div>
               <div class="features">
                 <div class="feature-item">
-                  <span class="feature-icon">🎨</span>
+                  <img src="@/assets/icons/edit.svg" alt="edit" class="feature-icon" />
                   <div>
                     <h3>创作分享</h3>
                     <p>发布绘画、摄影、Cosplay，展示你的创意世界</p>
                   </div>
                 </div>
                 <div class="feature-item">
-                  <span class="feature-icon">🌸</span>
+                  <img src="@/assets/icons/handshake.svg" alt="handshake" class="feature-icon" />
                   <div>
                     <h3>同好社区</h3>
                     <p>找到志同道合的伙伴，一起追番聊番</p>
                   </div>
                 </div>
                 <div class="feature-item">
-                  <span class="feature-icon">✨</span>
+                  <img src="@/assets/icons/sparkle.svg" alt="sparkle" class="feature-icon" />
                   <div>
                     <h3>发现灵感</h3>
                     <p>探索海量优质内容，每一次浏览都是惊喜</p>
@@ -360,6 +360,8 @@ async function handleSubmit() {
 }
 .feature-icon {
   font-size: 24px;
+  width: 24px;
+  height: 24px;
   flex-shrink: 0;
   margin-top: 2px;
 }

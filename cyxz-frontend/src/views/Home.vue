@@ -29,7 +29,7 @@
         :class="{ active: selectedCategoryId === null }"
         @click="selectCategory(null)"
       >
-        ⭐ 推荐
+        推荐
       </span>
       <span 
         v-for="cat in categories" 
@@ -65,8 +65,8 @@
               <span class="card-author-name">{{ post.authorName || '匿名用户' }}</span>
             </div>
             <div class="card-stats">
-              <span>♡ {{ formatNumber(post.likes) }}</span>
-              <span>💬 {{ post.comments }}</span>
+              <span><img src="@/assets/icons/like.svg" alt="like" class="stat-icon" /> {{ formatNumber(post.likes) }}</span>
+              <span><img src="@/assets/icons/comment.svg" alt="comment" class="stat-icon" /> {{ post.comments }}</span>
             </div>
           </div>
         </div>
@@ -417,6 +417,16 @@ onMounted(() => {
   transform: translateY(-1px);
 }
 
+.cat-icon {
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+}
+
+.cat-pill.active .cat-icon {
+  filter: brightness(0) invert(1);
+}
+
 /* ===== Section Label ===== */
 .section-label {
   font-size: 17px;
@@ -569,6 +579,7 @@ onMounted(() => {
 
 .card-stats { display: flex; gap: 12px; font-size: 12px; color: var(--text-dim); }
 .card-stats span { display: flex; align-items: center; gap: 3px; }
+.card-stats .stat-icon { width: 14px; height: 14px; }
 
 /* ===== Loading & Empty States ===== */
 .loading-container {
