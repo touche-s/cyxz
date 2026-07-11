@@ -45,10 +45,18 @@ public class UploadServiceImpl implements UploadService {
     }
 
     @Override
+    public String uploadCover(MultipartFile file) {
+        validateImage(file, "帖子封面");
+        String datePath = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM"));
+        String objectName = "post/cover/" + datePath + "/" + generateFileName(file);
+        return upload(file, objectName);
+    }
+
+    @Override
     public String uploadPostImage(MultipartFile file) {
         validateImage(file, "帖子图片");
         String datePath = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM"));
-        String objectName = "post/" + datePath + "/" + generateFileName(file);
+        String objectName = "post/image/" + datePath + "/" + generateFileName(file);
         return upload(file, objectName);
     }
 

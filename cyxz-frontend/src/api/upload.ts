@@ -13,6 +13,14 @@ export const uploadAvatar = (file: File) => {
   })
 }
 
+export const uploadCover = (file: File) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request.post('/upload/cover', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+}
+
 export const uploadPostImage = (file: File) => {
   const formData = new FormData()
   formData.append('file', file)

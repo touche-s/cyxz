@@ -32,6 +32,18 @@ public class UploadController {
     }
 
     /**
+     * 上传帖子封面
+     *
+     * @param file 图片文件
+     * @return 文件访问 URL
+     */
+    @PostMapping("/cover")
+    public Result<String> uploadCover(@RequestParam("file") MultipartFile file) {
+        String url = uploadService.uploadCover(file);
+        return Result.success("操作成功", url);
+    }
+
+    /**
      * 上传帖子图片
      *
      * @param file 图片文件
