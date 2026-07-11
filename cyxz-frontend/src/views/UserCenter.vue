@@ -1,108 +1,146 @@
 <template>
   <div class="user-center">
-    <!-- Cover Banner (全宽) -->
-    <div class="cover-banner">
-      <span class="cover-deco star-1"></span>
-      <span class="cover-deco star-2">⭐</span>
-      <span class="cover-deco star-3"></span>
-      <span class="cover-deco star-4"></span>
-      <span class="cover-deco star-5">✨</span>
+    <div class="page-header">
+      <button class="back-btn" @click="$router.back()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M15 18l-6-6 6-6"/>
+        </svg>
+        返回
+      </button>
+      <h1 class="page-title">个人中心</h1>
+      <div class="placeholder"></div>
+    </div>
 
-      <!-- Profile info (和内容区左对齐) -->
-      <div class="profile-on-banner" v-if="profile">
-        <div class="avatar-wrapper" @click="isSelf && startEdit()">
-          <div class="profile-avatar">
-            <img v-if="profile.avatar" :src="profile.avatar" alt="avatar" class="profile-avatar-img" />
-            <span v-else>{{ (profile.nickname || 'U').charAt(0) }}</span>
+    <div class="center-content">
+      <div class="settings-container">
+        <div class="settings-section profile-section">
+          <div class="profile-header">
+            <div class="avatar-wrapper" @click="startEdit()">
+              <div class="profile-avatar">
+                <img v-if="profile.avatar" :src="profile.avatar" alt="avatar" class="profile-avatar-img" />
+                <span v-else>{{ (profile.nickname || 'U').charAt(0) }}</span>
+              </div>
+              <div class="avatar-edit-badge">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="white" stroke-width="2.5">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </div>
+            </div>
+            <div class="profile-info">
+              <h2>{{ profile.nickname }}</h2>
+              <p class="profile-bio">{{ profile.bio || '点击编辑资料完善你的个人信息~' }}</p>
+            </div>
           </div>
-          <div v-if="isSelf" class="avatar-edit-badge" title="编辑资料">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <button class="edit-profile-btn" @click="startEdit()">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
             </svg>
-          </div>
-        </div>
-        <div class="profile-detail">
-          <h2>{{ profile.nickname }}</h2>
-          <p class="profile-bio">{{ profile.bio || '这个人很懒，什么都没写...' }}</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tab Bar + Stats (同一行) -->
-    <div class="info-bar">
-      <div class="info-bar-inner">
-        <div class="tab-nav">
-          <a href="#" class="active" @click.prevent>🏠 主页</a>
-          <a href="#" @click.prevent> 动态</a>
-          <a href="#" @click.prevent>📝 投稿</a>
-          <a href="#" @click.prevent> 合集和系列</a>
-          <a href="#" @click.prevent>⭐ 收藏</a>
-          <a href="#" @click.prevent>❤️ 追番追剧</a>
-        </div>
-        <div class="info-bar-right">
-          <div class="tab-search">
-            <span class="icon">🔍</span>
-            <input type="text" placeholder="搜索视频、动态" />
-          </div>
-          <div class="profile-stats">
-            <div class="profile-stat">
-              <div class="num">89</div>
-              <div class="label">关注</div>
-            </div>
-            <div class="profile-stat">
-              <div class="num">256</div>
-              <div class="label">粉丝</div>
-            </div>
-            <div class="profile-stat">
-              <div class="num">1.2k</div>
-              <div class="label">获赞</div>
-            </div>
-            <div class="profile-stat">
-              <div class="num">3.4k</div>
-              <div class="label">浏览</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Content Area -->
-    <div class="content-area">
-      <!-- Content Grid -->
-      <div class="content-grid" v-if="contents.length">
-        <div class="content-card" v-for="item in contents" :key="item.id">
-          <div class="card-cover">{{ item.emoji }}</div>
-          <div class="card-body">
-            <div class="card-title">{{ item.title }}</div>
-            <div class="card-meta">
-              <span>❤️ {{ item.likes }}</span>
-              <span>💬 {{ item.comments }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Empty State with Guide Buttons -->
-      <div v-else-if="!loading" class="empty-state">
-        <p class="empty-text">这里还没有任何内容</p>
-        <p class="empty-hint">发布你的第一条动态，让大家认识你吧~</p>
-        <div class="empty-actions" v-if="isSelf">
-          <button class="guide-btn guide-btn-primary">
-            <span>✏️</span> 投稿作品
+            编辑资料
           </button>
         </div>
-      </div>
 
-      <div v-else class="loading-placeholder">加载中...</div>
+        <div class="settings-section">
+          <h3 class="settings-section-title">隐私设置</h3>
+          <div class="settings-grid">
+            <div class="setting-item">
+              <span class="setting-label">公开我的收藏</span>
+              <el-switch v-model="settings.publicFavorites" />
+            </div>
+            <div class="setting-item">
+              <span class="setting-label">公开我的生日</span>
+              <el-switch v-model="settings.publicBirthday" />
+            </div>
+            <div class="setting-item">
+              <span class="setting-label">公开我的关注列表</span>
+              <el-switch v-model="settings.publicFollowing" />
+            </div>
+            <div class="setting-item">
+              <span class="setting-label">公开我的粉丝列表</span>
+              <el-switch v-model="settings.publicFollowers" />
+            </div>
+            <div class="setting-item">
+              <span class="setting-label">允许他人@我</span>
+              <el-switch v-model="settings.allowMention" />
+            </div>
+            <div class="setting-item">
+              <span class="setting-label">允许他人私信我</span>
+              <el-switch v-model="settings.allowPrivateMessage" />
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3 class="settings-section-title">通知设置</h3>
+          <div class="settings-grid">
+            <div class="setting-item">
+              <span class="setting-label">点赞通知</span>
+              <el-switch v-model="settings.notificationLike" />
+            </div>
+            <div class="setting-item">
+              <span class="setting-label">评论通知</span>
+              <el-switch v-model="settings.notificationComment" />
+            </div>
+            <div class="setting-item">
+              <span class="setting-label">收藏通知</span>
+              <el-switch v-model="settings.notificationFavorite" />
+            </div>
+            <div class="setting-item">
+              <span class="setting-label">关注通知</span>
+              <el-switch v-model="settings.notificationFollow" />
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3 class="settings-section-title">账号安全</h3>
+          <div class="settings-list">
+            <div class="setting-row">
+              <img src="@/assets/icons/shield.svg" alt="shield" class="setting-row-icon" />
+              <span class="setting-row-label">修改密码</span>
+              <span class="setting-row-arrow">›</span>
+            </div>
+            <div class="setting-row">
+              <img src="@/assets/icons/info.svg" alt="info" class="setting-row-icon" />
+              <span class="setting-row-label">绑定手机号</span>
+              <span class="setting-row-arrow">›</span>
+            </div>
+            <div class="setting-row">
+              <img src="@/assets/icons/mail.svg" alt="mail" class="setting-row-icon" />
+              <span class="setting-row-label">绑定邮箱</span>
+              <span class="setting-row-arrow">›</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3 class="settings-section-title">关于</h3>
+          <div class="settings-list">
+            <div class="setting-row">
+              <img src="@/assets/icons/info.svg" alt="info" class="setting-row-icon" />
+              <span class="setting-row-label">关于次元小站</span>
+              <span class="setting-row-value">v1.0.0</span>
+            </div>
+            <div class="setting-row">
+              <img src="@/assets/icons/info.svg" alt="info" class="setting-row-icon" />
+              <span class="setting-row-label">用户协议</span>
+              <span class="setting-row-arrow">›</span>
+            </div>
+            <div class="setting-row">
+              <img src="@/assets/icons/shield.svg" alt="shield" class="setting-row-icon" />
+              <span class="setting-row-label">隐私政策</span>
+              <span class="setting-row-arrow">›</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Edit Modal -->
     <Teleport to="body">
       <Transition name="modal-slide">
         <div v-if="showEdit" class="edit-overlay" @click.self="cancelEdit">
           <div class="edit-modal">
-            <!-- Corner decorations -->
             <span class="modal-deco deco-tl"></span>
             <span class="modal-deco deco-br"></span>
 
@@ -110,13 +148,12 @@
             <h3 class="edit-title">编辑资料</h3>
             <div class="edit-divider"></div>
 
-            <!-- Avatar Upload -->
             <div class="avatar-upload-row">
               <div class="avatar-preview" @click="triggerUpload">
                 <img v-if="editForm.avatar" :src="editForm.avatar" alt="avatar" />
                 <span v-else class="avatar-placeholder">{{ (editForm.nickname || 'U').charAt(0) }}</span>
                 <div class="avatar-upload-mask">
-                  <svg class="avatar-upload-camera" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <svg class="avatar-upload-camera" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="white" stroke-width="2">
                     <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
                     <circle cx="12" cy="13" r="4"/>
                   </svg>
@@ -168,22 +205,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, reactive } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getUserProfile, updateUserProfile } from '@/api/user'
 import type { UserInfo } from '@/api/user'
 import { uploadAvatar } from '@/api/upload'
 import { useUserStore } from '@/stores/user'
 
-const route = useRoute()
 const userStore = useUserStore()
 
-const profile = ref<UserInfo | null>(null)
-const loading = ref(true)
+const profile = reactive<UserInfo>({
+  userId: 0,
+  nickname: '',
+  avatar: '',
+  bio: '',
+  gender: 0,
+  birthday: '',
+})
+
 const showEdit = ref(false)
 const saving = ref(false)
-const uploading = ref(false)
 const fileInput = ref<HTMLInputElement>()
 
 const editForm = reactive({
@@ -194,34 +235,37 @@ const editForm = reactive({
   birthday: '',
 })
 
-// 示例内容（后续对接真实接口）
-const contents = ref<any[]>([])
-
-const isSelf = computed(() => {
-  return String(profile.value?.userId) === String(userStore.userInfo?.id)
+const settings = reactive({
+  publicFavorites: false,
+  publicBirthday: true,
+  publicFollowing: true,
+  publicFollowers: true,
+  allowMention: true,
+  allowPrivateMessage: true,
+  notificationLike: true,
+  notificationComment: true,
+  notificationFavorite: true,
+  notificationFollow: true,
 })
 
 onMounted(async () => {
-  const userId = String(route.params.id)
-  if (!userId) { loading.value = false; return }
+  const userId = userStore.userInfo?.id
+  if (!userId) return
   try {
-    const res = await getUserProfile(userId)
+    const res = await getUserProfile(String(userId))
     const data = (res.data as any).data || res.data
-    profile.value = data
+    Object.assign(profile, data)
   } catch {
     ElMessage.error('加载用户信息失败')
-  } finally {
-    loading.value = false
   }
 })
 
 function startEdit() {
-  if (!profile.value) return
-  editForm.nickname = profile.value.nickname
-  editForm.bio = profile.value.bio || ''
-  editForm.gender = profile.value.gender ?? 0
-  editForm.avatar = profile.value.avatar || ''
-  editForm.birthday = profile.value.birthday || ''
+  editForm.nickname = profile.nickname
+  editForm.bio = profile.bio || ''
+  editForm.gender = profile.gender ?? 0
+  editForm.avatar = profile.avatar || ''
+  editForm.birthday = profile.birthday || ''
   showEdit.value = true
 }
 
@@ -239,7 +283,6 @@ async function handleAvatarChange(e: Event) {
     return
   }
 
-  uploading.value = true
   try {
     const res = await uploadAvatar(file)
     const data = (res.data as any).data || res.data
@@ -251,7 +294,6 @@ async function handleAvatarChange(e: Event) {
   } catch {
     ElMessage.error('头像上传失败')
   } finally {
-    uploading.value = false
     input.value = ''
   }
 }
@@ -277,14 +319,14 @@ async function saveEdit() {
       birthday: editForm.birthday ? formatDate(editForm.birthday) : '',
     }
     await updateUserProfile(payload)
-    if (profile.value) {
-      profile.value.nickname = editForm.nickname
-      profile.value.bio = editForm.bio
-      profile.value.gender = editForm.gender
-      profile.value.avatar = editForm.avatar
-      profile.value.birthday = editForm.birthday
-    }
-    if (isSelf.value && userStore.userInfo) {
+    Object.assign(profile, {
+      nickname: editForm.nickname,
+      bio: editForm.bio,
+      gender: editForm.gender,
+      avatar: editForm.avatar,
+      birthday: editForm.birthday,
+    })
+    if (userStore.userInfo) {
       userStore.setUserInfo({ ...userStore.userInfo, nickname: editForm.nickname, avatar: editForm.avatar } as any)
     }
     ElMessage.success('保存成功')
@@ -299,352 +341,243 @@ async function saveEdit() {
 
 <style scoped>
 .user-center {
-  padding-bottom: 60px;
+  padding: 120px 0 60px;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #fff5f9 0%, #f8f9ff 100%);
 }
 
-/* ===== Cover Banner (全宽) ===== */
-.cover-banner {
-  width: 100%;
-  height: 260px;
-  background: linear-gradient(135deg, #fce4ec 0%, #e8eaf6 40%, #f3e5f5 70%, #fce4ec 100%);
-  position: relative;
-  overflow: hidden;
-}
-.cover-banner::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 20% 50%, rgba(255,107,157,0.15) 0%, transparent 50%),
-    radial-gradient(circle at 80% 30%, rgba(192,132,252,0.15) 0%, transparent 50%),
-    radial-gradient(circle at 60% 80%, rgba(96,165,250,0.1) 0%, transparent 40%);
-}
-
-/* Decorative elements with animations */
-.cover-deco {
-  position: absolute;
-  font-size: 60px;
-  opacity: 0.12;
-}
-.star-1 {
-  top: 20px; left: 10%;
-  width: 30px; height: 30px;
-  background: radial-gradient(circle, rgba(255,182,193,0.5), transparent 70%);
-  border-radius: 50%;
-  animation: twinkle 3s ease-in-out infinite;
-}
-.star-2 {
-  top: 60px; left: 30%;
-  font-size: 40px;
-  animation: float 4s ease-in-out infinite;
-}
-.star-3 {
-  bottom: 10px; left: 55%;
-  font-size: 50px;
-  animation: float 5s ease-in-out infinite 1s;
-}
-.star-4 {
-  top: 30px; right: 15%;
-  width: 24px; height: 24px;
-  background: radial-gradient(circle, rgba(192,132,252,0.4), transparent 70%);
-  border-radius: 50%;
-  animation: twinkle 4s ease-in-out infinite 0.5s;
-}
-.star-5 {
-  bottom: 20px; right: 30%;
-  font-size: 35px;
-  animation: float 3.5s ease-in-out infinite 0.8s;
-}
-
-@keyframes twinkle {
-  0%, 100% { opacity: 0.1; transform: scale(1); }
-  50% { opacity: 0.25; transform: scale(1.3); }
-}
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
-}
-
-/* Profile info on banner - 和内容区左对齐 */
-.profile-on-banner {
-  position: absolute;
-  bottom: 20px;
-  left: calc((100vw - 1500px) / 2 + 32px);
+.page-header {
   display: flex;
-  align-items: flex-end;
-  gap: 20px;
-  z-index: 10;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 0 24px;
+  margin-bottom: 24px;
 }
 
-/* Avatar with edit badge */
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: rgba(255, 107, 157, 0.1);
+  color: var(--pink);
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all 0.22s ease-out;
+  width: 80px;
+}
+
+.back-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.back-btn:hover {
+  background: rgba(255, 107, 157, 0.2);
+}
+
+.page-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.placeholder {
+  width: 80px;
+}
+
+.center-content {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.settings-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-section {
+  background: white;
+  border-radius: 16px;
+  padding: 20px 24px;
+  border: 1.5px solid var(--border);
+  box-shadow: 0 2px 12px rgba(180, 132, 255, 0.05);
+}
+
+.profile-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .avatar-wrapper {
   position: relative;
-  cursor: default;
+  cursor: pointer;
   flex-shrink: 0;
 }
-.avatar-wrapper:hover .avatar-edit-badge {
-  transform: translate(50%, -50%) scale(1.15);
-  opacity: 1;
-}
+
 .profile-avatar {
-  width: 86px;
-  height: 86px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--pink), var(--purple));
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  font-size: 34px;
+  font-size: 28px;
   font-weight: 800;
-  border: 4px solid white;
-  box-shadow: 0 4px 20px rgba(255,107,157,0.3);
-  transition: transform 0.2s;
+  border: 3px solid white;
+  box-shadow: 0 4px 16px rgba(255,107,157,0.3);
   overflow: hidden;
 }
+
 .profile-avatar-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-.avatar-wrapper:hover .profile-avatar {
-  transform: scale(1.03);
-}
+
 .avatar-edit-badge {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 28px;
-  height: 28px;
+  top: 0;
+  right: 0;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--pink), var(--purple));
-  border: 2.5px solid white;
+  border: 2px solid white;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.7;
-  transform: translate(50%, -50%) scale(1);
-  transition: all 0.25s ease;
   box-shadow: 0 2px 8px rgba(255,107,157,0.3);
 }
 
-.profile-detail { padding-bottom: 10px; }
-.profile-detail h2 {
-  font-size: 22px;
-  font-weight: 700;
-  color: white;
-  text-shadow: 0 2px 8px rgba(0,0,0,0.15);
-}
-.profile-bio {
-  font-size: 13px;
-  color: rgba(255,255,255,0.9);
-  margin-top: 4px;
-  text-shadow: 0 1px 4px rgba(0,0,0,0.1);
+.profile-info {
+  flex: 1;
 }
 
-/* ===== Info Bar (Tab + Stats 同一行) ===== */
-.info-bar {
-  background: white;
-  border-bottom: 1px solid var(--border);
+.profile-info h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
 }
-.info-bar-inner {
-  max-width: 1500px;
-  margin: 0 auto;
-  padding: 0 32px;
+
+.profile-bio {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin: 4px 0 0;
+}
+
+.edit-profile-btn {
+  align-self: flex-end;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 12px;
+  background: rgba(255, 107, 157, 0.08);
+  color: var(--pink);
+  font-size: 13px;
+  font-weight: 600;
+  border: 1.5px solid rgba(255, 107, 157, 0.2);
+  cursor: pointer;
+  transition: all 0.22s ease-out;
+}
+
+.edit-profile-btn:hover {
+  background: rgba(255, 107, 157, 0.15);
+}
+
+.settings-section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 1.5px solid var(--border);
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.setting-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 64px;
 }
-.tab-nav { display: flex; gap: 4px; }
-.tab-nav a {
-  text-decoration: none;
-  color: var(--text-dim);
+
+.setting-label {
   font-size: 14px;
-  font-weight: 600;
-  padding: 18px 20px;
-  border-bottom: 3px solid transparent;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.tab-nav a:first-child { padding-left: 0; }
-.tab-nav a:hover { color: var(--pink); }
-.tab-nav a.active {
-  color: var(--pink);
-  border-bottom-color: var(--pink);
-}
-.info-bar-right {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-}
-.tab-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #f5f0f7;
-  border-radius: 20px;
-  padding: 8px 16px;
-}
-.tab-search input {
-  border: none;
-  background: none;
-  outline: none;
-  font-size: 12px;
-  width: 140px;
-  color: var(--text);
-}
-.tab-search input::placeholder { color: #bbb; }
-.tab-search .icon { color: #bbb; font-size: 14px; }
-
-/* Stats */
-.profile-stats {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-shrink: 0;
-}
-.profile-stat {
-  text-align: center;
-  cursor: pointer;
-  padding: 6px 16px;
-  border-radius: 12px;
-  transition: all 0.25s ease;
-}
-.profile-stat:hover {
-  background: rgba(255,107,157,0.06);
-  transform: translateY(-2px);
-}
-.profile-stat .num {
-  font-size: 20px;
-  font-weight: 800;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-.profile-stat .label {
-  font-size: 11px;
-  color: var(--text-dim);
-  margin-top: 2px;
+  color: var(--text-secondary);
 }
 
-/* ===== Content Area ===== */
-.content-area {
-  max-width: 1500px;
-  margin: 0 auto;
-  padding: 24px 32px 60px;
-}
-
-.content-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-}
-.content-card {
-  background: white;
-  border-radius: var(--radius);
-  border: 1.5px solid var(--border);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-  transition: all 0.2s;
-  cursor: pointer;
-}
-.content-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 30px rgba(192,132,252,0.15);
-}
-.card-cover {
-  width: 100%;
-  aspect-ratio: 16/10;
-  background: linear-gradient(135deg, #fce4ec, #e8eaf6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 40px;
-}
-.card-body { padding: 12px 14px; }
-.card-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: 6px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.card-meta { font-size: 11px; color: var(--text-dim); display: flex; gap: 12px; }
-
-/* Empty State */
-.empty-state {
+.settings-list {
   display: flex;
   flex-direction: column;
+  gap: 4px;
+}
+
+.setting-row {
+  display: flex;
   align-items: center;
-  padding: 60px 0 40px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border-radius: 8px;
 }
-.empty-text {
+
+.setting-row:hover {
+  background: rgba(255, 107, 157, 0.05);
+}
+
+.setting-row-icon {
   font-size: 16px;
-  font-weight: 600;
-  color: var(--text);
-  margin: 0 0 6px;
+  width: 16px;
+  height: 16px;
+  margin-right: 12px;
 }
-.empty-hint {
+
+.setting-row-label {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.setting-row-arrow {
+  font-size: 18px;
+  color: var(--text-dim);
+}
+
+.setting-row-value {
   font-size: 13px;
   color: var(--text-dim);
-  margin: 0 0 24px;
-}
-.empty-actions {
-  display: flex;
-  gap: 12px;
-}
-.guide-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 24px;
-  border-radius: 14px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.25s ease;
-  border: none;
-}
-.guide-btn-primary {
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  color: white;
-  box-shadow: 0 4px 20px rgba(255,107,157,0.3);
-}
-.guide-btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 28px rgba(255,107,157,0.4);
-}
-.guide-btn-secondary {
-  background: white;
-  color: var(--pink);
-  border: 1.5px solid var(--pink) !important;
-  box-shadow: 0 2px 12px rgba(255,107,157,0.1);
-}
-.guide-btn-secondary:hover {
-  background: rgba(255,107,157,0.05);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(255,107,157,0.15);
 }
 
-.loading-placeholder {
-  text-align: center;
-  padding: 60px 0;
-  color: var(--text-dim);
-  font-size: 14px;
-}
-
-/* Avatar upload */
 .avatar-upload-row {
   display: flex;
   align-items: center;
   gap: 16px;
   margin-bottom: 20px;
 }
+
 .avatar-preview {
   width: 72px;
   height: 72px;
@@ -655,11 +588,13 @@ async function saveEdit() {
   flex-shrink: 0;
   border: 3px solid rgba(255,138,200,0.15);
 }
+
 .avatar-preview img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
+
 .avatar-placeholder {
   width: 100%;
   height: 100%;
@@ -671,6 +606,7 @@ async function saveEdit() {
   font-size: 28px;
   font-weight: 800;
 }
+
 .avatar-upload-mask {
   position: absolute;
   inset: 0;
@@ -683,34 +619,22 @@ async function saveEdit() {
   opacity: 0;
   transition: opacity 0.25s ease;
 }
+
 .avatar-upload-mask span {
   color: white;
   font-size: 12px;
   font-weight: 600;
 }
-.avatar-upload-camera {
-  width: 24px;
-  height: 24px;
-  transition: transform 0.3s ease;
-}
+
 .avatar-preview:hover .avatar-upload-mask {
   opacity: 1;
 }
-.avatar-preview:hover .avatar-upload-camera {
-  animation: cameraPop 0.4s ease-out;
-}
 
-@keyframes cameraPop {
-  0% { transform: scale(0.3); opacity: 0; }
-  60% { transform: scale(1.3); }
-  100% { transform: scale(1); opacity: 1; }
-}
 .avatar-upload-hint {
   font-size: 12px;
   color: #999;
 }
 
-/* Edit Modal */
 .edit-overlay {
   position: fixed;
   inset: 0;
@@ -721,6 +645,7 @@ async function saveEdit() {
   align-items: center;
   justify-content: center;
 }
+
 .edit-modal {
   background: linear-gradient(180deg, #FFF9FD 0%, #ffffff 100%);
   border-radius: 20px;
@@ -734,30 +659,31 @@ async function saveEdit() {
   overflow: hidden;
 }
 
-/* Corner decorations */
 .modal-deco {
   position: absolute;
   font-size: 28px;
   opacity: 0.12;
   pointer-events: none;
-  user-select: none;
 }
+
 .deco-tl {
   top: 12px;
   left: 16px;
 }
+
 .deco-tl::before {
   content: '✦';
 }
+
 .deco-br {
   bottom: 12px;
   right: 16px;
 }
+
 .deco-br::before {
   content: '♡';
 }
 
-/* Title */
 .edit-title {
   font-size: 22px;
   font-weight: 800;
@@ -765,8 +691,8 @@ async function saveEdit() {
   background: linear-gradient(135deg, #FF8AC8, #B484FF);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
+
 .edit-divider {
   height: 2px;
   background: linear-gradient(90deg, #FF8AC8, #B484FF, transparent);
@@ -775,7 +701,6 @@ async function saveEdit() {
   opacity: 0.25;
 }
 
-/* Close button */
 .edit-close {
   position: absolute;
   top: 14px;
@@ -793,16 +718,17 @@ async function saveEdit() {
   justify-content: center;
   transition: all 0.22s ease;
 }
+
 .edit-close:hover {
   background: rgba(255,138,200,0.1);
   color: #FF8AC8;
   transform: scale(1.1);
 }
 
-/* Form items */
 .edit-modal :deep(.el-form-item) {
   margin-bottom: 20px;
 }
+
 .edit-modal :deep(.el-form-item__label) {
   font-size: 14px;
   font-weight: 600;
@@ -810,7 +736,6 @@ async function saveEdit() {
   padding-bottom: 8px;
 }
 
-/* Input fields */
 .edit-modal :deep(.el-input__wrapper) {
   border-radius: 12px;
   box-shadow: none;
@@ -820,21 +745,16 @@ async function saveEdit() {
   background: white;
   transition: all 0.22s ease;
 }
+
 .edit-modal :deep(.el-input__wrapper:hover) {
   border-color: rgba(255,138,200,0.45);
 }
+
 .edit-modal :deep(.el-input__wrapper.is-focus) {
   border-color: #B484FF;
   box-shadow: 0 0 0 3px rgba(180,132,255,0.12);
 }
-.edit-modal :deep(.el-input__inner) {
-  color: #333;
-}
-.edit-modal :deep(.el-input__inner::placeholder) {
-  color: #BB99CC;
-}
 
-/* Textarea */
 .edit-modal :deep(.el-textarea__inner) {
   border-radius: 12px;
   box-shadow: none;
@@ -843,28 +763,20 @@ async function saveEdit() {
   transition: all 0.22s ease;
   min-height: 80px;
 }
-.edit-modal :deep(.el-textarea__inner:hover) {
-  border-color: rgba(255,138,200,0.45);
-}
-.edit-modal :deep(.el-textarea__inner:focus) {
-  border-color: #B484FF;
-  box-shadow: 0 0 0 3px rgba(180,132,255,0.12);
-}
-.edit-modal :deep(.el-textarea__inner::placeholder) {
-  color: #BB99CC;
-}
 
-/* Gender radio group */
 .gender-item {
   margin-bottom: 24px !important;
 }
+
 .gender-group {
   display: flex;
   gap: 24px;
 }
+
 .birthday-picker {
   width: 100%;
 }
+
 .edit-modal :deep(.el-radio) {
   margin-right: 0;
   padding: 6px 20px;
@@ -872,44 +784,43 @@ async function saveEdit() {
   border: 1.5px solid rgba(255,138,200,0.2);
   transition: all 0.22s ease;
 }
+
 .edit-modal :deep(.el-radio:hover) {
   border-color: rgba(255,138,200,0.4);
   background: rgba(255,138,200,0.03);
 }
-.edit-modal :deep(.el-radio:hover .el-radio__label) {
-  color: #B484FF;
-}
+
 .edit-modal :deep(.el-radio__input) {
   display: none;
 }
+
 .edit-modal :deep(.el-radio__label) {
   font-size: 14px;
   font-weight: 500;
   color: #666;
   padding-left: 0 !important;
-  transition: color 0.2s;
 }
+
 .edit-modal :deep(.el-radio.is-checked) {
   border-color: #B484FF;
   background: rgba(180,132,255,0.04);
   box-shadow: 0 0 0 3px rgba(180,132,255,0.08);
 }
+
 .edit-modal :deep(.el-radio.is-checked .el-radio__label) {
   background: linear-gradient(135deg, #FF8AC8, #B484FF);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  background-clip: text;
   font-weight: 700;
 }
 
-/* Action buttons */
 .edit-actions {
   display: flex;
   justify-content: flex-end;
   gap: 16px;
   margin-top: 4px;
-  padding-bottom: 4px;
 }
+
 .edit-cancel-btn {
   border-radius: 12px;
   font-weight: 600;
@@ -920,10 +831,11 @@ async function saveEdit() {
   color: #B484FF;
   transition: all 0.22s ease;
 }
+
 .edit-cancel-btn:hover {
   background: rgba(180,132,255,0.04);
-  transform: translateY(-1px);
 }
+
 .edit-save-btn {
   border-radius: 12px;
   font-weight: 700;
@@ -936,44 +848,52 @@ async function saveEdit() {
     inset 0 1px 0 rgba(255,255,255,0.2);
   transition: all 0.22s ease;
 }
+
 .edit-save-btn:hover {
   box-shadow:
     0 6px 24px rgba(180,132,255,0.3),
     inset 0 1px 0 rgba(255,255,255,0.2);
   transform: scale(1.03);
 }
-.edit-save-btn:active {
-  transform: scale(0.98);
-}
 
-/* Modal slide animation */
 .modal-slide-enter-active {
   transition: all 0.25s ease-out;
 }
+
 .modal-slide-leave-active {
   transition: all 0.2s ease-in;
 }
+
 .modal-slide-enter-from {
   opacity: 0;
   transform: translateY(20px) scale(0.97);
 }
+
 .modal-slide-leave-to {
   opacity: 0;
   transform: translateY(10px) scale(0.98);
 }
 
 @media (max-width: 768px) {
-  .cover-banner { height: 200px; }
-  .profile-on-banner { left: 20px; }
-  .info-bar-inner { flex-direction: column; height: auto; padding: 12px 16px; gap: 12px; }
-  .tab-nav { overflow-x: auto; }
-  .tab-search { display: none; }
-  .profile-stats { gap: 12px; }
-  .profile-stat { padding: 4px 10px; }
-  .profile-stat .num { font-size: 16px; }
-  .content-area { padding: 16px; }
-  .content-grid { grid-template-columns: repeat(2, 1fr); }
-  .empty-actions { flex-direction: column; width: 100%; max-width: 280px; }
-  .guide-btn { justify-content: center; }
+  .center-content {
+    padding: 0 16px;
+  }
+
+  .page-header {
+    padding: 0 16px;
+  }
+
+  .profile-header {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .edit-profile-btn {
+    align-self: center;
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

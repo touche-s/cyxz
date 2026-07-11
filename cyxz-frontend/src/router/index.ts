@@ -24,6 +24,12 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/user/:id',
+    name: 'Profile',
+    component: () => import('@/views/ProfilePage.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/user-center',
     name: 'UserCenter',
     component: () => import('@/views/UserCenter.vue'),
     meta: { requiresAuth: true },
@@ -58,15 +64,14 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach((to, _from, next) => {
+router.beforeEach((to) => {
   if (to.meta.requiresAuth) {
     const token = localStorage.getItem('token')
     if (!token) {
-      next('/')
-      return
+      return '/'
     }
   }
-  next()
+  return true
 })
 
 export default router
