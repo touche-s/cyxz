@@ -1,43 +1,35 @@
 <template>
   <main class="main-content">
     <div class="page-inner">
+      <button class="back-btn" @click="goBack">← 返回</button>
+
       <div v-if="loading" class="loading-container">
         <div class="loading-spinner"></div>
         <p>加载中...</p>
       </div>
 
       <div v-else-if="post" class="post-detail">
-        <div class="page-header">
-          <button class="back-btn" @click="goBack">← 返回</button>
-        </div>
-
         <div class="post-header">
-          <span class="category-badge" v-if="post.categoryName">{{ post.categoryName }}</span>
-          <h1 class="post-title">{{ post.title }}</h1>
-          <div class="post-meta">
-            <div class="author-info">
-              <img v-if="post.authorAvatar" :src="post.authorAvatar" class="author-avatar" />
-              <div v-else class="author-avatar-placeholder"></div>
-              <span class="author-name">{{ post.authorName || '匿名用户' }}</span>
-            </div>
-            <span class="post-time">{{ formatTime(post.createTime) }}</span>
+          <div class="author-info">
+            <img v-if="post.authorAvatar" :src="post.authorAvatar" class="author-avatar" />
+            <div v-else class="author-avatar-placeholder"></div>
+            <span class="author-name">{{ post.authorName || '匿名用户' }}</span>
           </div>
+          <span class="post-time">{{ formatTime(post.createTime) }}</span>
         </div>
 
-        <div class="post-cover" v-if="post.cover">
-          <img :src="post.cover" alt="cover" />
+        <h1 class="post-title">{{ post.title }}</h1>
+
+        <div class="post-images" v-if="post.images && post.images.length > 0">
+          <div v-for="(img, index) in post.images" :key="index" class="post-image-item">
+            <img :src="img" :alt="`图片${index + 1}`" />
+          </div>
         </div>
 
         <div class="post-content">
           <p v-for="(paragraph, index) in contentParagraphs" :key="index" class="content-paragraph">
             {{ paragraph }}
           </p>
-        </div>
-
-        <div class="post-images" v-if="post.images && post.images.length > 0">
-          <div v-for="(img, index) in post.images" :key="index" class="post-image-item">
-            <img :src="img" :alt="`图片${index + 1}`" />
-          </div>
         </div>
 
         <div class="post-tags" v-if="post.tags && post.tags.length > 0">
@@ -47,25 +39,25 @@
         <div class="post-actions">
           <div class="action-group">
             <button class="action-btn" :class="{ active: liked }" @click="toggleLike">
-              <span class="action-icon">{{ liked ? '❤️' : '🤍' }}</span>
+              <img :src="liked ? likeIcon : likeOutlineIcon" alt="like" class="action-icon" />
               <span class="action-count">{{ formatNumber(post.likes) }}</span>
             </button>
           </div>
           <div class="action-group">
             <button class="action-btn" :class="{ active: collected }" @click="toggleCollect">
-              <span class="action-icon">{{ collected ? '⭐' : '☆' }}</span>
+              <img :src="collected ? favoriteIcon : favoriteOutlineIcon" alt="favorite" class="action-icon" />
               <span class="action-count">{{ formatNumber(post.collections) }}</span>
             </button>
           </div>
           <div class="action-group">
             <button class="action-btn" @click="handleShare">
-              <span class="action-icon">🔗</span>
+              <img :src="shareIcon" alt="share" class="action-icon" />
               <span class="action-count">分享</span>
             </button>
           </div>
           <div class="action-group">
             <button class="action-btn" @click="scrollToComment">
-              <span class="action-icon">💬</span>
+              <img :src="commentIcon" alt="comment" class="action-icon" />
               <span class="action-count">{{ post.comments }}</span>
             </button>
           </div>
@@ -100,7 +92,7 @@
                 </div>
                 <p class="comment-text">{{ comment.content }}</p>
                 <div class="comment-actions">
-                  <button class="comment-action-btn">❤️ {{ comment.likes }}</button>
+                  <button class="comment-action-btn"><img src="@/assets/icons/like.svg" alt="like" class="action-icon" />{{ comment.likes }}</button>
                 </div>
               </div>
             </div>
@@ -126,6 +118,12 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getPostDetail } from '@/api/post'
 import type { PostVO } from '@/api/post'
+import likeIcon from '@/assets/icons/like.svg'
+import likeOutlineIcon from '@/assets/icons/like-outline.svg'
+import favoriteIcon from '@/assets/icons/favorite.svg'
+import favoriteOutlineIcon from '@/assets/icons/favorite-outline.svg'
+import shareIcon from '@/assets/icons/share.svg'
+import commentIcon from '@/assets/icons/comment.svg'
 
 const router = useRouter()
 const route = useRoute()
@@ -183,7 +181,7 @@ const formatTime = (time: string) => {
 }
 
 const loadPost = async () => {
-  const postId = Number(route.params.id)
+  const postId = String(route.params.id)
   loading.value = true
   try {
     const res = await getPostDetail(postId)
@@ -275,24 +273,24 @@ onMounted(() => {
   padding: 0 24px;
 }
 
-.page-header {
-  margin-bottom: 24px;
-}
-
 .back-btn {
-  padding: 10px 20px;
-  border-radius: 12px;
-  background: rgba(255, 107, 157, 0.1);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  background: rgba(255, 107, 157, 0.08);
   color: var(--pink);
   font-size: 14px;
   font-weight: 500;
   border: none;
   cursor: pointer;
   transition: all 0.22s ease-out;
+  margin-bottom: 16px;
 }
 
 .back-btn:hover {
-  background: rgba(255, 107, 157, 0.2);
+  background: rgba(255, 107, 157, 0.15);
 }
 
 .loading-container {
@@ -331,32 +329,18 @@ onMounted(() => {
 }
 
 .post-header {
-  margin-bottom: 24px;
-}
-
-.category-badge {
-  display: inline-block;
-  padding: 6px 14px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, rgba(255, 107, 157, 0.1), rgba(180, 132, 255, 0.1));
-  color: var(--pink);
-  font-size: 12px;
-  font-weight: 600;
-  margin-bottom: 12px;
-}
-
-.post-title {
-  font-size: 26px;
-  font-weight: 800;
-  color: var(--text);
-  line-height: 1.4;
-  margin-bottom: 16px;
-}
-
-.post-meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.post-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.4;
+  margin-bottom: 20px;
 }
 
 .author-info {
@@ -392,18 +376,6 @@ onMounted(() => {
 .post-time {
   font-size: 13px;
   color: var(--text-dim);
-}
-
-.post-cover {
-  margin-bottom: 24px;
-  border-radius: 16px;
-  overflow: hidden;
-}
-
-.post-cover img {
-  width: 100%;
-  max-height: 400px;
-  object-fit: cover;
 }
 
 .post-content {
@@ -495,7 +467,11 @@ onMounted(() => {
 
 .action-icon {
   font-size: 24px;
+  width: 16px;
+  height: 16px;
 }
+
+
 
 .action-count {
   font-size: 13px;

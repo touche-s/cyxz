@@ -1,8 +1,8 @@
 import request from '@/utils/request'
 
 export interface PostVO {
-  id: number
-  userId: number
+  id: string
+  userId: string
   authorName: string
   authorAvatar: string
   categoryId: number
@@ -55,7 +55,7 @@ export const getPostList = (params: { categoryId?: number; page?: number; size?:
 }
 
 // 查询帖子详情
-export const getPostDetail = (postId: number) => {
+export const getPostDetail = (postId: string) => {
   return request.get(`/post/${postId}`)
 }
 
