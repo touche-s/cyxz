@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -151,9 +152,9 @@ public class PostServiceImpl implements PostService {
         if (po.getStatus() == 0 && !po.getUserId().equals(currentUserId)) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
-        // 单条也用批量接口获取用户信息
         Map<Long, UserProfileVO> userMap = batchGetUsers(List.of(po));
-        return convertToVO(po, userMap);
+        Map<Long, CategoryPO> categoryMap = batchGetCategories(List.of(po));
+        return convertToVO(po, userMap, categoryMap);
     }
 
     /**
@@ -176,11 +177,11 @@ public class PostServiceImpl implements PostService {
         wrapper.orderByDesc(PostPO::getCreateTime);
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
 
-        // 批量查用户信息
         Map<Long, UserProfileVO> userMap = batchGetUsers(result.getRecords());
+        Map<Long, CategoryPO> categoryMap = batchGetCategories(result.getRecords());
 
         List<PostVO> vos = result.getRecords().stream()
-                .map(po -> convertToVO(po, userMap))
+                .map(po -> convertToVO(po, userMap, categoryMap))
                 .collect(Collectors.toList());
         return PageResult.of(vos, result.getTotal(), page, size);
     }
@@ -202,24 +203,26 @@ public class PostServiceImpl implements PostService {
         wrapper.orderByDesc(PostPO::getCreateTime);
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
 
-        // 批量查用户信息
         Map<Long, UserProfileVO> userMap = batchGetUsers(result.getRecords());
+        Map<Long, CategoryPO> categoryMap = batchGetCategories(result.getRecords());
 
         List<PostVO> vos = result.getRecords().stream()
-                .map(po -> convertToVO(po, userMap))
+                .map(po -> convertToVO(po, userMap, categoryMap))
                 .collect(Collectors.toList());
         return PageResult.of(vos, result.getTotal(), page, size);
     }
 
     /**
      * 将帖子实体转换为视图对象
-     * <p>补充作者信息（通过预查的 userMap）和分类名称。
+     * <p>作者信息和分类名称均从预查 map 中获取，避免 N+1 查询。
      *
-     * @param po      帖子实体
-     * @param userMap 预查的用户信息映射
+     * @param po          帖子实体
+     * @param userMap     预查的用户信息映射
+     * @param categoryMap 预查的分类信息映射
      * @return 帖子视图对象
      */
-    private PostVO convertToVO(PostPO po, Map<Long, UserProfileVO> userMap) {
+    private PostVO convertToVO(PostPO po, Map<Long, UserProfileVO> userMap,
+                                Map<Long, CategoryPO> categoryMap) {
         PostVO vo = new PostVO();
         vo.setId(po.getId());
         vo.setUserId(po.getUserId());
@@ -245,16 +248,14 @@ public class PostServiceImpl implements PostService {
         vo.setCreateTime(po.getCreateTime());
         vo.setUpdateTime(po.getUpdateTime());
 
-        // 从预查 map 中获取作者信息
         UserProfileVO author = userMap.get(po.getUserId());
         if (author != null) {
             vo.setAuthorName(author.getNickname());
             vo.setAuthorAvatar(author.getAvatar());
         }
 
-        // 查询分类名称
         if (po.getCategoryId() != null) {
-            CategoryPO category = categoryMapper.selectById(po.getCategoryId());
+            CategoryPO category = categoryMap.get(po.getCategoryId());
             if (category != null) {
                 vo.setCategoryName(category.getName());
             }
@@ -264,7 +265,7 @@ public class PostServiceImpl implements PostService {
     }
 
     /**
-     * 批量查询用户信息（内部使用，未查到的不出现在 map 中）
+     * 批量查询用户信息
      */
     private Map<Long, UserProfileVO> batchGetUsers(List<PostPO> posts) {
         Set<Long> userIds = posts.stream().map(PostPO::getUserId).collect(Collectors.toSet());
@@ -280,5 +281,21 @@ public class PostServiceImpl implements PostService {
             log.warn("批量查询用户信息失败", e);
         }
         return Collections.emptyMap();
+    }
+
+    /**
+     * 批量查询分类信息
+     */
+    private Map<Long, CategoryPO> batchGetCategories(List<PostPO> posts) {
+        Set<Long> categoryIds = posts.stream()
+                .map(PostPO::getCategoryId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (categoryIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<CategoryPO> categories = categoryMapper.selectBatchIds(categoryIds);
+        return categories.stream()
+                .collect(Collectors.toMap(CategoryPO::getId, Function.identity()));
     }
 }
