@@ -19,6 +19,10 @@ request.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
+      // 延迟导入避免 Pinia 未安装时调用
+      import('@/stores/user').then(({ useUserStore }) => {
+        useUserStore().clearAuth()
+      })
       localStorage.removeItem('token')
       localStorage.removeItem('userInfo')
       const currentPath = router.currentRoute.value.path
