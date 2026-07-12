@@ -27,11 +27,11 @@ import java.util.List;
 
 /**
  * JWT 认证全局过滤器
- * <p>在每个请求进入 Gateway 时校验 JWT Token：
+ * <p>在每个请求进入 Gateway 时处理 JWT Token：
  * <ul>
- *   <li>白名单路径直接放行</li>
+ *   <li>白名单路径：有 Token 则解析注入 X-User-Id，无 Token 直接放行</li>
+ *   <li>非白名单路径：必须携带有效 Token，否则返回 401</li>
  *   <li>OPTIONS 预检请求直接放行</li>
- *   <li>其他请求须携带有效 Token，校验通过后在请求头注入 X-User-Id</li>
  * </ul>
  */
 @Slf4j
@@ -49,11 +49,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             "/api/auth/register",
             "/api/auth/captcha/**",
             "/api/auth/refresh",
-            "/api/posts/**",
-            "/api/category/**",
-            "/api/comment/list/**",
-            "/api/comment/replies/**",
-            "/api/search/**"
+            "/api/post/list/**",
+            "/api/category/**"
     );
 
     /**
@@ -72,6 +69,18 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         String path = request.getURI().getPath();
 
         if (isWhitelisted(path)) {
+            // 白名单路径：有 Token 就解析注入 X-User-Id，无 Token 直接放行
+            String token = extractToken(request);
+            if (token != null && jwtUtil.validateToken(token)) {
+                Long userId = jwtUtil.getUserId(token);
+                ServerHttpRequest mutatedRequest = request.mutate()
+                        .headers(headers -> {
+                            headers.remove("X-User-Id");
+                            headers.set("X-User-Id", String.valueOf(userId));
+                        })
+                        .build();
+                return chain.filter(exchange.mutate().request(mutatedRequest).build());
+            }
             return chain.filter(exchange);
         }
 
