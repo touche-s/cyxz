@@ -11,13 +11,15 @@
         <span class="comment-time">{{ formatTime(comment.createTime) }}</span>
       </div>
 
-      <!-- 回复提示 -->
-      <span v-if="comment.replyToUserName" class="reply-hint">
-        回复 @{{ comment.replyToUserName }}
-      </span>
-
-      <!-- 内容 -->
-      <p class="comment-text">{{ comment.content }}</p>
+      <!-- 回复提示 + 内容（合并为一行） -->
+      <p class="comment-text">
+        <template v-if="comment.replyToUserName">
+          回复 <span class="reply-mention">@{{ comment.replyToUserName }}</span> : {{ comment.content }}
+        </template>
+        <template v-else>
+          {{ comment.content }}
+        </template>
+      </p>
 
       <!-- 操作栏 -->
       <div class="comment-actions">
@@ -45,29 +47,45 @@
         </button>
       </div>
 
-      <!-- 子回复区域（仅顶级评论） -->
-      <div v-if="isTopLevel && comment.children && comment.children.length > 0" class="replies-section">
-        <!-- 已加载的子回复 -->
-        <CommentItem
-          v-for="child in comment.children"
-          :key="child.id"
-          :comment="child"
-          :is-top-level="false"
-          :current-user-id="currentUserId"
-          @like="(c) => $emit('like', c)"
-          @reply="(c) => $emit('reply', c)"
-          @deleted="(id) => $emit('deleted', id)"
-        />
-
-        <!-- 展开更多回复 -->
+      <!-- 子回复入口（仅顶级评论、有回复时显示） -->
+      <div v-if="isTopLevel && totalReplies > 0" class="replies-section">
+        <!-- 有回复但未加载：点击查看 -->
         <button
-          v-if="hasMoreReplies && !replyFinished"
-          class="load-more-replies"
-          :disabled="replyLoading"
-          @click="loadMoreReplies"
+          v-if="!replyLoaded"
+          class="toggle-replies-btn"
+          @click="loadReplies"
         >
-          {{ replyLoading ? '加载中...' : `展开更多回复 (${totalReplies - loadedReplyCount}条)` }}
+          共 {{ totalReplies }} 条回复，点击查看
         </button>
+
+        <!-- 已加载：展示回复列表 -->
+        <template v-else>
+          <CommentItem
+            v-for="child in comment.children"
+            :key="child.id"
+            :comment="child"
+            :is-top-level="false"
+            :current-user-id="currentUserId"
+            @like="(c) => $emit('like', c)"
+            @reply="(c) => $emit('reply', c)"
+            @deleted="(id) => $emit('deleted', id)"
+          />
+
+          <!-- 查看更多回复 -->
+          <button
+            v-if="!replyFinished"
+            class="load-more-replies"
+            :disabled="replyLoading"
+            @click="loadMoreReplies"
+          >
+            {{ replyLoading ? '加载中...' : `查看更多回复 (${totalReplies - loadedReplyCount}条)` }}
+          </button>
+
+          <!-- 收起回复 -->
+          <button class="toggle-replies-btn" @click="hideReplies">
+            收起回复
+          </button>
+        </template>
       </div>
     </div>
   </div>
@@ -106,7 +124,6 @@ const handleToggleLike = async () => {
   const oldLiked = props.comment.liked
   const oldLikes = props.comment.likes
 
-  // 乐观更新
   props.comment.liked = !oldLiked
   props.comment.likes = oldLiked ? Math.max(oldLikes - 1, 0) : oldLikes + 1
 
@@ -116,7 +133,6 @@ const handleToggleLike = async () => {
       props.comment.likes = res.data.data
     }
   } catch {
-    // 回滚
     props.comment.liked = oldLiked
     props.comment.likes = oldLikes
   }
@@ -140,15 +156,43 @@ const handleDelete = async () => {
   }
 }
 
-// ===== 展开更多子回复 =====
+// ===== 子回复：按需加载 =====
 const replyLoading = ref(false)
-const replyPage = ref(1) // 后端 /list 已返回第一页
-const replyFinished = ref(!props.comment.hasMoreReplies)
+const replyLoaded = ref(false)
+const replyPage = ref(0)
+const replyFinished = ref(false)
 
 const totalReplies = computed(() => props.comment.totalReplies || 0)
 const loadedReplyCount = computed(() => props.comment.children?.length || 0)
-const hasMoreReplies = computed(() => !replyFinished.value)
 
+/** 首次加载子回复（第一页） */
+const loadReplies = async () => {
+  if (replyLoading.value || replyLoaded.value) return
+  replyLoading.value = true
+
+  try {
+    const res = await getCommentReplies({
+      parentId: props.comment.id,
+      page: 1,
+      size: 5,
+    })
+    const pageResult = res.data?.data
+    if (pageResult?.records?.length > 0) {
+      props.comment.children = pageResult.records
+      replyPage.value = 1
+      replyFinished.value = pageResult.records.length >= totalReplies.value
+    } else {
+      replyFinished.value = true
+    }
+    replyLoaded.value = true
+  } catch {
+    ElMessage.error('加载回复失败')
+  } finally {
+    replyLoading.value = false
+  }
+}
+
+/** 加载更多子回复（后续页） */
 const loadMoreReplies = async () => {
   if (replyLoading.value || replyFinished.value) return
 
@@ -176,6 +220,11 @@ const loadMoreReplies = async () => {
   } finally {
     replyLoading.value = false
   }
+}
+
+/** 收起回复（保留已加载数据，只隐藏） */
+const hideReplies = () => {
+  replyLoaded.value = false
 }
 
 // ===== 时间格式化 =====
@@ -211,6 +260,13 @@ const formatTime = (time: string) => {
 .comment-item.is-reply {
   margin-left: 48px;
   padding: 10px 0;
+}
+
+/* 顶级评论头像稍大 */
+.comment-item:not(.is-reply) .comment-avatar,
+.comment-item:not(.is-reply) .comment-avatar-placeholder {
+  width: 56px;
+  height: 56px;
 }
 
 .comment-avatar {
@@ -254,11 +310,9 @@ const formatTime = (time: string) => {
   color: var(--text-dim);
 }
 
-.reply-hint {
-  font-size: 12px;
+.reply-mention {
   color: var(--purple);
-  margin-bottom: 4px;
-  display: inline-block;
+  font-weight: 500;
 }
 
 .comment-text {
@@ -316,6 +370,26 @@ const formatTime = (time: string) => {
   border-radius: 12px;
 }
 
+/* 点击查看 / 收起回复 */
+.toggle-replies-btn {
+  display: block;
+  width: 100%;
+  padding: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--purple);
+  text-align: left;
+  padding-left: 60px;
+  transition: all 0.22s ease-out;
+}
+
+.toggle-replies-btn:hover {
+  color: var(--pink);
+}
+
+/* 查看更多回复 */
 .load-more-replies {
   display: block;
   width: 100%;

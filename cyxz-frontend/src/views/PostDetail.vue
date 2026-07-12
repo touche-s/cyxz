@@ -382,7 +382,7 @@ onMounted(async () => {
 }
 
 .page-inner {
-  max-width: 720px;
+  max-width: 860px;
   margin: 0 auto;
   padding: 0 20px;
 }
