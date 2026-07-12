@@ -18,6 +18,7 @@
         <module>cyxz-auth</module>
         <module>cyxz-user</module>
         <module>cyxz-post</module>
+        <module>cyxz-comment</module>
         <module>cyxz-message</module>
         <module>cyxz-search</module>
         <module>cyxz-upload</module>
