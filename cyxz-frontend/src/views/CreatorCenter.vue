@@ -191,7 +191,7 @@
                 <h3 class="content-title" @click="viewPost(post.id)">{{ post.title }}</h3>
                 <div class="content-meta">
                   <span class="category-tag" v-if="post.categoryName">{{ post.categoryName }}</span>
-                  <span class="content-time">{{ formatTime(post.createTime) }}</span>
+                  <span class="content-time">{{ formatDateTime(post.createTime) }}</span>
                 </div>
                 <div class="content-stats">
                   <span class="stat-item"><img src="@/assets/icons/eye.svg" alt="eye" class="stat-mini-icon" />{{ post.views }}</span>
@@ -205,7 +205,7 @@
                 </span>
               </div>
               <div class="content-actions">
-                <button class="action-btn" @click="editPost(post.id)" title="编辑">
+                <button class="action-btn edit" @click="editPost(post.id)" title="编辑">
                   <img src="@/assets/icons/edit.svg" alt="edit" class="action-icon" />
                 </button>
                 <button 
@@ -823,13 +823,24 @@ const formatTime = (time: string) => {
   return date.toLocaleDateString('zh-CN')
 }
 
+const formatDateTime = (time: string) => {
+  if (!time) return ''
+  const d = new Date(time)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const h = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  return `${y}年${m}月${day}日 ${h}:${min}`
+}
+
 const loadPosts = async () => {
   if (!userStore.userInfo?.id) return
   loading.value = true
   try {
     const res = await getUserPosts({ page: 1, size: 100 })
     if (res.data.code === 200) {
-      posts.value = res.data.data
+      posts.value = res.data.data.records || []
     }
   } catch (error) {
     console.error('加载帖子失败:', error)
@@ -1666,7 +1677,11 @@ onMounted(() => {
 .action-btn .action-icon {
   width: 16px;
   height: 16px;
-  filter: brightness(0) saturate(100%) invert(55%) sepia(10%) saturate(200%) hue-rotate(180deg) brightness(90%) contrast(85%);
+}
+
+.action-btn.edit:hover {
+  background: linear-gradient(135deg, rgba(255, 107, 157, 0.12), rgba(180, 132, 255, 0.12));
+  border-color: rgba(255, 107, 157, 0.3);
 }
 
 .action-btn.publish:hover {

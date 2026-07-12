@@ -225,7 +225,7 @@ const loadPosts = async () => {
     }
     const res = await getPostList(params)
     if (res.data.code === 200) {
-      posts.value = res.data.data
+      posts.value = res.data.data.records || []
     }
   } catch (error) {
     console.error('加载帖子失败:', error)

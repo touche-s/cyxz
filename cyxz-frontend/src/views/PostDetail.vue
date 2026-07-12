@@ -15,19 +15,33 @@
               <div class="author-info">
                 <img v-if="post.authorAvatar" :src="post.authorAvatar" class="author-avatar" />
                 <div v-else class="author-avatar-placeholder"></div>
-                <span class="author-name">{{ post.authorName || '匿名用户' }}</span>
+                <div class="author-meta">
+                  <span class="author-name">{{ post.authorName || '匿名用户' }}</span>
+                  <span class="post-time">{{ formatDateTime(post.createTime) }}</span>
+                </div>
               </div>
-              <span class="post-time">{{ formatTime(post.createTime) }}</span>
             </div>
 
             <h1 class="post-title">{{ post.title }}</h1>
 
             <div class="post-images" v-if="post.images && post.images.length > 0">
-              <div class="image-wrapper">
-                <img v-for="(img, index) in post.images" :key="index" :src="img" :alt="`图片${index + 1}`" />
-              </div>
-              <div class="image-indicator" v-if="post.images.length > 1">
-                {{ currentImage + 1 }}/{{ post.images.length }}
+              <div class="carousel-container">
+                <div class="carousel-track" :style="{ transform: `translateX(-${currentImage * 100}%)` }">
+                  <img v-for="(img, index) in post.images" :key="index" :src="img" :alt="`图片${index + 1}`" class="carousel-slide" />
+                </div>
+
+                <!-- 左右箭头 -->
+                <button v-if="post.images.length > 1" class="carousel-arrow carousel-prev" @click="prevImage">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <button v-if="post.images.length > 1" class="carousel-arrow carousel-next" @click="nextImage">
+                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+                </button>
+
+                <!-- 底部指示点 -->
+                <div class="carousel-dots" v-if="post.images.length > 1">
+                  <span v-for="(_, index) in post.images" :key="index" class="carousel-dot" :class="{ active: index === currentImage }" @click="currentImage = index"></span>
+                </div>
               </div>
             </div>
 
@@ -66,34 +80,50 @@
               <h2>评论 ({{ commentTotal }})</h2>
             </div>
 
+            <!-- 顶部评论框：始终显示，用于回复帖子 -->
             <div class="comment-input-area">
-              <div v-if="replyTarget" class="reply-target-bar">
-                <span>回复 @{{ replyTarget.userName || '匿名用户' }}</span>
-                <button class="cancel-reply-btn" @click="cancelReply">取消</button>
-              </div>
               <div class="input-row">
                 <textarea
                   v-model="commentInput"
                   class="comment-input"
-                  :placeholder="replyTarget ? `回复 @${replyTarget.userName || '匿名用户'}...` : '写下你的评论...'"
+                  placeholder="写下你的评论..."
                   rows="3"
                 ></textarea>
-                <button class="send-btn" :disabled="!commentInput.trim()" @click="submitComment">
+                <button class="send-btn" :disabled="!commentInput.trim()" @click="submitTopComment">
                   发送
                 </button>
               </div>
             </div>
 
             <div class="comment-list" v-if="comments.length > 0">
-              <CommentItem
-                v-for="comment in comments"
-                :key="comment.id"
-                :comment="comment"
-                :is-top-level="true"
-                :current-user-id="currentUserId"
-                @reply="handleReply"
-                @deleted="handleCommentDeleted"
-              />
+              <template v-for="comment in comments" :key="comment.id">
+                <CommentItem
+                  :comment="comment"
+                  :is-top-level="true"
+                  :current-user-id="currentUserId"
+                  @reply="handleReply"
+                  @deleted="handleCommentDeleted"
+                />
+                <!-- 回复框：在该顶级评论下方显示 -->
+                <div v-if="activeReplyId === comment.id" class="inline-reply-box">
+                  <div class="reply-target-bar">
+                    <span>回复 @{{ replyTarget?.comment.userName || '匿名用户' }}</span>
+                    <button class="cancel-reply-btn" @click="cancelReply">取消</button>
+                  </div>
+                  <div class="input-row">
+                    <textarea
+                      v-model="commentInput"
+                      class="comment-input"
+                      :placeholder="`回复 @${replyTarget?.comment.userName || '匿名用户'}...`"
+                      rows="2"
+                      ref="inlineReplyInput"
+                    ></textarea>
+                    <button class="send-btn" :disabled="!commentInput.trim()" @click="submitComment">
+                      发送
+                    </button>
+                  </div>
+                </div>
+              </template>
 
               <!-- 加载更多评论 -->
               <div v-if="!commentFinished" class="load-more-wrap">
@@ -104,6 +134,11 @@
                 >
                   {{ commentLoading ? '加载中...' : '加载更多评论' }}
                 </button>
+              </div>
+
+              <!-- 没有更多评论 -->
+              <div v-else-if="comments.length > 0" class="no-more-wrap">
+                <p class="no-more-text">没有更多评论了</p>
               </div>
             </div>
 
@@ -157,7 +192,8 @@ const collected = ref(false)
 const commentInput = ref('')
 const commentSection = ref<HTMLElement | null>(null)
 const currentImage = ref(0)
-const replyTarget = ref<CommentVO | null>(null)
+const replyTarget = ref<{ comment: CommentVO; parentId: number } | null>(null)
+const activeReplyId = ref<number | null>(null) // 哪个顶级评论下方显示回复框
 
 // ===== 评论列表 =====
 const comments = ref<CommentVO[]>([])
@@ -179,6 +215,16 @@ const contentParagraphs = computed(() => {
   return post.value.content.split('\n').filter(p => p.trim())
 })
 
+const prevImage = () => {
+  if (currentImage.value > 0) currentImage.value--
+}
+
+const nextImage = () => {
+  if (post.value?.images && currentImage.value < post.value.images.length - 1) {
+    currentImage.value++
+  }
+}
+
 const formatNumber = (num: number) => {
   if (num >= 1000) return (num / 1000).toFixed(1) + 'k'
   return num.toString()
@@ -197,6 +243,17 @@ const formatTime = (time: string) => {
   if (hours < 24) return `${hours}小时前`
   if (days < 30) return `${days}天前`
   return date.toLocaleDateString('zh-CN')
+}
+
+const formatDateTime = (time: string) => {
+  if (!time) return ''
+  const d = new Date(time)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const h = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  return `${y}年${m}月${day}日 ${h}:${min}`
 }
 
 // ===== 帖子 =====
@@ -270,10 +327,11 @@ const loadComments = async (reset = false) => {
     })
     const pageResult = res.data?.data
     if (pageResult) {
+      const records = pageResult.records || []
       if (reset) {
-        comments.value = pageResult.records || []
+        comments.value = records
       } else {
-        comments.value.push(...(pageResult.records || []))
+        comments.value.push(...records)
       }
       commentTotal.value = pageResult.total || 0
       if (comments.value.length >= commentTotal.value) {
@@ -293,7 +351,7 @@ const loadMoreComments = () => {
 }
 
 // ===== 发表评论 / 回复 =====
-const submitComment = async () => {
+const submitTopComment = async () => {
   if (!commentInput.value.trim()) return
   if (!userStore.isLoggedIn) {
     ElMessage.warning('请先登录')
@@ -306,37 +364,67 @@ const submitComment = async () => {
       postId: Number(post.value.id),
       content: commentInput.value.trim(),
     }
-    if (replyTarget.value) {
-      data.parentId = replyTarget.value.id
-      data.replyToUserId = replyTarget.value.userId
-    }
     const res = await createComment(data)
     if (res.data.code === 200) {
-      ElMessage.success(replyTarget.value ? '回复成功' : '评论成功')
+      ElMessage.success('评论成功')
       commentInput.value = ''
-      replyTarget.value = null
-      // 重置并重新加载评论第一页,确保新评论出现在列表
       await nextTick()
-      loadComments(true)
+      await loadComments(true)
     }
   } catch {
     ElMessage.error('评论失败')
   }
 }
 
-const handleReply = (comment: CommentVO) => {
+const submitComment = async () => {
+  if (!commentInput.value.trim()) return
   if (!userStore.isLoggedIn) {
     ElMessage.warning('请先登录')
     return
   }
-  replyTarget.value = comment
+  if (!post.value || !replyTarget.value) return
+
+  try {
+    const data: CreateCommentRequest = {
+      postId: Number(post.value.id),
+      content: commentInput.value.trim(),
+      parentId: replyTarget.value.parentId,
+      replyToUserId: replyTarget.value.comment.userId,
+    }
+    const res = await createComment(data)
+    if (res.data.code === 200) {
+      ElMessage.success('回复成功')
+      commentInput.value = ''
+      const replyParentId = replyTarget.value.parentId
+      replyTarget.value = null
+      activeReplyId.value = null
+      await nextTick()
+      await loadComments(true)
+      // 刷新该顶级评论的子回复列表
+      const parentComment = comments.value.find(c => c.id === replyParentId)
+      if (parentComment) {
+        parentComment.children = []
+        parentComment.totalReplies = (parentComment.totalReplies || 0) + 1
+      }
+    }
+  } catch {
+    ElMessage.error('回复失败')
+  }
+}
+
+const handleReply = (payload: { comment: CommentVO; parentId: number }) => {
+  if (!userStore.isLoggedIn) {
+    ElMessage.warning('请先登录')
+    return
+  }
+  replyTarget.value = payload
+  activeReplyId.value = payload.parentId
   commentInput.value = ''
-  // 滚动到输入框并聚焦
-  commentSection.value?.scrollIntoView({ behavior: 'smooth' })
 }
 
 const cancelReply = () => {
   replyTarget.value = null
+  activeReplyId.value = null
   commentInput.value = ''
 }
 
@@ -432,7 +520,6 @@ onMounted(async () => {
 .post-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   margin-bottom: 24px;
   padding-bottom: 16px;
   border-bottom: 1px solid rgba(255, 107, 157, 0.1);
@@ -441,7 +528,7 @@ onMounted(async () => {
 .author-info {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .author-avatar {
@@ -460,6 +547,12 @@ onMounted(async () => {
   background: linear-gradient(135deg, var(--pink), var(--purple));
   border: 2px solid white;
   box-shadow: 0 2px 10px rgba(180, 132, 255, 0.2);
+}
+
+.author-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .author-name {
@@ -488,27 +581,79 @@ onMounted(async () => {
   overflow: hidden;
 }
 
-.image-wrapper {
+.carousel-container {
+  position: relative;
   width: 100%;
   aspect-ratio: 16/9;
+  overflow: hidden;
   background: #f5f5f5;
 }
 
-.image-wrapper img {
-  width: 100%;
+.carousel-track {
+  display: flex;
+  transition: transform 0.3s ease;
   height: 100%;
-  object-fit: cover;
 }
 
-.image-indicator {
+.carousel-slide {
+  min-width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+  pointer-events: none;
+}
+
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.4);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  z-index: 2;
+}
+
+.carousel-arrow:hover {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.carousel-prev {
+  left: 12px;
+}
+
+.carousel-next {
+  right: 12px;
+}
+
+.carousel-dots {
   position: absolute;
   bottom: 12px;
-  right: 12px;
-  background: rgba(0, 0, 0, 0.6);
-  color: white;
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 2;
+}
+
+.carousel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.carousel-dot.active {
+  background: white;
 }
 
 .post-content {
@@ -622,6 +767,16 @@ onMounted(async () => {
   border-bottom: 1px solid var(--border);
 }
 
+/* 内联回复框 */
+.inline-reply-box {
+  margin-left: 68px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: rgba(180, 132, 255, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(180, 132, 255, 0.15);
+}
+
 .input-row {
   display: flex;
   gap: 12px;
@@ -733,6 +888,19 @@ onMounted(async () => {
 .load-more-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* 没有更多评论 */
+.no-more-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0 8px;
+}
+
+.no-more-text {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin: 0;
 }
 
 .empty-comments {
