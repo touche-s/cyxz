@@ -1,7 +1,6 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import router from '@/router'
-import { useUserStore } from '@/stores/user'
 
 const request = axios.create({
   baseURL: '/api',
@@ -12,10 +11,6 @@ request.interceptors.request.use((config) => {
   const token = localStorage.getItem('token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
-  }
-  const userStore = useUserStore()
-  if (userStore.userInfo?.id) {
-    config.headers['X-User-Id'] = String(userStore.userInfo.id)
   }
   return config
 })
