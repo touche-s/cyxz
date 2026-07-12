@@ -120,7 +120,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { toggleCommentLike, deleteComment, getCommentReplies } from '@/api/comment'
 import type { CommentVO } from '@/api/comment'
@@ -279,6 +279,28 @@ const hideReplies = () => {
   replyLoaded.value = false
   currentPage.value = 1
 }
+
+/** 监听回复数变化，直接刷新当前已加载的页（不隐藏 UI，避免闪烁） */
+watch(() => props.comment.totalReplies, async (newVal, oldVal) => {
+  if (newVal !== oldVal && replyLoaded.value) {
+    replyLoading.value = true
+    try {
+      const res = await getCommentReplies({
+        parentId: props.comment.id,
+        page: currentPage.value,
+        size: replyPageSize,
+      })
+      const pageResult = res.data?.data
+      if (pageResult?.records) {
+        replyPages.value[currentPage.value - 1] = pageResult.records
+      }
+    } catch {
+      // 静默失败
+    } finally {
+      replyLoading.value = false
+    }
+  }
+})
 
 // ===== 时间格式化 =====
 const formatTime = (time: string) => {

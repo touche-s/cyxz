@@ -368,8 +368,9 @@ const submitTopComment = async () => {
     if (res.data.code === 200) {
       ElMessage.success('评论成功')
       commentInput.value = ''
-      await nextTick()
-      await loadComments(true)
+      // 局部追加，不重新拉列表
+      comments.value.unshift(res.data.data)
+      commentTotal.value++
     }
   } catch {
     ElMessage.error('评论失败')
@@ -398,13 +399,13 @@ const submitComment = async () => {
       const replyParentId = replyTarget.value.parentId
       replyTarget.value = null
       activeReplyId.value = null
-      await nextTick()
-      await loadComments(true)
-      // 刷新该顶级评论的子回复列表
-      const parentComment = comments.value.find(c => c.id === replyParentId)
-      if (parentComment) {
-        parentComment.children = []
-        parentComment.totalReplies = (parentComment.totalReplies || 0) + 1
+      // 局部更新父评论的回复数，替换对象以触发响应式更新
+      const idx = comments.value.findIndex(c => c.id === replyParentId)
+      if (idx !== -1) {
+        comments.value[idx] = {
+          ...comments.value[idx],
+          totalReplies: (comments.value[idx].totalReplies || 0) + 1,
+        }
       }
     }
   } catch {
