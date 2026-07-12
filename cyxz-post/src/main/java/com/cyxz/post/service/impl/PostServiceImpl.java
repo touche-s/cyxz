@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
+import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.user.feign.UserFeignClient;
 import com.cyxz.post.dto.CreatePostRequest;
@@ -20,8 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -151,7 +151,9 @@ public class PostServiceImpl implements PostService {
         if (po.getStatus() == 0 && !po.getUserId().equals(currentUserId)) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
-        return convertToVO(po);
+        // 单条也用批量接口获取用户信息
+        Map<Long, UserProfileVO> userMap = batchGetUsers(List.of(po));
+        return convertToVO(po, userMap);
     }
 
     /**
@@ -164,7 +166,7 @@ public class PostServiceImpl implements PostService {
      * @return 帖子视图列表
      */
     @Override
-    public List<PostVO> listPosts(Long categoryId, int page, int size) {
+    public PageResult<PostVO> listPosts(Long categoryId, int page, int size) {
         Page<PostPO> pageParam = new Page<>(page, size);
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostPO::getStatus, 1);
@@ -173,9 +175,14 @@ public class PostServiceImpl implements PostService {
         }
         wrapper.orderByDesc(PostPO::getCreateTime);
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
-        return result.getRecords().stream()
-                .map(this::convertToVO)
+
+        // 批量查用户信息
+        Map<Long, UserProfileVO> userMap = batchGetUsers(result.getRecords());
+
+        List<PostVO> vos = result.getRecords().stream()
+                .map(po -> convertToVO(po, userMap))
                 .collect(Collectors.toList());
+        return PageResult.of(vos, result.getTotal(), page, size);
     }
 
     /**
@@ -188,25 +195,31 @@ public class PostServiceImpl implements PostService {
      * @return 帖子视图列表
      */
     @Override
-    public List<PostVO> listByUserId(Long userId, int page, int size) {
+    public PageResult<PostVO> listByUserId(Long userId, int page, int size) {
         Page<PostPO> pageParam = new Page<>(page, size);
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostPO::getUserId, userId);
         wrapper.orderByDesc(PostPO::getCreateTime);
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
-        return result.getRecords().stream()
-                .map(this::convertToVO)
+
+        // 批量查用户信息
+        Map<Long, UserProfileVO> userMap = batchGetUsers(result.getRecords());
+
+        List<PostVO> vos = result.getRecords().stream()
+                .map(po -> convertToVO(po, userMap))
                 .collect(Collectors.toList());
+        return PageResult.of(vos, result.getTotal(), page, size);
     }
 
     /**
      * 将帖子实体转换为视图对象
-     * <p>补充作者信息（通过 Feign 调用 user 服务）和分类名称。
+     * <p>补充作者信息（通过预查的 userMap）和分类名称。
      *
-     * @param po 帖子实体
+     * @param po      帖子实体
+     * @param userMap 预查的用户信息映射
      * @return 帖子视图对象
      */
-    private PostVO convertToVO(PostPO po) {
+    private PostVO convertToVO(PostPO po, Map<Long, UserProfileVO> userMap) {
         PostVO vo = new PostVO();
         vo.setId(po.getId());
         vo.setUserId(po.getUserId());
@@ -232,15 +245,11 @@ public class PostServiceImpl implements PostService {
         vo.setCreateTime(po.getCreateTime());
         vo.setUpdateTime(po.getUpdateTime());
 
-        // 查询作者信息
-        try {
-            Result<UserProfileVO> result = userFeignClient.getById(po.getUserId());
-            if (result != null && result.getData() != null) {
-                vo.setAuthorName(result.getData().getNickname());
-                vo.setAuthorAvatar(result.getData().getAvatar());
-            }
-        } catch (Exception e) {
-            log.warn("查询用户信息失败: userId={}", po.getUserId(), e);
+        // 从预查 map 中获取作者信息
+        UserProfileVO author = userMap.get(po.getUserId());
+        if (author != null) {
+            vo.setAuthorName(author.getNickname());
+            vo.setAuthorAvatar(author.getAvatar());
         }
 
         // 查询分类名称
@@ -252,5 +261,24 @@ public class PostServiceImpl implements PostService {
         }
 
         return vo;
+    }
+
+    /**
+     * 批量查询用户信息（内部使用，未查到的不出现在 map 中）
+     */
+    private Map<Long, UserProfileVO> batchGetUsers(List<PostPO> posts) {
+        Set<Long> userIds = posts.stream().map(PostPO::getUserId).collect(Collectors.toSet());
+        if (userIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        try {
+            Result<Map<Long, UserProfileVO>> result = userFeignClient.batchGetByIds(new ArrayList<>(userIds));
+            if (result != null && result.getData() != null) {
+                return result.getData();
+            }
+        } catch (Exception e) {
+            log.warn("批量查询用户信息失败", e);
+        }
+        return Collections.emptyMap();
     }
 }

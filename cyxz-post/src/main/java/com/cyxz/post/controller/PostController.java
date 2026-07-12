@@ -1,14 +1,14 @@
 package com.cyxz.post.controller;
 
+import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
 import com.cyxz.post.service.PostService;
 import com.cyxz.post.vo.PostVO;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /**
  * 帖子控制器
@@ -28,7 +28,7 @@ public class PostController {
      * @return 新创建的帖子 ID
      */
     @PostMapping
-    public Result<Long> create(@RequestBody CreatePostRequest request,
+    public Result<Long> create(@Valid @RequestBody CreatePostRequest request,
                                @RequestHeader("X-User-Id") Long userId) {
         Long postId = postService.createPost(userId, request);
         return Result.success("创建成功", postId);
@@ -42,7 +42,7 @@ public class PostController {
      * @return 操作结果
      */
     @PutMapping
-    public Result<Void> update(@RequestBody UpdatePostRequest request,
+    public Result<Void> update(@Valid @RequestBody UpdatePostRequest request,
                                @RequestHeader("X-User-Id") Long userId) {
         postService.updatePost(userId, request);
         return Result.success("更新成功");
@@ -84,7 +84,7 @@ public class PostController {
      * @return 帖子列表
      */
     @GetMapping("/list")
-    public Result<List<PostVO>> list(@RequestParam(value = "categoryId", required = false) Long categoryId,
+    public Result<PageResult<PostVO>> list(@RequestParam(value = "categoryId", required = false) Long categoryId,
                                      @RequestParam(value = "page", defaultValue = "1") int page,
                                      @RequestParam(value = "size", defaultValue = "10") int size) {
         return Result.success(postService.listPosts(categoryId, page, size));
@@ -99,7 +99,7 @@ public class PostController {
      * @return 帖子列表
      */
     @GetMapping("/user")
-    public Result<List<PostVO>> listByUser(@RequestHeader("X-User-Id") Long userId,
+    public Result<PageResult<PostVO>> listByUser(@RequestHeader("X-User-Id") Long userId,
                                            @RequestParam(value = "page", defaultValue = "1") int page,
                                            @RequestParam(value = "size", defaultValue = "10") int size) {
         return Result.success(postService.listByUserId(userId, page, size));

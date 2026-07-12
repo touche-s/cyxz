@@ -1,10 +1,9 @@
 package com.cyxz.post.service;
 
+import com.cyxz.common.base.PageResult;
 import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
 import com.cyxz.post.vo.PostVO;
-
-import java.util.List;
 
 /**
  * 帖子服务接口
@@ -59,9 +58,9 @@ public interface PostService {
      * @param categoryId 分类 ID（可为 null，null 时查全部分类）
      * @param page       页码（从 1 开始）
      * @param size       每页条数
-     * @return 帖子视图列表
+     * @return 分页结果（含总条数）
      */
-    List<PostVO> listPosts(Long categoryId, int page, int size);
+    PageResult<PostVO> listPosts(Long categoryId, int page, int size);
 
     /**
      * 查询当前用户的帖子列表
@@ -70,7 +69,7 @@ public interface PostService {
      * @param userId 当前用户 ID
      * @param page   页码（从 1 开始）
      * @param size   每页条数
-     * @return 帖子视图列表
+     * @return 分页结果（含总条数）
      */
-    List<PostVO> listByUserId(Long userId, int page, int size);
+    PageResult<PostVO> listByUserId(Long userId, int page, int size);
 }

@@ -1,5 +1,6 @@
 package com.cyxz.post.dto;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.List;
 public class UpdatePostRequest {
 
     /** 帖子 ID */
+    @NotNull(message = "帖子ID不能为空")
     private Long id;
 
     /** 分类 ID */
