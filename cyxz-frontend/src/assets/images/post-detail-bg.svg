@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#fff5f8;stop-opacity:1" />
+      <stop offset="25%" style="stop-color:#ffe4f1;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#f5e6ff;stop-opacity:1" />
+      <stop offset="75%" style="stop-color:#e8e6ff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fff0f5;stop-opacity:1" />
+    </linearGradient>
+    <filter id="blur">
+      <feGaussianBlur stdDeviation="60" />
+    </filter>
+    <filter id="blurSmall">
+      <feGaussianBlur stdDeviation="30" />
+    </filter>
+  </defs>
+  
+  <rect width="1920" height="1080" fill="url(#bgGradient)" />
+  
+  <g filter="url(#blur)">
+    <ellipse cx="200" cy="150" rx="400" ry="400" fill="#ffb6c1" opacity="0.35" />
+    <ellipse cx="1720" cy="100" rx="350" ry="350" fill="#dda0dd" opacity="0.3" />
+    <ellipse cx="960" cy="850" rx="450" ry="450" fill="#ffc0cb" opacity="0.2" />
+    <ellipse cx="100" cy="600" rx="300" ry="300" fill="#e6e6fa" opacity="0.25" />
+    <ellipse cx="1800" cy="700" rx="350" ry="350" fill="#ffb6c1" opacity="0.22" />
+  </g>
+  
+  <g filter="url(#blurSmall)">
+    <circle cx="300" cy="200" r="180" fill="#ff91a4" opacity="0.28" />
+    <circle cx="1600" cy="150" r="150" fill="#ba55d3" opacity="0.25" />
+    <circle cx="700" cy="500" r="200" fill="#ffb6c1" opacity="0.22" />
+    <circle cx="1300" cy="300" r="120" fill="#dda0dd" opacity="0.26" />
+    <circle cx="400" cy="700" r="160" fill="#ff91a4" opacity="0.2" />
+    <circle cx="1500" cy="650" r="140" fill="#e6e6fa" opacity="0.24" />
+  </g>
+  
+  <g opacity="0.25">
+    <circle cx="150" cy="300" r="60" fill="#ffc0cb" />
+    <circle cx="450" cy="120" r="45" fill="#dda0dd" />
+    <circle cx="1200" cy="80" r="55" fill="#ffc0cb" />
+    <circle cx="1650" cy="350" r="50" fill="#dda0dd" />
+    <circle cx="1750" cy="600" r="40" fill="#ffc0cb" />
+    <circle cx="800" cy="700" r="65" fill="#dda0dd" />
+    <circle cx="200" cy="850" r="55" fill="#ffc0cb" />
+    <circle cx="600" cy="900" r="45" fill="#dda0dd" />
+    <circle cx="1400" cy="850" r="50" fill="#ffc0cb" />
+    <circle cx="900" cy="400" r="35" fill="#dda0dd" />
+    <circle cx="1100" cy="550" r="40" fill="#ffc0cb" />
+    <circle cx="350" cy="450" r="30" fill="#dda0dd" />
+  </g>
+  
+  <g opacity="0.18">
+    <circle cx="80" cy="180" r="25" fill="#ffb6c1" />
+    <circle cx="550" cy="280" r="20" fill="#dda0dd" />
+    <circle cx="950" cy="150" r="22" fill="#ffb6c1" />
+    <circle cx="1400" cy="200" r="18" fill="#dda0dd" />
+    <circle cx="1700" cy="450" r="20" fill="#ffb6c1" />
+    <circle cx="1200" cy="600" r="15" fill="#dda0dd" />
+    <circle cx="700" cy="800" r="22" fill="#ffb6c1" />
+    <circle cx="300" cy="600" r="18" fill="#dda0dd" />
+  </g>
+  
+  <g opacity="0.12">
+    <circle cx="280" cy="100" r="3" fill="#ff91a4">
+      <animate attributeName="opacity" values="0.4;1;0.4" dur="2.5s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="650" cy="80" r="2" fill="#ba55d3">
+      <animate attributeName="opacity" values="0.4;1;0.4" dur="3.2s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="1100" cy="60" r="2.5" fill="#ff91a4">
+      <animate attributeName="opacity" values="0.4;1;0.4" dur="2.8s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="1450" cy="100" r="2" fill="#ba55d3">
+      <animate attributeName="opacity" values="0.4;1;0.4" dur="3.5s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="1750"

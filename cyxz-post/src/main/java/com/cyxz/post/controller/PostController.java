@@ -65,12 +65,14 @@ public class PostController {
     /**
      * 查询帖子详情
      *
-     * @param postId 帖子 ID
+     * @param postId        帖子 ID
+     * @param currentUserId 当前登录用户 ID（由 Gateway 注入，游客为 null）
      * @return 帖子详情（含作者信息、分类名称）
      */
     @GetMapping("/{postId}")
-    public Result<PostVO> getById(@PathVariable("postId") Long postId) {
-        return Result.success(postService.getById(postId));
+    public Result<PostVO> getById(@PathVariable("postId") Long postId,
+                                  @RequestHeader(value = "X-User-Id", required = false) Long currentUserId) {
+        return Result.success(postService.getById(postId, currentUserId));
     }
 
     /**
@@ -89,15 +91,15 @@ public class PostController {
     }
 
     /**
-     * 查询用户的帖子列表
+     * 查询当前用户的帖子列表（含草稿和已删除）
      *
-     * @param userId 用户 ID
+     * @param userId 当前登录用户 ID（由 Gateway 注入）
      * @param page   页码（从 1 开始，默认 1）
      * @param size   每页条数（默认 10）
-     * @return 帖子列表（含草稿和已发布，不含已删除）
+     * @return 帖子列表
      */
-    @GetMapping("/user/{userId}")
-    public Result<List<PostVO>> listByUser(@PathVariable("userId") Long userId,
+    @GetMapping("/user")
+    public Result<List<PostVO>> listByUser(@RequestHeader("X-User-Id") Long userId,
                                            @RequestParam(value = "page", defaultValue = "1") int page,
                                            @RequestParam(value = "size", defaultValue = "10") int size) {
         return Result.success(postService.listByUserId(userId, page, size));

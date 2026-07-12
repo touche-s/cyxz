@@ -111,6 +111,10 @@ public class PostServiceImpl implements PostService {
         log.info("更新帖子成功: postId={}, userId={}", po.getId(), userId);
     }
 
+    /**
+     * 删除帖子（软删除）
+     * <p>仅将帖子状态改为 2（已删除），不物理删除数据，可在回收站恢复。
+     */
     @Override
     public void deletePost(Long userId, Long postId) {
         PostPO po = postMapper.selectById(postId);
@@ -122,20 +126,29 @@ public class PostServiceImpl implements PostService {
         }
         po.setStatus(2);
         postMapper.updateById(po);
-        log.info("删除帖子成功: postId={}, userId={}", postId, userId);
+        log.info("软删除帖子成功: postId={}, userId={}", postId, userId);
     }
 
     /**
      * 根据 ID 查询帖子详情
-     * <p>已删除的帖子不可查看，会抛出 POST_NOT_FOUND 异常。
+     * <p>已发布帖子所有人可查看，草稿和已删除帖子仅作者本人可查看。
      *
-     * @param postId 帖子 ID
+     * @param postId        帖子 ID
+     * @param currentUserId 当前登录用户 ID（可为 null）
      * @return 帖子视图对象（含作者信息、分类名称）
      */
     @Override
-    public PostVO getById(Long postId) {
+    public PostVO getById(Long postId, Long currentUserId) {
         PostPO po = postMapper.selectById(postId);
-        if (po == null || po.getStatus() == 2) {
+        if (po == null) {
+            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
+        }
+        // 已删除：仅作者本人可查看
+        if (po.getStatus() == 2 && !po.getUserId().equals(currentUserId)) {
+            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
+        }
+        // 草稿：仅作者本人可查看
+        if (po.getStatus() == 0 && !po.getUserId().equals(currentUserId)) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
         return convertToVO(po);
@@ -167,7 +180,7 @@ public class PostServiceImpl implements PostService {
 
     /**
      * 查询用户的帖子列表
-     * <p>包含草稿和已发布，不包含已删除，按创建时间倒序。
+     * <p>包含草稿、已发布和已删除，按创建时间倒序。
      *
      * @param userId 用户 ID
      * @param page   页码（从 1 开始）
@@ -179,7 +192,6 @@ public class PostServiceImpl implements PostService {
         Page<PostPO> pageParam = new Page<>(page, size);
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostPO::getUserId, userId);
-        wrapper.ne(PostPO::getStatus, 2);
         wrapper.orderByDesc(PostPO::getCreateTime);
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
         return result.getRecords().stream()

@@ -44,12 +44,13 @@ public interface PostService {
 
     /**
      * 根据 ID 查询帖子详情
-     * <p>已删除的帖子不可查看，会抛出 POST_NOT_FOUND 异常。
+     * <p>已删除的帖子不可查看，草稿仅作者本人可查看。
      *
-     * @param postId 帖子 ID
+     * @param postId        帖子 ID
+     * @param currentUserId 当前登录用户 ID（可为 null，游客访问）
      * @return 帖子视图对象（含作者信息、分类名称）
      */
-    PostVO getById(Long postId);
+    PostVO getById(Long postId, Long currentUserId);
 
     /**
      * 分页查询帖子列表（仅已发布）
@@ -63,10 +64,10 @@ public interface PostService {
     List<PostVO> listPosts(Long categoryId, int page, int size);
 
     /**
-     * 查询用户的帖子列表
-     * <p>包含草稿和已发布，不包含已删除，按创建时间倒序。
+     * 查询当前用户的帖子列表
+     * <p>包含草稿、已发布和已删除，按创建时间倒序。
      *
-     * @param userId 用户 ID
+     * @param userId 当前用户 ID
      * @param page   页码（从 1 开始）
      * @param size   每页条数
      * @return 帖子视图列表
