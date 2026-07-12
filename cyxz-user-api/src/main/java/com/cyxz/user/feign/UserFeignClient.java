@@ -6,6 +6,10 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * 用户服务 Feign 客户端
@@ -31,4 +35,13 @@ public interface UserFeignClient {
      */
     @GetMapping("/user/{userId}")
     Result<UserProfileVO> getById(@PathVariable("userId") Long userId);
+
+    /**
+     * 批量查询用户资料（内部接口，供 post/comment 等服务调用）
+     *
+     * @param userIds 用户 ID 列表（最多 200 个）
+     * @return userId → UserProfileVO 映射
+     */
+    @PostMapping("/user/internal/profile/batch")
+    Result<Map<Long, UserProfileVO>> batchGetByIds(@RequestBody List<Long> userIds);
 }

@@ -1,5 +1,6 @@
 package com.cyxz.user.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.user.dto.UpdateProfileRequest;
@@ -14,6 +15,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * 用户资料服务实现
@@ -45,6 +48,36 @@ public class UserProfileServiceImpl implements UserProfileService {
             vo.setBirthday(po.getBirthday().format(DateTimeFormatter.ISO_LOCAL_DATE));
         }
         return vo;
+    }
+
+    /**
+     * 批量查询用户资料
+     * <p>根据用户 ID 列表一次查询，返回 userId → UserProfileVO 映射。
+     * 不存在的用户不会出现在结果中。
+     *
+     * @param userIds 用户 ID 列表
+     * @return userId → UserProfileVO 映射
+     */
+    @Override
+    public Map<Long, UserProfileVO> batchGetByUserIds(List<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        // 去重 + 限制最大 200
+        Set<Long> distinctIds = userIds.stream().distinct().limit(200).collect(Collectors.toSet());
+        List<UserProfilePO> profiles = profileMapper.selectList(
+                new LambdaQueryWrapper<UserProfilePO>().in(UserProfilePO::getUserId, distinctIds)
+        );
+        Map<Long, UserProfileVO> result = new HashMap<>();
+        for (UserProfilePO po : profiles) {
+            UserProfileVO vo = new UserProfileVO();
+            BeanUtils.copyProperties(po, vo);
+            if (po.getBirthday() != null) {
+                vo.setBirthday(po.getBirthday().format(DateTimeFormatter.ISO_LOCAL_DATE));
+            }
+            result.put(po.getUserId(), vo);
+        }
+        return result;
     }
 
     /**
