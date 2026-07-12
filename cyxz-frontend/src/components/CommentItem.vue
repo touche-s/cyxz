@@ -5,14 +5,21 @@
     <div v-else class="comment-avatar-placeholder"></div>
 
     <div class="comment-body">
-      <!-- 头部：用户名 + 时间 -->
+      <!-- 头部：用户名 + 内容（子评论时同行显示） -->
       <div class="comment-header">
         <span class="comment-author">{{ comment.userName || '匿名用户' }}</span>
-        <span class="comment-time">{{ formatTime(comment.createTime) }}</span>
+        <span v-if="isReply" class="comment-text-inline">
+          <template v-if="comment.replyToUserName">
+            回复 <span class="reply-mention">@{{ comment.replyToUserName }}</span> : {{ comment.content }}
+          </template>
+          <template v-else>
+            : {{ comment.content }}
+          </template>
+        </span>
       </div>
 
-      <!-- 回复提示 + 内容（合并为一行） -->
-      <p class="comment-text">
+      <!-- 内容（仅顶级评论单独一行） -->
+      <p v-if="!isReply" class="comment-text">
         <template v-if="comment.replyToUserName">
           回复 <span class="reply-mention">@{{ comment.replyToUserName }}</span> : {{ comment.content }}
         </template>
@@ -21,8 +28,9 @@
         </template>
       </p>
 
-      <!-- 操作栏 -->
+      <!-- 操作栏：时间 + 点赞 + 回复 -->
       <div class="comment-actions">
+        <span class="comment-time">{{ formatTime(comment.createTime) }}</span>
         <button
           class="comment-action-btn"
           :class="{ active: comment.liked }"
@@ -35,7 +43,7 @@
           />
           <span>{{ comment.likes }}</span>
         </button>
-        <button class="comment-action-btn" @click="$emit('reply', comment)">
+        <button class="comment-action-btn" @click="handleReply">
           <span>回复</span>
         </button>
         <button
@@ -48,7 +56,7 @@
       </div>
 
       <!-- 子回复入口（仅顶级评论、有回复时显示） -->
-      <div v-if="isTopLevel && totalReplies > 0" class="replies-section">
+      <div v-if="isTopLevel && totalReplies > 0">
         <!-- 有回复但未加载：点击查看 -->
         <button
           v-if="!replyLoaded"
@@ -58,33 +66,53 @@
           共 {{ totalReplies }} 条回复，点击查看
         </button>
 
-        <!-- 已加载：展示回复列表 -->
+        <!-- 已加载：展示回复列表 + 分页控件 -->
         <template v-else>
-          <CommentItem
-            v-for="child in comment.children"
-            :key="child.id"
-            :comment="child"
-            :is-top-level="false"
-            :current-user-id="currentUserId"
-            @like="(c) => $emit('like', c)"
-            @reply="(c) => $emit('reply', c)"
-            @deleted="(id) => $emit('deleted', id)"
-          />
+          <div class="replies-section">
+            <CommentItem
+              v-for="child in currentReplyPage"
+              :key="child.id"
+              :comment="child"
+              :is-top-level="false"
+              :current-user-id="currentUserId"
+              :top-level-id="comment.id"
+              :is-reply="true"
+              @like="(c) => $emit('like', c)"
+              @reply="(payload) => $emit('reply', payload)"
+              @deleted="(id) => $emit('deleted', id)"
+            />
+          </div>
 
-          <!-- 查看更多回复 -->
-          <button
-            v-if="!replyFinished"
-            class="load-more-replies"
-            :disabled="replyLoading"
-            @click="loadMoreReplies"
-          >
-            {{ replyLoading ? '加载中...' : `查看更多回复 (${totalReplies - loadedReplyCount}条)` }}
-          </button>
-
-          <!-- 收起回复 -->
-          <button class="toggle-replies-btn" @click="hideReplies">
-            收起回复
-          </button>
+          <!-- 分页控件 -->
+          <div class="reply-pagination">
+            <span class="pagination-info">共 {{ totalPages }} 页</span>
+            <button
+              v-if="currentPage > 1"
+              class="pagination-btn"
+              @click="goToReplyPage(currentPage - 1)"
+            >
+              上一页
+            </button>
+            <button
+              v-for="page in displayPages"
+              :key="page"
+              class="pagination-btn"
+              :class="{ active: page === currentPage }"
+              @click="goToReplyPage(page)"
+            >
+              {{ page }}
+            </button>
+            <button
+              v-if="currentPage < totalPages"
+              class="pagination-btn"
+              @click="goToReplyPage(currentPage + 1)"
+            >
+              下一页
+            </button>
+            <button class="pagination-btn collapse-btn" @click="hideReplies">
+              收起回复
+            </button>
+          </div>
         </template>
       </div>
     </div>
@@ -104,13 +132,20 @@ const props = defineProps<{
   comment: CommentVO
   isTopLevel: boolean
   currentUserId: number | null
+  topLevelId?: number
+  isReply?: boolean
 }>()
 
 const emit = defineEmits<{
   like: [comment: CommentVO]
-  reply: [comment: CommentVO]
+  reply: [payload: { comment: CommentVO; parentId: number }]
   deleted: [commentId: number]
 }>()
+
+const handleReply = () => {
+  const parentId = props.isTopLevel ? props.comment.id : (props.topLevelId ?? props.comment.id)
+  emit('reply', { comment: props.comment, parentId })
+}
 
 const userStore = useUserStore()
 
@@ -156,14 +191,33 @@ const handleDelete = async () => {
   }
 }
 
-// ===== 子回复：按需加载 =====
+// ===== 子回复：分页加载 =====
 const replyLoading = ref(false)
 const replyLoaded = ref(false)
-const replyPage = ref(0)
-const replyFinished = ref(false)
+const currentPage = ref(1)
+const replyPageSize = 5
+
+// 存储每页的回复数据
+const replyPages = ref<CommentVO[][]>([])
 
 const totalReplies = computed(() => props.comment.totalReplies || 0)
-const loadedReplyCount = computed(() => props.comment.children?.length || 0)
+const totalPages = computed(() => Math.ceil(totalReplies.value / replyPageSize))
+
+// 当前页显示的回复
+const currentReplyPage = computed(() => {
+  return replyPages.value[currentPage.value - 1] || []
+})
+
+// 显示的页码按钮（最多显示 5 个）
+const displayPages = computed(() => {
+  const total = totalPages.value
+  if (total <= 5) return Array.from({ length: total }, (_, i) => i + 1)
+  
+  const current = currentPage.value
+  if (current <= 3) return [1, 2, 3, 4, 5]
+  if (current >= total - 2) return [total - 4, total - 3, total - 2, total - 1, total]
+  return [current - 2, current - 1, current, current + 1, current + 2]
+})
 
 /** 首次加载子回复（第一页） */
 const loadReplies = async () => {
@@ -174,17 +228,14 @@ const loadReplies = async () => {
     const res = await getCommentReplies({
       parentId: props.comment.id,
       page: 1,
-      size: 5,
+      size: replyPageSize,
     })
     const pageResult = res.data?.data
     if (pageResult?.records?.length > 0) {
-      props.comment.children = pageResult.records
-      replyPage.value = 1
-      replyFinished.value = pageResult.records.length >= totalReplies.value
-    } else {
-      replyFinished.value = true
+      replyPages.value[0] = pageResult.records
+      replyLoaded.value = true
+      currentPage.value = 1
     }
-    replyLoaded.value = true
   } catch {
     ElMessage.error('加载回复失败')
   } finally {
@@ -192,28 +243,29 @@ const loadReplies = async () => {
   }
 }
 
-/** 加载更多子回复（后续页） */
-const loadMoreReplies = async () => {
-  if (replyLoading.value || replyFinished.value) return
-
+/** 跳转到指定页 */
+const goToReplyPage = async (page: number) => {
+  if (page < 1 || page > totalPages.value) return
+  if (page === currentPage.value) return
+  
+  // 如果该页已加载，直接切换
+  if (replyPages.value[page - 1]) {
+    currentPage.value = page
+    return
+  }
+  
+  // 否则从后端加载
   replyLoading.value = true
-  const nextPage = replyPage.value + 1
-
   try {
     const res = await getCommentReplies({
       parentId: props.comment.id,
-      page: nextPage,
-      size: 5,
+      page,
+      size: replyPageSize,
     })
     const pageResult = res.data?.data
-    if (pageResult?.records?.length > 0) {
-      props.comment.children.push(...pageResult.records)
-      replyPage.value = nextPage
-      if (props.comment.children.length >= totalReplies.value) {
-        replyFinished.value = true
-      }
-    } else {
-      replyFinished.value = true
+    if (pageResult?.records) {
+      replyPages.value[page - 1] = pageResult.records
+      currentPage.value = page
     }
   } catch {
     ElMessage.error('加载回复失败')
@@ -225,23 +277,19 @@ const loadMoreReplies = async () => {
 /** 收起回复（保留已加载数据，只隐藏） */
 const hideReplies = () => {
   replyLoaded.value = false
+  currentPage.value = 1
 }
 
 // ===== 时间格式化 =====
 const formatTime = (time: string) => {
   if (!time) return ''
   const date = new Date(time)
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(diff / 3600000)
-  const days = Math.floor(diff / 86400000)
-
-  if (minutes < 1) return '刚刚'
-  if (minutes < 60) return `${minutes}分钟前`
-  if (hours < 24) return `${hours}小时前`
-  if (days < 30) return `${days}天前`
-  return date.toLocaleDateString('zh-CN')
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  const hour = String(date.getHours()).padStart(2, '0')
+  const minute = String(date.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day} ${hour}:${minute}`
 }
 </script>
 
@@ -249,8 +297,8 @@ const formatTime = (time: string) => {
 .comment-item {
   display: flex;
   gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid rgba(255, 107, 157, 0.06);
+  padding: 16px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .comment-item:last-child {
@@ -258,33 +306,39 @@ const formatTime = (time: string) => {
 }
 
 .comment-item.is-reply {
-  margin-left: 48px;
+  margin-left: 10px;
   padding: 10px 0;
+  gap: 8px;
 }
 
-/* 顶级评论头像稍大 */
+/* 顶级评论头像 */
 .comment-item:not(.is-reply) .comment-avatar,
 .comment-item:not(.is-reply) .comment-avatar-placeholder {
-  width: 56px;
-  height: 56px;
+  width: 48px;
+  height: 48px;
 }
 
 .comment-avatar {
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
-  border: 2px solid white;
-  box-shadow: 0 2px 8px rgba(180, 132, 255, 0.15);
 }
 
 .comment-avatar-placeholder {
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--pink), var(--purple));
   flex-shrink: 0;
+}
+
+/* 子评论头像小一点 */
+.comment-item.is-reply .comment-avatar,
+.comment-item.is-reply .comment-avatar-placeholder {
+  width: 24px;
+  height: 24px;
 }
 
 .comment-body {
@@ -295,18 +349,32 @@ const formatTime = (time: string) => {
 .comment-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.comment-item.is-reply .comment-header {
   margin-bottom: 4px;
 }
 
 .comment-author {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text);
 }
 
+.comment-item.is-reply .comment-author {
+  font-size: 14px;
+}
+
+.comment-text-inline {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 400;
+}
+
 .comment-time {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-dim);
 }
 
@@ -316,36 +384,46 @@ const formatTime = (time: string) => {
 }
 
 .comment-text {
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.6;
-  color: var(--text-secondary);
+  color: var(--text);
   word-break: break-word;
+  margin-bottom: 8px;
 }
 
 .comment-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-top: 8px;
+  gap: 10px;
+  margin-top: 4px;
+  line-height: 1;
+}
+
+.comment-time {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1;
 }
 
 .comment-action-btn {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   background: transparent;
   border: none;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-dim);
-  padding: 4px 10px;
-  border-radius: 8px;
-  transition: all 0.22s ease-out;
+  padding: 0 2px;
+  border-radius: 4px;
+  transition: all 0.2s ease-out;
+  line-height: 1;
+  height: 24px;
 }
 
 .comment-action-btn:hover {
-  background: rgba(255, 107, 157, 0.08);
-  color: var(--pink);
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--text);
 }
 
 .comment-action-btn.active {
@@ -353,8 +431,10 @@ const formatTime = (time: string) => {
 }
 
 .comment-action-btn .action-icon {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
+  margin-top: -1px;
 }
 
 .delete-btn:hover {
@@ -364,49 +444,86 @@ const formatTime = (time: string) => {
 
 /* 子回复区域 */
 .replies-section {
-  margin-top: 8px;
-  padding: 8px 0;
-  background: rgba(255, 107, 157, 0.03);
-  border-radius: 12px;
+  margin-top: 0;
+  padding: 0;
 }
 
-/* 点击查看 / 收起回复 */
+/* 子回复分页控件 */
+.reply-pagination {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-top: 0;
+  padding: 0;
+}
+
+.pagination-info {
+  font-size: 13px;
+  line-height: 24px;
+  color: var(--text-dim);
+  margin-right: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.pagination-btn {
+  background: transparent;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 24px;
+  color: var(--purple);
+  padding: 0 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease-out;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.pagination-btn:hover {
+  background: rgba(180, 132, 255, 0.1);
+}
+
+.pagination-btn.active {
+  color: var(--purple);
+  font-weight: 600;
+}
+
+/* 点击查看 / 收起回复 - 简单文字 */
 .toggle-replies-btn {
   display: block;
   width: 100%;
-  padding: 8px;
+  padding: 4px 0;
   background: transparent;
   border: none;
   cursor: pointer;
-  font-size: 13px;
-  color: var(--purple);
+  font-size: 12px;
+  color: var(--text-dim);
   text-align: left;
-  padding-left: 60px;
-  transition: all 0.22s ease-out;
+  transition: color 0.2s ease-out;
 }
 
 .toggle-replies-btn:hover {
-  color: var(--pink);
+  color: var(--purple);
 }
 
-/* 查看更多回复 */
+/* 查看更多回复 - 简单文字 */
 .load-more-replies {
   display: block;
   width: 100%;
-  padding: 8px;
-  margin-top: 4px;
+  padding: 4px 0;
   background: transparent;
   border: none;
   cursor: pointer;
-  font-size: 13px;
-  color: var(--purple);
+  font-size: 12px;
+  color: var(--text-dim);
   text-align: left;
-  padding-left: 60px;
-  transition: all 0.22s ease-out;
+  transition: color 0.2s ease-out;
 }
 
 .load-more-replies:hover:not(:disabled) {
-  color: var(--pink);
+  color: var(--purple);
 }
 
 .load-more-replies:disabled {
