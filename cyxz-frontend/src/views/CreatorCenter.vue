@@ -1499,7 +1499,7 @@ onMounted(() => {
 .content-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 6px;
 }
 
 .content-item {
