@@ -51,6 +51,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             "/api/auth/refresh",
             "/api/posts/**",
             "/api/category/**",
+            "/api/comment/list/**",
             "/api/search/**"
     );
 
