@@ -48,13 +48,13 @@ public class CommentController {
     }
 
     /**
-     * 分页查询帖子的评论列表
+     * 分页查询帖子的评论列表（仅顶级评论）
      *
      * @param postId        帖子 ID
      * @param page          页码（从 1 开始，默认 1）
      * @param size          每页条数（默认 20）
      * @param currentUserId 当前登录用户 ID（由 Gateway 注入，游客为 null）
-     * @return 评论列表（含嵌套子回复）
+     * @return 评论列表（含嵌套子回复，子回复默认带第一页）
      */
     @GetMapping("/list")
     public Result<PageResult<CommentVO>> list(@RequestParam("postId") Long postId,
@@ -62,6 +62,23 @@ public class CommentController {
                                         @RequestParam(value = "size", defaultValue = "20") int size,
                                         @RequestHeader(value = "X-User-Id", required = false) Long currentUserId) {
         return Result.success(commentService.listComments(postId, page, size, currentUserId));
+    }
+
+    /**
+     * 分页查询某条评论的子回复
+     *
+     * @param parentId      父评论 ID
+     * @param page          页码（从 1 开始，默认 1）
+     * @param size          每页条数（默认 5）
+     * @param currentUserId 当前登录用户 ID（由 Gateway 注入，游客为 null）
+     * @return 子回复列表
+     */
+    @GetMapping("/replies")
+    public Result<PageResult<CommentVO>> replies(@RequestParam("parentId") Long parentId,
+                                           @RequestParam(value = "page", defaultValue = "1") int page,
+                                           @RequestParam(value = "size", defaultValue = "5") int size,
+                                           @RequestHeader(value = "X-User-Id", required = false) Long currentUserId) {
+        return Result.success(commentService.listReplies(parentId, page, size, currentUserId));
     }
 
     /**

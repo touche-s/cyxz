@@ -44,8 +44,14 @@ public class CommentVO {
     /** 当前用户是否已点赞 */
     private Boolean liked;
 
-    /** 子评论列表（仅顶级评论包含） */
+    /** 子评论列表（仅顶级评论包含，默认只带第一页） */
     private List<CommentVO> children;
+
+    /** 子评论总数（仅顶级评论返回） */
+    private Integer totalReplies;
+
+    /** 是否还有更多子评论（仅顶级评论返回） */
+    private Boolean hasMoreReplies;
 
     /** 创建时间 */
     private LocalDateTime createTime;

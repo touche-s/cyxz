@@ -3,6 +3,7 @@ package com.cyxz.comment.service.impl;
 import cn.hutool.core.collection.CollUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cyxz.comment.dto.CreateCommentRequest;
 import com.cyxz.comment.entity.CommentPO;
 import com.cyxz.comment.mapper.CommentMapper;
@@ -85,77 +86,113 @@ public class CommentServiceImpl implements CommentService {
     }
 
     /**
-     * 分页查询帖子的评论列表
-     * <p>查询指定帖子的所有正常评论，构建父子嵌套关系，
-     * 仅对顶级评论分页返回，子评论通过 children 字段嵌套。
-     * 游客也可查看，currentUserId 为 null 时不标记点赞状态。
+     * 分页查询帖子的顶级评论列表（两级分页）
+     * <p>Step 1: SQL 分页查顶级评论（parent_id IS NULL）
+     * <p>Step 2: 批量查这些顶级评论的子回复（只带第一页 3 条）
+     * <p>Step 3: 注入 totalReplies / hasMoreReplies 供前端"展开更多回复"
      *
      * @param postId        帖子 ID
      * @param page          页码（从 1 开始）
      * @param size          每页条数
      * @param currentUserId 当前登录用户 ID（可为 null）
-     * @return 评论视图列表（含嵌套子回复）
+     * @return 分页结果（仅顶级评论计入分页）
      */
     @Override
     public PageResult<CommentVO> listComments(Long postId, int page, int size, Long currentUserId) {
-        // 查询所有正常评论（不分父子，按时间排序）
-        LambdaQueryWrapper<CommentPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(CommentPO::getPostId, postId)
+        // Step 1: SQL 分页查顶级评论
+        LambdaQueryWrapper<CommentPO> topWrapper = new LambdaQueryWrapper<>();
+        topWrapper.eq(CommentPO::getPostId, postId)
+                .eq(CommentPO::getStatus, 1)
+                .isNull(CommentPO::getParentId)
+                .orderByAsc(CommentPO::getCreateTime);
+        Page<CommentPO> topPage = commentMapper.selectPage(
+                new Page<>(page, size), topWrapper);
+
+        List<CommentPO> topComments = topPage.getRecords();
+        if (topComments.isEmpty()) {
+            return PageResult.empty(page, size);
+        }
+
+        // Step 2: 批量查这些顶级评论的子回复
+        List<Long> parentIds = topComments.stream()
+                .map(CommentPO::getId).collect(Collectors.toList());
+        LambdaQueryWrapper<CommentPO> childWrapper = new LambdaQueryWrapper<>();
+        childWrapper.in(CommentPO::getParentId, parentIds)
                 .eq(CommentPO::getStatus, 1)
                 .orderByAsc(CommentPO::getCreateTime);
-        List<CommentPO> allComments = commentMapper.selectList(wrapper);
+        List<CommentPO> allChildren = commentMapper.selectList(childWrapper);
 
-        if (allComments.isEmpty()) {
-            return PageResult.empty(page, size);
-        }
+        // 按 parentId 分组，并统计每组的子回复总数
+        Map<Long, List<CommentPO>> childrenByParent = allChildren.stream()
+                .collect(Collectors.groupingBy(CommentPO::getParentId, LinkedHashMap::new, Collectors.toList()));
 
-        // 收集所有用户 ID
+        // 收集所有 userId
         Set<Long> userIds = new HashSet<>();
-        for (CommentPO c : allComments) {
+        for (CommentPO c : topComments) userIds.add(c.getUserId());
+        for (CommentPO c : allChildren) {
             userIds.add(c.getUserId());
-            if (c.getReplyToUserId() != null) {
-                userIds.add(c.getReplyToUserId());
-            }
+            if (c.getReplyToUserId() != null) userIds.add(c.getReplyToUserId());
         }
 
-        // 批量查询用户信息
+        // Step 3: 批量查用户信息 + 点赞状态
         Map<Long, UserProfileVO> userMap = getUserMap(userIds);
-
-        // 查询当前用户的点赞记录
         Set<Long> likedCommentIds = getLikedCommentIds(currentUserId);
 
-        // 转换为 VO
-        Map<Long, CommentVO> voMap = new LinkedHashMap<>();
-        for (CommentPO po : allComments) {
-            CommentVO vo = toVO(po, userMap, likedCommentIds);
-            voMap.put(vo.getId(), vo);
+        // Step 4: 组装结果 —— 顶级评论带第一页子评论
+        int childPageSize = 3; // 子回复第一页大小
+        List<CommentVO> result = new ArrayList<>();
+        for (CommentPO top : topComments) {
+            CommentVO topVO = toVO(top, userMap, likedCommentIds);
+            List<CommentPO> children = childrenByParent.getOrDefault(top.getId(), Collections.emptyList());
+            int totalReplies = children.size();
+            // 只取第一页子评论
+            List<CommentPO> firstPage = children.subList(0, Math.min(childPageSize, totalReplies));
+            List<CommentVO> childVOs = convertToVOList(firstPage, userMap, likedCommentIds);
+            topVO.setChildren(childVOs);
+            topVO.setTotalReplies(totalReplies);
+            topVO.setHasMoreReplies(totalReplies > childPageSize);
+            result.add(topVO);
         }
 
-        // 构建父子关系
-        List<CommentVO> topLevel = new ArrayList<>();
-        for (CommentPO po : allComments) {
-            CommentVO vo = voMap.get(po.getId());
-            if (po.getParentId() == null) {
-                topLevel.add(vo);
-            } else {
-                CommentVO parent = voMap.get(po.getParentId());
-                if (parent != null) {
-                    if (parent.getChildren() == null) {
-                        parent.setChildren(new ArrayList<>());
-                    }
-                    parent.getChildren().add(vo);
-                }
-            }
-        }
+        return PageResult.of(result, (int) topPage.getTotal(), page, size);
+    }
 
-        // 分页：只对顶级评论分页
-        int total = topLevel.size();
-        int start = (page - 1) * size;
-        int end = Math.min(start + size, total);
-        if (start >= total) {
+    /**
+     * 分页查询某条评论的子回复
+     * <p>前端点击"展开更多回复"时调用。
+     *
+     * @param parentId      父评论 ID
+     * @param page          页码（从 1 开始）
+     * @param size          每页条数
+     * @param currentUserId 当前登录用户 ID（可为 null）
+     * @return 分页结果
+     */
+    @Override
+    public PageResult<CommentVO> listReplies(Long parentId, int page, int size, Long currentUserId) {
+        LambdaQueryWrapper<CommentPO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CommentPO::getParentId, parentId)
+                .eq(CommentPO::getStatus, 1)
+                .orderByAsc(CommentPO::getCreateTime);
+        Page<CommentPO> replyPage = commentMapper.selectPage(
+                new Page<>(page, size), wrapper);
+
+        List<CommentPO> replies = replyPage.getRecords();
+        if (replies.isEmpty()) {
             return PageResult.empty(page, size);
         }
-        return PageResult.of(topLevel.subList(start, end), total, page, size);
+
+        // 收集 userId
+        Set<Long> userIds = new HashSet<>();
+        for (CommentPO c : replies) {
+            userIds.add(c.getUserId());
+            if (c.getReplyToUserId() != null) userIds.add(c.getReplyToUserId());
+        }
+
+        Map<Long, UserProfileVO> userMap = getUserMap(userIds);
+        Set<Long> likedCommentIds = getLikedCommentIds(currentUserId);
+
+        List<CommentVO> vos = convertToVOList(replies, userMap, likedCommentIds);
+        return PageResult.of(vos, (int) replyPage.getTotal(), page, size);
     }
 
     /**
@@ -233,6 +270,16 @@ public class CommentServiceImpl implements CommentService {
         return members.stream()
                 .map(Long::valueOf)
                 .collect(Collectors.toSet());
+    }
+
+    /**
+     * 批量转换 PO 列表为 VO 列表
+     */
+    private List<CommentVO> convertToVOList(List<CommentPO> pos, Map<Long, UserProfileVO> userMap,
+                                             Set<Long> likedCommentIds) {
+        return pos.stream()
+                .map(po -> toVO(po, userMap, likedCommentIds))
+                .collect(Collectors.toList());
     }
 
     /**
