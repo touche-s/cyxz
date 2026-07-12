@@ -102,7 +102,12 @@ public class AuthServiceImpl implements AuthService {
 
         log.info("用户注册成功: userId={}, username={}", user.getId(), user.getUsername());
 
-        userFeignClient.initDefaultProfile(user.getId(), user.getUsername());
+        // 异步初始化默认资料，失败不阻塞注册流程
+        try {
+            userFeignClient.initDefaultProfile(user.getId(), user.getUsername());
+        } catch (Exception e) {
+            log.error("初始化用户资料失败，需人工补偿: userId={}, username={}", user.getId(), user.getUsername(), e);
+        }
     }
 
     /**
