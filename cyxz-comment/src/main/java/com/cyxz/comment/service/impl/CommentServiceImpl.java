@@ -86,16 +86,15 @@ public class CommentServiceImpl implements CommentService {
     }
 
     /**
-     * 分页查询帖子的顶级评论列表（两级分页）
-     * <p>Step 1: SQL 分页查顶级评论（parent_id IS NULL）
-     * <p>Step 2: 批量查这些顶级评论的子回复（只带第一页 3 条）
-     * <p>Step 3: 注入 totalReplies / hasMoreReplies 供前端"展开更多回复"
+     * 分页查询帖子的顶级评论列表（按需加载子回复）
+     * <p>仅返回顶级评论自身，不预加载子回复。
+     * <p>子回复总数通过 COUNT 统计写入 totalReplies，前端按需调用 /comment/replies 加载。
      *
      * @param postId        帖子 ID
      * @param page          页码（从 1 开始）
      * @param size          每页条数
      * @param currentUserId 当前登录用户 ID（可为 null）
-     * @return 分页结果（仅顶级评论计入分页）
+     * @return 分页结果（仅顶级评论计入分页，children 为空）
      */
     @Override
     public PageResult<CommentVO> listComments(Long postId, int page, int size, Long currentUserId) {
@@ -113,48 +112,49 @@ public class CommentServiceImpl implements CommentService {
             return PageResult.empty(page, size);
         }
 
-        // Step 2: 批量查这些顶级评论的子回复
+        // Step 2: 统计每条顶级评论的子回复总数（轻量 COUNT，只查 parentId）
         List<Long> parentIds = topComments.stream()
                 .map(CommentPO::getId).collect(Collectors.toList());
-        LambdaQueryWrapper<CommentPO> childWrapper = new LambdaQueryWrapper<>();
-        childWrapper.in(CommentPO::getParentId, parentIds)
-                .eq(CommentPO::getStatus, 1)
-                .orderByAsc(CommentPO::getCreateTime);
-        List<CommentPO> allChildren = commentMapper.selectList(childWrapper);
+        Map<Long, Integer> replyCounts = countRepliesByParents(parentIds);
 
-        // 按 parentId 分组，并统计每组的子回复总数
-        Map<Long, List<CommentPO>> childrenByParent = allChildren.stream()
-                .collect(Collectors.groupingBy(CommentPO::getParentId, LinkedHashMap::new, Collectors.toList()));
+        // Step 3: 收集用户 ID（仅顶级评论的作者）
+        Set<Long> userIds = topComments.stream()
+                .map(CommentPO::getUserId)
+                .collect(Collectors.toSet());
 
-        // 收集所有 userId
-        Set<Long> userIds = new HashSet<>();
-        for (CommentPO c : topComments) userIds.add(c.getUserId());
-        for (CommentPO c : allChildren) {
-            userIds.add(c.getUserId());
-            if (c.getReplyToUserId() != null) userIds.add(c.getReplyToUserId());
-        }
-
-        // Step 3: 批量查用户信息 + 点赞状态
+        // Step 4: 批量查用户信息 + 点赞状态
         Map<Long, UserProfileVO> userMap = getUserMap(userIds);
         Set<Long> likedCommentIds = getLikedCommentIds(currentUserId);
 
-        // Step 4: 组装结果 —— 顶级评论带第一页子评论
-        int childPageSize = 3; // 子回复第一页大小
-        List<CommentVO> result = new ArrayList<>();
-        for (CommentPO top : topComments) {
-            CommentVO topVO = toVO(top, userMap, likedCommentIds);
-            List<CommentPO> children = childrenByParent.getOrDefault(top.getId(), Collections.emptyList());
-            int totalReplies = children.size();
-            // 只取第一页子评论
-            List<CommentPO> firstPage = children.subList(0, Math.min(childPageSize, totalReplies));
-            List<CommentVO> childVOs = convertToVOList(firstPage, userMap, likedCommentIds);
-            topVO.setChildren(childVOs);
-            topVO.setTotalReplies(totalReplies);
-            topVO.setHasMoreReplies(totalReplies > childPageSize);
-            result.add(topVO);
-        }
+        // Step 5: 组装结果（children 为空，子回复全由 /comment/replies 按需加载）
+        List<CommentVO> result = topComments.stream().map(top -> {
+            CommentVO vo = toVO(top, userMap, likedCommentIds);
+            int totalReplies = replyCounts.getOrDefault(top.getId(), 0);
+            vo.setChildren(Collections.emptyList());
+            vo.setTotalReplies(totalReplies);
+            vo.setHasMoreReplies(totalReplies > 0);
+            return vo;
+        }).collect(Collectors.toList());
 
         return PageResult.of(result, (int) topPage.getTotal(), page, size);
+    }
+
+    /**
+     * 统计一批父评论的子回复数量
+     */
+    private Map<Long, Integer> countRepliesByParents(List<Long> parentIds) {
+        if (parentIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        LambdaQueryWrapper<CommentPO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(CommentPO::getParentId, parentIds)
+                .eq(CommentPO::getStatus, 1)
+                .select(CommentPO::getParentId, CommentPO::getId);
+        List<CommentPO> replies = commentMapper.selectList(wrapper);
+        return replies.stream()
+                .collect(Collectors.groupingBy(
+                        CommentPO::getParentId,
+                        Collectors.summingInt(c -> 1)));
     }
 
     /**
