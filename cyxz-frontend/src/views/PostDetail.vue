@@ -43,7 +43,7 @@
           </div>
 
           <div class="post-action-bar">
-            <button class="action-btn" :class="{ active: liked }" @click="toggleLike">
+            <button class="action-btn" :class="{ active: liked }" @click="togglePostLike">
               <img :src="liked ? likeIcon : likeOutlineIcon" alt="like" class="action-icon" />
               <span class="action-count">{{ formatNumber(post.likes) }}</span>
             </button>
@@ -63,42 +63,56 @@
 
           <div class="comment-section" ref="commentSection">
             <div class="section-header">
-              <h2>评论 ({{ post.comments }})</h2>
+              <h2>评论 ({{ commentTotal }})</h2>
             </div>
 
             <div class="comment-input-area">
-              <textarea
-                v-model="commentInput"
-                class="comment-input"
-                placeholder="写下你的评论..."
-                rows="3"
-              ></textarea>
-              <button class="send-btn" :disabled="!commentInput.trim()" @click="submitComment">
-                发送
-              </button>
-            </div>
-
-            <div class="comment-list" v-if="comments.length > 0">
-              <div v-for="comment in comments" :key="comment.id" class="comment-item">
-                <div class="comment-avatar"></div>
-                <div class="comment-content">
-                  <div class="comment-header">
-                    <span class="comment-author">{{ comment.authorName }}</span>
-                    <span class="comment-time">{{ formatTime(comment.createTime) }}</span>
-                  </div>
-                  <p class="comment-text">{{ comment.content }}</p>
-                  <div class="comment-actions">
-                    <button class="comment-action-btn">
-                      <img :src="liked ? likeIcon : likeOutlineIcon" alt="like" class="action-icon" />
-                      {{ comment.likes }}
-                    </button>
-                  </div>
-                </div>
+              <div v-if="replyTarget" class="reply-target-bar">
+                <span>回复 @{{ replyTarget.userName || '匿名用户' }}</span>
+                <button class="cancel-reply-btn" @click="cancelReply">取消</button>
+              </div>
+              <div class="input-row">
+                <textarea
+                  v-model="commentInput"
+                  class="comment-input"
+                  :placeholder="replyTarget ? `回复 @${replyTarget.userName || '匿名用户'}...` : '写下你的评论...'"
+                  rows="3"
+                ></textarea>
+                <button class="send-btn" :disabled="!commentInput.trim()" @click="submitComment">
+                  发送
+                </button>
               </div>
             </div>
 
-            <div class="empty-comments" v-else>
+            <div class="comment-list" v-if="comments.length > 0">
+              <CommentItem
+                v-for="comment in comments"
+                :key="comment.id"
+                :comment="comment"
+                :is-top-level="true"
+                :current-user-id="currentUserId"
+                @reply="handleReply"
+                @deleted="handleCommentDeleted"
+              />
+
+              <!-- 加载更多评论 -->
+              <div v-if="!commentFinished" class="load-more-wrap">
+                <button
+                  class="load-more-btn"
+                  :disabled="commentLoading"
+                  @click="loadMoreComments"
+                >
+                  {{ commentLoading ? '加载中...' : '加载更多评论' }}
+                </button>
+              </div>
+            </div>
+
+            <div class="empty-comments" v-else-if="!commentLoading">
               <p>暂无评论，来发表第一条评论吧~</p>
+            </div>
+
+            <div class="empty-comments" v-else>
+              <p>加载中...</p>
             </div>
           </div>
         </div>
@@ -113,11 +127,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getPostDetail } from '@/api/post'
+import {
+  getCommentList,
+  createComment,
+} from '@/api/comment'
 import type { PostVO } from '@/api/post'
+import type { CommentVO, CreateCommentRequest } from '@/api/comment'
+import { useUserStore } from '@/stores/user'
+import CommentItem from '@/components/CommentItem.vue'
 import likeIcon from '@/assets/icons/like.svg'
 import likeOutlineIcon from '@/assets/icons/like-outline.svg'
 import favoriteIcon from '@/assets/icons/favorite.svg'
@@ -127,6 +148,7 @@ import commentIcon from '@/assets/icons/comment.svg'
 
 const route = useRoute()
 const router = useRouter()
+const userStore = useUserStore()
 
 const post = ref<PostVO | null>(null)
 const loading = ref(false)
@@ -135,23 +157,22 @@ const collected = ref(false)
 const commentInput = ref('')
 const commentSection = ref<HTMLElement | null>(null)
 const currentImage = ref(0)
+const replyTarget = ref<CommentVO | null>(null)
 
-const comments = ref([
-  {
-    id: 1,
-    authorName: '用户A',
-    content: '这个帖子太棒了！内容很丰富~',
-    likes: 12,
-    createTime: '2026-07-09 15:30:00',
-  },
-  {
-    id: 2,
-    authorName: '用户B',
-    content: '学到了很多东西，感谢分享！',
-    likes: 8,
-    createTime: '2026-07-09 16:45:00',
-  },
-])
+// ===== 评论列表 =====
+const comments = ref<CommentVO[]>([])
+const commentPage = ref(1)
+const commentTotal = ref(0)
+const commentSize = 20
+const commentLoading = ref(false)
+const commentFinished = ref(false)
+
+const currentUserId = computed<number | null>(() => {
+  const info = userStore.userInfo
+  if (info?.id) return Number(info.id)
+  if (info?.userId) return Number(info.userId)
+  return null
+})
 
 const contentParagraphs = computed(() => {
   if (!post.value?.content) return []
@@ -159,9 +180,7 @@ const contentParagraphs = computed(() => {
 })
 
 const formatNumber = (num: number) => {
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'k'
-  }
+  if (num >= 1000) return (num / 1000).toFixed(1) + 'k'
   return num.toString()
 }
 
@@ -173,7 +192,6 @@ const formatTime = (time: string) => {
   const minutes = Math.floor(diff / 60000)
   const hours = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
-
   if (minutes < 1) return '刚刚'
   if (minutes < 60) return `${minutes}分钟前`
   if (hours < 24) return `${hours}小时前`
@@ -181,6 +199,7 @@ const formatTime = (time: string) => {
   return date.toLocaleDateString('zh-CN')
 }
 
+// ===== 帖子 =====
 const loadPost = async () => {
   const postId = String(route.params.id)
   loading.value = true
@@ -191,21 +210,19 @@ const loadPost = async () => {
       liked.value = post.value.liked || false
       collected.value = post.value.collected || false
     }
-  } catch (error) {
-    console.error('加载帖子详情失败:', error)
+  } catch {
     ElMessage.error('加载失败')
   } finally {
     loading.value = false
   }
 }
 
-const toggleLike = () => {
-  const token = localStorage.getItem('token')
-  if (!token) {
+const togglePostLike = async () => {
+  if (!userStore.isLoggedIn) {
     ElMessage.warning('请先登录')
     return
   }
-
+  // TODO: 接入帖子点赞接口后替换
   liked.value = !liked.value
   if (post.value) {
     post.value.likes += liked.value ? 1 : -1
@@ -213,12 +230,10 @@ const toggleLike = () => {
 }
 
 const toggleCollect = () => {
-  const token = localStorage.getItem('token')
-  if (!token) {
+  if (!userStore.isLoggedIn) {
     ElMessage.warning('请先登录')
     return
   }
-
   collected.value = !collected.value
   if (post.value) {
     post.value.collections += collected.value ? 1 : -1
@@ -233,18 +248,113 @@ const scrollToComment = () => {
   commentSection.value?.scrollIntoView({ behavior: 'smooth' })
 }
 
-const submitComment = () => {
+// ===== 评论列表加载 =====
+const loadComments = async (reset = false) => {
+  if (!post.value) return
+  if (commentLoading.value) return
+
+  if (reset) {
+    commentPage.value = 1
+    commentFinished.value = false
+    comments.value = []
+  }
+
+  if (commentFinished.value) return
+
+  commentLoading.value = true
+  try {
+    const res = await getCommentList({
+      postId: Number(post.value.id),
+      page: commentPage.value,
+      size: commentSize,
+    })
+    const pageResult = res.data?.data
+    if (pageResult) {
+      if (reset) {
+        comments.value = pageResult.records || []
+      } else {
+        comments.value.push(...(pageResult.records || []))
+      }
+      commentTotal.value = pageResult.total || 0
+      if (comments.value.length >= commentTotal.value) {
+        commentFinished.value = true
+      }
+    }
+  } catch {
+    ElMessage.error('加载评论失败')
+  } finally {
+    commentLoading.value = false
+  }
+}
+
+const loadMoreComments = () => {
+  commentPage.value++
+  loadComments(false)
+}
+
+// ===== 发表评论 / 回复 =====
+const submitComment = async () => {
   if (!commentInput.value.trim()) return
-  ElMessage.success('评论成功')
+  if (!userStore.isLoggedIn) {
+    ElMessage.warning('请先登录')
+    return
+  }
+  if (!post.value) return
+
+  try {
+    const data: CreateCommentRequest = {
+      postId: Number(post.value.id),
+      content: commentInput.value.trim(),
+    }
+    if (replyTarget.value) {
+      data.parentId = replyTarget.value.id
+      data.replyToUserId = replyTarget.value.userId
+    }
+    const res = await createComment(data)
+    if (res.data.code === 200) {
+      ElMessage.success(replyTarget.value ? '回复成功' : '评论成功')
+      commentInput.value = ''
+      replyTarget.value = null
+      // 重置并重新加载评论第一页,确保新评论出现在列表
+      await nextTick()
+      loadComments(true)
+    }
+  } catch {
+    ElMessage.error('评论失败')
+  }
+}
+
+const handleReply = (comment: CommentVO) => {
+  if (!userStore.isLoggedIn) {
+    ElMessage.warning('请先登录')
+    return
+  }
+  replyTarget.value = comment
   commentInput.value = ''
+  // 滚动到输入框并聚焦
+  commentSection.value?.scrollIntoView({ behavior: 'smooth' })
+}
+
+const cancelReply = () => {
+  replyTarget.value = null
+  commentInput.value = ''
+}
+
+const handleCommentDeleted = (commentId: number) => {
+  // 从列表中移除该评论
+  comments.value = comments.value.filter(c => c.id !== commentId)
+  commentTotal.value = Math.max(0, commentTotal.value - 1)
 }
 
 const goHome = () => {
   router.push('/')
 }
 
-onMounted(() => {
-  loadPost()
+onMounted(async () => {
+  await loadPost()
+  if (post.value) {
+    loadComments(true)
+  }
 })
 </script>
 
@@ -502,12 +612,49 @@ onMounted(() => {
   color: var(--text);
 }
 
+/* 评论输入区 */
 .comment-input-area {
   display: flex;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
   margin-bottom: 20px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border);
+}
+
+.input-row {
+  display: flex;
+  gap: 12px;
+}
+
+.reply-target-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  margin-bottom: 8px;
+  background: rgba(180, 132, 255, 0.08);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--purple);
+}
+
+.reply-target-bar span {
+  font-weight: 500;
+}
+
+.cancel-reply-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.cancel-reply-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .comment-input {
@@ -554,82 +701,38 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
+/* 评论列表 */
 .comment-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
 }
 
-.comment-item {
+/* 加载更多 */
+.load-more-wrap {
   display: flex;
-  gap: 12px;
+  justify-content: center;
+  padding: 16px 0 8px;
 }
 
-.comment-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  flex-shrink: 0;
-}
-
-.comment-content {
-  flex: 1;
-}
-
-.comment-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 6px;
-}
-
-.comment-author {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.comment-time {
-  font-size: 12px;
-  color: var(--text-dim);
-}
-
-.comment-text {
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--text-secondary);
-}
-
-.comment-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.comment-action-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+.load-more-btn {
+  padding: 8px 24px;
+  border-radius: 20px;
   background: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 12px;
+  border: 1.5px solid var(--border);
+  font-size: 13px;
   color: var(--text-dim);
-  padding: 4px 8px;
-  border-radius: 8px;
+  cursor: pointer;
   transition: all 0.22s ease-out;
 }
 
-.comment-action-btn:hover {
-  background: rgba(255, 107, 157, 0.08);
+.load-more-btn:hover:not(:disabled) {
+  border-color: var(--pink);
   color: var(--pink);
 }
 
-.comment-action-btn img {
-  width: 14px;
-  height: 14px;
+.load-more-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .empty-comments {
