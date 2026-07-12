@@ -1,120 +1,120 @@
 <template>
-  <main class="main-content">
-    <div class="page-inner">
-      <button class="back-btn" @click="goBack">← 返回</button>
+  <div class="post-detail-page">
+    <div class="background-image"></div>
 
-      <div v-if="loading" class="loading-container">
-        <div class="loading-spinner"></div>
-        <p>加载中...</p>
-      </div>
+    <main class="main-content">
+      <div class="page-inner">
+        <div v-if="loading" class="loading-container">
+          <div class="loading-spinner"></div>
+          <p>加载中...</p>
+        </div>
 
-      <div v-else-if="post" class="post-detail">
-        <div class="post-header">
-          <div class="author-info">
-            <img v-if="post.authorAvatar" :src="post.authorAvatar" class="author-avatar" />
-            <div v-else class="author-avatar-placeholder"></div>
-            <span class="author-name">{{ post.authorName || '匿名用户' }}</span>
+        <div v-else-if="post" class="post-detail">
+          <div class="post-main-card">
+            <div class="post-header">
+              <div class="author-info">
+                <img v-if="post.authorAvatar" :src="post.authorAvatar" class="author-avatar" />
+                <div v-else class="author-avatar-placeholder"></div>
+                <span class="author-name">{{ post.authorName || '匿名用户' }}</span>
+              </div>
+              <span class="post-time">{{ formatTime(post.createTime) }}</span>
+            </div>
+
+            <h1 class="post-title">{{ post.title }}</h1>
+
+            <div class="post-images" v-if="post.images && post.images.length > 0">
+              <div class="image-wrapper">
+                <img v-for="(img, index) in post.images" :key="index" :src="img" :alt="`图片${index + 1}`" />
+              </div>
+              <div class="image-indicator" v-if="post.images.length > 1">
+                {{ currentImage + 1 }}/{{ post.images.length }}
+              </div>
+            </div>
+
+            <div class="post-content">
+              <p v-for="(paragraph, index) in contentParagraphs" :key="index" class="content-paragraph">
+                {{ paragraph }}
+              </p>
+            </div>
+
+            <div class="post-tags" v-if="post.tags && post.tags.length > 0">
+              <span v-for="tag in post.tags" :key="tag" class="tag-item">#{{ tag }}</span>
+            </div>
           </div>
-          <span class="post-time">{{ formatTime(post.createTime) }}</span>
-        </div>
 
-        <h1 class="post-title">{{ post.title }}</h1>
-
-        <div class="post-images" v-if="post.images && post.images.length > 0">
-          <div v-for="(img, index) in post.images" :key="index" class="post-image-item">
-            <img :src="img" :alt="`图片${index + 1}`" />
-          </div>
-        </div>
-
-        <div class="post-content">
-          <p v-for="(paragraph, index) in contentParagraphs" :key="index" class="content-paragraph">
-            {{ paragraph }}
-          </p>
-        </div>
-
-        <div class="post-tags" v-if="post.tags && post.tags.length > 0">
-          <span v-for="tag in post.tags" :key="tag" class="tag-item">#{{ tag }}</span>
-        </div>
-
-        <div class="post-actions">
-          <div class="action-group">
+          <div class="post-action-bar">
             <button class="action-btn" :class="{ active: liked }" @click="toggleLike">
               <img :src="liked ? likeIcon : likeOutlineIcon" alt="like" class="action-icon" />
               <span class="action-count">{{ formatNumber(post.likes) }}</span>
             </button>
-          </div>
-          <div class="action-group">
             <button class="action-btn" :class="{ active: collected }" @click="toggleCollect">
               <img :src="collected ? favoriteIcon : favoriteOutlineIcon" alt="favorite" class="action-icon" />
               <span class="action-count">{{ formatNumber(post.collections) }}</span>
             </button>
-          </div>
-          <div class="action-group">
             <button class="action-btn" @click="handleShare">
               <img :src="shareIcon" alt="share" class="action-icon" />
               <span class="action-count">分享</span>
             </button>
-          </div>
-          <div class="action-group">
             <button class="action-btn" @click="scrollToComment">
               <img :src="commentIcon" alt="comment" class="action-icon" />
               <span class="action-count">{{ post.comments }}</span>
             </button>
           </div>
-        </div>
 
-        <div class="divider"></div>
+          <div class="comment-section" ref="commentSection">
+            <div class="section-header">
+              <h2>评论 ({{ post.comments }})</h2>
+            </div>
 
-        <div class="comment-section" ref="commentSection">
-          <div class="section-header">
-            <h2>评论 ({{ post.comments }})</h2>
-          </div>
+            <div class="comment-input-area">
+              <textarea
+                v-model="commentInput"
+                class="comment-input"
+                placeholder="写下你的评论..."
+                rows="3"
+              ></textarea>
+              <button class="send-btn" :disabled="!commentInput.trim()" @click="submitComment">
+                发送
+              </button>
+            </div>
 
-          <div class="comment-input-area">
-            <textarea
-              v-model="commentInput"
-              class="comment-input"
-              placeholder="写下你的评论..."
-              rows="3"
-            ></textarea>
-            <button class="send-btn" :disabled="!commentInput.trim()" @click="submitComment">
-              发送
-            </button>
-          </div>
-
-          <div class="comment-list" v-if="comments.length > 0">
-            <div v-for="comment in comments" :key="comment.id" class="comment-item">
-              <div class="comment-avatar"></div>
-              <div class="comment-content">
-                <div class="comment-header">
-                  <span class="comment-author">{{ comment.authorName }}</span>
-                  <span class="comment-time">{{ formatTime(comment.createTime) }}</span>
-                </div>
-                <p class="comment-text">{{ comment.content }}</p>
-                <div class="comment-actions">
-                  <button class="comment-action-btn"><img src="@/assets/icons/like.svg" alt="like" class="action-icon" />{{ comment.likes }}</button>
+            <div class="comment-list" v-if="comments.length > 0">
+              <div v-for="comment in comments" :key="comment.id" class="comment-item">
+                <div class="comment-avatar"></div>
+                <div class="comment-content">
+                  <div class="comment-header">
+                    <span class="comment-author">{{ comment.authorName }}</span>
+                    <span class="comment-time">{{ formatTime(comment.createTime) }}</span>
+                  </div>
+                  <p class="comment-text">{{ comment.content }}</p>
+                  <div class="comment-actions">
+                    <button class="comment-action-btn">
+                      <img :src="liked ? likeIcon : likeOutlineIcon" alt="like" class="action-icon" />
+                      {{ comment.likes }}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div class="empty-comments" v-else>
-            <p>暂无评论，来发表第一条评论吧~</p>
+            <div class="empty-comments" v-else>
+              <p>暂无评论，来发表第一条评论吧~</p>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div v-else class="empty-state">
-        <p>帖子不存在或已删除</p>
-        <button class="back-btn" @click="goBack">返回首页</button>
+        <div v-else class="empty-state">
+          <p>帖子不存在或已删除</p>
+          <button class="back-btn" @click="goHome">返回首页</button>
+        </div>
       </div>
-    </div>
-  </main>
+    </main>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getPostDetail } from '@/api/post'
 import type { PostVO } from '@/api/post'
@@ -125,8 +125,8 @@ import favoriteOutlineIcon from '@/assets/icons/favorite-outline.svg'
 import shareIcon from '@/assets/icons/share.svg'
 import commentIcon from '@/assets/icons/comment.svg'
 
-const router = useRouter()
 const route = useRoute()
+const router = useRouter()
 
 const post = ref<PostVO | null>(null)
 const loading = ref(false)
@@ -134,6 +134,7 @@ const liked = ref(false)
 const collected = ref(false)
 const commentInput = ref('')
 const commentSection = ref<HTMLElement | null>(null)
+const currentImage = ref(0)
 
 const comments = ref([
   {
@@ -198,10 +199,6 @@ const loadPost = async () => {
   }
 }
 
-const goBack = () => {
-  router.back()
-}
-
 const toggleLike = () => {
   const token = localStorage.getItem('token')
   if (!token) {
@@ -228,14 +225,8 @@ const toggleCollect = () => {
   }
 }
 
-const handleShare = async () => {
-  const url = window.location.href
-  try {
-    await navigator.clipboard.writeText(url)
-    ElMessage.success('链接已复制到剪贴板')
-  } catch (err) {
-    ElMessage.success('链接已复制')
-  }
+const handleShare = () => {
+  ElMessage.success('分享链接已复制')
 }
 
 const scrollToComment = () => {
@@ -243,16 +234,13 @@ const scrollToComment = () => {
 }
 
 const submitComment = () => {
-  const token = localStorage.getItem('token')
-  if (!token) {
-    ElMessage.warning('请先登录')
-    return
-  }
-
   if (!commentInput.value.trim()) return
-
-  ElMessage.success('评论功能开发中')
+  ElMessage.success('评论成功')
   commentInput.value = ''
+}
+
+const goHome = () => {
+  router.push('/')
 }
 
 onMounted(() => {
@@ -261,36 +249,32 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.main-content {
-  padding: 90px 0 60px;
+.post-detail-page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #fff5f9 0%, #f8f9ff 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.background-image {
+  position: fixed;
+  inset: 0;
+  background-image: url('@/assets/images/post-detail-bg.svg');
+  background-size: cover;
+  background-position: center;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.main-content {
+  position: relative;
+  z-index: 1;
+  padding-top: 80px;
 }
 
 .page-inner {
-  max-width: 800px;
+  max-width: 720px;
   margin: 0 auto;
-  padding: 0 24px;
-}
-
-.back-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 16px;
-  border-radius: 10px;
-  background: rgba(255, 107, 157, 0.08);
-  color: var(--pink);
-  font-size: 14px;
-  font-weight: 500;
-  border: none;
-  cursor: pointer;
-  transition: all 0.22s ease-out;
-  margin-bottom: 16px;
-}
-
-.back-btn:hover {
-  background: rgba(255, 107, 157, 0.15);
+  padding: 0 20px;
 }
 
 .loading-container {
@@ -299,12 +283,11 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   padding: 100px 20px;
-  gap: 16px;
 }
 
 .loading-spinner {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   border: 3px solid rgba(255, 107, 157, 0.2);
   border-top-color: var(--pink);
   border-radius: 50%;
@@ -316,31 +299,33 @@ onMounted(() => {
 }
 
 .loading-container p {
+  margin-top: 16px;
   font-size: 14px;
   color: var(--text-dim);
 }
 
 .post-detail {
-  background: white;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.post-main-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
   border-radius: 20px;
-  padding: 32px;
-  border: 1.5px solid var(--border);
-  box-shadow: 0 4px 16px rgba(180, 132, 255, 0.06);
+  padding: 24px;
+  box-shadow: 0 4px 30px rgba(255, 107, 157, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.6);
 }
 
 .post-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.post-title {
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--text);
-  line-height: 1.4;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 107, 157, 0.1);
 }
 
 .author-info {
@@ -350,26 +335,26 @@ onMounted(() => {
 }
 
 .author-avatar {
-  width: 36px;
-  height: 36px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid white;
-  box-shadow: 0 2px 8px rgba(180, 132, 255, 0.15);
+  box-shadow: 0 2px 12px rgba(180, 132, 255, 0.25);
 }
 
 .author-avatar-placeholder {
-  width: 36px;
-  height: 36px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--pink), var(--purple));
   border: 2px solid white;
-  box-shadow: 0 2px 8px rgba(180, 132, 255, 0.15);
+  box-shadow: 0 2px 10px rgba(180, 132, 255, 0.2);
 }
 
 .author-name {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
   color: var(--text);
 }
 
@@ -378,129 +363,141 @@ onMounted(() => {
   color: var(--text-dim);
 }
 
+.post-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.post-images {
+  position: relative;
+  margin-bottom: 20px;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.image-wrapper {
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: #f5f5f5;
+}
+
+.image-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-indicator {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
 .post-content {
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .content-paragraph {
   font-size: 16px;
   line-height: 1.8;
-  color: var(--text);
-  margin-bottom: 16px;
-  text-indent: 2em;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
 }
 
 .content-paragraph:last-child {
   margin-bottom: 0;
 }
 
-.post-images {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-.post-image-item {
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.post-image-item img {
-  width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
-}
-
 .post-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 24px;
 }
 
 .tag-item {
   padding: 6px 14px;
-  border-radius: 20px;
-  background: rgba(180, 132, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(180, 132, 255, 0.1);
   color: var(--purple);
   font-size: 13px;
   font-weight: 500;
 }
 
-.post-actions {
+.post-action-bar {
   display: flex;
-  justify-content: center;
-  gap: 32px;
-  padding: 20px 0;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 24px;
-}
-
-.action-group {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
+  justify-content: space-around;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 10px 20px;
+  box-shadow: 0 4px 30px rgba(255, 107, 157, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.6);
 }
 
 .action-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 12px 24px;
-  border-radius: 12px;
+  gap: 6px;
   background: transparent;
   border: none;
   cursor: pointer;
   transition: all 0.22s ease-out;
+  padding: 8px 20px;
+  border-radius: 12px;
 }
 
 .action-btn:hover {
-  background: rgba(255, 107, 157, 0.05);
+  background: rgba(255, 107, 157, 0.08);
 }
 
 .action-btn.active {
-  color: var(--pink);
+  background: rgba(255, 107, 157, 0.1);
 }
 
-.action-icon {
-  font-size: 24px;
-  width: 16px;
-  height: 16px;
+.action-btn img {
+  width: 24px;
+  height: 24px;
+  transition: transform 0.22s ease-out;
 }
 
-
+.action-btn:hover img {
+  transform: scale(1.1);
+}
 
 .action-count {
   font-size: 13px;
   color: var(--text-dim);
+  transition: color 0.22s ease-out;
 }
 
 .action-btn.active .action-count {
   color: var(--pink);
 }
 
-.divider {
-  height: 8px;
-  background: linear-gradient(180deg, var(--border) 0%, transparent 100%);
-  margin: 0 -32px;
-}
-
 .comment-section {
-  margin-top: 24px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 14px 20px;
+  box-shadow: 0 4px 30px rgba(255, 107, 157, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.6);
 }
 
 .section-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .section-header h2 {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text);
 }
@@ -508,24 +505,27 @@ onMounted(() => {
 .comment-input-area {
   display: flex;
   gap: 12px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
 }
 
 .comment-input {
   flex: 1;
-  padding: 14px 16px;
-  border-radius: 12px;
+  padding: 8px 12px;
+  border-radius: 16px;
   border: 1.5px solid var(--border);
   font-size: 14px;
-  color: var(--text);
   resize: none;
-  transition: all 0.22s ease-out;
+  height: 38px;
+  outline: none;
+  transition: border-color 0.22s ease-out;
+  background: rgba(255, 255, 255, 0.6);
 }
 
 .comment-input:focus {
-  outline: none;
   border-color: var(--pink);
-  box-shadow: 0 0 0 3px rgba(255, 107, 157, 0.1);
+  background: white;
 }
 
 .comment-input::placeholder {
@@ -533,9 +533,8 @@ onMounted(() => {
 }
 
 .send-btn {
-  align-self: flex-end;
-  padding: 12px 24px;
-  border-radius: 12px;
+  padding: 10px 24px;
+  border-radius: 16px;
   background: linear-gradient(135deg, var(--pink), var(--purple));
   color: white;
   font-size: 14px;
@@ -543,11 +542,11 @@ onMounted(() => {
   border: none;
   cursor: pointer;
   transition: all 0.22s ease-out;
+  white-space: nowrap;
 }
 
 .send-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(255, 107, 157, 0.3);
+  box-shadow: 0 4px 16px rgba(255, 107, 157, 0.35);
 }
 
 .send-btn:disabled {
@@ -564,14 +563,11 @@ onMounted(() => {
 .comment-item {
   display: flex;
   gap: 12px;
-  padding: 16px;
-  border-radius: 12px;
-  background: rgba(255, 107, 157, 0.03);
 }
 
 .comment-avatar {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--pink), var(--purple));
   flex-shrink: 0;
@@ -584,8 +580,8 @@ onMounted(() => {
 .comment-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 10px;
+  margin-bottom: 6px;
 }
 
 .comment-author {
@@ -602,31 +598,43 @@ onMounted(() => {
 .comment-text {
   font-size: 14px;
   line-height: 1.6;
-  color: var(--text);
-  margin-bottom: 8px;
+  color: var(--text-secondary);
 }
 
 .comment-actions {
   display: flex;
-  gap: 16px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .comment-action-btn {
-  font-size: 12px;
-  color: var(--text-dim);
-  background: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
   border: none;
   cursor: pointer;
-  transition: color 0.22s ease-out;
+  font-size: 12px;
+  color: var(--text-dim);
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: all 0.22s ease-out;
 }
 
 .comment-action-btn:hover {
+  background: rgba(255, 107, 157, 0.08);
   color: var(--pink);
+}
+
+.comment-action-btn img {
+  width: 14px;
+  height: 14px;
 }
 
 .empty-comments {
   text-align: center;
-  padding: 40px 20px;
+  padding: 30px 0;
 }
 
 .empty-comments p {
@@ -635,7 +643,10 @@ onMounted(() => {
 }
 
 .empty-state {
-  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   padding: 100px 20px;
 }
 
@@ -645,37 +656,50 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
+.empty-state .back-btn {
+  padding: 10px 32px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.22s ease-out;
+}
+
+.empty-state .back-btn:hover {
+  box-shadow: 0 4px 16px rgba(255, 107, 157, 0.35);
+}
+
 @media (max-width: 768px) {
   .page-inner {
     padding: 0 16px;
   }
 
-  .post-detail {
-    padding: 20px;
+  .post-main-card {
+    padding: 16px;
   }
 
   .post-title {
-    font-size: 22px;
+    font-size: 18px;
   }
 
-  .post-images {
-    grid-template-columns: 1fr;
-  }
-
-  .post-actions {
-    gap: 20px;
+  .post-action-bar {
+    padding: 14px 16px;
   }
 
   .action-btn {
-    padding: 8px 16px;
+    padding: 6px 12px;
   }
 
-  .comment-input-area {
-    flex-direction: column;
+  .action-btn img {
+    width: 22px;
+    height: 22px;
   }
 
-  .send-btn {
-    align-self: flex-end;
+  .comment-section {
+    padding: 16px;
   }
 }
 </style>

@@ -39,7 +39,7 @@ export interface CreatePostRequest {
 }
 
 export interface UpdatePostRequest {
-  id: number
+  id: number | string
   categoryId?: number
   title?: string
   content?: string
@@ -69,14 +69,14 @@ export const updatePost = (data: UpdatePostRequest) => {
   return request.put('/post', data)
 }
 
-// 删除帖子
-export const deletePost = (postId: number) => {
+// 删除帖子（软删除，状态变为已删除，可在回收站恢复）
+export const deletePost = (postId: string) => {
   return request.delete(`/post/${postId}`)
 }
 
-// 查询用户帖子列表
-export const getUserPosts = (userId: number, params: { page?: number; size?: number }) => {
-  return request.get(`/post/user/${userId}`, { params })
+// 查询当前用户的帖子列表（从 Header X-User-Id 获取用户 ID）
+export const getUserPosts = (params: { page?: number; size?: number }) => {
+  return request.get('/post/user', { params })
 }
 
 // 查询分类列表

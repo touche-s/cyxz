@@ -1,25 +1,38 @@
 <template>
   <main class="main-content">
-    <div class="page-inner">
-    <div class="hero-banner">
-      <div class="hero-text">
-        <div class="hero-eyebrow">
-          <span class="pulse-dot"></span>
-          今日推荐
-        </div>
-        <h1>在<em>这里</em>发现<br />属于你的世界</h1>
-        <p>每一次分享都是一场奇遇，每一个灵感都值得被看见</p>
-        <div class="hero-stats">
-          <div class="hero-stat"><b>128K+</b>创作者</div>
-          <div class="hero-stat"><b>2.4M+</b>作品</div>
-          <div class="hero-stat"><b>580+</b>今日上新</div>
+      <div class="page-inner">
+    <div class="hero-carousel">
+      <div class="carousel-track" :style="{ transform: `translateX(-${currentBanner * 100}%)` }">
+        <div class="hero-banner" v-for="(banner, index) in banners" :key="index">
+          <div class="hero-text">
+            <div class="hero-eyebrow">
+              <span class="pulse-dot"></span>
+              {{ banner.tag }}
+            </div>
+            <h1 v-html="banner.title"></h1>
+            <p>{{ banner.desc }}</p>
+            <div class="hero-stats">
+              <div class="hero-stat" v-for="(stat, i) in banner.stats" :key="i"><b>{{ stat.value }}</b>{{ stat.label }}</div>
+            </div>
+          </div>
+          <div class="hero-illust">
+            <div class="circle c1"></div>
+            <div class="circle c2"></div>
+            <div class="circle c3"></div>
+            <div class="char-emoji"></div>
+          </div>
         </div>
       </div>
-      <div class="hero-illust">
-        <div class="circle c1"></div>
-        <div class="circle c2"></div>
-        <div class="circle c3"></div>
-        <div class="char-emoji"></div>
+      <button class="carousel-prev" @click="prevBanner">&lt;</button>
+      <button class="carousel-next" @click="nextBanner">&gt;</button>
+      <div class="carousel-dots">
+        <span 
+          v-for="(_, index) in banners" 
+          :key="index" 
+          class="dot" 
+          :class="{ active: currentBanner === index }"
+          @click="currentBanner = index"
+        ></span>
       </div>
     </div>
 
@@ -96,7 +109,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getPostList, getCategoryList } from '@/api/post'
 import type { PostVO, CategoryVO } from '@/api/post'
@@ -107,6 +120,67 @@ const posts = ref<PostVO[]>([])
 const categories = ref<CategoryVO[]>([])
 const selectedCategoryId = ref<number | null>(null)
 const loading = ref(false)
+
+const banners = ref([
+  {
+    tag: '今日推荐',
+    title: '在<em>这里</em>发现<br />属于你的世界',
+    desc: '每一次分享都是一场奇遇，每一个灵感都值得被看见',
+    stats: [
+      { value: '128K+', label: '创作者' },
+      { value: '2.4M+', label: '作品' },
+      { value: '580+', label: '今日上新' },
+    ],
+  },
+  {
+    tag: '热门话题',
+    title: '一起<em>探索</em>无限可能<br />发现更多精彩',
+    desc: '加入创作者社区，分享你的故事与灵感',
+    stats: [
+      { value: '50K+', label: '活跃用户' },
+      { value: '10M+', label: '浏览量' },
+      { value: '10K+', label: '日发帖' },
+    ],
+  },
+  {
+    tag: '创作激励',
+    title: '你的<em>创意</em>值得被看见<br />开启创作之旅',
+    desc: '优质内容获得更多曝光，与千万用户分享',
+    stats: [
+      { value: '100%', label: '流量扶持' },
+      { value: '50万', label: '奖金池' },
+      { value: '专属', label: '认证标识' },
+    ],
+  },
+])
+
+const currentBanner = ref(0)
+let autoPlayTimer: number | null = null
+
+const startAutoPlay = () => {
+  autoPlayTimer = window.setInterval(() => {
+    currentBanner.value = (currentBanner.value + 1) % banners.value.length
+  }, 5000)
+}
+
+const stopAutoPlay = () => {
+  if (autoPlayTimer) {
+    clearInterval(autoPlayTimer)
+    autoPlayTimer = null
+  }
+}
+
+const prevBanner = () => {
+  currentBanner.value = (currentBanner.value - 1 + banners.value.length) % banners.value.length
+  stopAutoPlay()
+  startAutoPlay()
+}
+
+const nextBanner = () => {
+  currentBanner.value = (currentBanner.value + 1) % banners.value.length
+  stopAutoPlay()
+  startAutoPlay()
+}
 
 // 渐变色数组（用于没有封面的帖子）
 const gradients = [
@@ -165,8 +239,9 @@ const selectCategory = (categoryId: number | null) => {
   loadPosts()
 }
 
-const viewPost = (postId: number) => {
-  router.push(`/post/${postId}`)
+const viewPost = (postId: string) => {
+  const url = router.resolve(`/post/${postId}`).href
+  window.open(url, '_blank')
 }
 
 const toggleSave = (postId: number) => {
@@ -177,6 +252,11 @@ const toggleSave = (postId: number) => {
 onMounted(() => {
   loadCategories()
   loadPosts()
+  startAutoPlay()
+})
+
+onUnmounted(() => {
+  stopAutoPlay()
 })
 </script>
 
@@ -189,6 +269,91 @@ onMounted(() => {
   max-width: 1500px;
   margin: 0 auto;
   padding: 0 32px;
+}
+
+/* ===== Hero Carousel ===== */
+.hero-carousel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  margin-bottom: 28px;
+}
+
+.carousel-track {
+  display: flex;
+  transition: transform 0.4s ease-out;
+}
+
+.carousel-track > .hero-banner {
+  flex: 0 0 100%;
+  margin-bottom: 0;
+  border-radius: 0;
+  border: none;
+}
+
+.carousel-prev,
+.carousel-next {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  font-size: 28px;
+  color: var(--purple);
+  cursor: pointer;
+  transition: all 0.22s ease-out;
+  z-index: 10;
+  opacity: 0;
+  padding: 4px;
+}
+
+.hero-carousel:hover .carousel-prev,
+.hero-carousel:hover .carousel-next {
+  opacity: 1;
+}
+
+.carousel-prev {
+  left: 12px;
+}
+
+.carousel-next {
+  right: 12px;
+}
+
+.carousel-prev:hover,
+.carousel-next:hover {
+  color: var(--pink);
+  transform: translateY(-50%) scale(1.2);
+}
+
+.carousel-dots {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: all 0.22s ease-out;
+}
+
+.dot:hover {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.dot.active {
+  width: 28px;
+  border-radius: 5px;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 /* ===== Hero Banner ===== */

@@ -60,155 +60,85 @@
     </aside>
 
     <main class="main-content">
-      <PostCreate v-if="activeNav === 'publish'" @go-back="activeNav = 'home'" />
+      <PostCreate v-if="activeNav === 'publish'" @go-back="goHome" />
       <template v-else-if="activeNav === 'home'">
-        <header class="page-header">
-          <div class="header-left">
+        <div class="home-hero">
+          <div class="hero-info">
             <h1>创作中心</h1>
-            <p>管理你的作品，查看数据表现</p>
+            <p>记录你的灵感瞬间，发布图文作品，和同好一起交流</p>
           </div>
-        </header>
-
-      <div class="banner-section">
-        <div class="banner">
-          <div class="banner-content">
-            <h2>记录你的灵感瞬间</h2>
-            <p>发布图文作品，和同好一起交流</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="stats-section">
-        <div class="stats-grid">
-          <div class="stat-card">
-            <div class="stat-icon-wrapper works-icon">
-              <img src="@/assets/icons/edit.svg" alt="edit" class="stat-icon" />
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">{{ stats.totalPosts }}</span>
-              <span class="stat-label">总作品</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon-wrapper views-icon">
-              <img src="@/assets/icons/eye.svg" alt="eye" class="stat-icon" />
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">{{ formatNumber(stats.totalViews) }}</span>
-              <span class="stat-label">总浏览</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon-wrapper likes-icon">
-              <img src="@/assets/icons/like.svg" alt="like" class="stat-icon" />
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">{{ formatNumber(stats.totalLikes) }}</span>
-              <span class="stat-label">总点赞</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon-wrapper collections-icon">
-              <img src="@/assets/icons/favorite.svg" alt="favorite" class="stat-icon" />
-            </div>
-            <div class="stat-info">
-              <span class="stat-value">{{ formatNumber(stats.totalCollections) }}</span>
-              <span class="stat-label">总收藏</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="posts-section">
-        <div class="tabs-bar">
-          <button 
-            v-for="tab in tabs" 
-            :key="tab.value"
-            class="tab-btn"
-            :class="{ active: activeTab === tab.value }"
-            @click="switchTab(tab.value)"
-          >
-            {{ tab.label }}
-            <span class="tab-count">{{ tab.count }}</span>
+          <button class="hero-publish-btn" @click="goCreate">
+            <img src="@/assets/icons/edit.svg" alt="edit" class="btn-icon" />
+            <span>发布新作品</span>
           </button>
         </div>
 
-        <div class="posts-container" v-if="!loading && filteredPosts.length > 0">
-          <div class="post-card" v-for="post in filteredPosts" :key="post.id">
-            <div class="card-cover" @click="viewPost(post.id)">
-              <img v-if="post.cover" :src="post.cover" alt="cover" />
-              <div v-else class="cover-placeholder">
-                <span>暂无封面</span>
+        <div class="stats-section">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon-wrapper works-icon">
+                <img src="@/assets/icons/edit.svg" alt="edit" class="stat-icon" />
+              </div>
+              <div class="stat-info">
+                <span class="stat-value">{{ stats.totalPosts }}</span>
+                <span class="stat-label">总作品</span>
               </div>
             </div>
-            <div class="card-content">
-              <h3 class="card-title" @click="viewPost(post.id)">{{ post.title }}</h3>
-              <div class="card-meta">
-                <span class="category-tag" v-if="post.categoryName">{{ post.categoryName }}</span>
-                <span class="post-time">{{ formatTime(post.createTime) }}</span>
+            <div class="stat-card">
+              <div class="stat-icon-wrapper views-icon">
+                <img src="@/assets/icons/eye.svg" alt="eye" class="stat-icon" />
               </div>
-              <div class="card-stats">
-                <img src="@/assets/icons/eye.svg" alt="eye" class="stat-mini-icon" /> {{ post.views }}
-                <img src="@/assets/icons/like.svg" alt="like" class="stat-mini-icon" /> {{ post.likes }}
-                <img src="@/assets/icons/comment.svg" alt="comment" class="stat-mini-icon" /> {{ post.comments }}
-                <img src="@/assets/icons/favorite.svg" alt="favorite" class="stat-mini-icon" /> {{ post.collections }}
+              <div class="stat-info">
+                <span class="stat-value">{{ formatNumber(stats.totalViews) }}</span>
+                <span class="stat-label">总浏览</span>
               </div>
             </div>
-            <div class="card-status">
-              <span class="status-tag" :class="'status-' + post.status">
-                {{ statusText(post.status) }}
-              </span>
+            <div class="stat-card">
+              <div class="stat-icon-wrapper likes-icon">
+                <img src="@/assets/icons/like.svg" alt="like" class="stat-icon" />
+              </div>
+              <div class="stat-info">
+                <span class="stat-value">{{ formatNumber(stats.totalLikes) }}</span>
+                <span class="stat-label">总点赞</span>
+              </div>
             </div>
-            <div class="card-actions">
-              <button class="action-btn" @click="editPost(post.id)" title="编辑">
-                <img src="@/assets/icons/edit.svg" alt="edit" class="action-icon" />
-              </button>
-              <button 
-                v-if="post.status === 0" 
-                class="action-btn publish" 
-                @click="publishPost(post.id)" 
-                title="发布"
-              >
-                <img src="@/assets/icons/rocket.svg" alt="rocket" class="action-icon" />
-              </button>
-              <button 
-                v-if="post.status === 2" 
-                class="action-btn restore" 
-                @click="restorePost(post.id)" 
-                title="恢复"
-              >
-                <img src="@/assets/icons/refresh.svg" alt="refresh" class="action-icon" />
-              </button>
-              <button class="action-btn delete" @click="confirmDelete(post)" title="删除">
-                <img src="@/assets/icons/trash.svg" alt="trash" class="action-icon" />
-              </button>
+            <div class="stat-card">
+              <div class="stat-icon-wrapper collections-icon">
+                <img src="@/assets/icons/favorite.svg" alt="favorite" class="stat-icon" />
+              </div>
+              <div class="stat-info">
+                <span class="stat-value">{{ formatNumber(stats.totalCollections) }}</span>
+                <span class="stat-label">总收藏</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="empty-container" v-else-if="!loading">
-          <img src="@/assets/icons/empty.svg" alt="empty" class="empty-icon" />
-          <p>还没有{{ activeTab === 'published' ? '已发布的' : activeTab === 'draft' ? '草稿' : activeTab === 'deleted' ? '已删除的' : '' }}作品</p>
-          <button class="create-btn" @click="goCreate">去创作</button>
+        <div class="quick-actions-section">
+          <h3 class="section-title">快捷操作</h3>
+          <div class="action-cards">
+            <button class="quick-action-card" @click="activeNav = 'content'">
+              <img src="@/assets/icons/content-nav.svg" alt="content" class="quick-action-icon" />
+              <span>内容管理</span>
+              <p class="action-desc">管理你的所有作品</p>
+            </button>
+            <button class="quick-action-card" @click="activeNav = 'data'">
+              <img src="@/assets/icons/data-nav.svg" alt="data" class="quick-action-icon" />
+              <span>数据中心</span>
+              <p class="action-desc">查看作品数据表现</p>
+            </button>
+            <button class="quick-action-card" @click="activeNav = 'fans'">
+              <img src="@/assets/icons/fans-nav.svg" alt="fans" class="quick-action-icon" />
+              <span>粉丝管理</span>
+              <p class="action-desc">查看你的粉丝数据</p>
+            </button>
+            <button class="quick-action-card" @click="activeNav = 'interaction'">
+              <img src="@/assets/icons/interaction-nav.svg" alt="interaction" class="quick-action-icon" />
+              <span>互动管理</span>
+              <p class="action-desc">查看点赞和评论</p>
+            </button>
+          </div>
         </div>
-
-        <div class="loading-container" v-else>
-          <div class="loading-spinner"></div>
-          <p>加载中...</p>
-        </div>
-      </div>
-
-      <div class="status-tabs">
-        <button 
-          v-for="tab in statusTabs" 
-          :key="tab.value"
-          class="status-tab-btn"
-          :class="{ active: activeTab === tab.value }"
-          @click="switchTab(tab.value)"
-        >
-          {{ tab.label }}
-        </button>
-      </div>
       </template>
 
       <template v-else-if="activeNav === 'content'">
@@ -237,48 +167,79 @@
                 <span class="filter-count">{{ tab.count }}</span>
               </button>
             </div>
+            <button class="refresh-btn" :class="{ spinning: loading }" @click="refreshPosts" title="刷新列表">
+              <img src="@/assets/icons/refresh.svg" alt="refresh" class="refresh-icon" />
+            </button>
+          </div>
+
+          <div class="search-bar">
             <div class="search-box">
-              <input type="text" placeholder="搜索作品标题..." class="search-input" />
-              <button class="search-btn">🔍</button>
+              <img src="@/assets/icons/search.svg" alt="search" class="search-icon" />
+              <input type="text" placeholder="搜索当前分类下的作品标题..." class="search-input" v-model="searchKeyword" />
             </div>
           </div>
 
-          <div class="content-list">
-            <div class="content-item" v-for="item in contentList" :key="item.id">
-              <div class="content-cover">
-                <img v-if="item.cover" :src="item.cover" alt="cover" />
+          <div class="content-list" v-if="!loading && filteredContentPosts.length > 0">
+            <div class="content-item" v-for="post in filteredContentPosts" :key="post.id">
+              <div class="content-cover" @click="viewPost(post.id)">
+                <img v-if="post.cover" :src="post.cover" alt="cover" />
                 <div v-else class="cover-placeholder">
-                  <span>📷</span>
+                  <span>暂无封面</span>
                 </div>
               </div>
               <div class="content-info">
-                <h3 class="content-title">{{ item.title }}</h3>
+                <h3 class="content-title" @click="viewPost(post.id)">{{ post.title }}</h3>
                 <div class="content-meta">
-                  <span class="category-tag">{{ item.category }}</span>
-                  <span class="content-time">{{ item.time }}</span>
+                  <span class="category-tag" v-if="post.categoryName">{{ post.categoryName }}</span>
+                  <span class="content-time">{{ formatTime(post.createTime) }}</span>
                 </div>
                 <div class="content-stats">
-                  <img src="@/assets/icons/eye.svg" alt="eye" class="stat-mini-icon" /> {{ item.views }}
-                  <img src="@/assets/icons/like.svg" alt="like" class="stat-mini-icon" /> {{ item.likes }}
-                  <img src="@/assets/icons/comment.svg" alt="comment" class="stat-mini-icon" /> {{ item.comments }}
+                  <span class="stat-item"><img src="@/assets/icons/eye.svg" alt="eye" class="stat-mini-icon" />{{ post.views }}</span>
+                  <span class="stat-item"><img src="@/assets/icons/like.svg" alt="like" class="stat-mini-icon" />{{ post.likes }}</span>
+                  <span class="stat-item"><img src="@/assets/icons/comment.svg" alt="comment" class="stat-mini-icon" />{{ post.comments }}</span>
                 </div>
               </div>
               <div class="content-status">
-                <span class="status-tag" :class="item.statusClass">{{ item.status }}</span>
+                <span class="status-tag" :class="'status-' + post.status">
+                  {{ statusText(post.status) }}
+                </span>
               </div>
               <div class="content-actions">
-                <button class="action-btn" title="编辑"><img src="@/assets/icons/edit.svg" alt="edit" class="action-icon" /></button>
-                <button v-if="item.status === '草稿'" class="action-btn publish" title="发布"><img src="@/assets/icons/rocket.svg" alt="rocket" class="action-icon" /></button>
-                <button v-if="item.status === '已删除'" class="action-btn restore" title="恢复"><img src="@/assets/icons/refresh.svg" alt="refresh" class="action-icon" /></button>
-                <button class="action-btn delete" title="删除"><img src="@/assets/icons/trash.svg" alt="trash" class="action-icon" /></button>
+                <button class="action-btn" @click="editPost(post.id)" title="编辑">
+                  <img src="@/assets/icons/edit.svg" alt="edit" class="action-icon" />
+                </button>
+                <button 
+                  v-if="post.status === 0" 
+                  class="action-btn publish" 
+                  @click="publishPost(post.id)" 
+                  title="发布"
+                >
+                  <img src="@/assets/icons/rocket.svg" alt="rocket" class="action-icon" />
+                </button>
+                <button 
+                  v-if="post.status === 2" 
+                  class="action-btn restore" 
+                  @click="restorePost(post.id)" 
+                  title="恢复"
+                >
+                  <img src="@/assets/icons/refresh.svg" alt="refresh" class="action-icon" />
+                </button>
+                <button class="action-btn delete" @click="confirmDelete(post)" title="删除">
+                  <img src="@/assets/icons/trash.svg" alt="trash" class="action-icon" />
+                </button>
               </div>
             </div>
           </div>
 
-          <div class="empty-container" v-if="contentList.length === 0">
+          <div class="empty-container" v-else-if="!loading">
             <img src="@/assets/icons/empty.svg" alt="empty" class="empty-icon" />
-            <p>还没有作品</p>
+            <p>还没有{{ activeContentTab === 'published' ? '已发布的' : activeContentTab === 'draft' ? '草稿' : activeContentTab === 'deleted' ? '已删除的' : '' }}作品</p>
             <button class="create-btn" @click="goCreate">去创作</button>
+          </div>
+
+          <div class="loading-container" v-else>
+            <div class="loading-spinner"></div>
+            <p>加载中...</p>
           </div>
         </div>
       </template>
@@ -681,12 +642,25 @@
 
     <div class="modal-overlay" v-if="showDeleteModal" @click="cancelDelete">
       <div class="modal-content" @click.stop>
+        <div class="modal-icon-wrapper">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modal-warn-icon">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
         <h3>确认删除</h3>
-        <p>确定要删除「{{ postToDelete?.title }}」吗？</p>
+        <p class="modal-post-title">「{{ postToDelete?.title }}」</p>
         <p class="modal-hint">删除后可在"已删除"标签中恢复</p>
         <div class="modal-actions">
           <button class="modal-btn cancel" @click="cancelDelete">取消</button>
-          <button class="modal-btn confirm" @click="doDelete">确认删除</button>
+          <button class="modal-btn confirm" @click="doDelete">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modal-btn-icon">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            确认删除
+          </button>
         </div>
       </div>
     </div>
@@ -695,8 +669,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 
 import { getUserPosts, deletePost, updatePost } from '@/api/post'
@@ -705,27 +679,56 @@ import type { PostVO } from '@/api/post'
 import PostCreate from '@/views/PostCreate.vue'
 
 const router = useRouter()
-const route = useRoute()
 const userStore = useUserStore()
 
 const posts = ref<PostVO[]>([])
 const loading = ref(false)
-const activeTab = ref<'all' | 'published' | 'draft' | 'deleted'>('all')
 const showDeleteModal = ref(false)
 const activeNav = ref<'home' | 'content' | 'data' | 'fans' | 'interaction' | 'magic' | 'agreement' | 'publish'>('home')
 
 const postToDelete = ref<PostVO | null>(null)
 
 const activeContentTab = ref<'all' | 'published' | 'draft' | 'deleted'>('all')
+const searchKeyword = ref('')
 const activeTimeFilter = ref<'week' | 'month' | 'year'>('week')
 const activeInteractionTab = ref<'likes' | 'comments'>('likes')
 
-const contentTabs = computed(() => [
-  { label: '全部', value: 'all' as const, count: 12 },
-  { label: '已发布', value: 'published' as const, count: 8 },
-  { label: '草稿', value: 'draft' as const, count: 3 },
-  { label: '已删除', value: 'deleted' as const, count: 1 },
-])
+const contentTabs = computed(() => {
+  const activePosts = posts.value.filter(p => p.status !== 2)
+  return [
+    { label: '全部', value: 'all' as const, count: activePosts.length },
+    { label: '已发布', value: 'published' as const, count: posts.value.filter(p => p.status === 1).length },
+    { label: '草稿', value: 'draft' as const, count: posts.value.filter(p => p.status === 0).length },
+    { label: '已删除', value: 'deleted' as const, count: posts.value.filter(p => p.status === 2).length },
+  ]
+})
+
+const filteredContentPosts = computed(() => {
+  let filtered = posts.value
+  
+  // 按状态筛选
+  switch (activeContentTab.value) {
+    case 'published':
+      filtered = filtered.filter(p => p.status === 1)
+      break
+    case 'draft':
+      filtered = filtered.filter(p => p.status === 0)
+      break
+    case 'deleted':
+      filtered = filtered.filter(p => p.status === 2)
+      break
+    default:
+      filtered = filtered.filter(p => p.status !== 2)
+  }
+  
+  // 按关键词搜索
+  if (searchKeyword.value.trim()) {
+    const keyword = searchKeyword.value.trim().toLowerCase()
+    filtered = filtered.filter(p => p.title.toLowerCase().includes(keyword))
+  }
+  
+  return filtered
+})
 
 const timeFilters = computed(() => [
   { label: '本周', value: 'week' as const },
@@ -736,15 +739,6 @@ const timeFilters = computed(() => [
 const interactionTabs = computed(() => [
   { label: '点赞', value: 'likes' as const, count: 45 },
   { label: '评论', value: 'comments' as const, count: 12 },
-])
-
-const contentList = ref([
-  { id: 1, title: '二次元插画创作心得分享', category: '插画', cover: '', time: '2小时前', views: 320, likes: 45, comments: 12, status: '已发布', statusClass: 'status-1' },
-  { id: 2, title: '如何画出可爱的Q版角色', category: '教程', cover: '', time: '1天前', views: 856, likes: 78, comments: 23, status: '已发布', statusClass: 'status-1' },
-  { id: 3, title: '新作品预告', category: '动态', cover: '', time: '3天前', views: 156, likes: 32, comments: 8, status: '已发布', statusClass: 'status-1' },
-  { id: 4, title: '关于色彩搭配的一些思考', category: '教程', cover: '', time: '1周前', views: 523, likes: 67, comments: 15, status: '已发布', statusClass: 'status-1' },
-  { id: 5, title: '草稿：幻想世界设定', category: '设定', cover: '', time: '2周前', views: 0, likes: 0, comments: 0, status: '草稿', statusClass: 'status-0' },
-  { id: 6, title: '废弃作品：旧版角色设计', category: '设计', cover: '', time: '1个月前', views: 0, likes: 0, comments: 0, status: '已删除', statusClass: 'status-2' },
 ])
 
 const rankingList = ref([
@@ -794,33 +788,6 @@ const stats = computed(() => {
   }
 })
 
-const tabs = computed(() => [
-  { label: '总作品', value: 'all' as const, count: posts.value.filter(p => p.status !== 2).length },
-  { label: '总浏览', value: 'all' as const, count: stats.value.totalViews },
-  { label: '点赞', value: 'all' as const, count: stats.value.totalLikes },
-  { label: '已收藏', value: 'all' as const, count: stats.value.totalCollections },
-])
-
-const statusTabs = computed(() => [
-  { label: '全部', value: 'all' as const },
-  { label: '已发布', value: 'published' as const },
-  { label: '草稿', value: 'draft' as const },
-  { label: '已删除', value: 'deleted' as const },
-])
-
-const filteredPosts = computed(() => {
-  switch (activeTab.value) {
-    case 'published':
-      return posts.value.filter(p => p.status === 1)
-    case 'draft':
-      return posts.value.filter(p => p.status === 0)
-    case 'deleted':
-      return posts.value.filter(p => p.status === 2)
-    default:
-      return posts.value.filter(p => p.status !== 2)
-  }
-})
-
 const statusText = (status: number) => {
   switch (status) {
     case 0: return '草稿'
@@ -860,7 +827,7 @@ const loadPosts = async () => {
   if (!userStore.userInfo?.id) return
   loading.value = true
   try {
-    const res = await getUserPosts(userStore.userInfo.id, { page: 1, size: 100 })
+    const res = await getUserPosts({ page: 1, size: 100 })
     if (res.data.code === 200) {
       posts.value = res.data.data
     }
@@ -872,27 +839,37 @@ const loadPosts = async () => {
   }
 }
 
-const switchTab = (tab: 'all' | 'published' | 'draft' | 'deleted') => {
-  activeTab.value = tab
+const refreshPosts = () => {
+  if (!loading.value) {
+    loadPosts()
+  }
 }
 
 const goPublish = () => {
   activeNav.value = 'publish'
 }
 
-const goCreate = () => {
+const goHome = () => {
+  router.replace('/creator')
+  activeNav.value = 'home'
+}
+
+const goCreate = async () => {
+  await router.replace('/creator')
   activeNav.value = 'publish'
 }
 
-const viewPost = (postId: number) => {
-  router.push(`/post/${postId}`)
+const viewPost = (postId: string) => {
+  const url = router.resolve(`/post/${postId}`).href
+  window.open(url, '_blank')
 }
 
-const editPost = (postId: number) => {
+const editPost = async (postId: string) => {
+  await router.replace({ path: '/creator', query: { edit: postId } })
   activeNav.value = 'publish'
 }
 
-const publishPost = async (postId: number) => {
+const publishPost = async (postId: string) => {
   try {
     await updatePost({ id: postId, status: 1 })
     const post = posts.value.find(p => p.id === postId)
@@ -904,7 +881,7 @@ const publishPost = async (postId: number) => {
   }
 }
 
-const restorePost = async (postId: number) => {
+const restorePost = async (postId: string) => {
   try {
     await updatePost({ id: postId, status: 0 })
     const post = posts.value.find(p => p.id === postId)
@@ -1091,8 +1068,8 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 24px;
-  border-radius: 25px;
+  padding: 10px 22px;
+  border-radius: 12px;
   background: linear-gradient(135deg, var(--pink), var(--purple));
   color: white;
   font-size: 14px;
@@ -1108,27 +1085,27 @@ onMounted(() => {
   box-shadow: 0 6px 20px rgba(255, 107, 157, 0.4);
 }
 
-.btn-icon {
-  font-size: 16px;
+.publish-btn .btn-icon {
   width: 16px;
   height: 16px;
   filter: brightness(0) invert(1);
 }
 
-.banner-section {
+/* 创作首页 Hero 区域 */
+.home-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 32px;
-}
-
-.banner {
-  background: linear-gradient(135deg, #ff85a2 0%, #b484ff 100%);
-  border-radius: 20px;
   padding: 32px;
+  background: linear-gradient(135deg, #ff85a2 0%, #b484ff 100%);
+  border-radius: 16px;
   color: white;
   position: relative;
   overflow: hidden;
 }
 
-.banner::before {
+.home-hero::before {
   content: '';
   position: absolute;
   top: -50%;
@@ -1139,7 +1116,7 @@ onMounted(() => {
   border-radius: 50%;
 }
 
-.banner::after {
+.home-hero::after {
   content: '';
   position: absolute;
   bottom: -30%;
@@ -1150,20 +1127,49 @@ onMounted(() => {
   border-radius: 50%;
 }
 
-.banner-content {
+.hero-info {
   position: relative;
   z-index: 1;
 }
 
-.banner-content h2 {
-  font-size: 24px;
+.hero-info h1 {
+  font-size: 28px;
   font-weight: 800;
   margin-bottom: 8px;
 }
 
-.banner-content p {
+.hero-info p {
   font-size: 14px;
   opacity: 0.9;
+}
+
+.hero-publish-btn {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 28px;
+  border-radius: 12px;
+  background: white;
+  color: var(--pink);
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.22s ease-out;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+.hero-publish-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.hero-publish-btn .btn-icon {
+  width: 20px;
+  height: 20px;
+  filter: brightness(0) saturate(100%) invert(32%) sepia(95%) saturate(1500%) hue-rotate(320deg) brightness(104%) contrast(96%);
 }
 
 .stats-section {
@@ -1224,12 +1230,6 @@ onMounted(() => {
   height: 24px;
 }
 
-.stat-mini-icon {
-  width: 14px;
-  height: 14px;
-  margin-right: 4px;
-}
-
 .action-icon {
   width: 16px;
   height: 16px;
@@ -1279,94 +1279,308 @@ onMounted(() => {
   margin-top: 2px;
 }
 
-.posts-section {
+.quick-actions-section {
+  margin-bottom: 32px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 16px;
+}
+
+.action-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.quick-action-card {
   background: white;
-  border-radius: 20px;
+  border-radius: 16px;
   padding: 24px;
   border: 1.5px solid var(--border);
   box-shadow: 0 4px 12px rgba(180, 132, 255, 0.06);
-  margin-bottom: 24px;
+  transition: all 0.22s ease-out;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  text-align: center;
 }
 
-.tabs-bar {
-  display: flex;
-  gap: 8px;
+.quick-action-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(180, 132, 255, 0.15);
+  border-color: rgba(255, 107, 157, 0.3);
+}
+
+.quick-action-icon {
+  width: 32px;
+  height: 32px;
+  filter: brightness(0) invert(0.5) sepia(1) saturate(10) hue-rotate(300deg);
+}
+
+.quick-action-card span {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.action-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* 内容管理页面样式 */
+.page-container {
+  background: white;
+  border-radius: 20px;
+  padding: 28px;
+  border: 1.5px solid var(--border);
+  box-shadow: 0 4px 12px rgba(180, 132, 255, 0.06);
+}
+
+.page-container .page-header {
   margin-bottom: 24px;
-  padding-bottom: 16px;
+  padding-bottom: 20px;
   border-bottom: 1px solid var(--border);
 }
 
-.tab-btn {
+.page-container .page-header h1 {
+  font-size: 24px;
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.filter-bar {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  padding: 8px 20px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 600;
+  margin-bottom: 20px;
+  gap: 16px;
+}
+
+.filter-group {
+  display: flex;
+  gap: 6px;
+  background: rgba(255, 107, 157, 0.04);
+  border-radius: 12px;
+  padding: 4px;
+}
+
+.filter-btn {
+  padding: 7px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
   border: none;
   background: transparent;
   color: var(--text-dim);
   transition: all 0.22s ease-out;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
 }
 
-.tab-btn.active {
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  color: white;
-}
-
-.tab-btn:hover:not(.active) {
-  background: rgba(255, 107, 157, 0.05);
+.filter-btn:hover:not(.active) {
+  background: rgba(255, 107, 157, 0.08);
   color: var(--pink);
 }
 
-.tab-count {
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 10px;
+.filter-btn.active {
+  background: linear-gradient(135deg, rgba(255, 107, 157, 0.15), rgba(180, 132, 255, 0.15));
+  color: var(--pink);
+  box-shadow: none;
+}
+
+.filter-count {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 8px;
   background: rgba(0, 0, 0, 0.06);
+  font-weight: 600;
+  line-height: 1.6;
+  display: inline-flex;
+  align-items: center;
 }
 
-.tab-btn.active .tab-count {
-  background: rgba(255, 255, 255, 0.25);
+.filter-btn.active .filter-count {
+  background: rgba(255, 255, 255, 0.3);
 }
 
-.posts-container {
+.search-box {
+  display: flex;
+  align-items: center;
+  background: #f8f9fc;
+  border-radius: 12px;
+  padding: 0 14px;
+  border: 1.5px solid var(--border);
+  transition: all 0.22s ease-out;
+  flex-shrink: 0;
+}
+
+.search-box:focus-within {
+  border-color: rgba(255, 107, 157, 0.4);
+  background: white;
+  box-shadow: 0 0 0 3px rgba(255, 107, 157, 0.08);
+}
+
+.search-icon {
+  width: 16px;
+  height: 16px;
+  opacity: 0.4;
+  flex-shrink: 0;
+}
+
+.search-input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 13px;
+  padding: 8px 10px;
+  width: 180px;
+  color: var(--text);
+}
+
+.search-input::placeholder {
+  color: var(--text-dim);
+}
+
+.refresh-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.22s ease-out;
+  flex-shrink: 0;
+}
+
+.refresh-btn:hover {
+  border-color: var(--pink);
+  background: rgba(255, 107, 157, 0.05);
+}
+
+.refresh-btn.spinning .refresh-icon {
+  animation: spin 0.8s linear infinite;
+}
+
+.refresh-icon {
+  width: 16px;
+  height: 16px;
+  opacity: 0.5;
+  transition: opacity 0.22s ease-out;
+}
+
+.refresh-btn:hover .refresh-icon {
+  opacity: 0.8;
+}
+
+.search-bar {
+  margin-bottom: 20px;
+}
+
+.search-bar .search-box {
+  max-width: 360px;
+}
+
+.content-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.post-card {
+.content-item {
   display: flex;
   align-items: center;
   gap: 16px;
   padding: 16px;
   border-radius: 12px;
-  background: rgba(255, 107, 157, 0.03);
-  border: 1.5px solid transparent;
+  background: white;
+  border: 1.5px solid var(--border);
+  box-shadow: 0 2px 8px rgba(180, 132, 255, 0.04);
   transition: all 0.22s ease-out;
 }
 
-.post-card:hover {
-  border-color: rgba(180, 132, 255, 0.3);
-  background: rgba(255, 107, 157, 0.05);
+.content-item:hover {
+  border-color: rgba(255, 107, 157, 0.3);
+  box-shadow: 0 4px 16px rgba(180, 132, 255, 0.1);
+  transform: translateY(-2px);
 }
 
-.card-cover {
+.content-cover {
   width: 80px;
   height: 80px;
   border-radius: 12px;
   overflow: hidden;
   flex-shrink: 0;
-  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(180, 132, 255, 0.1);
 }
 
-.card-cover img {
+.content-cover img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform 0.22s ease-out;
+}
+
+.content-cover:hover img {
+  transform: scale(1.05);
+}
+
+.content-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.content-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: color 0.22s ease-out;
+}
+
+.content-title:hover {
+  color: var(--pink);
+}
+
+.content-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.content-time {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.content-status {
+  flex-shrink: 0;
+}
+
+.content-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .cover-placeholder {
@@ -1380,33 +1594,6 @@ onMounted(() => {
   color: var(--text-dim);
 }
 
-.card-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.card-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: 8px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  cursor: pointer;
-}
-
-.card-title:hover {
-  color: var(--pink);
-}
-
-.card-meta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
 .category-tag {
   font-size: 12px;
   padding: 2px 8px;
@@ -1416,20 +1603,24 @@ onMounted(() => {
   font-weight: 500;
 }
 
-.post-time {
-  font-size: 12px;
-  color: var(--text-dim);
-}
-
-.card-stats {
+.content-stats {
   display: flex;
   gap: 16px;
   font-size: 12px;
   color: var(--text-dim);
 }
 
-.card-status {
-  flex-shrink: 0;
+.content-stats .stat-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1;
+}
+
+.stat-mini-icon {
+  width: 14px;
+  height: 14px;
+  vertical-align: middle;
 }
 
 .status-tag {
@@ -1440,54 +1631,69 @@ onMounted(() => {
 }
 
 .status-0 {
-  background: #fff3cd;
-  color: #856404;
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.12), rgba(255, 152, 0, 0.12));
+  color: #f57c00;
 }
 
 .status-1 {
-  background: #d4edda;
-  color: #155724;
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.12), rgba(56, 142, 60, 0.12));
+  color: #2e7d32;
 }
 
 .status-2 {
-  background: #f8d7da;
-  color: #721c24;
-}
-
-.card-actions {
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
+  background: linear-gradient(135deg, rgba(244, 67, 54, 0.12), rgba(211, 47, 47, 0.12));
+  color: #c62828;
 }
 
 .action-btn {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  border: none;
+  border: 1.5px solid var(--border);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
   transition: all 0.22s ease-out;
   background: white;
 }
 
 .action-btn:hover {
   transform: scale(1.1);
+  border-color: transparent;
+}
+
+.action-btn .action-icon {
+  width: 16px;
+  height: 16px;
+  filter: brightness(0) saturate(100%) invert(55%) sepia(10%) saturate(200%) hue-rotate(180deg) brightness(90%) contrast(85%);
 }
 
 .action-btn.publish:hover {
-  background: #e8f5e9;
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.1), rgba(56, 142, 60, 0.1));
+  border-color: rgba(76, 175, 80, 0.3);
+}
+
+.action-btn.publish .action-icon {
+  filter: brightness(0) saturate(100%) invert(42%) sepia(60%) saturate(500%) hue-rotate(80deg) brightness(95%) contrast(90%);
 }
 
 .action-btn.restore:hover {
-  background: #e3f2fd;
+  background: linear-gradient(135deg, rgba(33, 150, 243, 0.1), rgba(25, 118, 210, 0.1));
+  border-color: rgba(33, 150, 243, 0.3);
+}
+
+.action-btn.restore .action-icon {
+  filter: brightness(0) saturate(100%) invert(45%) sepia(70%) saturate(400%) hue-rotate(170deg) brightness(95%) contrast(90%);
 }
 
 .action-btn.delete:hover {
-  background: #ffebee;
+  background: linear-gradient(135deg, rgba(244, 67, 54, 0.1), rgba(211, 47, 47, 0.1));
+  border-color: rgba(244, 67, 54, 0.3);
+}
+
+.action-btn.delete .action-icon {
+  filter: brightness(0) saturate(100%) invert(35%) sepia(80%) saturate(500%) hue-rotate(340deg) brightness(95%) contrast(90%);
 }
 
 .empty-container {
@@ -1554,17 +1760,15 @@ onMounted(() => {
 .status-tabs {
   display: flex;
   gap: 8px;
-  justify-content: center;
-  padding: 8px;
-  background: white;
-  border-radius: 14px;
-  border: 1.5px solid var(--border);
+  padding: 4px;
+  background: rgba(255, 107, 157, 0.05);
+  border-radius: 12px;
 }
 
 .status-tab-btn {
-  padding: 10px 24px;
-  border-radius: 10px;
-  font-size: 14px;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   border: none;
@@ -1576,17 +1780,19 @@ onMounted(() => {
 .status-tab-btn.active {
   background: linear-gradient(135deg, var(--pink), var(--purple));
   color: white;
+  box-shadow: 0 2px 8px rgba(255, 107, 157, 0.2);
 }
 
 .status-tab-btn:hover:not(.active) {
-  background: rgba(255, 107, 157, 0.05);
+  background: rgba(255, 107, 157, 0.08);
   color: var(--pink);
 }
 
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1601,12 +1807,13 @@ onMounted(() => {
 
 .modal-content {
   background: white;
-  border-radius: 20px;
-  padding: 32px;
-  max-width: 400px;
+  border-radius: 24px;
+  padding: 36px 32px 28px;
+  max-width: 420px;
   width: 90%;
   text-align: center;
   animation: slideUp 0.3s ease-out;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
 }
 
 @keyframes slideUp {
@@ -1614,23 +1821,46 @@ onMounted(() => {
   to { transform: translateY(0); opacity: 1; }
 }
 
-.modal-content h3 {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 12px;
+.modal-icon-wrapper {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(255, 71, 87, 0.1), rgba(255, 107, 129, 0.1));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
 }
 
-.modal-content p {
-  font-size: 14px;
-  color: var(--text-secondary);
+.modal-warn-icon {
+  width: 28px;
+  height: 28px;
+  color: #ff4757;
+  stroke-width: 2;
+}
+
+.modal-content h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
   margin-bottom: 8px;
+}
+
+.modal-post-title {
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  font-weight: 500;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .modal-hint {
   font-size: 12px;
   color: var(--text-dim);
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 
 .modal-actions {
@@ -1640,7 +1870,7 @@ onMounted(() => {
 }
 
 .modal-btn {
-  padding: 10px 28px;
+  padding: 10px 32px;
   border-radius: 12px;
   font-size: 14px;
   font-weight: 600;
@@ -1659,14 +1889,22 @@ onMounted(() => {
 }
 
 .modal-btn.confirm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   background: linear-gradient(135deg, #ff4757, #ff6b81);
   color: white;
-  box-shadow: 0 4px 12px rgba(255, 71, 87, 0.3);
+  box-shadow: 0 4px 14px rgba(255, 71, 87, 0.3);
+}
+
+.modal-btn-icon {
+  width: 16px;
+  height: 16px;
 }
 
 .modal-btn.confirm:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(255, 71, 87, 0.4);
+  box-shadow: 0 6px 20px rgba(255, 71, 87, 0.4);
 }
 
 @media (max-width: 1024px) {
@@ -1768,169 +2006,6 @@ onMounted(() => {
   .status-tab-btn {
     flex: 1 1 calc(50% - 4px);
   }
-}
-
-.page-container {
-  background: white;
-  border-radius: 20px;
-  padding: 24px;
-  border: 1.5px solid var(--border);
-  box-shadow: 0 4px 12px rgba(180, 132, 255, 0.06);
-}
-
-.filter-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border);
-}
-
-.filter-group {
-  display: flex;
-  gap: 8px;
-}
-
-.filter-btn {
-  padding: 8px 20px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  border: none;
-  background: transparent;
-  color: var(--text-dim);
-  transition: all 0.22s ease-out;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.filter-btn.active {
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  color: white;
-}
-
-.filter-count {
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.06);
-}
-
-.filter-btn.active .filter-count {
-  background: rgba(255, 255, 255, 0.25);
-}
-
-.search-box {
-  display: flex;
-  align-items: center;
-  background: rgba(255, 107, 157, 0.05);
-  border-radius: 25px;
-  padding: 8px 16px;
-  border: 1.5px solid transparent;
-  transition: all 0.22s ease-out;
-}
-
-.search-box:focus-within {
-  border-color: rgba(255, 107, 157, 0.3);
-}
-
-.search-input {
-  border: none;
-  background: transparent;
-  outline: none;
-  font-size: 14px;
-  padding: 4px 8px;
-  width: 200px;
-}
-
-.search-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.content-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.content-item {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
-  border-radius: 12px;
-  background: rgba(255, 107, 157, 0.03);
-  border: 1.5px solid transparent;
-  transition: all 0.22s ease-out;
-}
-
-.content-item:hover {
-  border-color: rgba(180, 132, 255, 0.3);
-  background: rgba(255, 107, 157, 0.05);
-}
-
-.content-cover {
-  width: 80px;
-  height: 80px;
-  border-radius: 12px;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.content-cover img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.content-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.content-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: 8px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.content-meta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.content-time {
-  font-size: 12px;
-  color: var(--text-dim);
-}
-
-.content-stats {
-  display: flex;
-  gap: 16px;
-  font-size: 12px;
-  color: var(--text-dim);
-}
-
-.content-status {
-  flex-shrink: 0;
-}
-
-.content-actions {
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
 }
 
 .time-filter {

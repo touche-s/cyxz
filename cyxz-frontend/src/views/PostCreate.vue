@@ -24,37 +24,8 @@
           <div class="form-section">
             <label class="form-label">
               <img src="@/assets/icons/image.svg" alt="image" class="label-icon" />
-              <span>封面</span>
-            </label>
-            <div class="upload-area cover-area" @click="triggerCoverUpload" @dragover.prevent @drop.prevent="handleCoverDrop">
-              <div v-if="form.cover" class="cover-preview-wrapper">
-                <img :src="form.cover" class="cover-preview" />
-                <button type="button" class="remove-btn" @click.stop="removeCover">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                    <line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
-                </button>
-              </div>
-              <div v-else class="upload-placeholder">
-                <div class="upload-icon-wrapper">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                    <circle cx="8.5" cy="8.5" r="1.5"/>
-                    <polyline points="21 15 16 10 5 21"/>
-                  </svg>
-                </div>
-                <span class="upload-title">上传封面</span>
-                <span class="upload-desc">点击或拖拽上传，建议尺寸 800×600</span>
-              </div>
-            </div>
-            <input ref="coverInput" type="file" accept="image/*" class="hidden-input" @change="handleCoverChange" />
-          </div>
-
-          <div class="form-section">
-            <label class="form-label">
-              <img src="@/assets/icons/image.svg" alt="image" class="label-icon" />
               <span>图片</span>
+              <span class="label-required">*</span>
             </label>
             <div class="images-grid">
               <div
@@ -151,7 +122,7 @@
                   type="text"
                   class="tag-input"
                   placeholder="输入标签，回车添加"
-                  @keyup.enter.prevent="addTag"
+                  @keydown.enter.prevent="addTag"
                 />
                 <span class="tag-separator">/</span>
               </div>
@@ -203,7 +174,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { createPost, updatePost, getPostDetail, getCategoryList } from '@/api/post'
-import { uploadCover, uploadPostImage } from '@/api/upload'
+import { uploadPostImage } from '@/api/upload'
 import type { PostVO, CategoryVO } from '@/api/post'
 
 const router = useRouter()
@@ -211,8 +182,9 @@ const route = useRoute()
 
 const emit = defineEmits<{ goBack: [] }>()
 
-const isEditMode = computed(() => !!route.params.id)
-const postId = computed(() => Number(route.params.id))
+const editPostId = computed(() => (route.query.edit as string) || undefined)
+const isEditMode = computed(() => !!(editPostId.value || route.params.id))
+const postId = computed(() => editPostId.value || (route.params.id as string))
 const isInCreatorCenter = computed(() => route.path.startsWith('/creator'))
 
 const categories = ref<CategoryVO[]>([])
@@ -228,7 +200,6 @@ const form = ref({
 })
 
 const tagInput = ref('')
-const coverInput = ref<HTMLInputElement | null>(null)
 const imageInput = ref<HTMLInputElement | null>(null)
 
 const loadCategories = async () => {
@@ -264,45 +235,8 @@ const loadPostDetail = async () => {
   }
 }
 
-const triggerCoverUpload = () => {
-  coverInput.value?.click()
-}
-
 const triggerImageUpload = () => {
   imageInput.value?.click()
-}
-
-const handleCoverChange = async (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (file) {
-    await doUploadCover(file)
-  }
-  target.value = ''
-}
-
-const handleCoverDrop = (event: DragEvent) => {
-  const file = event.dataTransfer?.files[0]
-  if (file && file.type.startsWith('image/')) {
-    doUploadCover(file)
-  }
-}
-
-const doUploadCover = async (file: File) => {
-  try {
-    const res = await uploadCover(file)
-    if (res.data.code === 200) {
-      form.value.cover = res.data.data
-      ElMessage.success('封面上传成功')
-    }
-  } catch (error) {
-    ElMessage.error('封面上传失败')
-    console.error('上传封面失败:', error)
-  }
-}
-
-const removeCover = () => {
-  form.value.cover = ''
 }
 
 const handleImageChange = async (event: Event) => {
@@ -334,6 +268,9 @@ const uploadImage = async (file: File) => {
     const res = await uploadPostImage(file)
     if (res.data.code === 200) {
       form.value.images.push(res.data.data)
+      if (form.value.images.length === 1 && !form.value.cover) {
+        form.value.cover = res.data.data
+      }
     }
   } catch (error) {
     ElMessage.error('图片上传失败')
@@ -342,7 +279,11 @@ const uploadImage = async (file: File) => {
 }
 
 const removeImage = (index: number) => {
+  const removed = form.value.images[index]
   form.value.images.splice(index, 1)
+  if (form.value.cover === removed) {
+    form.value.cover = form.value.images[0] || ''
+  }
 }
 
 const addTag = () => {
@@ -360,6 +301,11 @@ const removeTag = (index: number) => {
 const handleSubmit = async () => {
   if (!form.value.title || !form.value.categoryId || !form.value.content) {
     ElMessage.warning('请填写必填项')
+    return
+  }
+
+  if (form.value.images.length === 0) {
+    ElMessage.warning('请至少上传一张图片')
     return
   }
 
@@ -557,97 +503,6 @@ onMounted(() => {
 
 .hidden-select {
   display: none;
-}
-
-.upload-area {
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.22s ease-out;
-  position: relative;
-  overflow: hidden;
-}
-
-.cover-area {
-  border: 1px dashed var(--border);
-  padding: 32px;
-  text-align: center;
-}
-
-.cover-area:hover {
-  border-color: var(--pink);
-  background: rgba(255, 107, 157, 0.02);
-}
-
-.cover-preview-wrapper {
-  position: relative;
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.cover-preview {
-  width: 100%;
-  height: 200px;
-  object-fit: cover;
-}
-
-.remove-btn {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.5);
-  color: white;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.22s ease-out;
-}
-
-.remove-btn svg {
-  width: 16px;
-  height: 16px;
-}
-
-.remove-btn:hover {
-  background: rgba(255, 71, 87, 0.8);
-}
-
-.upload-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.upload-icon-wrapper {
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
-  background: rgba(255, 107, 157, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--pink);
-}
-
-.upload-icon-wrapper svg {
-  width: 22px;
-  height: 22px;
-}
-
-.upload-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.upload-desc {
-  font-size: 12px;
-  color: var(--text-dim);
 }
 
 .textarea-wrapper {
