@@ -17,6 +17,8 @@ export interface PostVO {
   comments: number
   views: number
   collections: number
+  liked: boolean
+  collected: boolean
   createTime: string
   updateTime: string
 }
