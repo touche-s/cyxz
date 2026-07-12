@@ -87,3 +87,26 @@ INSERT INTO category (id, name, description, sort_order, status, create_time, up
 (7, '周边', '手办开箱、模型评测、周边交流', 7, 1, NOW(), NOW()),
 (8, '闲聊', '水区、吐槽、二次元杂谈', 8, 1, NOW(), NOW()),
 (9, '资源', '壁纸、音乐、表情包、工具资源', 9, 1, NOW(), NOW());
+
+-- ==================== comment 库 ====================
+CREATE DATABASE IF NOT EXISTS cyxz_comment DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+
+USE cyxz_comment;
+
+-- 评论表
+CREATE TABLE IF NOT EXISTS comment (
+    id BIGINT PRIMARY KEY COMMENT '评论 ID（雪花算法）',
+    post_id BIGINT NOT NULL COMMENT '帖子 ID',
+    user_id BIGINT NOT NULL COMMENT '评论用户 ID',
+    content TEXT NOT NULL COMMENT '评论内容',
+    parent_id BIGINT DEFAULT NULL COMMENT '父评论 ID（null 表示顶级评论）',
+    reply_to_user_id BIGINT DEFAULT NULL COMMENT '被回复用户 ID',
+    likes INT NOT NULL DEFAULT 0 COMMENT '点赞数',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '0=已删除 1=正常',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_post_id (post_id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_parent_id (parent_id),
+    INDEX idx_create_time (create_time)
+) ENGINE=InnoDB COMMENT='评论表';
