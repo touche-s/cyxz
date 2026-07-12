@@ -33,6 +33,12 @@ public final class CacheKeyConstants {
     /** 用户点赞缓存前缀 */
     public static final String USER_LIKED_PREFIX = "user:liked:";
 
+    /** 用户点赞帖子集合前缀 */
+    public static final String USER_LIKED_POSTS = "user:liked:posts:";
+
+    /** 用户点赞评论集合前缀 */
+    public static final String USER_LIKED_COMMENTS = "user:liked:comments:";
+
     /** 用户收藏缓存前缀 */
     public static final String USER_COLLECTED_PREFIX = "user:collected:";
 
