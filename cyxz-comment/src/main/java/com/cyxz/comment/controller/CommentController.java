@@ -1,13 +1,13 @@
 package com.cyxz.comment.controller;
 
+import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.comment.dto.CreateCommentRequest;
 import com.cyxz.comment.service.CommentService;
 import com.cyxz.comment.vo.CommentVO;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /**
  * 评论控制器
@@ -27,7 +27,7 @@ public class CommentController {
      * @return 新创建的评论 ID
      */
     @PostMapping
-    public Result<Long> create(@RequestBody CreateCommentRequest request,
+    public Result<Long> create(@Valid @RequestBody CreateCommentRequest request,
                                @RequestHeader("X-User-Id") Long userId) {
         Long commentId = commentService.createComment(userId, request);
         return Result.success("评论成功", commentId);
@@ -57,7 +57,7 @@ public class CommentController {
      * @return 评论列表（含嵌套子回复）
      */
     @GetMapping("/list")
-    public Result<List<CommentVO>> list(@RequestParam("postId") Long postId,
+    public Result<PageResult<CommentVO>> list(@RequestParam("postId") Long postId,
                                         @RequestParam(value = "page", defaultValue = "1") int page,
                                         @RequestParam(value = "size", defaultValue = "20") int size,
                                         @RequestHeader(value = "X-User-Id", required = false) Long currentUserId) {

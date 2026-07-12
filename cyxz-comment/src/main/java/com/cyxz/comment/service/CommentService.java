@@ -1,9 +1,8 @@
 package com.cyxz.comment.service;
 
+import com.cyxz.common.base.PageResult;
 import com.cyxz.comment.dto.CreateCommentRequest;
 import com.cyxz.comment.vo.CommentVO;
-
-import java.util.List;
 
 /**
  * 评论服务接口
@@ -36,9 +35,9 @@ public interface CommentService {
      * @param page          页码（从 1 开始）
      * @param size          每页条数
      * @param currentUserId 当前登录用户 ID（可为 null）
-     * @return 评论视图列表
+     * @return 分页结果（含总条数，仅顶级评论计入分页）
      */
-    List<CommentVO> listComments(Long postId, int page, int size, Long currentUserId);
+    PageResult<CommentVO> listComments(Long postId, int page, int size, Long currentUserId);
 
     /**
      * 点赞 / 取消点赞评论

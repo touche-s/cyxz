@@ -3,7 +3,6 @@ package com.cyxz.comment.service.impl;
 import cn.hutool.core.collection.CollUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cyxz.comment.dto.CreateCommentRequest;
 import com.cyxz.comment.entity.CommentPO;
 import com.cyxz.comment.mapper.CommentMapper;
@@ -11,8 +10,9 @@ import com.cyxz.comment.service.CommentService;
 import com.cyxz.comment.vo.CommentVO;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
-import com.cyxz.common.constant.CacheKeyConstants;
+import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
+import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.user.feign.UserFeignClient;
 import com.cyxz.user.vo.UserProfileVO;
 import lombok.RequiredArgsConstructor;
@@ -97,7 +97,7 @@ public class CommentServiceImpl implements CommentService {
      * @return 评论视图列表（含嵌套子回复）
      */
     @Override
-    public List<CommentVO> listComments(Long postId, int page, int size, Long currentUserId) {
+    public PageResult<CommentVO> listComments(Long postId, int page, int size, Long currentUserId) {
         // 查询所有正常评论（不分父子，按时间排序）
         LambdaQueryWrapper<CommentPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CommentPO::getPostId, postId)
@@ -105,8 +105,8 @@ public class CommentServiceImpl implements CommentService {
                 .orderByAsc(CommentPO::getCreateTime);
         List<CommentPO> allComments = commentMapper.selectList(wrapper);
 
-        if (CollUtil.isEmpty(allComments)) {
-            return Collections.emptyList();
+        if (allComments.isEmpty()) {
+            return PageResult.empty(page, size);
         }
 
         // 收集所有用户 ID
@@ -149,12 +149,13 @@ public class CommentServiceImpl implements CommentService {
         }
 
         // 分页：只对顶级评论分页
+        int total = topLevel.size();
         int start = (page - 1) * size;
-        int end = Math.min(start + size, topLevel.size());
-        if (start >= topLevel.size()) {
-            return Collections.emptyList();
+        int end = Math.min(start + size, total);
+        if (start >= total) {
+            return PageResult.empty(page, size);
         }
-        return topLevel.subList(start, end);
+        return PageResult.of(topLevel.subList(start, end), total, page, size);
     }
 
     /**
@@ -181,8 +182,8 @@ public class CommentServiceImpl implements CommentService {
         wrapper.eq(CommentPO::getId, commentId);
 
         if (Boolean.TRUE.equals(exists)) {
-            // 已点赞 → 取消点赞
-            wrapper.setSql("likes = likes - 1");
+            // 已点赞 → 取消点赞（GREATEST 防止并发导致负数）
+            wrapper.setSql("likes = GREATEST(likes - 1, 0)");
             commentMapper.update(null, wrapper);
             stringRedisTemplate.opsForSet().remove(key, commentId.toString());
             log.info("取消点赞评论: commentId={}, userId={}", commentId, userId);
@@ -203,21 +204,18 @@ public class CommentServiceImpl implements CommentService {
      * 批量查询用户信息
      */
     private Map<Long, UserProfileVO> getUserMap(Set<Long> userIds) {
-        if (CollUtil.isEmpty(userIds)) {
+        if (userIds == null || userIds.isEmpty()) {
             return Collections.emptyMap();
         }
-        Map<Long, UserProfileVO> map = new HashMap<>();
-        for (Long uid : userIds) {
-            try {
-                Result<UserProfileVO> result = userFeignClient.getById(uid);
-                if (result != null && result.getData() != null) {
-                    map.put(uid, result.getData());
-                }
-            } catch (Exception e) {
-                log.warn("查询用户信息失败: userId={}", uid, e);
+        try {
+            Result<Map<Long, UserProfileVO>> result = userFeignClient.batchGetByIds(new ArrayList<>(userIds));
+            if (result != null && result.getData() != null) {
+                return result.getData();
             }
+        } catch (Exception e) {
+            log.warn("批量查询用户信息失败", e);
         }
-        return map;
+        return Collections.emptyMap();
     }
 
     /**
