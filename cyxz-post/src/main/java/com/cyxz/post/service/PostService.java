@@ -55,12 +55,13 @@ public interface PostService {
      * 分页查询帖子列表（仅已发布）
      * <p>按创建时间倒序排列，可按分类筛选。
      *
-     * @param categoryId 分类 ID（可为 null，null 时查全部分类）
-     * @param page       页码（从 1 开始）
-     * @param size       每页条数
+     * @param categoryId    分类 ID（可为 null，null 时查全部分类）
+     * @param page          页码（从 1 开始）
+     * @param size          每页条数
+     * @param currentUserId 当前登录用户 ID（可为 null，用于查询点赞状态）
      * @return 分页结果（含总条数）
      */
-    PageResult<PostVO> listPosts(Long categoryId, int page, int size);
+    PageResult<PostVO> listPosts(Long categoryId, int page, int size, Long currentUserId);
 
     /**
      * 查询当前用户的帖子列表
@@ -72,4 +73,50 @@ public interface PostService {
      * @return 分页结果（含总条数）
      */
     PageResult<PostVO> listByUserId(Long userId, int page, int size);
+
+    /**
+     * 查询指定用户的已发布帖子列表
+     * <p>个人空间使用，仅返回 status=1 的帖子，按创建时间倒序。
+     *
+     * @param targetUserId    目标用户 ID
+     * @param currentUserId   当前登录用户 ID（可为 null，用于查询点赞/收藏状态）
+     * @param page            页码（从 1 开始）
+     * @param size            每页条数
+     * @return 分页结果（含总条数）
+     */
+    PageResult<PostVO> listByTargetUserId(Long targetUserId, Long currentUserId, int page, int size);
+
+    /**
+     * 查询指定用户的收藏帖子列表
+     * <p>从 Redis 中获取用户收藏的帖子 ID，批量查询帖子详情。
+     *
+     * @param targetUserId    目标用户 ID
+     * @param currentUserId   当前登录用户 ID（可为 null）
+     * @param page            页码（从 1 开始）
+     * @param size            每页条数
+     * @return 分页结果（含总条数）
+     */
+    PageResult<PostVO> listFavorites(Long targetUserId, Long currentUserId, int page, int size);
+
+    /**
+     * 切换帖子点赞状态
+     * <p>已点赞则取消，未点赞则添加。使用 Redis Set 存储用户点赞关系，
+     * 同时更新数据库中的点赞数。
+     *
+     * @param userId 当前登录用户 ID
+     * @param postId 帖子 ID
+     * @return 更新后的点赞数
+     */
+    Integer toggleLike(Long userId, Long postId);
+
+    /**
+     * 切换帖子收藏状态
+     * <p>已收藏则取消，未收藏则添加。使用 Redis Set 存储用户收藏关系，
+     * 同时更新数据库中的收藏数。
+     *
+     * @param userId 当前登录用户 ID
+     * @param postId 帖子 ID
+     * @return 更新后的收藏数
+     */
+    Integer toggleCollect(Long userId, Long postId);
 }

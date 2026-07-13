@@ -78,16 +78,18 @@ public class PostController {
     /**
      * 分页查询帖子列表（仅已发布）
      *
-     * @param categoryId 分类 ID（可选，null 时查全部分类）
-     * @param page       页码（从 1 开始，默认 1）
-     * @param size       每页条数（默认 10）
+     * @param categoryId    分类 ID（可选，null 时查全部分类）
+     * @param page          页码（从 1 开始，默认 1）
+     * @param size          每页条数（默认 10）
+     * @param currentUserId 当前登录用户 ID（由 Gateway 注入，游客为 null）
      * @return 帖子列表
      */
     @GetMapping("/list")
     public Result<PageResult<PostVO>> list(@RequestParam(value = "categoryId", required = false) Long categoryId,
                                      @RequestParam(value = "page", defaultValue = "1") int page,
-                                     @RequestParam(value = "size", defaultValue = "10") int size) {
-        return Result.success(postService.listPosts(categoryId, page, size));
+                                     @RequestParam(value = "size", defaultValue = "10") int size,
+                                     @RequestHeader(value = "X-User-Id", required = false) Long currentUserId) {
+        return Result.success(postService.listPosts(categoryId, page, size, currentUserId));
     }
 
     /**
@@ -103,5 +105,67 @@ public class PostController {
                                            @RequestParam(value = "page", defaultValue = "1") int page,
                                            @RequestParam(value = "size", defaultValue = "10") int size) {
         return Result.success(postService.listByUserId(userId, page, size));
+    }
+
+    /**
+     * 查询指定用户的已发布帖子列表（个人空间 - 作品 tab）
+     *
+     * @param targetUserId    目标用户 ID
+     * @param page            页码（从 1 开始，默认 1）
+     * @param size            每页条数（默认 10）
+     * @param currentUserId   当前登录用户 ID（由 Gateway 注入，游客为 null）
+     * @return 帖子列表
+     */
+    @GetMapping("/user/{targetUserId}/posts")
+    public Result<PageResult<PostVO>> listByTargetUser(@PathVariable("targetUserId") Long targetUserId,
+                                                 @RequestParam(value = "page", defaultValue = "1") int page,
+                                                 @RequestParam(value = "size", defaultValue = "10") int size,
+                                                 @RequestHeader(value = "X-User-Id", required = false) Long currentUserId) {
+        return Result.success(postService.listByTargetUserId(targetUserId, currentUserId, page, size));
+    }
+
+    /**
+     * 查询指定用户的收藏帖子列表（个人空间 - 收藏 tab）
+     *
+     * @param targetUserId    目标用户 ID
+     * @param page            页码（从 1 开始，默认 1）
+     * @param size            每页条数（默认 10）
+     * @param currentUserId   当前登录用户 ID（由 Gateway 注入，游客为 null）
+     * @return 帖子列表
+     */
+    @GetMapping("/user/{targetUserId}/favorites")
+    public Result<PageResult<PostVO>> listUserFavorites(@PathVariable("targetUserId") Long targetUserId,
+                                                  @RequestParam(value = "page", defaultValue = "1") int page,
+                                                  @RequestParam(value = "size", defaultValue = "10") int size,
+                                                  @RequestHeader(value = "X-User-Id", required = false) Long currentUserId) {
+        return Result.success(postService.listFavorites(targetUserId, currentUserId, page, size));
+    }
+
+    /**
+     * 点赞 / 取消点赞帖子
+     *
+     * @param postId 帖子 ID
+     * @param userId 当前登录用户 ID（由 Gateway 注入）
+     * @return 更新后的点赞数
+     */
+    @PostMapping("/{postId}/like")
+    public Result<Integer> like(@PathVariable("postId") Long postId,
+                                @RequestHeader("X-User-Id") Long userId) {
+        Integer likes = postService.toggleLike(userId, postId);
+        return Result.success(likes);
+    }
+
+    /**
+     * 收藏 / 取消收藏帖子
+     *
+     * @param postId 帖子 ID
+     * @param userId 当前登录用户 ID（由 Gateway 注入）
+     * @return 更新后的收藏数
+     */
+    @PostMapping("/{postId}/collect")
+    public Result<Integer> collect(@PathVariable("postId") Long postId,
+                                   @RequestHeader("X-User-Id") Long userId) {
+        Integer collections = postService.toggleCollect(userId, postId);
+        return Result.success(collections);
     }
 }

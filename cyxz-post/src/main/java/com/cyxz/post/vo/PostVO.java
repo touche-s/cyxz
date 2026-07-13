@@ -50,6 +50,9 @@ public class PostVO {
     /** 点赞数 */
     private Integer likes;
 
+    /** 是否已点赞 */
+    private Boolean liked;
+
     /** 评论数 */
     private Integer comments;
 
@@ -58,6 +61,9 @@ public class PostVO {
 
     /** 收藏数 */
     private Integer collections;
+
+    /** 是否已收藏 */
+    private Boolean collected;
 
     /** 创建时间 */
     private LocalDateTime createTime;
