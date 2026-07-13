@@ -30,13 +30,13 @@
     <div class="info-bar">
       <div class="info-bar-inner">
         <div class="tab-nav">
-          <a href="#" :class="{ active: activeTab === 'home' }" @click.prevent="activeTab = 'home'">
+          <a href="#" :class="{ active: activeTab === 'home' }" @click.prevent="onTabChange('home')">
             <img src="@/assets/icons/home.svg" alt="home" class="tab-icon" />主页
           </a>
-          <a href="#" :class="{ active: activeTab === 'works' }" @click.prevent="activeTab = 'works'">
+          <a href="#" :class="{ active: activeTab === 'works' }" @click.prevent="onTabChange('works')">
             <img src="@/assets/icons/post.svg" alt="post" class="tab-icon" />作品
           </a>
-          <a href="#" :class="{ active: activeTab === 'favorites' }" @click.prevent="activeTab = 'favorites'">
+          <a href="#" :class="{ active: activeTab === 'favorites' }" @click.prevent="onTabChange('favorites')">
             <img src="@/assets/icons/favorite.svg" alt="favorite" class="tab-icon" />收藏
           </a>
         </div>
@@ -68,45 +68,78 @@
     </div>
 
     <div class="content-area">
+      <!-- 主页 tab：作品 + 收藏 -->
       <div v-if="activeTab === 'home'">
-        <div class="content-grid" v-if="contents.length">
-          <div class="content-card" v-for="item in contents" :key="item.id">
-            <div class="card-cover">{{ item.emoji }}</div>
-            <div class="card-body">
-              <div class="card-title">{{ item.title }}</div>
-              <div class="card-meta">
-                <img src="@/assets/icons/like.svg" alt="like" class="stat-mini-icon" /> {{ item.likes }}
-                <img src="@/assets/icons/comment.svg" alt="comment" class="stat-mini-icon" /> {{ item.comments }}
-              </div>
+        <!-- 作品 -->
+        <div class="section-block">
+          <div class="section-block-title">
+            <img src="@/assets/icons/post.svg" alt="post" class="section-block-icon" />
+            作品
+            <span class="section-block-count">{{ posts.length }}</span>
+          </div>
+          <div class="content-grid" v-if="posts.length">
+            <PostCard
+              v-for="item in posts"
+              :key="item.id"
+              :post="item"
+              size="small"
+              :show-collect="false"
+              :show-like="false"
+              @click="goToPost"
+            />
+          </div>
+          <div v-else-if="!postLoading" class="empty-state">
+            <p class="empty-text">这里还没有任何内容</p>
+            <p class="empty-hint">发布你的第一条动态，让大家认识你吧~</p>
+            <div class="empty-actions" v-if="isSelf">
+              <button class="guide-btn guide-btn-primary" @click="goToCreatePost">
+                <img src="@/assets/icons/edit.svg" alt="edit" class="btn-icon" />投稿作品
+              </button>
             </div>
           </div>
+          <div v-else class="loading-placeholder">加载中...</div>
         </div>
-        <div v-else-if="!loading" class="empty-state">
-          <p class="empty-text">这里还没有任何内容</p>
-          <p class="empty-hint">发布你的第一条动态，让大家认识你吧~</p>
-          <div class="empty-actions" v-if="isSelf">
-            <button class="guide-btn guide-btn-primary" @click="goToCreatePost">
-              <img src="@/assets/icons/edit.svg" alt="edit" class="btn-icon" />投稿作品
-            </button>
+
+        <!-- 收藏 -->
+        <div class="section-block">
+          <div class="section-block-title">
+            <img src="@/assets/icons/favorite.svg" alt="favorite" class="section-block-icon" />
+            收藏
+            <span class="section-block-count">{{ favorites.length }}</span>
           </div>
+          <div class="content-grid" v-if="favorites.length">
+            <PostCard
+              v-for="item in favorites"
+              :key="item.id"
+              :post="item"
+              size="small"
+              :show-collect="false"
+              :show-like="false"
+              @click="goToPost"
+            />
+          </div>
+          <div v-else-if="!favoriteLoading" class="empty-state">
+            <p class="empty-text">还没有收藏任何内容</p>
+            <p class="empty-hint">发现喜欢的帖子就收藏起来吧~</p>
+          </div>
+          <div v-else class="loading-placeholder">加载中...</div>
         </div>
-        <div v-else class="loading-placeholder">加载中...</div>
       </div>
 
+      <!-- 作品 tab：显示作品 -->
       <div v-if="activeTab === 'works'">
-        <div class="content-grid" v-if="contents.length">
-          <div class="content-card" v-for="item in contents" :key="item.id">
-            <div class="card-cover">{{ item.emoji }}</div>
-            <div class="card-body">
-              <div class="card-title">{{ item.title }}</div>
-              <div class="card-meta">
-                <img src="@/assets/icons/like.svg" alt="like" class="stat-mini-icon" /> {{ item.likes }}
-                <img src="@/assets/icons/comment.svg" alt="comment" class="stat-mini-icon" /> {{ item.comments }}
-              </div>
-            </div>
-          </div>
+        <div class="content-grid" v-if="posts.length">
+          <PostCard
+            v-for="item in posts"
+            :key="item.id"
+            :post="item"
+            size="small"
+            :show-collect="false"
+            :show-like="false"
+            @click="goToPost"
+          />
         </div>
-        <div v-else-if="!loading" class="empty-state">
+        <div v-else-if="!postLoading" class="empty-state">
           <p class="empty-text">你还没有发布任何作品</p>
           <p class="empty-hint">快去发布你的第一篇帖子吧~</p>
           <div class="empty-actions" v-if="isSelf">
@@ -118,20 +151,20 @@
         <div v-else class="loading-placeholder">加载中...</div>
       </div>
 
+      <!-- 收藏 tab：显示收藏 -->
       <div v-if="activeTab === 'favorites'">
-        <div class="content-grid" v-if="contents.length">
-          <div class="content-card" v-for="item in contents" :key="item.id">
-            <div class="card-cover">{{ item.emoji }}</div>
-            <div class="card-body">
-              <div class="card-title">{{ item.title }}</div>
-              <div class="card-meta">
-                <img src="@/assets/icons/like.svg" alt="like" class="stat-mini-icon" /> {{ item.likes }}
-                <img src="@/assets/icons/comment.svg" alt="comment" class="stat-mini-icon" /> {{ item.comments }}
-              </div>
-            </div>
-          </div>
+        <div class="content-grid" v-if="favorites.length">
+          <PostCard
+            v-for="item in favorites"
+            :key="item.id"
+            :post="item"
+            size="small"
+            :show-collect="false"
+            :show-like="false"
+            @click="goToPost"
+          />
         </div>
-        <div v-else-if="!loading" class="empty-state">
+        <div v-else-if="!favoriteLoading" class="empty-state">
           <p class="empty-text">你还没有收藏任何内容</p>
           <p class="empty-hint">发现喜欢的帖子就收藏起来吧~</p>
         </div>
@@ -213,7 +246,10 @@ import { ElMessage } from 'element-plus'
 import { getUserProfile, updateUserProfile } from '@/api/user'
 import type { UserInfo } from '@/api/user'
 import { uploadAvatar } from '@/api/upload'
+import { getUserPostsByTarget, getUserFavorites } from '@/api/post'
+import type { PostVO } from '@/api/post'
 import { useUserStore } from '@/stores/user'
+import PostCard from '@/components/PostCard.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -235,7 +271,10 @@ const editForm = reactive({
   birthday: '',
 })
 
-const contents = ref<any[]>([])
+const posts = ref<PostVO[]>([])
+const favorites = ref<PostVO[]>([])
+const postLoading = ref(false)
+const favoriteLoading = ref(false)
 
 const isSelf = computed(() => {
   return String(profile.value?.userId) === String(userStore.userInfo?.id)
@@ -248,12 +287,53 @@ onMounted(async () => {
     const res = await getUserProfile(userId)
     const data = (res.data as any).data || res.data
     profile.value = data
+    // 加载作品列表
+    await loadPosts(userId)
+    // 加载收藏列表（主页 tab 也需要展示）
+    await loadFavorites(userId)
   } catch {
     ElMessage.error('加载用户信息失败')
   } finally {
     loading.value = false
   }
 })
+
+async function loadPosts(userId: string) {
+  postLoading.value = true
+  try {
+    const res = await getUserPostsByTarget(userId, { page: 1, size: 20 })
+    const data = (res.data as any).data || res.data
+    posts.value = data?.records || []
+  } catch {
+    posts.value = []
+  } finally {
+    postLoading.value = false
+  }
+}
+
+async function loadFavorites(userId: string) {
+  favoriteLoading.value = true
+  try {
+    const res = await getUserFavorites(userId, { page: 1, size: 20 })
+    const data = (res.data as any).data || res.data
+    favorites.value = data?.records || []
+  } catch {
+    favorites.value = []
+  } finally {
+    favoriteLoading.value = false
+  }
+}
+
+// tab 切换时加载对应数据
+function onTabChange(tab: string) {
+  activeTab.value = tab
+  const userId = String(route.params.id)
+  if (tab === 'works' && posts.value.length === 0) {
+    loadPosts(userId)
+  } else if (tab === 'favorites' && favorites.value.length === 0) {
+    loadFavorites(userId)
+  }
+}
 
 function startEdit() {
   if (!profile.value) return
@@ -338,6 +418,10 @@ async function saveEdit() {
 
 function goToCreatePost() {
   router.push('/creator')
+}
+
+function goToPost(post: PostVO) {
+  router.push(`/post/${post.id}`)
 }
 </script>
 
@@ -577,44 +661,44 @@ function goToCreatePost() {
   padding: 24px 32px 60px;
 }
 
-.content-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+/* ===== Section Block (主页 tab 分块) ===== */
+.section-block {
+  margin-bottom: 36px;
+  padding-bottom: 36px;
+  border-bottom: 1px solid var(--border);
 }
-.content-card {
-  background: white;
-  border-radius: var(--radius);
-  border: 1.5px solid var(--border);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-  transition: all 0.2s;
-  cursor: pointer;
+.section-block:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
 }
-.content-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 30px rgba(192,132,252,0.15);
-}
-.card-cover {
-  width: 100%;
-  aspect-ratio: 16/10;
-  background: linear-gradient(135deg, #fce4ec, #e8eaf6);
+.section-block-title {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-size: 40px;
-}
-.card-body { padding: 12px 14px; }
-.card-title {
-  font-size: 13px;
-  font-weight: 600;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
   color: var(--text);
-  margin-bottom: 6px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  margin-bottom: 16px;
 }
-.card-meta { font-size: 11px; color: var(--text-dim); display: flex; gap: 12px; }
+.section-block-icon {
+  width: 18px;
+  height: 18px;
+}
+.section-block-count {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-dim);
+  background: rgba(180, 132, 255, 0.08);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+}
 
 .empty-state {
   display: flex;

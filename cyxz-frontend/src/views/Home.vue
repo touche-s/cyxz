@@ -62,28 +62,16 @@
     </div>
 
     <div class="content-grid" v-if="!loading">
-      <div class="card" v-for="post in posts" :key="post.id" @click="viewPost(post.id)">
-        <div class="card-cover">
-          <img v-if="post.cover" :src="post.cover" class="img" alt="cover" />
-          <div v-else class="img" :style="{ background: getGradient(post.id) }"></div>
-          <span class="card-badge" v-if="post.categoryName">{{ post.categoryName }}</span>
-          <button class="card-save" @click.stop="toggleSave(post.id)">♡</button>
-        </div>
-        <div class="card-body">
-          <div class="card-title">{{ post.title }}</div>
-          <div class="card-meta">
-            <div class="card-author">
-              <div class="card-avatar" v-if="!post.authorAvatar"></div>
-              <img v-else :src="post.authorAvatar" class="card-avatar" alt="avatar" />
-              <span class="card-author-name">{{ post.authorName || '匿名用户' }}</span>
-            </div>
-            <div class="card-stats">
-              <span><img src="@/assets/icons/like.svg" alt="like" class="stat-icon" /> {{ formatNumber(post.likes) }}</span>
-              <span><img src="@/assets/icons/comment.svg" alt="comment" class="stat-icon" /> {{ post.comments }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <PostCard
+        v-for="post in posts"
+        :key="post.id"
+        :post="post"
+        :show-collect="true"
+        :show-like="true"
+        @click="viewPost"
+        @like="handlePostLike"
+        @collect="toggleSave"
+      />
     </div>
 
     <div v-else class="loading-container">
@@ -111,10 +99,14 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getPostList, getCategoryList } from '@/api/post'
+import { ElMessage } from 'element-plus'
+import { getPostList, getCategoryList, togglePostLike, togglePostCollect } from '@/api/post'
 import type { PostVO, CategoryVO } from '@/api/post'
+import { useUserStore } from '@/stores/user'
+import PostCard from '@/components/PostCard.vue'
 
 const router = useRouter()
+const userStore = useUserStore()
 
 const posts = ref<PostVO[]>([])
 const categories = ref<CategoryVO[]>([])
@@ -182,29 +174,6 @@ const nextBanner = () => {
   startAutoPlay()
 }
 
-// 渐变色数组（用于没有封面的帖子）
-const gradients = [
-  'linear-gradient(135deg, #ffd4e8, #ffa8c8, #ff8db5)',
-  'linear-gradient(135deg, #d4e8ff, #a8c8ff, #8db5ff)',
-  'linear-gradient(135deg, #f0d4ff, #d8b0ff, #c084fc)',
-  'linear-gradient(135deg, #fff0d4, #ffe0a8, #ffd08d)',
-  'linear-gradient(135deg, #d4ffe8, #a8ffd0, #8dffb5)',
-  'linear-gradient(135deg, #ffe8d4, #ffc8a8, #ffa88d)',
-  'linear-gradient(135deg, #e8d4ff, #d0b0ff)',
-  'linear-gradient(135deg, #c8ffe8, #a0ffd0)',
-]
-
-const getGradient = (id: number) => {
-  return gradients[id % gradients.length]
-}
-
-const formatNumber = (num: number) => {
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'k'
-  }
-  return num.toString()
-}
-
 const loadCategories = async () => {
   try {
     const res = await getCategoryList()
@@ -239,14 +208,55 @@ const selectCategory = (categoryId: number | null) => {
   loadPosts()
 }
 
-const viewPost = (postId: string) => {
-  const url = router.resolve(`/post/${postId}`).href
+const viewPost = (post: PostVO) => {
+  const url = router.resolve(`/post/${post.id}`).href
   window.open(url, '_blank')
 }
 
-const toggleSave = (postId: number) => {
-  console.log('收藏帖子:', postId)
-  // TODO: 实现收藏功能
+const toggleSave = async (post: PostVO) => {
+  if (!userStore.isLoggedIn) {
+    ElMessage.warning('请先登录')
+    return
+  }
+
+  const oldCollected = post.collected
+  const oldCollections = post.collections
+
+  post.collected = !oldCollected
+  post.collections = oldCollected ? Math.max(oldCollections - 1, 0) : oldCollections + 1
+
+  try {
+    const res = await togglePostCollect(post.id)
+    if (res.data.code === 200) {
+      post.collections = res.data.data
+    }
+  } catch {
+    post.collected = oldCollected
+    post.collections = oldCollections
+  }
+}
+
+const handlePostLike = async (post: PostVO) => {
+  if (!userStore.isLoggedIn) {
+    ElMessage.warning('请先登录')
+    return
+  }
+
+  const oldLiked = post.liked
+  const oldLikes = post.likes
+
+  post.liked = !oldLiked
+  post.likes = oldLiked ? Math.max(oldLikes - 1, 0) : oldLikes + 1
+
+  try {
+    const res = await togglePostLike(post.id)
+    if (res.data.code === 200) {
+      post.likes = res.data.data
+    }
+  } catch {
+    post.liked = oldLiked
+    post.likes = oldLikes
+  }
 }
 
 onMounted(() => {
@@ -687,18 +697,23 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
   cursor: pointer;
   border: none;
   transition: all 0.22s ease-out;
-  color: var(--text-dim);
+  padding: 0;
+  line-height: 0;
+}
+
+.card-save .collect-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 .card-save:hover {
-  color: var(--pink);
   background: white;
   transform: scale(1.15);
-  box-shadow: 0 2px 12px rgba(255, 107, 157, 0.2);
+  box-shadow: 0 2px 12px rgba(180, 132, 255, 0.2);
 }
 
 .card-body { padding: 14px 16px; }
@@ -742,9 +757,56 @@ onUnmounted(() => {
   color: var(--pink);
 }
 
-.card-stats { display: flex; gap: 12px; font-size: 12px; color: var(--text-dim); }
-.card-stats span { display: flex; align-items: center; gap: 3px; }
-.card-stats .stat-icon { width: 14px; height: 14px; }
+.card-stats { 
+  display: flex; 
+  align-items: center; 
+  gap: 14px; 
+  font-size: 12px; 
+  color: var(--text-dim);
+  line-height: 1;
+}
+
+.card-stats span { 
+  display: inline-flex; 
+  align-items: center; 
+  gap: 3px;
+  line-height: 1;
+  transition: color 0.22s ease-out;
+}
+
+.card-stats span:hover {
+  color: var(--text);
+}
+
+.card-stats .stat-icon { 
+  width: 14px; 
+  height: 14px; 
+  display: block;
+  flex-shrink: 0;
+}
+
+.like-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-dim);
+  padding: 0;
+  transition: color 0.22s ease-out;
+  line-height: 1;
+  font-family: inherit;
+}
+
+.like-btn:hover {
+  color: var(--pink);
+}
+
+.like-btn.active {
+  color: var(--pink);
+}
 
 /* ===== Loading & Empty States ===== */
 .loading-container {

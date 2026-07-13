@@ -165,7 +165,7 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getPostDetail } from '@/api/post'
+import { getPostDetail, togglePostLike, togglePostCollect } from '@/api/post'
 import {
   getCommentList,
   createComment,
@@ -279,21 +279,46 @@ const togglePostLike = async () => {
     ElMessage.warning('请先登录')
     return
   }
-  // TODO: 接入帖子点赞接口后替换
-  liked.value = !liked.value
-  if (post.value) {
-    post.value.likes += liked.value ? 1 : -1
+  if (!post.value) return
+
+  const oldLiked = liked.value
+  const oldLikes = post.value.likes
+
+  liked.value = !oldLiked
+  post.value.likes = oldLiked ? Math.max(oldLikes - 1, 0) : oldLikes + 1
+
+  try {
+    const res = await togglePostLike(String(post.value.id))
+    if (res.data.code === 200) {
+      post.value.likes = res.data.data
+    }
+  } catch {
+    liked.value = oldLiked
+    post.value.likes = oldLikes
   }
 }
 
-const toggleCollect = () => {
+const toggleCollect = async () => {
   if (!userStore.isLoggedIn) {
     ElMessage.warning('请先登录')
     return
   }
-  collected.value = !collected.value
-  if (post.value) {
-    post.value.collections += collected.value ? 1 : -1
+  if (!post.value) return
+
+  const oldCollected = collected.value
+  const oldCollections = post.value.collections
+
+  collected.value = !oldCollected
+  post.value.collections = oldCollected ? Math.max(oldCollections - 1, 0) : oldCollections + 1
+
+  try {
+    const res = await togglePostCollect(String(post.value.id))
+    if (res.data.code === 200) {
+      post.value.collections = res.data.data
+    }
+  } catch {
+    collected.value = oldCollected
+    post.value.collections = oldCollections
   }
 }
 

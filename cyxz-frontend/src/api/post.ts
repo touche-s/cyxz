@@ -81,7 +81,27 @@ export const getUserPosts = (params: { page?: number; size?: number }) => {
   return request.get('/post/user', { params })
 }
 
+// 查询指定用户的已发布帖子列表（个人空间 - 作品 tab）
+export const getUserPostsByTarget = (targetUserId: string | number, params: { page?: number; size?: number }) => {
+  return request.get(`/post/user/${targetUserId}/posts`, { params })
+}
+
+// 查询指定用户的收藏帖子列表（个人空间 - 收藏 tab）
+export const getUserFavorites = (targetUserId: string | number, params: { page?: number; size?: number }) => {
+  return request.get(`/post/user/${targetUserId}/favorites`, { params })
+}
+
 // 查询分类列表
 export const getCategoryList = () => {
   return request.get('/category/list')
+}
+
+// 点赞 / 取消点赞帖子
+export const togglePostLike = (postId: string) => {
+  return request.post(`/post/${postId}/like`)
+}
+
+// 收藏 / 取消收藏帖子
+export const togglePostCollect = (postId: string) => {
+  return request.post(`/post/${postId}/collect`)
 }
