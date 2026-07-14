@@ -1,11 +1,12 @@
 package com.cyxz.comment.service.impl;
 
-import cn.hutool.core.collection.CollUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cyxz.comment.dto.CreateCommentRequest;
+import com.cyxz.comment.entity.CommentLikePO;
 import com.cyxz.comment.entity.CommentPO;
+import com.cyxz.comment.mapper.CommentLikeMapper;
 import com.cyxz.comment.mapper.CommentMapper;
 import com.cyxz.comment.service.CommentService;
 import com.cyxz.comment.vo.CommentVO;
@@ -13,12 +14,10 @@ import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
-import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.user.feign.UserFeignClient;
 import com.cyxz.user.vo.UserProfileVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,8 +33,8 @@ import java.util.stream.Collectors;
 public class CommentServiceImpl implements CommentService {
 
     private final CommentMapper commentMapper;
+    private final CommentLikeMapper commentLikeMapper;
     private final UserFeignClient userFeignClient;
-    private final StringRedisTemplate stringRedisTemplate;
 
     /**
      * 发表评论
@@ -197,8 +196,8 @@ public class CommentServiceImpl implements CommentService {
 
     /**
      * 点赞 / 取消点赞评论
-     * <p>使用 Redis Set 记录用户的点赞评论 ID，已点赞则取消（likes - 1），
-     * 未点赞则点赞（likes + 1），通过 SQL 原子更新避免并发问题。
+     * <p>使用 comment_like 表存储用户点赞关系（逻辑状态型）。
+     * 不存在则插入 status=1，已存在则切换 status，同时原子更新 comment.likes。
      *
      * @param userId    当前登录用户 ID
      * @param commentId 评论 ID
@@ -212,24 +211,39 @@ public class CommentServiceImpl implements CommentService {
             throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
         }
 
-        String key = CacheKeyConstants.USER_LIKED_COMMENTS + userId;
-        Boolean exists = stringRedisTemplate.opsForSet().isMember(key, commentId.toString());
+        // 查询是否已存在点赞关系
+        LambdaQueryWrapper<CommentLikePO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CommentLikePO::getUserId, userId)
+                .eq(CommentLikePO::getCommentId, commentId);
+        CommentLikePO likePO = commentLikeMapper.selectOne(wrapper);
 
-        LambdaUpdateWrapper<CommentPO> wrapper = new LambdaUpdateWrapper<>();
-        wrapper.eq(CommentPO::getId, commentId);
+        LambdaUpdateWrapper<CommentPO> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(CommentPO::getId, commentId);
 
-        if (Boolean.TRUE.equals(exists)) {
-            // 已点赞 → 取消点赞（GREATEST 防止并发导致负数）
-            wrapper.setSql("likes = GREATEST(likes - 1, 0)");
-            commentMapper.update(null, wrapper);
-            stringRedisTemplate.opsForSet().remove(key, commentId.toString());
-            log.info("取消点赞评论: commentId={}, userId={}", commentId, userId);
-        } else {
-            // 未点赞 → 点赞
-            wrapper.setSql("likes = likes + 1");
-            commentMapper.update(null, wrapper);
-            stringRedisTemplate.opsForSet().add(key, commentId.toString());
+        if (likePO == null) {
+            // 不存在 → 插入 status=1
+            CommentLikePO newLike = new CommentLikePO();
+            newLike.setCommentId(commentId);
+            newLike.setUserId(userId);
+            newLike.setStatus(1);
+            commentLikeMapper.insert(newLike);
+            updateWrapper.setSql("likes = likes + 1");
+            commentMapper.update(null, updateWrapper);
             log.info("点赞评论: commentId={}, userId={}", commentId, userId);
+        } else if (likePO.getStatus() == 0) {
+            // 已取消 → 恢复点赞
+            likePO.setStatus(1);
+            commentLikeMapper.updateById(likePO);
+            updateWrapper.setSql("likes = likes + 1");
+            commentMapper.update(null, updateWrapper);
+            log.info("点赞评论(恢复): commentId={}, userId={}", commentId, userId);
+        } else {
+            // 已点赞 → 取消点赞
+            likePO.setStatus(0);
+            commentLikeMapper.updateById(likePO);
+            updateWrapper.setSql("likes = GREATEST(likes - 1, 0)");
+            commentMapper.update(null, updateWrapper);
+            log.info("取消点赞评论: commentId={}, userId={}", commentId, userId);
         }
 
         // 查询最新点赞数
@@ -257,18 +271,22 @@ public class CommentServiceImpl implements CommentService {
 
     /**
      * 获取当前用户已点赞的评论 ID 集合
+     * <p>从 comment_like 表批量查询当前用户 status=1 的点赞记录。
+     *
+     * @param userId 当前登录用户 ID（可为 null）
+     * @return 已点赞评论 ID 集合
      */
     private Set<Long> getLikedCommentIds(Long userId) {
         if (userId == null) {
             return Collections.emptySet();
         }
-        String key = CacheKeyConstants.USER_LIKED_COMMENTS + userId;
-        Set<String> members = stringRedisTemplate.opsForSet().members(key);
-        if (CollUtil.isEmpty(members)) {
-            return Collections.emptySet();
-        }
-        return members.stream()
-                .map(Long::valueOf)
+        LambdaQueryWrapper<CommentLikePO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CommentLikePO::getUserId, userId)
+                .eq(CommentLikePO::getStatus, 1)
+                .select(CommentLikePO::getCommentId);
+        List<CommentLikePO> list = commentLikeMapper.selectList(wrapper);
+        return list.stream()
+                .map(CommentLikePO::getCommentId)
                 .collect(Collectors.toSet());
     }
 
