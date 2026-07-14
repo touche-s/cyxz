@@ -207,7 +207,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getUserProfile, updateUserProfile } from '@/api/user'
+import { getMyProfile, updateUserProfile } from '@/api/user'
 import type { UserInfo } from '@/api/user'
 import { uploadAvatar } from '@/api/upload'
 import { useUserStore } from '@/stores/user'
@@ -252,7 +252,7 @@ onMounted(async () => {
   const userId = userStore.userInfo?.id
   if (!userId) return
   try {
-    const res = await getUserProfile(String(userId))
+    const res = await getMyProfile()
     const data = (res.data as any).data || res.data
     Object.assign(profile, data)
   } catch {

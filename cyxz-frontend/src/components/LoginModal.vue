@@ -149,7 +149,7 @@ import { ref, reactive, watch } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { login, register, getCaptcha } from '@/api/auth'
 import type { LoginRequest, RegisterRequest } from '@/api/auth'
-import { getUserProfile } from '@/api/user'
+import { getMyProfile } from '@/api/user'
 import { useUserStore } from '@/stores/user'
 import { useRouter } from 'vue-router'
 
@@ -240,7 +240,7 @@ async function handleSubmit() {
         userStore.setToken(data.data.accessToken)
         ElMessage.success('登录成功')
         try {
-          const profileRes = await getUserProfile(data.data.userId)
+          const profileRes = await getMyProfile()
           const pdata = (profileRes.data as any).data || profileRes.data
           userStore.setUserInfo({ userId: data.data.userId, ...pdata })
         } catch {
