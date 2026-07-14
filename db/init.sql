@@ -36,6 +36,19 @@ CREATE TABLE IF NOT EXISTS user_profile (
     update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间'
 ) ENGINE=InnoDB COMMENT='用户资料表';
 
+-- 用户关注关系表
+CREATE TABLE IF NOT EXISTS user_follow (
+    id BIGINT PRIMARY KEY COMMENT '主键（雪花算法）',
+    user_id BIGINT NOT NULL COMMENT '关注者 ID',
+    follow_user_id BIGINT NOT NULL COMMENT '被关注者 ID',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '1=已关注 0=已取消',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE INDEX uk_user_follow (user_id, follow_user_id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_follow_user_id (follow_user_id)
+) ENGINE=InnoDB COMMENT='用户关注关系表';
+
 -- ==================== post 库 ====================
 CREATE DATABASE IF NOT EXISTS cyxz_post DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 
@@ -127,6 +140,7 @@ CREATE TABLE IF NOT EXISTS comment (
     content TEXT NOT NULL COMMENT '评论内容',
     parent_id BIGINT DEFAULT NULL COMMENT '父评论 ID（null 表示顶级评论）',
     reply_to_user_id BIGINT DEFAULT NULL COMMENT '被回复用户 ID',
+    post_author_id BIGINT DEFAULT NULL COMMENT '帖子作者 ID（冗余字段，用于查询用户收到的评论）',
     likes INT NOT NULL DEFAULT 0 COMMENT '点赞数',
     status TINYINT NOT NULL DEFAULT 1 COMMENT '0=已删除 1=正常',
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -134,6 +148,7 @@ CREATE TABLE IF NOT EXISTS comment (
     INDEX idx_post_id (post_id),
     INDEX idx_user_id (user_id),
     INDEX idx_parent_id (parent_id),
+    INDEX idx_post_author_id (post_author_id),
     INDEX idx_create_time (create_time)
 ) ENGINE=InnoDB COMMENT='评论表';
 
