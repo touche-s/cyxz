@@ -38,6 +38,9 @@ public class CommentPO implements Serializable {
     /** 被回复用户 ID */
     private Long replyToUserId;
 
+    /** 帖子作者 ID（冗余字段，用于查询用户收到的评论） */
+    private Long postAuthorId;
+
     /** 点赞数 */
     private Integer likes;
 

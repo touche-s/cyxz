@@ -94,4 +94,20 @@ public class CommentController {
         int likes = commentService.toggleLike(userId, commentId);
         return Result.success(likes);
     }
+
+    /**
+     * 查询用户收到的评论列表（对用户帖子的评论）
+     * <p>用于互动管理，查询当前用户所有帖子收到的评论。
+     *
+     * @param userId 当前登录用户 ID（由 Gateway 注入）
+     * @param page   页码（从 1 开始，默认 1）
+     * @param size   每页条数（默认 20）
+     * @return 评论列表
+     */
+    @GetMapping("/received")
+    public Result<PageResult<CommentVO>> received(@RequestHeader("X-User-Id") Long userId,
+                                                  @RequestParam(value = "page", defaultValue = "1") int page,
+                                                  @RequestParam(value = "size", defaultValue = "20") int size) {
+        return Result.success(commentService.listReceivedComments(userId, page, size));
+    }
 }

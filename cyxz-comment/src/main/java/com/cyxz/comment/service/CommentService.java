@@ -59,4 +59,15 @@ public interface CommentService {
      * @return 操作后的点赞数
      */
     int toggleLike(Long userId, Long commentId);
+
+    /**
+     * 查询用户收到的评论列表（对用户帖子的评论）
+     * <p>用于互动管理，查询当前用户所有帖子收到的评论，按创建时间倒序。
+     *
+     * @param userId    当前登录用户 ID
+     * @param page      页码（从 1 开始）
+     * @param size      每页条数
+     * @return 分页结果
+     */
+    PageResult<CommentVO> listReceivedComments(Long userId, int page, int size);
 }

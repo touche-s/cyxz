@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 
 @SpringBootApplication(scanBasePackages = {"com.cyxz.comment", "com.cyxz.common"})
-@EnableFeignClients(basePackages = "com.cyxz.user.feign")
+@EnableFeignClients(basePackages = {"com.cyxz.user.feign", "com.cyxz.post.feign"})
 public class CyxzCommentApplication {
 
     public static void main(String[] args) {

@@ -14,6 +14,7 @@ import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
+import com.cyxz.post.feign.PostFeignClient;
 import com.cyxz.user.feign.UserFeignClient;
 import com.cyxz.user.vo.UserProfileVO;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,7 @@ public class CommentServiceImpl implements CommentService {
     private final CommentMapper commentMapper;
     private final CommentLikeMapper commentLikeMapper;
     private final UserFeignClient userFeignClient;
+    private final PostFeignClient postFeignClient;
 
     /**
      * 发表评论
@@ -58,6 +60,16 @@ public class CommentServiceImpl implements CommentService {
         po.setReplyToUserId(request.getReplyToUserId());
         po.setLikes(0);
         po.setStatus(1);
+
+        try {
+            Result<Long> result = postFeignClient.getPostAuthor(request.getPostId());
+            if (result != null && result.getData() != null) {
+                po.setPostAuthorId(result.getData());
+            }
+        } catch (Exception e) {
+            log.warn("获取帖子作者失败: postId={}", request.getPostId(), e);
+        }
+
         commentMapper.insert(po);
         log.info("发表评论成功: commentId={}, postId={}, userId={}", po.getId(), po.getPostId(), userId);
 
@@ -339,5 +351,35 @@ public class CommentServiceImpl implements CommentService {
         vo.setLiked(likedCommentIds.contains(po.getId()));
         vo.setCreateTime(po.getCreateTime());
         return vo;
+    }
+
+    @Override
+    public PageResult<CommentVO> listReceivedComments(Long userId, int page, int size) {
+        LambdaQueryWrapper<CommentPO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CommentPO::getPostAuthorId, userId)
+                .eq(CommentPO::getStatus, 1)
+                .orderByDesc(CommentPO::getCreateTime);
+
+        Page<CommentPO> pageResult = commentMapper.selectPage(
+                new Page<>(page, size), wrapper);
+
+        List<CommentPO> comments = pageResult.getRecords();
+        if (comments.isEmpty()) {
+            return PageResult.empty(page, size);
+        }
+
+        Set<Long> userIds = comments.stream()
+                .map(CommentPO::getUserId)
+                .collect(Collectors.toSet());
+        for (CommentPO comment : comments) {
+            if (comment.getReplyToUserId() != null) {
+                userIds.add(comment.getReplyToUserId());
+            }
+        }
+        Map<Long, UserProfileVO> userMap = getUserMap(userIds);
+
+        List<CommentVO> voList = convertToVOList(comments, userMap, Collections.emptySet());
+
+        return PageResult.of(voList, pageResult.getTotal(), page, size);
     }
 }

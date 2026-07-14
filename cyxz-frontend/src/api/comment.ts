@@ -60,3 +60,8 @@ export const deleteComment = (commentId: number) =>
 /** 点赞/取消点赞评论 */
 export const toggleCommentLike = (commentId: number) =>
   request.post(`/comment/${commentId}/like`)
+
+/** 查询用户收到的评论列表（对用户帖子的评论） */
+export const getReceivedComments = (params: { page?: number; size?: number }) => {
+  return request.get('/comment/received', { params })
+}
