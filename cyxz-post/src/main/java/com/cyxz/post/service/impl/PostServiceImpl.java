@@ -6,20 +6,22 @@ import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
-import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.user.feign.UserFeignClient;
 import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
 import com.cyxz.post.entity.CategoryPO;
+import com.cyxz.post.entity.PostCollectPO;
+import com.cyxz.post.entity.PostLikePO;
 import com.cyxz.post.entity.PostPO;
 import com.cyxz.post.mapper.CategoryMapper;
+import com.cyxz.post.mapper.PostCollectMapper;
+import com.cyxz.post.mapper.PostLikeMapper;
 import com.cyxz.post.mapper.PostMapper;
 import com.cyxz.post.service.PostService;
 import com.cyxz.post.vo.PostVO;
 import com.cyxz.user.vo.UserProfileVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -38,8 +40,9 @@ public class PostServiceImpl implements PostService {
 
     private final PostMapper postMapper;
     private final CategoryMapper categoryMapper;
+    private final PostLikeMapper postLikeMapper;
+    private final PostCollectMapper postCollectMapper;
     private final UserFeignClient userFeignClient;
-    private final StringRedisTemplate stringRedisTemplate;
 
     /**
      * 创建帖子
@@ -255,7 +258,7 @@ public class PostServiceImpl implements PostService {
 
     /**
      * 查询指定用户的收藏帖子列表
-     * <p>从 Redis 中获取用户收藏的帖子 ID，批量查询帖子详情。
+     * <p>从 post_collect 表查询用户收藏的帖子 ID，批量查询帖子详情。
      *
      * @param targetUserId    目标用户 ID
      * @param currentUserId   当前登录用户 ID（可为 null）
@@ -265,27 +268,25 @@ public class PostServiceImpl implements PostService {
      */
     @Override
     public PageResult<PostVO> listFavorites(Long targetUserId, Long currentUserId, int page, int size) {
-        // 从 Redis 获取目标用户收藏的帖子 ID
-        String key = CacheKeyConstants.USER_COLLECTED_PREFIX + targetUserId;
-        Set<String> members = stringRedisTemplate.opsForSet().members(key);
-        if (members == null || members.isEmpty()) {
-            return PageResult.of(Collections.emptyList(), 0L, page, size);
+        // 从 post_collect 表获取目标用户收藏的帖子 ID（仅 status=1）
+        LambdaQueryWrapper<PostCollectPO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PostCollectPO::getUserId, targetUserId)
+                .eq(PostCollectPO::getStatus, 1)
+                .orderByDesc(PostCollectPO::getCreateTime);
+        Page<PostCollectPO> pageParam = new Page<>(page, size);
+        Page<PostCollectPO> collectPage = postCollectMapper.selectPage(pageParam, wrapper);
+
+        List<PostCollectPO> records = collectPage.getRecords();
+        if (records.isEmpty()) {
+            return PageResult.of(Collections.emptyList(), collectPage.getTotal(), page, size);
         }
 
-        // 手动分页
-        List<Long> allPostIds = members.stream().map(Long::valueOf).collect(Collectors.toList());
-        int total = allPostIds.size();
-        int fromIndex = (page - 1) * size;
-        if (fromIndex >= total) {
-            return PageResult.of(Collections.emptyList(), (long) total, page, size);
-        }
-        int toIndex = Math.min(fromIndex + size, total);
-        List<Long> pagePostIds = allPostIds.subList(fromIndex, toIndex);
+        List<Long> postIds = records.stream()
+                .map(PostCollectPO::getPostId)
+                .collect(Collectors.toList());
 
-        // 批量查询帖子
-        List<PostPO> posts = postMapper.selectBatchIds(pagePostIds);
-        // 过滤掉已删除和未发布的
-        posts = posts.stream()
+        // 批量查询帖子，过滤掉已删除和未发布的
+        List<PostPO> posts = postMapper.selectBatchIds(postIds).stream()
                 .filter(po -> po.getStatus() == 1)
                 .collect(Collectors.toList());
 
@@ -297,7 +298,7 @@ public class PostServiceImpl implements PostService {
         List<PostVO> vos = posts.stream()
                 .map(po -> convertToVO(po, userMap, categoryMap, likedPostIds, collectedPostIds))
                 .collect(Collectors.toList());
-        return PageResult.of(vos, (long) total, page, size);
+        return PageResult.of(vos, collectPage.getTotal(), page, size);
     }
 
     /**
@@ -394,8 +395,8 @@ public class PostServiceImpl implements PostService {
 
     /**
      * 切换帖子点赞状态
-     * <p>已点赞则取消，未点赞则添加。使用 Redis Set 存储用户点赞关系，
-     * 同时更新数据库中的点赞数。
+     * <p>使用 post_like 表存储用户点赞关系（逻辑状态型）。
+     * 不存在则插入 status=1，已存在则切换 status，同时原子更新 post.likes。
      *
      * @param userId 当前登录用户 ID
      * @param postId 帖子 ID
@@ -409,28 +410,46 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
 
-        String key = CacheKeyConstants.USER_LIKED_POSTS + userId;
-        Boolean exists = stringRedisTemplate.opsForSet().isMember(key, postId.toString());
+        // 查询是否已存在点赞关系
+        LambdaQueryWrapper<PostLikePO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PostLikePO::getUserId, userId)
+                .eq(PostLikePO::getPostId, postId);
+        PostLikePO likePO = postLikeMapper.selectOne(wrapper);
 
-        if (Boolean.TRUE.equals(exists)) {
-            // 已点赞 → 取消点赞
-            po.setLikes(Math.max(po.getLikes() - 1, 0));
-            postMapper.updateById(po);
-            stringRedisTemplate.opsForSet().remove(key, postId.toString());
-            log.info("取消点赞帖子: postId={}, userId={}", postId, userId);
-        } else {
-            // 未点赞 → 点赞
-            po.setLikes(po.getLikes() + 1);
-            postMapper.updateById(po);
-            stringRedisTemplate.opsForSet().add(key, postId.toString());
+        if (likePO == null) {
+            // 不存在 → 插入 status=1
+            PostLikePO newLike = new PostLikePO();
+            newLike.setPostId(postId);
+            newLike.setUserId(userId);
+            newLike.setStatus(1);
+            postLikeMapper.insert(newLike);
+            // 原子更新点赞数 +1
+            postMapper.updateLikes(postId, 1);
             log.info("点赞帖子: postId={}, userId={}", postId, userId);
+        } else if (likePO.getStatus() == 0) {
+            // 已取消 → 恢复点赞
+            likePO.setStatus(1);
+            postLikeMapper.updateById(likePO);
+            postMapper.updateLikes(postId, 1);
+            log.info("点赞帖子(恢复): postId={}, userId={}", postId, userId);
+        } else {
+            // 已点赞 → 取消点赞
+            likePO.setStatus(0);
+            postLikeMapper.updateById(likePO);
+            postMapper.updateLikes(postId, -1);
+            log.info("取消点赞帖子: postId={}, userId={}", postId, userId);
         }
 
-        return po.getLikes();
+        // 重新查询最新点赞数
+        PostPO updated = postMapper.selectById(postId);
+        return updated.getLikes();
     }
 
     /**
      * 获取当前用户已点赞的帖子 ID 集合
+     * <p>从 post_like 表批量查询当前用户 status=1 的点赞记录。
+     * 注意：这里查的是全量，用于列表页批量回填 liked 状态。
+     * 后续数据量增大时可改为按 postIds 批量查。
      *
      * @param userId 当前登录用户 ID（可为 null）
      * @return 已点赞帖子 ID 集合
@@ -439,18 +458,19 @@ public class PostServiceImpl implements PostService {
         if (userId == null) {
             return Collections.emptySet();
         }
-        String key = CacheKeyConstants.USER_LIKED_POSTS + userId;
-        Set<String> members = stringRedisTemplate.opsForSet().members(key);
-        if (members == null || members.isEmpty()) {
-            return Collections.emptySet();
-        }
-        return members.stream()
-                .map(Long::valueOf)
+        LambdaQueryWrapper<PostLikePO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PostLikePO::getUserId, userId)
+                .eq(PostLikePO::getStatus, 1)
+                .select(PostLikePO::getPostId);
+        List<PostLikePO> list = postLikeMapper.selectList(wrapper);
+        return list.stream()
+                .map(PostLikePO::getPostId)
                 .collect(Collectors.toSet());
     }
 
     /**
      * 获取当前用户已收藏的帖子 ID 集合
+     * <p>从 post_collect 表批量查询当前用户 status=1 的收藏记录。
      *
      * @param userId 当前登录用户 ID（可为 null）
      * @return 已收藏帖子 ID 集合
@@ -459,20 +479,20 @@ public class PostServiceImpl implements PostService {
         if (userId == null) {
             return Collections.emptySet();
         }
-        String key = CacheKeyConstants.USER_COLLECTED_PREFIX + userId;
-        Set<String> members = stringRedisTemplate.opsForSet().members(key);
-        if (members == null || members.isEmpty()) {
-            return Collections.emptySet();
-        }
-        return members.stream()
-                .map(Long::valueOf)
+        LambdaQueryWrapper<PostCollectPO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PostCollectPO::getUserId, userId)
+                .eq(PostCollectPO::getStatus, 1)
+                .select(PostCollectPO::getPostId);
+        List<PostCollectPO> list = postCollectMapper.selectList(wrapper);
+        return list.stream()
+                .map(PostCollectPO::getPostId)
                 .collect(Collectors.toSet());
     }
 
     /**
      * 切换帖子收藏状态
-     * <p>已收藏则取消，未收藏则添加。使用 Redis Set 存储用户收藏关系，
-     * 同时更新数据库中的收藏数。
+     * <p>使用 post_collect 表存储用户收藏关系（逻辑状态型）。
+     * 不存在则插入 status=1，已存在则切换 status，同时原子更新 post.collections。
      *
      * @param userId 当前登录用户 ID
      * @param postId 帖子 ID
@@ -486,23 +506,37 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
 
-        String key = CacheKeyConstants.USER_COLLECTED_PREFIX + userId;
-        Boolean exists = stringRedisTemplate.opsForSet().isMember(key, postId.toString());
+        // 查询是否已存在收藏关系
+        LambdaQueryWrapper<PostCollectPO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PostCollectPO::getUserId, userId)
+                .eq(PostCollectPO::getPostId, postId);
+        PostCollectPO collectPO = postCollectMapper.selectOne(wrapper);
 
-        if (Boolean.TRUE.equals(exists)) {
-            // 已收藏 → 取消收藏
-            po.setCollections(Math.max(po.getCollections() - 1, 0));
-            postMapper.updateById(po);
-            stringRedisTemplate.opsForSet().remove(key, postId.toString());
-            log.info("取消收藏帖子: postId={}, userId={}", postId, userId);
-        } else {
-            // 未收藏 → 收藏
-            po.setCollections(po.getCollections() + 1);
-            postMapper.updateById(po);
-            stringRedisTemplate.opsForSet().add(key, postId.toString());
+        if (collectPO == null) {
+            // 不存在 → 插入 status=1
+            PostCollectPO newCollect = new PostCollectPO();
+            newCollect.setPostId(postId);
+            newCollect.setUserId(userId);
+            newCollect.setStatus(1);
+            postCollectMapper.insert(newCollect);
+            postMapper.updateCollections(postId, 1);
             log.info("收藏帖子: postId={}, userId={}", postId, userId);
+        } else if (collectPO.getStatus() == 0) {
+            // 已取消 → 恢复收藏
+            collectPO.setStatus(1);
+            postCollectMapper.updateById(collectPO);
+            postMapper.updateCollections(postId, 1);
+            log.info("收藏帖子(恢复): postId={}, userId={}", postId, userId);
+        } else {
+            // 已收藏 → 取消收藏
+            collectPO.setStatus(0);
+            postCollectMapper.updateById(collectPO);
+            postMapper.updateCollections(postId, -1);
+            log.info("取消收藏帖子: postId={}, userId={}", postId, userId);
         }
 
-        return po.getCollections();
+        // 重新查询最新收藏数
+        PostPO updated = postMapper.selectById(postId);
+        return updated.getCollections();
     }
 }
