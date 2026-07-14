@@ -4,7 +4,7 @@
       <form class="post-form" @submit.prevent="handleSubmit">
           <div class="form-section">
             <label class="form-label">
-              <img src="@/assets/icons/edit.svg" alt="edit" class="label-icon" />
+              <img src="@/assets/icons/heading.svg" alt="heading" class="label-icon" />
               <span>标题</span>
               <span class="label-required">*</span>
             </label>
@@ -77,7 +77,7 @@
 
           <div class="form-section">
             <label class="form-label">
-              <img src="@/assets/icons/tag.svg" alt="tag" class="label-icon" />
+              <img src="@/assets/icons/category.svg" alt="category" class="label-icon" />
               <span>分类</span>
               <span class="label-required">*</span>
             </label>

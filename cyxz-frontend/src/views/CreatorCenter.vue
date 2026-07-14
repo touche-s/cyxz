@@ -196,6 +196,7 @@
                 <div class="content-stats">
                   <span class="stat-item"><img src="@/assets/icons/eye.svg" alt="eye" class="stat-mini-icon" />{{ post.views }}</span>
                   <span class="stat-item"><img src="@/assets/icons/like.svg" alt="like" class="stat-mini-icon" />{{ post.likes }}</span>
+                  <span class="stat-item"><img src="@/assets/icons/favorite.svg" alt="favorite" class="stat-mini-icon" />{{ post.collections }}</span>
                 </div>
               </div>
               <div class="content-status">
@@ -269,9 +270,8 @@
                 <img src="@/assets/icons/edit.svg" alt="edit" class="stat-icon" />
               </div>
               <div class="stat-info">
-                <span class="stat-value">12</span>
+                <span class="stat-value">{{ dataStats.totalPosts }}</span>
                 <span class="stat-label">发布作品</span>
-                <span class="stat-trend up">↑ 20%</span>
               </div>
             </div>
             <div class="stat-card">
@@ -279,9 +279,8 @@
                 <img src="@/assets/icons/eye.svg" alt="eye" class="stat-icon" />
               </div>
               <div class="stat-info">
-                <span class="stat-value">3.2k</span>
+                <span class="stat-value">{{ formatNumber(dataStats.totalViews) }}</span>
                 <span class="stat-label">总浏览量</span>
-                <span class="stat-trend up">↑ 15%</span>
               </div>
             </div>
             <div class="stat-card">
@@ -289,9 +288,8 @@
                 <img src="@/assets/icons/like.svg" alt="like" class="stat-icon" />
               </div>
               <div class="stat-info">
-                <span class="stat-value">456</span>
+                <span class="stat-value">{{ formatNumber(dataStats.totalLikes) }}</span>
                 <span class="stat-label">总点赞数</span>
-                <span class="stat-trend up">↑ 25%</span>
               </div>
             </div>
             <div class="stat-card">
@@ -299,9 +297,8 @@
               <img src="@/assets/icons/favorite.svg" alt="favorite" class="stat-icon" />
             </div>
               <div class="stat-info">
-                <span class="stat-value">128</span>
+                <span class="stat-value">{{ formatNumber(dataStats.totalCollections) }}</span>
                 <span class="stat-label">总收藏数</span>
-                <span class="stat-trend down">↓ 5%</span>
               </div>
             </div>
           </div>
@@ -330,9 +327,9 @@
               </div>
               <div class="chart-placeholder">
                 <div class="mini-chart">
-                  <div class="bar" style="height: 70%; background: #ff6b9d"></div>
-                  <div class="bar" style="height: 85%; background: #b484ff"></div>
-                  <div class="bar" style="height: 55%; background: #ffc0cb"></div>
+                  <div class="bar" :style="{ height: dataStats.totalLikes > 0 ? Math.min(100, (dataStats.totalLikes / Math.max(dataStats.totalLikes, dataStats.totalCollections, 1)) * 100) + '%' : '30%', background: '#ff6b9d' }"></div>
+                  <div class="bar" :style="{ height: '40%', background: '#b484ff' }"></div>
+                  <div class="bar" :style="{ height: dataStats.totalCollections > 0 ? Math.min(100, (dataStats.totalCollections / Math.max(dataStats.totalLikes, dataStats.totalCollections, 1)) * 100) + '%' : '20%', background: '#ffc0cb' }"></div>
                 </div>
                 <p>点赞 · 评论 · 收藏</p>
               </div>
@@ -355,9 +352,9 @@
                     <img src="@/assets/icons/like.svg" alt="like" class="stat-mini-icon" /> {{ item.likes }}
                   </div>
                 </div>
-                <div class="rank-trend" :class="item.trend">
-                  {{ item.trend === 'up' ? '↑' : '↓' }} {{ item.trendValue }}
-                </div>
+              </div>
+              <div v-if="rankingList.length === 0" class="empty-ranking">
+                <p>还没有发布作品</p>
               </div>
             </div>
           </div>
@@ -372,7 +369,7 @@
               <p>管理你的粉丝关系</p>
             </div>
             <div class="fan-stats">
-              <span class="fan-count">1.2k</span>
+              <span class="fan-count">{{ formatNumber(followerCount) }}</span>
               <span class="fan-label">粉丝总数</span>
             </div>
           </header>
@@ -381,46 +378,51 @@
             <div class="overview-card">
               <img src="@/assets/icons/chart.svg" alt="chart" class="overview-icon" />
               <div class="overview-info">
-                <span class="overview-value">+23</span>
-                <span class="overview-label">本周新增</span>
+                <span class="overview-value">{{ formatNumber(followingCount) }}</span>
+                <span class="overview-label">关注数</span>
               </div>
             </div>
             <div class="overview-card">
               <img src="@/assets/icons/hot.svg" alt="hot" class="overview-icon" />
               <div class="overview-info">
-                <span class="overview-value">85%</span>
-                <span class="overview-label">活跃粉丝</span>
+                <span class="overview-value">0</span>
+                <span class="overview-label">本周新增</span>
               </div>
             </div>
             <div class="overview-card">
               <img src="@/assets/icons/comment.svg" alt="comment" class="overview-icon" />
               <div class="overview-info">
-                <span class="overview-value">42</span>
+                <span class="overview-value">0</span>
                 <span class="overview-label">本周互动</span>
               </div>
             </div>
           </div>
 
-          <div class="fans-list">
-            <div class="fan-item" v-for="fan in fansList" :key="fan.id">
+          <div class="fans-list" v-if="!fansLoading">
+            <div class="fan-item" v-for="fan in fansList" :key="fan.userId">
               <div class="fan-avatar">
                 <img v-if="fan.avatar" :src="fan.avatar" alt="" />
                 <div v-else class="avatar-placeholder">👤</div>
               </div>
               <div class="fan-info">
-                <h4 class="fan-name">{{ fan.name }}</h4>
-                <span class="fan-time">{{ fan.followTime }}</span>
+                <h4 class="fan-name">{{ fan.nickname || '未知用户' }}</h4>
+                <span class="fan-time">{{ formatTime(fan.createTime) }}</span>
               </div>
               <div class="fan-tags">
-                <span v-for="tag in fan.tags" :key="tag" class="fan-tag">{{ tag }}</span>
               </div>
-              <button class="fan-action" :class="{ followed: fan.following }">
+              <button :class="['fan-action', { followed: fan.following }]"
+                      @click="handleFollow(fan.userId, fan.following)">
                 {{ fan.following ? '已关注' : '回关' }}
               </button>
             </div>
           </div>
 
-          <div class="empty-container" v-if="fansList.length === 0">
+          <div class="loading-container" v-else>
+            <div class="loading-spinner"></div>
+            <p>加载中...</p>
+          </div>
+
+          <div class="empty-container" v-if="!fansLoading && fansList.length === 0">
             <img src="@/assets/icons/empty.svg" alt="empty" class="empty-icon" />
             <p>还没有粉丝</p>
             <p class="empty-hint">发布更多优质内容，吸引粉丝关注</p>
@@ -452,46 +454,28 @@
 
           <div v-if="activeInteractionTab === 'likes'" class="interaction-content">
             <div class="like-list">
-              <div class="like-item" v-for="like in likesList" :key="like.id">
-                <div class="like-avatar">
-                  <img v-if="like.avatar" :src="like.avatar" alt="" />
-                  <div v-else class="avatar-placeholder">👤</div>
-                </div>
-                <div class="like-info">
-                  <h4 class="like-name">{{ like.name }}</h4>
-                  <span class="like-time">{{ like.time }}</span>
-                </div>
-                <div class="like-post">
-                  <div class="post-preview">
-                    <img v-if="like.postCover" :src="like.postCover" alt="" />
-                    <div v-else class="cover-placeholder-small">📷</div>
-                  </div>
-                  <span class="post-title">{{ like.postTitle }}</span>
-                </div>
+              <div class="empty-container">
+                <img src="@/assets/icons/empty.svg" alt="empty" class="empty-icon" />
+                <p>点赞记录功能开发中</p>
               </div>
-            </div>
-
-            <div class="empty-container" v-if="likesList.length === 0">
-              <img src="@/assets/icons/empty.svg" alt="empty" class="empty-icon" />
-              <p>还没有人点赞你的作品</p>
             </div>
           </div>
 
           <div v-else-if="activeInteractionTab === 'comments'" class="interaction-content">
-            <div class="comment-list">
-              <div class="comment-item" v-for="comment in commentsList" :key="comment.id">
+            <div class="comment-list" v-if="!commentsLoading">
+              <div class="comment-item" v-for="comment in receivedCommentsList" :key="comment.id">
                 <div class="comment-avatar">
-                  <img v-if="comment.avatar" :src="comment.avatar" alt="" />
+                  <img v-if="comment.userAvatar" :src="comment.userAvatar" alt="" />
                   <div v-else class="avatar-placeholder">👤</div>
                 </div>
                 <div class="comment-body">
                   <div class="comment-header">
-                    <h4 class="comment-name">{{ comment.name }}</h4>
-                    <span class="comment-time">{{ comment.time }}</span>
+                    <h4 class="comment-name">{{ comment.userName }}</h4>
+                    <span class="comment-time">{{ formatTime(comment.createTime) }}</span>
                   </div>
                   <p class="comment-content">{{ comment.content }}</p>
                   <div class="comment-post">
-                    <span class="post-title">{{ comment.postTitle }}</span>
+                    <span class="post-title">帖子 {{ comment.postId }}</span>
                   </div>
                   <div class="comment-actions">
                     <button class="reply-btn"><img src="@/assets/icons/comment.svg" alt="comment" class="action-icon" />回复</button>
@@ -501,7 +485,12 @@
               </div>
             </div>
 
-            <div class="empty-container" v-if="commentsList.length === 0">
+            <div class="loading-container" v-else>
+              <div class="loading-spinner"></div>
+              <p>加载中...</p>
+            </div>
+
+            <div class="empty-container" v-if="!commentsLoading && receivedCommentsList.length === 0">
               <img src="@/assets/icons/empty.svg" alt="empty" class="empty-icon" />
               <p>还没有评论</p>
             </div>
@@ -672,9 +661,13 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 
-import { getUserPosts, deletePost, updatePost } from '@/api/post'
+import { getUserPosts, deletePost, updatePost, getPostStats } from '@/api/post'
+import { getFollowerList, followUser, unfollowUser, getFollowStats } from '@/api/user'
+import { getReceivedComments } from '@/api/comment'
 import { useUserStore } from '@/stores/user'
 import type { PostVO } from '@/api/post'
+import type { FollowUserVO } from '@/api/user'
+import type { CommentVO } from '@/api/comment'
 import PostCreate from '@/views/PostCreate.vue'
 
 const router = useRouter()
@@ -682,6 +675,9 @@ const userStore = useUserStore()
 
 const posts = ref<PostVO[]>([])
 const loading = ref(false)
+const dataLoading = ref(false)
+const fansLoading = ref(false)
+const commentsLoading = ref(false)
 const showDeleteModal = ref(false)
 const activeNav = ref<'home' | 'content' | 'data' | 'fans' | 'interaction' | 'magic' | 'agreement' | 'publish'>('home')
 
@@ -690,7 +686,17 @@ const postToDelete = ref<PostVO | null>(null)
 const activeContentTab = ref<'all' | 'published' | 'draft' | 'deleted'>('all')
 const searchKeyword = ref('')
 const activeTimeFilter = ref<'week' | 'month' | 'year'>('week')
-const activeInteractionTab = ref<'likes' | 'comments'>('likes')
+const activeInteractionTab = ref<'likes' | 'comments'>('comments')
+
+const dataStats = ref<{ totalPosts: number; totalViews: number; totalLikes: number; totalCollections: number }>({
+  totalPosts: 0,
+  totalViews: 0,
+  totalLikes: 0,
+  totalCollections: 0
+})
+
+const followerCount = ref(0)
+const followingCount = ref(0)
 
 const contentTabs = computed(() => {
   const activePosts = posts.value.filter(p => p.status !== 2)
@@ -736,34 +742,17 @@ const timeFilters = computed(() => [
 ])
 
 const interactionTabs = computed(() => [
-  { label: '点赞', value: 'likes' as const, count: 45 },
-  { label: '评论', value: 'comments' as const, count: 12 },
+  { label: '点赞', value: 'likes' as const, count: 0 },
+  { label: '评论', value: 'comments' as const, count: commentsTotal.value },
 ])
 
-const rankingList = ref([
-  { id: 1, title: '如何画出可爱的Q版角色', cover: '', views: 856, likes: 78, trend: 'up', trendValue: '+12%' },
-  { id: 2, title: '关于色彩搭配的一些思考', cover: '', views: 523, likes: 67, trend: 'up', trendValue: '+8%' },
-  { id: 3, title: '二次元插画创作心得分享', cover: '', views: 320, likes: 45, trend: 'down', trendValue: '-5%' },
-])
+const rankingList = ref<PostVO[]>([])
 
-const fansList = ref([
-  { id: 1, name: '小明同学', avatar: '', followTime: '关注于3天前', tags: ['活跃', '插画爱好者'], following: true },
-  { id: 2, name: '二次元迷', avatar: '', followTime: '关注于1周前', tags: ['互动频繁'], following: false },
-  { id: 3, name: '画画新手', avatar: '', followTime: '关注于2周前', tags: ['教程学习者'], following: true },
-  { id: 4, name: '动漫爱好者', avatar: '', followTime: '关注于1个月前', tags: [], following: false },
-])
+const fansList = ref<FollowUserVO[]>([])
 
-const likesList = ref([
-  { id: 1, name: '小明同学', avatar: '', time: '5分钟前', postTitle: '二次元插画创作心得分享', postCover: '' },
-  { id: 2, name: '画画新手', avatar: '', time: '30分钟前', postTitle: '如何画出可爱的Q版角色', postCover: '' },
-  { id: 3, name: '二次元迷', avatar: '', time: '1小时前', postTitle: '关于色彩搭配的一些思考', postCover: '' },
-])
+const receivedCommentsList = ref<CommentVO[]>([])
 
-const commentsList = ref([
-  { id: 1, name: '小明同学', avatar: '', time: '2小时前', content: '太棒了！学到了很多技巧！', postTitle: '如何画出可爱的Q版角色', likes: 5 },
-  { id: 2, name: '画画新手', avatar: '', time: '5小时前', content: '请问这个软件是什么呀？', postTitle: '二次元插画创作心得分享', likes: 3 },
-  { id: 3, name: '动漫爱好者', avatar: '', time: '1天前', content: '期待更多教程！', postTitle: '关于色彩搭配的一些思考', likes: 8 },
-])
+const commentsTotal = ref(0)
 
 import iconLightbulb from '@/assets/icons/lightbulb.svg'
 import iconEdit from '@/assets/icons/edit.svg'
@@ -928,8 +917,84 @@ const doDelete = async () => {
   }
 }
 
+const loadDataStats = async () => {
+  dataLoading.value = true
+  try {
+    const res = await getPostStats()
+    if (res.data.code === 200) {
+      dataStats.value = res.data.data
+    }
+  } catch (error) {
+    console.error('加载数据统计失败:', error)
+  } finally {
+    dataLoading.value = false
+  }
+}
+
+const loadFans = async () => {
+  fansLoading.value = true
+  try {
+    const res = await getFollowerList({ page: 1, size: 20 })
+    if (res.data.code === 200) {
+      fansList.value = res.data.data.records || []
+    }
+  } catch (error) {
+    console.error('加载粉丝列表失败:', error)
+  } finally {
+    fansLoading.value = false
+  }
+}
+
+const loadFollowStats = async () => {
+  try {
+    const res = await getFollowStats()
+    if (res.data.code === 200) {
+      followerCount.value = res.data.data.followerCount || 0
+      followingCount.value = res.data.data.followingCount || 0
+    }
+  } catch (error) {
+    console.error('加载关注统计失败:', error)
+  }
+}
+
+const loadReceivedComments = async () => {
+  commentsLoading.value = true
+  try {
+    const res = await getReceivedComments({ page: 1, size: 20 })
+    if (res.data.code === 200) {
+      receivedCommentsList.value = res.data.data.records || []
+      commentsTotal.value = res.data.data.total || 0
+    }
+  } catch (error) {
+    console.error('加载收到的评论失败:', error)
+  } finally {
+    commentsLoading.value = false
+  }
+}
+
+const handleFollow = async (userId: string, isFollowing: boolean) => {
+  try {
+    if (isFollowing) {
+      await unfollowUser(userId)
+      ElMessage.success('已取消关注')
+    } else {
+      await followUser(userId)
+      ElMessage.success('关注成功')
+    }
+    await loadFans()
+    await loadFollowStats()
+  } catch (error) {
+    console.error('关注操作失败:', error)
+    ElMessage.error('操作失败')
+  }
+}
+
 onMounted(() => {
   loadPosts()
+  loadDataStats()
+  loadFans()
+  loadFollowStats()
+  loadReceivedComments()
 })
 </script>
 
