@@ -76,6 +76,32 @@ CREATE TABLE IF NOT EXISTS post (
     INDEX idx_create_time (create_time)
 ) ENGINE=InnoDB COMMENT='帖子表';
 
+-- 帖子点赞关系表
+CREATE TABLE IF NOT EXISTS post_like (
+    id BIGINT PRIMARY KEY COMMENT '主键（雪花算法）',
+    post_id BIGINT NOT NULL COMMENT '帖子 ID',
+    user_id BIGINT NOT NULL COMMENT '用户 ID',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '1=已点赞 0=已取消',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE INDEX uk_user_post (user_id, post_id),
+    INDEX idx_post_id (post_id),
+    INDEX idx_user_id (user_id)
+) ENGINE=InnoDB COMMENT='帖子点赞关系表';
+
+-- 帖子收藏关系表
+CREATE TABLE IF NOT EXISTS post_collect (
+    id BIGINT PRIMARY KEY COMMENT '主键（雪花算法）',
+    post_id BIGINT NOT NULL COMMENT '帖子 ID',
+    user_id BIGINT NOT NULL COMMENT '用户 ID',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '1=已收藏 0=已取消',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE INDEX uk_user_post (user_id, post_id),
+    INDEX idx_post_id (post_id),
+    INDEX idx_user_id (user_id)
+) ENGINE=InnoDB COMMENT='帖子收藏关系表';
+
 -- ==================== 分类初始化数据 ====================
 INSERT INTO category (id, name, description, sort_order, status, create_time, update_time) VALUES
 (1, '动漫', '番剧安利、作品讨论、新番扫雷', 1, 1, NOW(), NOW()),
@@ -110,3 +136,16 @@ CREATE TABLE IF NOT EXISTS comment (
     INDEX idx_parent_id (parent_id),
     INDEX idx_create_time (create_time)
 ) ENGINE=InnoDB COMMENT='评论表';
+
+-- 评论点赞关系表
+CREATE TABLE IF NOT EXISTS comment_like (
+    id BIGINT PRIMARY KEY COMMENT '主键（雪花算法）',
+    comment_id BIGINT NOT NULL COMMENT '评论 ID',
+    user_id BIGINT NOT NULL COMMENT '用户 ID',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '1=已点赞 0=已取消',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE INDEX uk_user_comment (user_id, comment_id),
+    INDEX idx_comment_id (comment_id),
+    INDEX idx_user_id (user_id)
+) ENGINE=InnoDB COMMENT='评论点赞关系表';
