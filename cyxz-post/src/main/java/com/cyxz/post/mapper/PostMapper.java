@@ -29,4 +29,13 @@ public interface PostMapper extends BaseMapper<PostPO> {
      */
     @Update("UPDATE post SET collections = GREATEST(collections + #{delta}, 0) WHERE id = #{postId}")
     void updateCollections(@Param("postId") Long postId, @Param("delta") int delta);
+
+    /**
+     * 原子更新浏览数
+     *
+     * @param postId 帖子 ID
+     * @param delta  增量
+     */
+    @Update("UPDATE post SET views = views + #{delta} WHERE id = #{postId}")
+    void updateViews(@Param("postId") Long postId, @Param("delta") int delta);
 }

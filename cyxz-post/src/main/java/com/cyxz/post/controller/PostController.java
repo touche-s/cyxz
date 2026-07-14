@@ -6,6 +6,7 @@ import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
 import com.cyxz.post.service.PostService;
 import com.cyxz.post.vo.PostVO;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -167,5 +168,22 @@ public class PostController {
                                    @RequestHeader("X-User-Id") Long userId) {
         Integer collections = postService.toggleCollect(userId, postId);
         return Result.success(collections);
+    }
+
+    /**
+     * 记录浏览
+     * <p>前端进入帖子详情页时静默调用一次，Redis 去重 + 增量计数，定时刷库。
+     *
+     * @param postId        帖子 ID
+     * @param currentUserId 当前登录用户 ID（由 Gateway 注入，游客为 null）
+     * @param request       HTTP 请求（用于获取游客 IP）
+     * @return 操作结果
+     */
+    @PostMapping("/{postId}/view")
+    public Result<Void> recordView(@PathVariable("postId") Long postId,
+                                   @RequestHeader(value = "X-User-Id", required = false) Long currentUserId,
+                                   HttpServletRequest request) {
+        postService.recordView(postId, currentUserId, request);
+        return Result.success();
     }
 }

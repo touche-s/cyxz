@@ -45,6 +45,15 @@ public final class CacheKeyConstants {
     /** 用户获赞数缓存前缀 */
     public static final String USER_LIKES_COUNT_PREFIX = "user:likesCount:";
 
+    /** 帖子浏览增量 Hash（field=postId, value=增量） */
+    public static final String POST_VIEW_DELTA = "post:view:delta";
+
+    /** 帖子浏览去重前缀（post:view:dedup:{postId}:{userOrIp}） */
+    public static final String POST_VIEW_DEDUP_PREFIX = "post:view:dedup:";
+
+    /** 浏览去重过期时间（分钟） */
+    public static final long POST_VIEW_DEDUP_MINUTES = 30;
+
     /** Token 黑名单前缀 */
     public static final String TOKEN_BLACKLIST_PREFIX = "token:blacklist:";
 

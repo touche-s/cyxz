@@ -4,6 +4,7 @@ import com.cyxz.common.base.PageResult;
 import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
 import com.cyxz.post.vo.PostVO;
+import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * 帖子服务接口
@@ -119,4 +120,15 @@ public interface PostService {
      * @return 更新后的收藏数
      */
     Integer toggleCollect(Long userId, Long postId);
+
+    /**
+     * 记录浏览
+     * <p>用户进入帖子详情页时调用，Redis 去重（30min 内同一用户/IP 只算一次），
+     * 去重通过则 Hash 增量 +1，由定时任务刷库到 post.views。
+     *
+     * @param postId  帖子 ID
+     * @param userId  当前登录用户 ID（可为 null，游客按 IP 去重）
+     * @param request HTTP 请求（用于获取 IP）
+     */
+    void recordView(Long postId, Long userId, HttpServletRequest request);
 }

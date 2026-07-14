@@ -6,6 +6,8 @@ import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
+import com.cyxz.common.constant.CacheKeyConstants;
+import com.cyxz.common.utils.IpUtil;
 import com.cyxz.user.feign.UserFeignClient;
 import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
@@ -13,21 +15,23 @@ import com.cyxz.post.entity.CategoryPO;
 import com.cyxz.post.entity.PostCollectPO;
 import com.cyxz.post.entity.PostLikePO;
 import com.cyxz.post.entity.PostPO;
-import com.cyxz.post.mapper.CategoryMapper;
 import com.cyxz.post.mapper.PostCollectMapper;
 import com.cyxz.post.mapper.PostLikeMapper;
 import com.cyxz.post.mapper.PostMapper;
+import com.cyxz.post.service.CategoryService;
 import com.cyxz.post.service.PostService;
 import com.cyxz.post.vo.PostVO;
 import com.cyxz.user.vo.UserProfileVO;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -39,10 +43,11 @@ import java.util.stream.Collectors;
 public class PostServiceImpl implements PostService {
 
     private final PostMapper postMapper;
-    private final CategoryMapper categoryMapper;
+    private final CategoryService categoryService;
     private final PostLikeMapper postLikeMapper;
     private final PostCollectMapper postCollectMapper;
     private final UserFeignClient userFeignClient;
+    private final StringRedisTemplate stringRedisTemplate;
 
     /**
      * 创建帖子
@@ -160,7 +165,7 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
         Map<Long, UserProfileVO> userMap = batchGetUsers(List.of(po));
-        Map<Long, CategoryPO> categoryMap = batchGetCategories(List.of(po));
+        Map<Long, CategoryPO> categoryMap = categoryService.getByIds(extractCategoryIds(List.of(po)));
         Set<Long> likedPostIds = getLikedPostIds(currentUserId);
         Set<Long> collectedPostIds = getCollectedPostIds(currentUserId);
         return convertToVO(po, userMap, categoryMap, likedPostIds, collectedPostIds);
@@ -188,7 +193,7 @@ public class PostServiceImpl implements PostService {
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
 
         Map<Long, UserProfileVO> userMap = batchGetUsers(result.getRecords());
-        Map<Long, CategoryPO> categoryMap = batchGetCategories(result.getRecords());
+        Map<Long, CategoryPO> categoryMap = categoryService.getByIds(extractCategoryIds(result.getRecords()));
         Set<Long> likedPostIds = getLikedPostIds(currentUserId);
         Set<Long> collectedPostIds = getCollectedPostIds(currentUserId);
 
@@ -216,7 +221,7 @@ public class PostServiceImpl implements PostService {
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
 
         Map<Long, UserProfileVO> userMap = batchGetUsers(result.getRecords());
-        Map<Long, CategoryPO> categoryMap = batchGetCategories(result.getRecords());
+        Map<Long, CategoryPO> categoryMap = categoryService.getByIds(extractCategoryIds(result.getRecords()));
         Set<Long> likedPostIds = getLikedPostIds(userId);
         Set<Long> collectedPostIds = getCollectedPostIds(userId);
 
@@ -246,7 +251,7 @@ public class PostServiceImpl implements PostService {
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
 
         Map<Long, UserProfileVO> userMap = batchGetUsers(result.getRecords());
-        Map<Long, CategoryPO> categoryMap = batchGetCategories(result.getRecords());
+        Map<Long, CategoryPO> categoryMap = categoryService.getByIds(extractCategoryIds(result.getRecords()));
         Set<Long> likedPostIds = getLikedPostIds(currentUserId);
         Set<Long> collectedPostIds = getCollectedPostIds(currentUserId);
 
@@ -291,7 +296,7 @@ public class PostServiceImpl implements PostService {
                 .collect(Collectors.toList());
 
         Map<Long, UserProfileVO> userMap = batchGetUsers(posts);
-        Map<Long, CategoryPO> categoryMap = batchGetCategories(posts);
+        Map<Long, CategoryPO> categoryMap = categoryService.getByIds(extractCategoryIds(posts));
         Set<Long> likedPostIds = getLikedPostIds(currentUserId);
         Set<Long> collectedPostIds = getCollectedPostIds(currentUserId);
 
@@ -378,19 +383,13 @@ public class PostServiceImpl implements PostService {
     }
 
     /**
-     * 批量查询分类信息
+     * 从帖子列表中提取分类 ID 集合
      */
-    private Map<Long, CategoryPO> batchGetCategories(List<PostPO> posts) {
-        Set<Long> categoryIds = posts.stream()
+    private Set<Long> extractCategoryIds(List<PostPO> posts) {
+        return posts.stream()
                 .map(PostPO::getCategoryId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
-        if (categoryIds.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        List<CategoryPO> categories = categoryMapper.selectBatchIds(categoryIds);
-        return categories.stream()
-                .collect(Collectors.toMap(CategoryPO::getId, Function.identity()));
     }
 
     /**
@@ -538,5 +537,39 @@ public class PostServiceImpl implements PostService {
         // 重新查询最新收藏数
         PostPO updated = postMapper.selectById(postId);
         return updated.getCollections();
+    }
+
+    /**
+     * 记录浏览
+     * <p>用户进入帖子详情页时调用。
+     * <p>去重策略：登录用户按 userId、游客按 IP，30 分钟内同一标识只算一次。
+     * 去重通过则向 Redis Hash {@code post:view:delta} 对应 field 原子 +1，
+     * 由 {@link com.cyxz.post.task.ViewCountFlushTask} 定时刷库到 post.views。
+     *
+     * @param postId  帖子 ID
+     * @param userId  当前登录用户 ID（可为 null，游客按 IP 去重）
+     * @param request HTTP 请求（用于获取 IP）
+     */
+    @Override
+    public void recordView(Long postId, Long userId, HttpServletRequest request) {
+        PostPO po = postMapper.selectById(postId);
+        if (po == null || po.getStatus() != 1) {
+            // 仅已发布帖子记录浏览
+            return;
+        }
+
+        // 生成去重标识：登录用户用 userId，游客用 IP
+        String identity = (userId != null) ? "user:" + userId : "ip:" + IpUtil.getClientIp(request);
+        String dedupKey = CacheKeyConstants.POST_VIEW_DEDUP_PREFIX + postId + ":" + identity;
+
+        // SETNX：key 不存在则设置成功（首次浏览），已存在则跳过
+        Boolean firstView = stringRedisTemplate.opsForValue()
+                .setIfAbsent(dedupKey, "1", Duration.ofMinutes(CacheKeyConstants.POST_VIEW_DEDUP_MINUTES));
+
+        if (Boolean.TRUE.equals(firstView)) {
+            // 去重通过，Hash 增量 +1
+            stringRedisTemplate.opsForHash()
+                    .increment(CacheKeyConstants.POST_VIEW_DELTA, postId.toString(), 1);
+        }
     }
 }

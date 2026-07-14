@@ -105,3 +105,8 @@ export const togglePostLike = (postId: string) => {
 export const togglePostCollect = (postId: string) => {
   return request.post(`/post/${postId}/collect`)
 }
+
+// 记录浏览（进入详情页静默上报，失败不影响展示）
+export const recordPostView = (postId: string | number) => {
+  return request.post(`/post/${postId}/view`)
+}

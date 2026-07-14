@@ -71,7 +71,7 @@
             </button>
             <button class="action-btn" @click="scrollToComment">
               <img :src="commentIcon" alt="comment" class="action-icon" />
-              <span class="action-count">{{ post.comments }}</span>
+              <span class="action-count">{{ commentTotal }}</span>
             </button>
           </div>
 
@@ -165,7 +165,7 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getPostDetail, togglePostLike, togglePostCollect } from '@/api/post'
+import { getPostDetail, togglePostLike, togglePostCollect, recordPostView } from '@/api/post'
 import {
   getCommentList,
   createComment,
@@ -393,7 +393,7 @@ const submitTopComment = async () => {
     if (res.data.code === 200) {
       ElMessage.success('评论成功')
       commentInput.value = ''
-      // 局部追加，不重新拉列表
+      // 后端返回完整 CommentVO，直接插入列表第一条展示
       comments.value.unshift(res.data.data)
       commentTotal.value++
     }
@@ -424,13 +424,19 @@ const submitComment = async () => {
       const replyParentId = replyTarget.value.parentId
       replyTarget.value = null
       activeReplyId.value = null
-      // 局部更新父评论的回复数，替换对象以触发响应式更新
+      // 局部更新：回复数 +1，同时把新回复插入当前展开的 children 列表
       const idx = comments.value.findIndex(c => c.id === replyParentId)
       if (idx !== -1) {
-        comments.value[idx] = {
+        const updated = {
           ...comments.value[idx],
           totalReplies: (comments.value[idx].totalReplies || 0) + 1,
         }
+        // 如果当前父评论的 children 已展开，把新回复追加到末尾
+        if (updated.children && updated.children.length > 0) {
+          const newReply = res.data.data
+          updated.children = [...updated.children, newReply]
+        }
+        comments.value[idx] = updated
       }
     }
   } catch {
@@ -468,6 +474,8 @@ onMounted(async () => {
   await loadPost()
   if (post.value) {
     loadComments(true)
+    // 静默上报浏览，失败不影响展示
+    recordPostView(String(route.params.id)).catch(() => {})
   }
 })
 </script>
@@ -738,10 +746,6 @@ onMounted(async () => {
 
 .action-btn:hover {
   background: rgba(255, 107, 157, 0.08);
-}
-
-.action-btn.active {
-  background: rgba(255, 107, 157, 0.1);
 }
 
 .action-btn img {
