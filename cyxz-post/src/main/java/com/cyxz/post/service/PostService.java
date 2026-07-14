@@ -131,4 +131,29 @@ public interface PostService {
      * @param request HTTP 请求（用于获取 IP）
      */
     void recordView(Long postId, Long userId, HttpServletRequest request);
+
+    /**
+     * 获取用户帖子统计数据
+     * <p>用于数据中心，统计当前用户所有已发布帖子的总浏览、总点赞、总收藏。
+     *
+     * @param userId 当前用户 ID
+     * @return 统计数据（totalPosts, totalViews, totalLikes, totalCollections）
+     */
+    java.util.Map<String, Object> getPostStats(Long userId);
+
+    /**
+     * 查询帖子作者 ID（内部接口）
+     *
+     * @param postId 帖子 ID
+     * @return 帖子作者 ID
+     */
+    Long getPostAuthor(Long postId);
+
+    /**
+     * 查询帖子信息（内部接口）
+     *
+     * @param postId 帖子 ID
+     * @return 帖子信息（标题、作者 ID 等）
+     */
+    java.util.Map<String, Object> getPostInfo(Long postId);
 }

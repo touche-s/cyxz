@@ -11,6 +11,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 /**
  * 帖子控制器
  */
@@ -185,5 +187,39 @@ public class PostController {
                                    HttpServletRequest request) {
         postService.recordView(postId, currentUserId, request);
         return Result.success();
+    }
+
+    /**
+     * 获取当前用户的帖子统计数据
+     * <p>用于数据中心，统计已发布帖子的总浏览、总点赞、总收藏。
+     *
+     * @param userId 当前登录用户 ID（由 Gateway 注入）
+     * @return 统计数据
+     */
+    @GetMapping("/stats")
+    public Result<Map<String, Object>> getStats(@RequestHeader("X-User-Id") Long userId) {
+        return Result.success(postService.getPostStats(userId));
+    }
+
+    /**
+     * 查询帖子作者 ID（内部接口，供 comment 服务通过 Feign 调用）
+     *
+     * @param postId 帖子 ID
+     * @return 帖子作者 ID
+     */
+    @GetMapping("/internal/{postId}/author")
+    public Result<Long> getPostAuthor(@PathVariable("postId") Long postId) {
+        return Result.success(postService.getPostAuthor(postId));
+    }
+
+    /**
+     * 查询帖子信息（内部接口，供 comment 服务通过 Feign 调用）
+     *
+     * @param postId 帖子 ID
+     * @return 帖子信息（标题、作者 ID 等）
+     */
+    @GetMapping("/internal/{postId}/info")
+    public Result<Map<String, Object>> getPostInfo(@PathVariable("postId") Long postId) {
+        return Result.success(postService.getPostInfo(postId));
     }
 }

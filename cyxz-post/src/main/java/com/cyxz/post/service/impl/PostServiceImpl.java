@@ -572,4 +572,43 @@ public class PostServiceImpl implements PostService {
                     .increment(CacheKeyConstants.POST_VIEW_DELTA, postId.toString(), 1);
         }
     }
+
+    @Override
+    public Map<String, Object> getPostStats(Long userId) {
+        LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PostPO::getUserId, userId)
+                .eq(PostPO::getStatus, 1);
+        List<PostPO> posts = postMapper.selectList(wrapper);
+
+        int totalPosts = posts.size();
+        int totalViews = posts.stream().mapToInt(PostPO::getViews).sum();
+        int totalLikes = posts.stream().mapToInt(PostPO::getLikes).sum();
+        int totalCollections = posts.stream().mapToInt(PostPO::getCollections).sum();
+
+        return Map.of(
+                "totalPosts", totalPosts,
+                "totalViews", totalViews,
+                "totalLikes", totalLikes,
+                "totalCollections", totalCollections
+        );
+    }
+
+    @Override
+    public Long getPostAuthor(Long postId) {
+        PostPO po = postMapper.selectById(postId);
+        return po != null ? po.getUserId() : null;
+    }
+
+    @Override
+    public Map<String, Object> getPostInfo(Long postId) {
+        PostPO po = postMapper.selectById(postId);
+        if (po == null) {
+            return Collections.emptyMap();
+        }
+        return Map.of(
+                "postId", po.getId(),
+                "userId", po.getUserId(),
+                "title", po.getTitle()
+        );
+    }
 }

@@ -110,3 +110,8 @@ export const togglePostCollect = (postId: string) => {
 export const recordPostView = (postId: string | number) => {
   return request.post(`/post/${postId}/view`)
 }
+
+// 获取当前用户的帖子统计数据（数据中心）
+export const getPostStats = () => {
+  return request.get('/post/stats')
+}
