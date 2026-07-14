@@ -120,6 +120,14 @@ public class UserProfileServiceImpl implements UserProfileService {
      */
     @Override
     public void initDefaultProfile(Long userId, String username) {
+        // 幂等：如果资料已存在则跳过
+        UserProfilePO exist = profileMapper.selectOne(
+                new LambdaQueryWrapper<UserProfilePO>().eq(UserProfilePO::getUserId, userId)
+        );
+        if (exist != null) {
+            log.debug("用户资料已存在，跳过初始化: userId={}", userId);
+            return;
+        }
         UserProfilePO po = new UserProfilePO();
         po.setUserId(userId);
         po.setNickname(username);
@@ -128,5 +136,27 @@ public class UserProfileServiceImpl implements UserProfileService {
         po.setBio("");
         profileMapper.insert(po);
         log.info("创建默认用户资料: userId={}, username={}", userId, username);
+    }
+
+    @Override
+    public UserProfileVO getOrInitMyProfile(Long userId) {
+        UserProfilePO po = profileMapper.selectOne(
+                new LambdaQueryWrapper<UserProfilePO>().eq(UserProfilePO::getUserId, userId)
+        );
+        if (po == null) {
+            initDefaultProfile(userId, "用户" + userId);
+            po = profileMapper.selectOne(
+                    new LambdaQueryWrapper<UserProfilePO>().eq(UserProfilePO::getUserId, userId)
+            );
+        }
+        if (po == null) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
+        UserProfileVO vo = new UserProfileVO();
+        BeanUtils.copyProperties(po, vo);
+        if (po.getBirthday() != null) {
+            vo.setBirthday(po.getBirthday().format(DateTimeFormatter.ISO_LOCAL_DATE));
+        }
+        return vo;
     }
 }

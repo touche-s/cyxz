@@ -47,6 +47,19 @@ public class UserProfileController {
     }
 
     /**
+     * 查询当前登录用户的资料（兜底初始化）
+     * <p>从 X-User-Id 取当前登录用户 ID，查不到资料则自动创建默认资料。
+     * 用于注册后进个人空间、个人中心等场景。
+     *
+     * @param userId 当前登录用户 ID（由 Gateway 注入）
+     * @return 当前用户资料
+     */
+    @GetMapping("/profile/me")
+    public Result<UserProfileVO> getMyProfile(@RequestHeader("X-User-Id") Long userId) {
+        return Result.success(profileService.getOrInitMyProfile(userId));
+    }
+
+    /**
      * 批量查询用户资料（内部接口，供 post/comment 等服务通过 Feign 调用）
      *
      * @param userIds 用户 ID 列表
