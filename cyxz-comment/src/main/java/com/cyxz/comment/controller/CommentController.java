@@ -24,13 +24,13 @@ public class CommentController {
      *
      * @param request 创建评论请求
      * @param userId  当前登录用户 ID（由 Gateway 注入）
-     * @return 新创建的评论 ID
+     * @return 新创建的评论视图对象（含完整用户信息，前端可直接插入列表展示）
      */
     @PostMapping
-    public Result<Long> create(@Valid @RequestBody CreateCommentRequest request,
+    public Result<CommentVO> create(@Valid @RequestBody CreateCommentRequest request,
                                @RequestHeader("X-User-Id") Long userId) {
-        Long commentId = commentService.createComment(userId, request);
-        return Result.success("评论成功", commentId);
+        CommentVO vo = commentService.createComment(userId, request);
+        return Result.success("评论成功", vo);
     }
 
     /**

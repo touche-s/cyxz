@@ -40,14 +40,16 @@ public class CommentServiceImpl implements CommentService {
      * 发表评论
      * <p>创建一条评论记录，支持顶级评论和回复（通过 parentId 区分）。
      * 点赞数初始化为 0，状态默认正常。
+     * <p>插入成功后查询当前用户和被回复用户的资料，转换为完整 VO 返回给前端，
+     * 前端可直接插入评论列表展示，避免刷新。
      *
      * @param userId  当前登录用户 ID
      * @param request 创建评论请求（含帖子 ID、内容、父评论 ID、被回复用户 ID）
-     * @return 新创建的评论 ID
+     * @return 新创建的评论视图对象（含完整用户信息）
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Long createComment(Long userId, CreateCommentRequest request) {
+    public CommentVO createComment(Long userId, CreateCommentRequest request) {
         CommentPO po = new CommentPO();
         po.setPostId(request.getPostId());
         po.setUserId(userId);
@@ -58,7 +60,15 @@ public class CommentServiceImpl implements CommentService {
         po.setStatus(1);
         commentMapper.insert(po);
         log.info("发表评论成功: commentId={}, postId={}, userId={}", po.getId(), po.getPostId(), userId);
-        return po.getId();
+
+        // 组装完整 VO 返回给前端，前端可直接插入列表展示
+        Set<Long> userIds = new LinkedHashSet<>();
+        userIds.add(userId);
+        if (po.getReplyToUserId() != null) {
+            userIds.add(po.getReplyToUserId());
+        }
+        Map<Long, UserProfileVO> userMap = getUserMap(userIds);
+        return toVO(po, userMap, Collections.emptySet()); // 刚创建，当前用户不可能已点赞
     }
 
     /**
@@ -88,12 +98,14 @@ public class CommentServiceImpl implements CommentService {
      * 分页查询帖子的顶级评论列表（按需加载子回复）
      * <p>仅返回顶级评论自身，不预加载子回复。
      * <p>子回复总数通过 COUNT 统计写入 totalReplies，前端按需调用 /comment/replies 加载。
+     * <p>注意：分页只针对顶级评论，但返回的 total 是该帖子全部评论数（顶级 + 子回复），
+     * 用于详情页展示"评论 (N)"。
      *
      * @param postId        帖子 ID
      * @param page          页码（从 1 开始）
      * @param size          每页条数
      * @param currentUserId 当前登录用户 ID（可为 null）
-     * @return 分页结果（仅顶级评论计入分页，children 为空）
+     * @return 分页结果（仅顶级评论计入分页，children 为空，total 为全部评论数）
      */
     @Override
     public PageResult<CommentVO> listComments(Long postId, int page, int size, Long currentUserId) {
@@ -135,7 +147,12 @@ public class CommentServiceImpl implements CommentService {
             return vo;
         }).collect(Collectors.toList());
 
-        return PageResult.of(result, (int) topPage.getTotal(), page, size);
+        // Step 6: total 返回该帖子全部评论数（顶级 + 子回复），用于详情页展示
+        LambdaQueryWrapper<CommentPO> countWrapper = new LambdaQueryWrapper<>();
+        countWrapper.eq(CommentPO::getPostId, postId).eq(CommentPO::getStatus, 1);
+        Long totalComments = commentMapper.selectCount(countWrapper);
+
+        return PageResult.of(result, totalComments, page, size);
     }
 
     /**

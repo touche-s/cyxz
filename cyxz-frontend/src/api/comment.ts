@@ -49,8 +49,8 @@ export const getCommentReplies = (params: {
   size?: number
 }) => request.get('/comment/replies', { params })
 
-/** 发表评论 */
-export const createComment = (data: CreateCommentRequest) =>
+/** 发表评论（返回完整 CommentVO，含用户信息，前端可直接插入列表） */
+export const createComment = (data: CreateCommentRequest): Promise<{ data: { code: number; message: string; data: CommentVO } }> =>
   request.post('/comment', data)
 
 /** 删除评论 */

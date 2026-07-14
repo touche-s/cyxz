@@ -8,7 +8,11 @@ import com.cyxz.post.vo.CategoryVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -35,6 +39,22 @@ public class CategoryServiceImpl implements CategoryService {
         return categories.stream()
                 .map(this::convertToVO)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 批量查询分类（id → CategoryPO）
+     *
+     * @param ids 分类 ID 集合
+     * @return Map<分类ID, 分类实体>
+     */
+    @Override
+    public Map<Long, CategoryPO> getByIds(Set<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<CategoryPO> categories = categoryMapper.selectBatchIds(ids);
+        return categories.stream()
+                .collect(Collectors.toMap(CategoryPO::getId, Function.identity()));
     }
 
     /**

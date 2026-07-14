@@ -14,9 +14,9 @@ public interface CommentService {
      *
      * @param userId  当前登录用户 ID
      * @param request 创建评论请求
-     * @return 新创建的评论 ID
+     * @return 新创建的评论视图对象（含用户信息，前端可直接插入列表展示）
      */
-    Long createComment(Long userId, CreateCommentRequest request);
+    CommentVO createComment(Long userId, CreateCommentRequest request);
 
     /**
      * 删除评论（逻辑删除）

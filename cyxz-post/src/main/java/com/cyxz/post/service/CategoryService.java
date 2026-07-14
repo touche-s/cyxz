@@ -1,8 +1,11 @@
 package com.cyxz.post.service;
 
+import com.cyxz.post.entity.CategoryPO;
 import com.cyxz.post.vo.CategoryVO;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * 分类服务接口
@@ -16,4 +19,12 @@ public interface CategoryService {
      * @return 分类视图列表
      */
     List<CategoryVO> listAll();
+
+    /**
+     * 批量查询分类（id → CategoryPO）
+     *
+     * @param ids 分类 ID 集合
+     * @return Map<分类ID, 分类实体>
+     */
+    Map<Long, CategoryPO> getByIds(Set<Long> ids);
 }

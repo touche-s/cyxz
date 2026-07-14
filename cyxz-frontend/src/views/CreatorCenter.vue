@@ -196,7 +196,6 @@
                 <div class="content-stats">
                   <span class="stat-item"><img src="@/assets/icons/eye.svg" alt="eye" class="stat-mini-icon" />{{ post.views }}</span>
                   <span class="stat-item"><img src="@/assets/icons/like.svg" alt="like" class="stat-mini-icon" />{{ post.likes }}</span>
-                  <span class="stat-item"><img src="@/assets/icons/comment.svg" alt="comment" class="stat-mini-icon" />{{ post.comments }}</span>
                 </div>
               </div>
               <div class="content-status">

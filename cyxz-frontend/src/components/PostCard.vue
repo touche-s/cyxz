@@ -32,7 +32,6 @@
             {{ formatNumber(post.likes) }}
           </button>
           <span><img src="@/assets/icons/eye.svg" alt="eye" class="stat-icon" /> {{ formatNumber(post.views) }}</span>
-          <span><img src="@/assets/icons/comment.svg" alt="comment" class="stat-icon" /> {{ post.comments }}</span>
         </div>
       </div>
     </div>
