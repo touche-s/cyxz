@@ -207,6 +207,18 @@ public class PostController {
     }
 
     /**
+     * 获取指定用户的帖子统计数据
+     * <p>用于查看他人个人空间时展示获赞、浏览等数据。
+     *
+     * @param targetUserId 目标用户 ID
+     * @return 统计数据
+     */
+    @GetMapping("/user/{targetUserId}/stats")
+    public Result<PostStatsVO> getStatsByUserId(@PathVariable("targetUserId") Long targetUserId) {
+        return Result.success(postService.getPostStats(targetUserId));
+    }
+
+    /**
      * 查询用户作品排行榜（按浏览量倒序）
      *
      * @param userId 当前登录用户 ID（由 Gateway 注入）
