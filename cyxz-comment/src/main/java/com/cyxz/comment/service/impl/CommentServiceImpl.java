@@ -14,6 +14,7 @@ import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.post.feign.PostFeignClient;
+import com.cyxz.post.vo.PostInfoVO;
 import com.cyxz.user.feign.UserFeignClient;
 import com.cyxz.user.vo.UserProfileVO;
 import lombok.RequiredArgsConstructor;
@@ -150,7 +151,10 @@ public class CommentServiceImpl implements CommentService {
 
         // Step 4: 批量查用户信息 + 点赞状态
         Map<Long, UserProfileVO> userMap = getUserMap(userIds);
-        Set<Long> likedCommentIds = getLikedCommentIds(currentUserId);
+        Set<Long> topCommentIds = topComments.stream()
+                .map(CommentPO::getId)
+                .collect(Collectors.toSet());
+        Set<Long> likedCommentIds = getLikedCommentIds(currentUserId, topCommentIds);
 
         // Step 5: 组装结果（children 为空，子回复全由 /comment/replies 按需加载）
         List<CommentVO> result = topComments.stream().map(top -> {
@@ -220,7 +224,10 @@ public class CommentServiceImpl implements CommentService {
         }
 
         Map<Long, UserProfileVO> userMap = getUserMap(userIds);
-        Set<Long> likedCommentIds = getLikedCommentIds(currentUserId);
+        Set<Long> replyCommentIds = replies.stream()
+                .map(CommentPO::getId)
+                .collect(Collectors.toSet());
+        Set<Long> likedCommentIds = getLikedCommentIds(currentUserId, replyCommentIds);
 
         List<CommentVO> vos = convertToVOList(replies, userMap, likedCommentIds);
         return PageResult.of(vos, (int) replyPage.getTotal(), page, size);
@@ -301,19 +308,21 @@ public class CommentServiceImpl implements CommentService {
     }
 
     /**
-     * 获取当前用户已点赞的评论 ID 集合
-     * <p>从 comment_like 表批量查询当前用户 status=1 的点赞记录。
+     * 获取当前用户在指定评论集合中已点赞的评论 ID
+     * <p>从 comment_like 表按 commentId IN (...) 查询，避免拉取用户全量点赞记录。
      *
-     * @param userId 当前登录用户 ID（可为 null）
+     * @param userId      当前登录用户 ID（可为 null）
+     * @param commentIds  当前页评论 ID 集合
      * @return 已点赞评论 ID 集合
      */
-    private Set<Long> getLikedCommentIds(Long userId) {
-        if (userId == null) {
+    private Set<Long> getLikedCommentIds(Long userId, Set<Long> commentIds) {
+        if (userId == null || commentIds == null || commentIds.isEmpty()) {
             return Collections.emptySet();
         }
         LambdaQueryWrapper<CommentLikePO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CommentLikePO::getUserId, userId)
                 .eq(CommentLikePO::getStatus, 1)
+                .in(CommentLikePO::getCommentId, commentIds)
                 .select(CommentLikePO::getCommentId);
         List<CommentLikePO> list = commentLikeMapper.selectList(wrapper);
         return list.stream()
@@ -386,8 +395,11 @@ public class CommentServiceImpl implements CommentService {
         }
         Map<Long, UserProfileVO> userMap = getUserMap(userIds);
 
-        // 查当前用户已点赞的评论 ID
-        Set<Long> likedCommentIds = getLikedCommentIds(currentUserId);
+        // 查当前用户在本页评论中已点赞的评论 ID
+        Set<Long> commentIds = comments.stream()
+                .map(CommentPO::getId)
+                .collect(Collectors.toSet());
+        Set<Long> likedCommentIds = getLikedCommentIds(currentUserId, commentIds);
 
         // 批量查帖子标题
         Set<Long> postIds = comments.stream()
@@ -418,20 +430,15 @@ public class CommentServiceImpl implements CommentService {
         if (postIds == null || postIds.isEmpty()) {
             return Collections.emptyMap();
         }
-        Map<Long, String> result = new HashMap<>();
-        for (Long postId : postIds) {
-            try {
-                Result<Map<String, Object>> res = postFeignClient.getPostInfo(postId);
-                if (res != null && res.getData() != null) {
-                    Object title = res.getData().get("title");
-                    if (title != null) {
-                        result.put(postId, title.toString());
-                    }
-                }
-            } catch (Exception e) {
-                log.warn("获取帖子标题失败: postId={}", postId, e);
+        try {
+            Result<List<PostInfoVO>> res = postFeignClient.batchGetPostInfo(postIds);
+            if (res != null && res.getData() != null) {
+                return res.getData().stream()
+                        .collect(Collectors.toMap(PostInfoVO::getPostId, PostInfoVO::getTitle, (a, b) -> a));
             }
+        } catch (Exception e) {
+            log.warn("批量获取帖子标题失败: postIds={}", postIds, e);
         }
-        return result;
+        return Collections.emptyMap();
     }
 }
