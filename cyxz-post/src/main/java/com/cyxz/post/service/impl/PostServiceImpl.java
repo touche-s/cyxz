@@ -8,6 +8,7 @@ import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.common.utils.IpUtil;
+import com.cyxz.post.vo.ReceivedLikeVO;
 import com.cyxz.user.feign.UserFeignClient;
 import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
@@ -92,7 +93,7 @@ public class PostServiceImpl implements PostService {
      */
     @Override
     public void updatePost(Long userId, UpdatePostRequest request) {
-        PostPO po = postMapper.selectById(request.getId());
+        PostPO po = postMapper.selectById(request.getIdAsLong());
         if (po == null) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
@@ -347,7 +348,7 @@ public class PostServiceImpl implements PostService {
         vo.setCreateTime(po.getCreateTime());
         vo.setUpdateTime(po.getUpdateTime());
 
-        UserProfileVO author = userMap.get(po.getUserId());
+        UserProfileVO author = userMap != null ? userMap.get(po.getUserId()) : null;
         if (author != null) {
             vo.setAuthorName(author.getNickname());
             vo.setAuthorAvatar(author.getAvatar());
@@ -403,7 +404,7 @@ public class PostServiceImpl implements PostService {
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Integer toggleLike(Long userId, Long postId) {
+    public int toggleLike(Long userId, Long postId) {
         PostPO po = postMapper.selectById(postId);
         if (po == null) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
@@ -422,7 +423,6 @@ public class PostServiceImpl implements PostService {
             newLike.setUserId(userId);
             newLike.setStatus(1);
             postLikeMapper.insert(newLike);
-            // 原子更新点赞数 +1
             postMapper.updateLikes(postId, 1);
             log.info("点赞帖子: postId={}, userId={}", postId, userId);
         } else if (likePO.getStatus() == 0) {
@@ -499,7 +499,7 @@ public class PostServiceImpl implements PostService {
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Integer toggleCollect(Long userId, Long postId) {
+    public int toggleCollect(Long userId, Long postId) {
         PostPO po = postMapper.selectById(postId);
         if (po == null) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
@@ -573,32 +573,59 @@ public class PostServiceImpl implements PostService {
         }
     }
 
+    /**
+     * SQL 聚合统计用户帖子数据
+     * <p>通过一条 SQL 聚合查询当前用户所有已发布帖子的总浏览、总点赞、总收藏数，
+     * 避免全量拉取到 Java 层求和，提升性能。
+     *
+     * @param userId 当前用户 ID
+     * @return 统计数据（totalPosts, totalViews, totalLikes, totalCollections）
+     */
     @Override
     public Map<String, Object> getPostStats(Long userId) {
-        LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PostPO::getUserId, userId)
-                .eq(PostPO::getStatus, 1);
-        List<PostPO> posts = postMapper.selectList(wrapper);
-
-        int totalPosts = posts.size();
-        int totalViews = posts.stream().mapToInt(PostPO::getViews).sum();
-        int totalLikes = posts.stream().mapToInt(PostPO::getLikes).sum();
-        int totalCollections = posts.stream().mapToInt(PostPO::getCollections).sum();
-
-        return Map.of(
-                "totalPosts", totalPosts,
-                "totalViews", totalViews,
-                "totalLikes", totalLikes,
-                "totalCollections", totalCollections
-        );
+        Map<String, Object> stats = postMapper.selectStatsByUserId(userId);
+        if (stats == null) {
+            return Map.of("totalPosts", 0, "totalViews", 0, "totalLikes", 0, "totalCollections", 0);
+        }
+        return stats;
     }
 
+    /**
+     * 查询用户作品排行榜（按浏览量倒序）
+     * <p>用于数据中心展示用户浏览量最高的 N 个帖子。
+     *
+     * @param userId 当前用户 ID
+     * @param limit  返回条数
+     * @return 帖子 VO 列表
+     */
+    @Override
+    public List<PostVO> getTopPosts(Long userId, int limit) {
+        List<PostPO> topPosts = postMapper.selectTopPostsByViews(userId, limit);
+        return topPosts.stream()
+                .map(po -> convertToVO(po, null, Collections.emptyMap(), Collections.emptySet(), Collections.emptySet()))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 获取帖子作者 ID（内部接口）
+     * <p>用于评论服务创建评论时通过 Feign 调用获取帖子作者。
+     *
+     * @param postId 帖子 ID
+     * @return 作者用户 ID，帖子不存在返回 null
+     */
     @Override
     public Long getPostAuthor(Long postId) {
         PostPO po = postMapper.selectById(postId);
         return po != null ? po.getUserId() : null;
     }
 
+    /**
+     * 获取帖子信息（内部接口）
+     * <p>用于评论服务批量查询帖子标题。
+     *
+     * @param postId 帖子 ID
+     * @return 帖子信息（postId, userId, title），帖子不存在返回空 Map
+     */
     @Override
     public Map<String, Object> getPostInfo(Long postId) {
         PostPO po = postMapper.selectById(postId);
@@ -610,5 +637,58 @@ public class PostServiceImpl implements PostService {
                 "userId", po.getUserId(),
                 "title", po.getTitle()
         );
+    }
+
+    /**
+     * 查询用户收到的点赞列表
+     * <p>通过 JOIN post 表过滤出当前用户的帖子，再查 post_like 表中 status=1 的记录，
+     * 并批量 Feign 查询点赞用户的昵称和头像。
+     *
+     * @param userId 当前用户 ID
+     * @param page   页码（从 1 开始）
+     * @param size   每页条数
+     * @return 分页结果
+     */
+    @Override
+    public PageResult<ReceivedLikeVO> getReceivedLikes(Long userId, int page, int size) {
+        int total = postLikeMapper.countReceivedLikes(userId);
+        if (total == 0) {
+            return PageResult.empty(page, size);
+        }
+        int offset = (page - 1) * size;
+        List<ReceivedLikeVO> records = postLikeMapper.selectReceivedLikes(userId, offset, size);
+
+        // 批量查用户信息
+        Set<Long> userIds = records.stream()
+                .map(ReceivedLikeVO::getUserId)
+                .collect(Collectors.toSet());
+        Map<Long, UserProfileVO> userMap = getUserMap(userIds);
+        records.forEach(vo -> {
+            UserProfileVO user = userMap.get(vo.getUserId());
+            if (user != null) {
+                vo.setUserName(user.getNickname());
+                vo.setUserAvatar(user.getAvatar());
+            }
+        });
+
+        return PageResult.of(records, total, page, size);
+    }
+
+    /**
+     * 批量查询用户信息
+     */
+    private Map<Long, UserProfileVO> getUserMap(Set<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        try {
+            Result<Map<Long, UserProfileVO>> result = userFeignClient.batchGetByIds(new ArrayList<>(userIds));
+            if (result != null && result.getData() != null) {
+                return result.getData();
+            }
+        } catch (Exception e) {
+            log.warn("批量查询用户信息失败", e);
+        }
+        return Collections.emptyMap();
     }
 }

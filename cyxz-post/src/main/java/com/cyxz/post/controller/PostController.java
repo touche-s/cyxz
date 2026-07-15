@@ -6,11 +6,13 @@ import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
 import com.cyxz.post.service.PostService;
 import com.cyxz.post.vo.PostVO;
+import com.cyxz.post.vo.ReceivedLikeVO;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -154,7 +156,7 @@ public class PostController {
     @PostMapping("/{postId}/like")
     public Result<Integer> like(@PathVariable("postId") Long postId,
                                 @RequestHeader("X-User-Id") Long userId) {
-        Integer likes = postService.toggleLike(userId, postId);
+        int likes = postService.toggleLike(userId, postId);
         return Result.success(likes);
     }
 
@@ -168,7 +170,7 @@ public class PostController {
     @PostMapping("/{postId}/collect")
     public Result<Integer> collect(@PathVariable("postId") Long postId,
                                    @RequestHeader("X-User-Id") Long userId) {
-        Integer collections = postService.toggleCollect(userId, postId);
+        int collections = postService.toggleCollect(userId, postId);
         return Result.success(collections);
     }
 
@@ -202,6 +204,19 @@ public class PostController {
     }
 
     /**
+     * 查询用户作品排行榜（按浏览量倒序）
+     *
+     * @param userId 当前登录用户 ID（由 Gateway 注入）
+     * @param limit  返回条数（默认 5）
+     * @return 帖子列表
+     */
+    @GetMapping("/top")
+    public Result<List<PostVO>> getTopPosts(@RequestHeader("X-User-Id") Long userId,
+                                            @RequestParam(value = "limit", defaultValue = "5") int limit) {
+        return Result.success(postService.getTopPosts(userId, limit));
+    }
+
+    /**
      * 查询帖子作者 ID（内部接口，供 comment 服务通过 Feign 调用）
      *
      * @param postId 帖子 ID
@@ -221,5 +236,20 @@ public class PostController {
     @GetMapping("/internal/{postId}/info")
     public Result<Map<String, Object>> getPostInfo(@PathVariable("postId") Long postId) {
         return Result.success(postService.getPostInfo(postId));
+    }
+
+    /**
+     * 查询用户收到的点赞列表
+     *
+     * @param userId 当前登录用户 ID（由 Gateway 注入）
+     * @param page   页码
+     * @param size   每页条数
+     * @return 点赞列表
+     */
+    @GetMapping("/received-likes")
+    public Result<PageResult<ReceivedLikeVO>> getReceivedLikes(@RequestHeader("X-User-Id") Long userId,
+                                                                @RequestParam(value = "page", defaultValue = "1") int page,
+                                                                @RequestParam(value = "size", defaultValue = "20") int size) {
+        return Result.success(postService.getReceivedLikes(userId, page, size));
     }
 }

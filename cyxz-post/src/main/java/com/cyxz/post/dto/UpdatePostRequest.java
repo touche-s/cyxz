@@ -1,6 +1,6 @@
 package com.cyxz.post.dto;
 
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 import java.util.List;
@@ -11,9 +11,9 @@ import java.util.List;
 @Data
 public class UpdatePostRequest {
 
-    /** 帖子 ID */
-    @NotNull(message = "帖子ID不能为空")
-    private Long id;
+    /** 帖子 ID（前端传 String 避免 JS 精度丢失） */
+    @NotBlank(message = "帖子ID不能为空")
+    private String id;
 
     /** 分类 ID */
     private Long categoryId;
@@ -35,4 +35,11 @@ public class UpdatePostRequest {
 
     /** 状态：0=草稿 1=发布 2=删除 */
     private Integer status;
+
+    /**
+     * 解析帖子 ID 为 Long，供业务层使用。
+     */
+    public Long getIdAsLong() {
+        return Long.parseLong(id.trim());
+    }
 }

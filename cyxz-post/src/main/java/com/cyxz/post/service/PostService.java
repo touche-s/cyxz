@@ -4,7 +4,11 @@ import com.cyxz.common.base.PageResult;
 import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
 import com.cyxz.post.vo.PostVO;
+import com.cyxz.post.vo.ReceivedLikeVO;
 import jakarta.servlet.http.HttpServletRequest;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * 帖子服务接口
@@ -101,25 +105,25 @@ public interface PostService {
 
     /**
      * 切换帖子点赞状态
-     * <p>已点赞则取消，未点赞则添加。使用 Redis Set 存储用户点赞关系，
-     * 同时更新数据库中的点赞数。
+     * <p>已点赞则取消，未点赞则添加。使用 post_like 表存储用户点赞关系，
+     * 同时原子更新 post.likes。
      *
      * @param userId 当前登录用户 ID
      * @param postId 帖子 ID
      * @return 更新后的点赞数
      */
-    Integer toggleLike(Long userId, Long postId);
+    int toggleLike(Long userId, Long postId);
 
     /**
      * 切换帖子收藏状态
-     * <p>已收藏则取消，未收藏则添加。使用 Redis Set 存储用户收藏关系，
-     * 同时更新数据库中的收藏数。
+     * <p>已收藏则取消，未收藏则添加。使用 post_collect 表存储用户收藏关系，
+     * 同时原子更新 post.collections。
      *
      * @param userId 当前登录用户 ID
      * @param postId 帖子 ID
      * @return 更新后的收藏数
      */
-    Integer toggleCollect(Long userId, Long postId);
+    int toggleCollect(Long userId, Long postId);
 
     /**
      * 记录浏览
@@ -134,12 +138,21 @@ public interface PostService {
 
     /**
      * 获取用户帖子统计数据
-     * <p>用于数据中心，统计当前用户所有已发布帖子的总浏览、总点赞、总收藏。
+     * <p>用于数据中心，SQL 聚合统计当前用户所有已发布帖子的总浏览、总点赞、总收藏。
      *
      * @param userId 当前用户 ID
      * @return 统计数据（totalPosts, totalViews, totalLikes, totalCollections）
      */
-    java.util.Map<String, Object> getPostStats(Long userId);
+    Map<String, Object> getPostStats(Long userId);
+
+    /**
+     * 查询用户作品排行榜（按浏览量倒序）
+     *
+     * @param userId 当前用户 ID
+     * @param limit  返回条数
+     * @return 帖子列表
+     */
+    List<PostVO> getTopPosts(Long userId, int limit);
 
     /**
      * 查询帖子作者 ID（内部接口）
@@ -155,5 +168,15 @@ public interface PostService {
      * @param postId 帖子 ID
      * @return 帖子信息（标题、作者 ID 等）
      */
-    java.util.Map<String, Object> getPostInfo(Long postId);
+    Map<String, Object> getPostInfo(Long postId);
+
+    /**
+     * 查询用户收到的点赞列表
+     *
+     * @param userId 当前用户 ID
+     * @param page   页码
+     * @param size   每页条数
+     * @return 分页结果
+     */
+    PageResult<ReceivedLikeVO> getReceivedLikes(Long userId, int page, int size);
 }
