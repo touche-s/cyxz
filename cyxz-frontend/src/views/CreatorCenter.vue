@@ -286,7 +286,7 @@
               </div>
               <div class="stat-info">
                 <span class="stat-value">{{ dataStats.totalPosts }}</span>
-                <span class="stat-label">发布作品</span>
+                <span class="stat-label">已发布作品</span>
               </div>
             </div>
             <div class="stat-card">
@@ -697,7 +697,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 
 import { getUserPosts, deletePost, updatePost, getPostStats, getTopPosts, getReceivedLikes } from '@/api/post'
-import type { PostVO, ReceivedLikeVO } from '@/api/post'
+import type { PostVO, PostStatsVO, ReceivedLikeVO } from '@/api/post'
 import { getFollowerList, followUser, unfollowUser, getFollowStats } from '@/api/user'
 import { getReceivedComments } from '@/api/comment'
 import { useUserStore } from '@/stores/user'
@@ -723,7 +723,7 @@ const searchKeyword = ref('')
 const activeTimeFilter = ref<'week' | 'month' | 'year'>('week')
 const activeInteractionTab = ref<'likes' | 'comments'>('comments')
 
-const dataStats = ref<{ totalPosts: number; totalViews: number; totalLikes: number; totalCollections: number }>({
+const dataStats = ref<PostStatsVO>({
   totalPosts: 0,
   totalViews: 0,
   totalLikes: 0,

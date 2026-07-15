@@ -111,6 +111,14 @@ export const recordPostView = (postId: string) => {
   return request.post(`/post/${postId}/view`)
 }
 
+// 帖子统计 VO（数据中心）
+export interface PostStatsVO {
+  totalPosts: number
+  totalViews: number
+  totalLikes: number
+  totalCollections: number
+}
+
 // 获取当前用户的帖子统计数据（数据中心）
 export const getPostStats = () => {
   return request.get('/post/stats')
