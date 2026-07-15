@@ -70,8 +70,9 @@ const gradients = [
 ]
 
 const getGradient = (id: string | number) => {
-  const num = typeof id === 'string' ? parseInt(id) || 0 : id
-  return gradients[num % gradients.length]
+  const source = String(id)
+  const lastDigit = Number(source[source.length - 1] || '0')
+  return gradients[lastDigit % gradients.length]
 }
 
 const formatNumber = (num: number) => {

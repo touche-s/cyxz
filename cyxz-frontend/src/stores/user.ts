@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import type { UserInfo } from '@/api/user'
 
 interface StoredUserInfo extends UserInfo {
-  id?: number
+  id?: string
 }
 
 export const useUserStore = defineStore('user', () => {

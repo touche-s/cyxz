@@ -41,7 +41,7 @@ export interface CreatePostRequest {
 }
 
 export interface UpdatePostRequest {
-  id: number | string
+  id: string
   categoryId?: number
   title?: string
   content?: string
@@ -82,12 +82,12 @@ export const getUserPosts = (params: { page?: number; size?: number }) => {
 }
 
 // 查询指定用户的已发布帖子列表（个人空间 - 作品 tab）
-export const getUserPostsByTarget = (targetUserId: string | number, params: { page?: number; size?: number }) => {
+export const getUserPostsByTarget = (targetUserId: string, params: { page?: number; size?: number }) => {
   return request.get(`/post/user/${targetUserId}/posts`, { params })
 }
 
 // 查询指定用户的收藏帖子列表（个人空间 - 收藏 tab）
-export const getUserFavorites = (targetUserId: string | number, params: { page?: number; size?: number }) => {
+export const getUserFavorites = (targetUserId: string, params: { page?: number; size?: number }) => {
   return request.get(`/post/user/${targetUserId}/favorites`, { params })
 }
 
@@ -107,11 +107,32 @@ export const togglePostCollect = (postId: string) => {
 }
 
 // 记录浏览（进入详情页静默上报，失败不影响展示）
-export const recordPostView = (postId: string | number) => {
+export const recordPostView = (postId: string) => {
   return request.post(`/post/${postId}/view`)
 }
 
 // 获取当前用户的帖子统计数据（数据中心）
 export const getPostStats = () => {
   return request.get('/post/stats')
+}
+
+// 获取用户作品排行榜（按浏览量倒序）
+export const getTopPosts = (limit?: number) => {
+  return request.get('/post/top', { params: { limit } })
+}
+
+// 收到的点赞 VO
+export interface ReceivedLikeVO {
+  likeId: string
+  postId: string
+  postTitle: string
+  userId: string
+  userName: string
+  userAvatar: string
+  createTime: string
+}
+
+// 查询用户收到的点赞列表
+export const getReceivedLikes = (params: { page?: number; size?: number }) => {
+  return request.get('/post/received-likes', { params })
 }

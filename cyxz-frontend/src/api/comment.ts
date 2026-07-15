@@ -2,14 +2,15 @@ import request from '@/utils/request'
 
 /** 评论 VO */
 export interface CommentVO {
-  id: number
-  postId: number
-  userId: number
+  id: string
+  postId: string
+  postTitle: string
+  userId: string
   userName: string
   userAvatar: string
   content: string
-  parentId: number | null
-  replyToUserId: number | null
+  parentId: string | null
+  replyToUserId: string | null
   replyToUserName: string | null
   likes: number
   liked: boolean
@@ -29,39 +30,39 @@ export interface PageResult<T> {
 
 /** 发表评论参数 */
 export interface CreateCommentRequest {
-  postId: number
+  postId: string
   content: string
-  parentId?: number
-  replyToUserId?: number
+  parentId?: string
+  replyToUserId?: string
 }
 
 /** 查询顶级评论列表 */
 export const getCommentList = (params: {
-  postId: number
+  postId: string
   page?: number
   size?: number
 }) => request.get('/comment/list', { params })
 
 /** 查询子回复列表 */
 export const getCommentReplies = (params: {
-  parentId: number
+  parentId: string
   page?: number
   size?: number
 }) => request.get('/comment/replies', { params })
 
-/** 发表评论（返回完整 CommentVO，含用户信息，前端可直接插入列表） */
+/** 发表评论 */
 export const createComment = (data: CreateCommentRequest): Promise<{ data: { code: number; message: string; data: CommentVO } }> =>
   request.post('/comment', data)
 
 /** 删除评论 */
-export const deleteComment = (commentId: number) =>
+export const deleteComment = (commentId: string) =>
   request.delete(`/comment/${commentId}`)
 
 /** 点赞/取消点赞评论 */
-export const toggleCommentLike = (commentId: number) =>
+export const toggleCommentLike = (commentId: string) =>
   request.post(`/comment/${commentId}/like`)
 
-/** 查询用户收到的评论列表（对用户帖子的评论） */
+/** 查询用户收到的评论列表 */
 export const getReceivedComments = (params: { page?: number; size?: number }) => {
   return request.get('/comment/received', { params })
 }

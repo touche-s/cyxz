@@ -31,7 +31,7 @@ export interface FollowStats {
   followerCount: number
 }
 
-export const getUserProfile = (userId: string | number) => request.get(`/user/${userId}`)
+export const getUserProfile = (userId: string) => request.get(`/user/${userId}`)
 
 /** 查询当前登录用户的资料（查不到则自动创建默认资料） */
 export const getMyProfile = () => request.get('/user/profile/me')
@@ -39,17 +39,17 @@ export const getMyProfile = () => request.get('/user/profile/me')
 export const updateUserProfile = (data: Partial<UserInfo>) => request.put('/user/profile', data)
 
 /** 关注用户 */
-export const followUser = (targetUserId: string | number) => {
+export const followUser = (targetUserId: string) => {
   return request.post(`/user/${targetUserId}/follow`)
 }
 
 /** 取消关注用户 */
-export const unfollowUser = (targetUserId: string | number) => {
+export const unfollowUser = (targetUserId: string) => {
   return request.delete(`/user/${targetUserId}/follow`)
 }
 
 /** 查询是否关注了某个用户 */
-export const isFollowing = (targetUserId: string | number) => {
+export const isFollowing = (targetUserId: string) => {
   return request.get(`/user/${targetUserId}/is-following`)
 }
 

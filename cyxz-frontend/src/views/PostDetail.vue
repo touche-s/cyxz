@@ -192,8 +192,8 @@ const collected = ref(false)
 const commentInput = ref('')
 const commentSection = ref<HTMLElement | null>(null)
 const currentImage = ref(0)
-const replyTarget = ref<{ comment: CommentVO; parentId: number } | null>(null)
-const activeReplyId = ref<number | null>(null) // 哪个顶级评论下方显示回复框
+const replyTarget = ref<{ comment: CommentVO; parentId: string } | null>(null)
+const activeReplyId = ref<string | null>(null) // 哪个顶级评论下方显示回复框
 
 // ===== 评论列表 =====
 const comments = ref<CommentVO[]>([])
@@ -203,10 +203,10 @@ const commentSize = 20
 const commentLoading = ref(false)
 const commentFinished = ref(false)
 
-const currentUserId = computed<number | null>(() => {
+const currentUserId = computed<string | null>(() => {
   const info = userStore.userInfo
-  if (info?.id) return Number(info.id)
-  if (info?.userId) return Number(info.userId)
+  if (info?.id) return String(info.id)
+  if (info?.userId) return String(info.userId)
   return null
 })
 
@@ -346,7 +346,7 @@ const loadComments = async (reset = false) => {
   commentLoading.value = true
   try {
     const res = await getCommentList({
-      postId: Number(post.value.id),
+      postId: String(post.value.id),
       page: commentPage.value,
       size: commentSize,
     })
@@ -386,7 +386,7 @@ const submitTopComment = async () => {
 
   try {
     const data: CreateCommentRequest = {
-      postId: Number(post.value.id),
+      postId: String(post.value.id),
       content: commentInput.value.trim(),
     }
     const res = await createComment(data)
@@ -412,7 +412,7 @@ const submitComment = async () => {
 
   try {
     const data: CreateCommentRequest = {
-      postId: Number(post.value.id),
+      postId: String(post.value.id),
       content: commentInput.value.trim(),
       parentId: replyTarget.value.parentId,
       replyToUserId: replyTarget.value.comment.userId,
@@ -444,7 +444,7 @@ const submitComment = async () => {
   }
 }
 
-const handleReply = (payload: { comment: CommentVO; parentId: number }) => {
+const handleReply = (payload: { comment: CommentVO; parentId: string }) => {
   if (!userStore.isLoggedIn) {
     ElMessage.warning('请先登录')
     return
@@ -460,7 +460,7 @@ const cancelReply = () => {
   commentInput.value = ''
 }
 
-const handleCommentDeleted = (commentId: number) => {
+const handleCommentDeleted = (commentId: string) => {
   // 从列表中移除该评论
   comments.value = comments.value.filter(c => c.id !== commentId)
   commentTotal.value = Math.max(0, commentTotal.value - 1)

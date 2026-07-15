@@ -131,15 +131,15 @@ import likeOutlineIcon from '@/assets/icons/like-outline.svg'
 const props = defineProps<{
   comment: CommentVO
   isTopLevel: boolean
-  currentUserId: number | null
-  topLevelId?: number
+  currentUserId: string | null
+  topLevelId?: string
   isReply?: boolean
 }>()
 
 const emit = defineEmits<{
   like: [comment: CommentVO]
-  reply: [payload: { comment: CommentVO; parentId: number }]
-  deleted: [commentId: number]
+  reply: [payload: { comment: CommentVO; parentId: string }]
+  deleted: [commentId: string]
 }>()
 
 const handleReply = () => {

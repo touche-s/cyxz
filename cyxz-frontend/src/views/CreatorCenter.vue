@@ -35,7 +35,7 @@
           </button>
           <button class="nav-item" :class="{ active: activeNav === 'interaction' }" @click="activeNav = 'interaction'">
             <img src="@/assets/icons/interaction-nav.svg" class="nav-icon" />
-            <span class="nav-text">互动管理</span>
+            <span class="nav-text">评论管理</span>
           </button>
         </div>
 
@@ -74,13 +74,14 @@
         </div>
 
         <div class="stats-section">
+          <h3 class="section-title">数据概览</h3>
           <div class="stats-grid">
             <div class="stat-card">
               <div class="stat-icon-wrapper works-icon">
                 <img src="@/assets/icons/edit.svg" alt="edit" class="stat-icon" />
               </div>
               <div class="stat-info">
-                <span class="stat-value">{{ stats.totalPosts }}</span>
+                <span class="stat-value">{{ dataStats.totalPosts }}</span>
                 <span class="stat-label">总作品</span>
               </div>
             </div>
@@ -89,54 +90,68 @@
                 <img src="@/assets/icons/eye.svg" alt="eye" class="stat-icon" />
               </div>
               <div class="stat-info">
-                <span class="stat-value">{{ formatNumber(stats.totalViews) }}</span>
+                <span class="stat-value">{{ formatNumber(dataStats.totalViews) }}</span>
                 <span class="stat-label">总浏览</span>
               </div>
             </div>
             <div class="stat-card">
-              <div class="stat-icon-wrapper likes-icon">
-                <img src="@/assets/icons/like.svg" alt="like" class="stat-icon" />
+              <div class="stat-icon-wrapper fans-icon">
+                <img src="@/assets/icons/fans-nav.svg" alt="fans" class="stat-icon" />
               </div>
               <div class="stat-info">
-                <span class="stat-value">{{ formatNumber(stats.totalLikes) }}</span>
-                <span class="stat-label">总点赞</span>
+                <span class="stat-value">{{ formatNumber(followerCount) }}</span>
+                <span class="stat-label">粉丝数</span>
               </div>
             </div>
             <div class="stat-card">
-              <div class="stat-icon-wrapper collections-icon">
-                <img src="@/assets/icons/favorite.svg" alt="favorite" class="stat-icon" />
+              <div class="stat-icon-wrapper comments-icon">
+                <img src="@/assets/icons/comment.svg" alt="comment" class="stat-icon" />
               </div>
               <div class="stat-info">
-                <span class="stat-value">{{ formatNumber(stats.totalCollections) }}</span>
-                <span class="stat-label">总收藏</span>
+                <span class="stat-value">{{ formatNumber(commentsTotal) }}</span>
+                <span class="stat-label">评论数</span>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="quick-actions-section">
-          <h3 class="section-title">快捷操作</h3>
-          <div class="action-cards">
-            <button class="quick-action-card" @click="activeNav = 'content'">
-              <img src="@/assets/icons/content-nav.svg" alt="content" class="quick-action-icon" />
-              <span>内容管理</span>
-              <p class="action-desc">管理你的所有作品</p>
-            </button>
-            <button class="quick-action-card" @click="activeNav = 'data'">
-              <img src="@/assets/icons/data-nav.svg" alt="data" class="quick-action-icon" />
-              <span>数据中心</span>
-              <p class="action-desc">查看作品数据表现</p>
-            </button>
-            <button class="quick-action-card" @click="activeNav = 'fans'">
-              <img src="@/assets/icons/fans-nav.svg" alt="fans" class="quick-action-icon" />
-              <span>粉丝管理</span>
-              <p class="action-desc">查看你的粉丝数据</p>
-            </button>
-            <button class="quick-action-card" @click="activeNav = 'interaction'">
-              <img src="@/assets/icons/interaction-nav.svg" alt="interaction" class="quick-action-icon" />
-              <span>互动管理</span>
-              <p class="action-desc">查看点赞和评论</p>
-            </button>
+        <div class="recent-section" v-if="recentPosts.length > 0">
+          <h3 class="section-title">最近作品</h3>
+          <div class="recent-posts-list">
+            <div class="recent-post-item" v-for="post in recentPosts" :key="post.id" @click="viewPost(post.id)">
+              <div class="recent-post-cover">
+                <img v-if="post.cover" :src="post.cover" alt="" />
+                <div v-else class="cover-placeholder-small">📷</div>
+              </div>
+              <div class="recent-post-info">
+                <h4 class="recent-post-title">{{ post.title }}</h4>
+                <span class="recent-post-time">{{ formatTime(post.createTime) }}</span>
+              </div>
+              <div class="recent-post-stats">
+                <span class="stat-item"><img src="@/assets/icons/eye.svg" alt="eye" class="stat-mini-icon" />{{ post.views }}</span>
+                <span class="stat-item"><img src="@/assets/icons/like.svg" alt="like" class="stat-mini-icon" />{{ post.likes }}</span>
+                <span class="stat-item"><img src="@/assets/icons/favorite.svg" alt="favorite" class="stat-mini-icon" />{{ post.collections }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="recent-section">
+          <h3 class="section-title">最近互动</h3>
+          <div class="recent-interactions" v-if="recentInteractions.length > 0">
+            <div class="interaction-line" v-for="item in recentInteractions" :key="item.id">
+              <img v-if="item.avatar" :src="item.avatar" class="interaction-avatar" />
+              <div v-else class="interaction-avatar-placeholder">👤</div>
+              <span class="interaction-text">
+                <strong>{{ item.userName || '用户' }}</strong>
+                {{ item.type === 'comment' ? '评论了你的' : '赞了你的' }}
+                <span class="interaction-post-title">《{{ item.postTitle || '帖子' }}》</span>
+              </span>
+              <span class="interaction-time">{{ formatTime(item.createTime) }}</span>
+            </div>
+          </div>
+          <div class="empty-light" v-else>
+            <p>还没有新的互动</p>
           </div>
         </div>
       </template>
@@ -303,39 +318,6 @@
             </div>
           </div>
 
-          <div class="charts-section">
-            <div class="chart-card">
-              <div class="chart-header">
-                <h3>浏览量趋势</h3>
-              </div>
-              <div class="chart-placeholder">
-                <div class="mini-chart">
-                  <div class="bar" style="height: 40%"></div>
-                  <div class="bar" style="height: 65%"></div>
-                  <div class="bar" style="height: 50%"></div>
-                  <div class="bar" style="height: 80%"></div>
-                  <div class="bar" style="height: 70%"></div>
-                  <div class="bar" style="height: 90%"></div>
-                  <div class="bar" style="height: 75%"></div>
-                </div>
-                <p>近7天浏览量数据</p>
-              </div>
-            </div>
-            <div class="chart-card">
-              <div class="chart-header">
-                <h3>互动数据对比</h3>
-              </div>
-              <div class="chart-placeholder">
-                <div class="mini-chart">
-                  <div class="bar" :style="{ height: dataStats.totalLikes > 0 ? Math.min(100, (dataStats.totalLikes / Math.max(dataStats.totalLikes, dataStats.totalCollections, 1)) * 100) + '%' : '30%', background: '#ff6b9d' }"></div>
-                  <div class="bar" :style="{ height: '40%', background: '#b484ff' }"></div>
-                  <div class="bar" :style="{ height: dataStats.totalCollections > 0 ? Math.min(100, (dataStats.totalCollections / Math.max(dataStats.totalLikes, dataStats.totalCollections, 1)) * 100) + '%' : '20%', background: '#ffc0cb' }"></div>
-                </div>
-                <p>点赞 · 评论 · 收藏</p>
-              </div>
-            </div>
-          </div>
-
           <div class="ranking-section">
             <h3>作品排行榜</h3>
             <div class="ranking-list">
@@ -347,15 +329,40 @@
                 </div>
                 <div class="rank-info">
                   <h4>{{ item.title }}</h4>
+                  <span class="rank-time">{{ formatDateTime(item.createTime) }}</span>
                   <div class="rank-stats">
-                    <img src="@/assets/icons/eye.svg" alt="eye" class="stat-mini-icon" /> {{ item.views }}
-                    <img src="@/assets/icons/like.svg" alt="like" class="stat-mini-icon" /> {{ item.likes }}
+                    <span class="stat-item"><img src="@/assets/icons/eye.svg" alt="eye" class="stat-mini-icon" />{{ item.views }}</span>
+                    <span class="stat-item"><img src="@/assets/icons/like.svg" alt="like" class="stat-mini-icon" />{{ item.likes }}</span>
+                    <span class="stat-item"><img src="@/assets/icons/favorite.svg" alt="favorite" class="stat-mini-icon" />{{ item.collections }}</span>
                   </div>
                 </div>
               </div>
               <div v-if="rankingList.length === 0" class="empty-ranking">
                 <p>还没有发布作品</p>
               </div>
+            </div>
+          </div>
+
+          <div class="ranking-section">
+            <h3>全部作品表现</h3>
+            <div class="perf-table" v-if="allPerformancePosts.length > 0">
+              <div class="perf-row perf-header">
+                <span class="perf-col perf-col-title">作品</span>
+                <span class="perf-col perf-col-time">发布时间</span>
+                <span class="perf-col perf-col-num">浏览</span>
+                <span class="perf-col perf-col-num">点赞</span>
+                <span class="perf-col perf-col-num">收藏</span>
+              </div>
+              <div class="perf-row" v-for="post in allPerformancePosts" :key="post.id">
+                <span class="perf-col perf-col-title">{{ post.title }}</span>
+                <span class="perf-col perf-col-time">{{ formatDateTime(post.createTime) }}</span>
+                <span class="perf-col perf-col-num">{{ formatNumber(post.views) }}</span>
+                <span class="perf-col perf-col-num">{{ formatNumber(post.likes) }}</span>
+                <span class="perf-col perf-col-num">{{ formatNumber(post.collections) }}</span>
+              </div>
+            </div>
+            <div class="empty-light" v-else>
+              <p>还没有已发布的作品</p>
             </div>
           </div>
         </div>
@@ -427,6 +434,12 @@
             <p>还没有粉丝</p>
             <p class="empty-hint">发布更多优质内容，吸引粉丝关注</p>
           </div>
+
+          <div class="pagination-container" v-if="fansTotal > fansPageSize">
+            <button class="page-btn" :disabled="fansPage <= 1" @click="handleFansPageChange(fansPage - 1)">上一页</button>
+            <span class="page-info">{{ fansPage }} / {{ Math.ceil(fansTotal / fansPageSize) }}</span>
+            <button class="page-btn" :disabled="fansPage >= Math.ceil(fansTotal / fansPageSize)" @click="handleFansPageChange(fansPage + 1)">下一页</button>
+          </div>
         </div>
       </template>
 
@@ -434,7 +447,7 @@
         <div class="page-container">
           <header class="page-header">
             <div class="header-left">
-              <h1>互动管理</h1>
+              <h1>评论管理</h1>
               <p>查看点赞和评论</p>
             </div>
           </header>
@@ -453,11 +466,33 @@
           </div>
 
           <div v-if="activeInteractionTab === 'likes'" class="interaction-content">
-            <div class="like-list">
-              <div class="empty-container">
-                <img src="@/assets/icons/empty.svg" alt="empty" class="empty-icon" />
-                <p>点赞记录功能开发中</p>
+            <div class="like-list" v-if="!likesLoading">
+              <div class="comment-item" v-for="like in receivedLikesList" :key="like.likeId">
+                <div class="comment-avatar">
+                  <img v-if="like.userAvatar" :src="like.userAvatar" alt="" />
+                  <div v-else class="avatar-placeholder">👤</div>
+                </div>
+                <div class="comment-body">
+                  <div class="comment-header">
+                    <h4 class="comment-name">{{ like.userName || '未知用户' }}</h4>
+                    <span class="comment-time">{{ formatTime(like.createTime) }}</span>
+                  </div>
+                  <p class="comment-content">赞了你的作品</p>
+                  <div class="comment-post">
+                    <span class="post-title">{{ like.postTitle || '帖子' + like.postId }}</span>
+                  </div>
+                </div>
               </div>
+            </div>
+
+            <div class="loading-container" v-else>
+              <div class="loading-spinner"></div>
+              <p>加载中...</p>
+            </div>
+
+            <div class="empty-container" v-if="!likesLoading && receivedLikesList.length === 0">
+              <img src="@/assets/icons/empty.svg" alt="empty" class="empty-icon" />
+              <p>还没有点赞</p>
             </div>
           </div>
 
@@ -475,11 +510,11 @@
                   </div>
                   <p class="comment-content">{{ comment.content }}</p>
                   <div class="comment-post">
-                    <span class="post-title">帖子 {{ comment.postId }}</span>
+                    <span class="post-title">{{ comment.postTitle || '帖子' + comment.postId }}</span>
                   </div>
                   <div class="comment-actions">
                     <button class="reply-btn"><img src="@/assets/icons/comment.svg" alt="comment" class="action-icon" />回复</button>
-                    <button class="like-btn"><img src="@/assets/icons/like.svg" alt="like" class="action-icon" />{{ comment.likes }}</button>
+                    <button :class="['like-btn', { liked: comment.liked }]"><img src="@/assets/icons/like.svg" alt="like" class="action-icon" />{{ comment.likes }}</button>
                   </div>
                 </div>
               </div>
@@ -661,11 +696,11 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 
-import { getUserPosts, deletePost, updatePost, getPostStats } from '@/api/post'
+import { getUserPosts, deletePost, updatePost, getPostStats, getTopPosts, getReceivedLikes } from '@/api/post'
+import type { PostVO, ReceivedLikeVO } from '@/api/post'
 import { getFollowerList, followUser, unfollowUser, getFollowStats } from '@/api/user'
 import { getReceivedComments } from '@/api/comment'
 import { useUserStore } from '@/stores/user'
-import type { PostVO } from '@/api/post'
 import type { FollowUserVO } from '@/api/user'
 import type { CommentVO } from '@/api/comment'
 import PostCreate from '@/views/PostCreate.vue'
@@ -742,17 +777,74 @@ const timeFilters = computed(() => [
 ])
 
 const interactionTabs = computed(() => [
-  { label: '点赞', value: 'likes' as const, count: 0 },
+  { label: '点赞', value: 'likes' as const, count: likesTotal.value },
   { label: '评论', value: 'comments' as const, count: commentsTotal.value },
 ])
+
+// 最近作品（取前3条已发布的作品）
+const recentPosts = computed(() => {
+  return posts.value
+    .filter(p => p.status === 1)
+    .slice(0, 3)
+})
+
+// 最近互动（合并评论和点赞，按时间倒序取前3条）
+const recentInteractions = computed(() => {
+  const interactions: Array<{
+    id: string
+    type: 'comment' | 'like'
+    userName: string
+    avatar: string
+    postTitle: string
+    createTime: string
+  }> = []
+  
+  for (const comment of receivedCommentsList.value) {
+    interactions.push({
+      id: 'cmt-' + comment.id,
+      type: 'comment',
+      userName: comment.userName || '用户',
+      avatar: comment.userAvatar || '',
+      postTitle: comment.postTitle || '',
+      createTime: comment.createTime || ''
+    })
+  }
+  
+  for (const like of receivedLikesList.value) {
+    interactions.push({
+      id: 'like-' + like.likeId,
+      type: 'like',
+      userName: like.userName || '用户',
+      avatar: like.userAvatar || '',
+      postTitle: like.postTitle || '',
+      createTime: like.createTime || ''
+    })
+  }
+  
+  return interactions
+    .sort((a, b) => new Date(b.createTime).getTime() - new Date(a.createTime).getTime())
+    .slice(0, 3)
+})
+
+// 全部作品表现（已发布，按浏览量倒序）
+const allPerformancePosts = computed(() => {
+  return posts.value
+    .filter(p => p.status === 1)
+    .sort((a, b) => b.views - a.views)
+})
 
 const rankingList = ref<PostVO[]>([])
 
 const fansList = ref<FollowUserVO[]>([])
+const fansTotal = ref(0)
+const fansPage = ref(1)
+const fansPageSize = 10
 
 const receivedCommentsList = ref<CommentVO[]>([])
-
 const commentsTotal = ref(0)
+const receivedLikesList = ref<ReceivedLikeVO[]>([])
+const likesTotal = ref(0)
+const likesLoading = ref(false)
 
 import iconLightbulb from '@/assets/icons/lightbulb.svg'
 import iconEdit from '@/assets/icons/edit.svg'
@@ -765,16 +857,6 @@ const magicFeatures = ref([
   { icon: iconImage, title: '图片建议', desc: '根据内容推荐配图方案', btnText: '获取建议' },
   { icon: iconChart, title: '排版优化', desc: '智能优化文章排版和格式', btnText: '优化排版' },
 ])
-
-const stats = computed(() => {
-  const activePosts = posts.value.filter(p => p.status !== 2)
-  return {
-    totalPosts: activePosts.length,
-    totalViews: activePosts.reduce((sum, p) => sum + p.views, 0),
-    totalLikes: activePosts.reduce((sum, p) => sum + p.likes, 0),
-    totalCollections: activePosts.reduce((sum, p) => sum + p.collections, 0),
-  }
-})
 
 const statusText = (status: number) => {
   switch (status) {
@@ -934,14 +1016,46 @@ const loadDataStats = async () => {
 const loadFans = async () => {
   fansLoading.value = true
   try {
-    const res = await getFollowerList({ page: 1, size: 20 })
+    const res = await getFollowerList({ page: fansPage.value, size: fansPageSize })
     if (res.data.code === 200) {
       fansList.value = res.data.data.records || []
+      fansTotal.value = res.data.data.total || 0
     }
   } catch (error) {
     console.error('加载粉丝列表失败:', error)
   } finally {
     fansLoading.value = false
+  }
+}
+
+const handleFansPageChange = (page: number) => {
+  fansPage.value = page
+  loadFans()
+}
+
+const loadRanking = async () => {
+  try {
+    const res = await getTopPosts(5)
+    if (res.data.code === 200) {
+      rankingList.value = res.data.data || []
+    }
+  } catch (error) {
+    console.error('加载排行榜失败:', error)
+  }
+}
+
+const loadReceivedLikes = async () => {
+  likesLoading.value = true
+  try {
+    const res = await getReceivedLikes({ page: 1, size: 20 })
+    if (res.data.code === 200) {
+      receivedLikesList.value = res.data.data.records || []
+      likesTotal.value = res.data.data.total || 0
+    }
+  } catch (error) {
+    console.error('加载点赞列表失败:', error)
+  } finally {
+    likesLoading.value = false
   }
 }
 
@@ -992,9 +1106,11 @@ const handleFollow = async (userId: string, isFollowing: boolean) => {
 onMounted(() => {
   loadPosts()
   loadDataStats()
+  loadRanking()
   loadFans()
   loadFollowStats()
   loadReceivedComments()
+  loadReceivedLikes()
 })
 </script>
 
@@ -1354,10 +1470,6 @@ onMounted(() => {
   margin-top: 2px;
 }
 
-.quick-actions-section {
-  margin-bottom: 32px;
-}
-
 .section-title {
   font-size: 18px;
   font-weight: 700;
@@ -1365,50 +1477,193 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 
-.action-cards {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+/* 首页：最近作品 & 最近互动 */
+.recent-section {
+  margin-bottom: 28px;
 }
 
-.quick-action-card {
-  background: white;
-  border-radius: 16px;
-  padding: 24px;
-  border: 1.5px solid var(--border);
-  box-shadow: 0 4px 12px rgba(180, 132, 255, 0.06);
-  transition: all 0.22s ease-out;
+.recent-posts-list {
   display: flex;
   flex-direction: column;
+  gap: 8px;
+}
+
+.recent-post-item {
+  display: flex;
   align-items: center;
   gap: 12px;
+  padding: 12px 16px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
   cursor: pointer;
-  text-align: center;
+  transition: all 0.2s;
 }
 
-.quick-action-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(180, 132, 255, 0.15);
-  border-color: rgba(255, 107, 157, 0.3);
+.recent-post-item:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 8px rgba(180, 132, 255, 0.1);
 }
 
-.quick-action-icon {
-  width: 32px;
-  height: 32px;
-  filter: brightness(0) invert(0.5) sepia(1) saturate(10) hue-rotate(300deg);
+.recent-post-cover {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--bg-secondary);
 }
 
-.quick-action-card span {
-  font-size: 15px;
+.recent-post-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.recent-post-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.recent-post-title {
+  font-size: 14px;
   font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recent-post-time {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.recent-interactions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.interaction-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.interaction-avatar,
+.interaction-avatar-placeholder {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.interaction-avatar-placeholder {
+  background: var(--bg-secondary);
+}
+
+.interaction-text {
+  font-size: 13px;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.interaction-post-title {
+  color: var(--accent);
+}
+
+.interaction-time {
+  font-size: 12px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.empty-light {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+/* 数据中心：排行榜时间 */
+.rank-time {
+  display: block;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+/* 数据中心：作品表现表格 */
+.perf-table {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.perf-row {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.perf-row:last-child {
+  border-bottom: none;
+}
+
+.perf-row.perf-header {
+  background: rgba(180, 132, 255, 0.06);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.perf-col {
+  font-size: 13px;
   color: var(--text);
 }
 
-.action-desc {
-  font-size: 12px;
-  color: var(--text-dim);
-  margin: 0;
-  line-height: 1.4;
+.perf-col-title {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 8px;
+}
+
+.perf-col-time {
+  width: 120px;
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.perf-col-num {
+  width: 60px;
+  flex-shrink: 0;
+  text-align: center;
+}
+
+/* 首页概览切换的图标样式 */
+.stat-icon-wrapper.fans-icon {
+  background: linear-gradient(135deg, #e8d5f5, #d4b8f0);
+}
+
+.stat-icon-wrapper.comments-icon {
+  background: linear-gradient(135deg, #d5e8f5, #b8d4f0);
 }
 
 /* 内容管理页面样式 */
@@ -1685,11 +1940,21 @@ onMounted(() => {
   color: var(--text-dim);
 }
 
-.content-stats .stat-item {
+.stat-item {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  font-size: 12px;
+  color: var(--text-dim);
   line-height: 1;
+}
+
+.recent-post-stats {
+  display: flex;
+  gap: 12px;
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--text-dim);
 }
 
 .stat-mini-icon {
@@ -2124,61 +2389,6 @@ onMounted(() => {
   color: #ef4444;
 }
 
-.charts-section {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-  margin-top: 24px;
-}
-
-.chart-card {
-  background: white;
-  border-radius: 16px;
-  padding: 20px;
-  border: 1.5px solid var(--border);
-  box-shadow: 0 4px 12px rgba(180, 132, 255, 0.06);
-}
-
-.chart-header {
-  margin-bottom: 16px;
-}
-
-.chart-header h3 {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.chart-placeholder {
-  height: 200px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  background: rgba(255, 107, 157, 0.03);
-  border-radius: 12px;
-}
-
-.mini-chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
-  height: 100px;
-}
-
-.bar {
-  width: 24px;
-  background: linear-gradient(180deg, var(--pink), var(--purple));
-  border-radius: 6px 6px 0 0;
-  transition: height 0.3s ease-out;
-}
-
-.chart-placeholder p {
-  font-size: 12px;
-  color: var(--text-dim);
-}
-
 .ranking-section {
   margin-top: 24px;
 }
@@ -2280,9 +2490,16 @@ onMounted(() => {
 
 .rank-stats {
   display: flex;
-  gap: 12px;
+  gap: 16px;
   font-size: 12px;
   color: var(--text-dim);
+}
+
+.rank-stats .stat-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1;
 }
 
 .rank-trend {
@@ -2451,6 +2668,41 @@ onMounted(() => {
   border-color: var(--border);
   color: var(--text-dim);
   cursor: default;
+}
+
+.pagination-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 20px;
+  padding-bottom: 8px;
+}
+
+.page-btn {
+  padding: 6px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.page-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.page-info {
+  font-size: 13px;
+  color: var(--text-dim);
 }
 
 .interaction-tabs {
@@ -2667,6 +2919,14 @@ onMounted(() => {
 
 .reply-btn:hover, .like-btn:hover {
   color: var(--pink);
+}
+
+.like-btn.liked {
+  color: var(--pink);
+}
+
+.like-btn.liked img {
+  filter: brightness(0) saturate(100%) invert(68%) sepia(91%) saturate(2584%) hue-rotate(308deg) brightness(101%);
 }
 
 .magic-page {
