@@ -2,6 +2,7 @@ package com.cyxz.post.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.cyxz.post.entity.PostPO;
+import com.cyxz.post.vo.PostStatsVO;
 import com.cyxz.post.vo.PostVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -9,7 +10,6 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * 帖子 Mapper
@@ -49,14 +49,14 @@ public interface PostMapper extends BaseMapper<PostPO> {
      * <p>一条 SQL 查询当前用户所有已发布帖子的总数、总浏览、总点赞、总收藏。
      *
      * @param userId 用户 ID
-     * @return 统计结果 Map（totalPosts, totalViews, totalLikes, totalCollections）
+     * @return 统计结果 VO，无数据返回 null
      */
     @Select("SELECT COUNT(*) AS totalPosts, " +
             "COALESCE(SUM(views), 0) AS totalViews, " +
             "COALESCE(SUM(likes), 0) AS totalLikes, " +
             "COALESCE(SUM(collections), 0) AS totalCollections " +
             "FROM post WHERE user_id = #{userId} AND status = 1")
-    Map<String, Object> selectStatsByUserId(@Param("userId") Long userId);
+    PostStatsVO selectStatsByUserId(@Param("userId") Long userId);
 
     /**
      * 按浏览量倒序查询用户已发布帖子（排行榜）

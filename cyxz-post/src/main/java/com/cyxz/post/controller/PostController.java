@@ -5,6 +5,8 @@ import com.cyxz.common.base.Result;
 import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
 import com.cyxz.post.service.PostService;
+import com.cyxz.post.vo.PostInfoVO;
+import com.cyxz.post.vo.PostStatsVO;
 import com.cyxz.post.vo.PostVO;
 import com.cyxz.post.vo.ReceivedLikeVO;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 帖子控制器
@@ -199,7 +202,7 @@ public class PostController {
      * @return 统计数据
      */
     @GetMapping("/stats")
-    public Result<Map<String, Object>> getStats(@RequestHeader("X-User-Id") Long userId) {
+    public Result<PostStatsVO> getStats(@RequestHeader("X-User-Id") Long userId) {
         return Result.success(postService.getPostStats(userId));
     }
 
@@ -236,6 +239,17 @@ public class PostController {
     @GetMapping("/internal/{postId}/info")
     public Result<Map<String, Object>> getPostInfo(@PathVariable("postId") Long postId) {
         return Result.success(postService.getPostInfo(postId));
+    }
+
+    /**
+     * 批量查询帖子简要信息（内部接口，供 comment 服务通过 Feign 调用）
+     *
+     * @param postIds 帖子 ID 集合
+     * @return 帖子信息列表
+     */
+    @GetMapping("/internal/batch-info")
+    public Result<List<PostInfoVO>> batchGetPostInfo(@RequestParam("postIds") Set<Long> postIds) {
+        return Result.success(postService.batchGetPostInfo(postIds));
     }
 
     /**

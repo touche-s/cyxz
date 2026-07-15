@@ -8,6 +8,8 @@ import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.common.utils.IpUtil;
+import com.cyxz.post.vo.PostInfoVO;
+import com.cyxz.post.vo.PostStatsVO;
 import com.cyxz.post.vo.ReceivedLikeVO;
 import com.cyxz.user.feign.UserFeignClient;
 import com.cyxz.post.dto.CreatePostRequest;
@@ -582,10 +584,10 @@ public class PostServiceImpl implements PostService {
      * @return 统计数据（totalPosts, totalViews, totalLikes, totalCollections）
      */
     @Override
-    public Map<String, Object> getPostStats(Long userId) {
-        Map<String, Object> stats = postMapper.selectStatsByUserId(userId);
+    public PostStatsVO getPostStats(Long userId) {
+        PostStatsVO stats = postMapper.selectStatsByUserId(userId);
         if (stats == null) {
-            return Map.of("totalPosts", 0, "totalViews", 0, "totalLikes", 0, "totalCollections", 0);
+            stats = new PostStatsVO();
         }
         return stats;
     }
@@ -601,8 +603,12 @@ public class PostServiceImpl implements PostService {
     @Override
     public List<PostVO> getTopPosts(Long userId, int limit) {
         List<PostPO> topPosts = postMapper.selectTopPostsByViews(userId, limit);
+        if (topPosts.isEmpty()) {
+            return Collections.emptyList();
+        }
+        Map<Long, UserProfileVO> userMap = batchGetUsers(topPosts);
         return topPosts.stream()
-                .map(po -> convertToVO(po, null, Collections.emptyMap(), Collections.emptySet(), Collections.emptySet()))
+                .map(po -> convertToVO(po, userMap, Collections.emptyMap(), Collections.emptySet(), Collections.emptySet()))
                 .collect(Collectors.toList());
     }
 
@@ -637,6 +643,28 @@ public class PostServiceImpl implements PostService {
                 "userId", po.getUserId(),
                 "title", po.getTitle()
         );
+    }
+
+    /**
+     * 批量获取帖子简要信息（内部接口）
+     * <p>用于评论服务一次性查询多个帖子的标题，避免逐个 Feign 调用。
+     *
+     * @param postIds 帖子 ID 集合
+     * @return 帖子信息列表（不存在的帖子不会出现在结果中）
+     */
+    @Override
+    public List<PostInfoVO> batchGetPostInfo(Set<Long> postIds) {
+        if (postIds == null || postIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<PostPO> posts = postMapper.selectBatchIds(postIds);
+        return posts.stream().map(po -> {
+            PostInfoVO vo = new PostInfoVO();
+            vo.setPostId(po.getId());
+            vo.setUserId(po.getUserId());
+            vo.setTitle(po.getTitle());
+            return vo;
+        }).collect(Collectors.toList());
     }
 
     /**

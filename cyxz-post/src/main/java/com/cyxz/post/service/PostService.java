@@ -3,12 +3,15 @@ package com.cyxz.post.service;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
+import com.cyxz.post.vo.PostInfoVO;
+import com.cyxz.post.vo.PostStatsVO;
 import com.cyxz.post.vo.PostVO;
 import com.cyxz.post.vo.ReceivedLikeVO;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 帖子服务接口
@@ -141,9 +144,9 @@ public interface PostService {
      * <p>用于数据中心，SQL 聚合统计当前用户所有已发布帖子的总浏览、总点赞、总收藏。
      *
      * @param userId 当前用户 ID
-     * @return 统计数据（totalPosts, totalViews, totalLikes, totalCollections）
+     * @return 统计数据 VO
      */
-    Map<String, Object> getPostStats(Long userId);
+    PostStatsVO getPostStats(Long userId);
 
     /**
      * 查询用户作品排行榜（按浏览量倒序）
@@ -169,6 +172,15 @@ public interface PostService {
      * @return 帖子信息（标题、作者 ID 等）
      */
     Map<String, Object> getPostInfo(Long postId);
+
+    /**
+     * 批量查询帖子简要信息（内部接口）
+     * <p>用于评论服务一次性查询多个帖子标题，避免 N+1 Feign 调用。
+     *
+     * @param postIds 帖子 ID 集合
+     * @return 帖子信息列表
+     */
+    List<PostInfoVO> batchGetPostInfo(Set<Long> postIds);
 
     /**
      * 查询用户收到的点赞列表
