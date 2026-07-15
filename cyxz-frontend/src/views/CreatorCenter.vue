@@ -375,34 +375,15 @@
               <h1>粉丝管理</h1>
               <p>管理你的粉丝关系</p>
             </div>
-            <div class="fan-stats">
-              <span class="fan-count">{{ formatNumber(followerCount) }}</span>
-              <span class="fan-label">粉丝总数</span>
-            </div>
           </header>
 
-          <div class="fans-overview">
-            <div class="overview-card">
-              <img src="@/assets/icons/chart.svg" alt="chart" class="overview-icon" />
-              <div class="overview-info">
-                <span class="overview-value">{{ formatNumber(followingCount) }}</span>
-                <span class="overview-label">关注数</span>
-              </div>
-            </div>
-            <div class="overview-card">
-              <img src="@/assets/icons/hot.svg" alt="hot" class="overview-icon" />
-              <div class="overview-info">
-                <span class="overview-value">0</span>
-                <span class="overview-label">本周新增</span>
-              </div>
-            </div>
-            <div class="overview-card">
-              <img src="@/assets/icons/comment.svg" alt="comment" class="overview-icon" />
-              <div class="overview-info">
-                <span class="overview-value">0</span>
-                <span class="overview-label">本周互动</span>
-              </div>
-            </div>
+          <div class="fans-tabs">
+            <button class="fans-tab-btn" :class="{ active: activeFansTab === 'followers' }" @click="switchFansTab('followers')">
+              我的粉丝 <span class="tab-badge">{{ followerCount }}</span>
+            </button>
+            <button class="fans-tab-btn" :class="{ active: activeFansTab === 'following' }" @click="switchFansTab('following')">
+              我的关注 <span class="tab-badge">{{ followingCount }}</span>
+            </button>
           </div>
 
           <div class="fans-list" v-if="!fansLoading">
@@ -414,8 +395,6 @@
               <div class="fan-info">
                 <h4 class="fan-name">{{ fan.nickname || '未知用户' }}</h4>
                 <span class="fan-time">{{ formatTime(fan.createTime) }}</span>
-              </div>
-              <div class="fan-tags">
               </div>
               <button :class="['fan-action', { followed: fan.following }]"
                       @click="handleFollow(fan.userId, fan.following)">
@@ -431,8 +410,8 @@
 
           <div class="empty-container" v-if="!fansLoading && fansList.length === 0">
             <img src="@/assets/icons/empty.svg" alt="empty" class="empty-icon" />
-            <p>还没有粉丝</p>
-            <p class="empty-hint">发布更多优质内容，吸引粉丝关注</p>
+            <p>{{ activeFansTab === 'followers' ? '还没有粉丝' : '还没有关注的人' }}</p>
+            <p class="empty-hint">{{ activeFansTab === 'followers' ? '发布更多优质内容，吸引粉丝关注' : '去发现有趣的内容和人吧' }}</p>
           </div>
 
           <div class="pagination-container" v-if="fansTotal > fansPageSize">
@@ -448,87 +427,37 @@
           <header class="page-header">
             <div class="header-left">
               <h1>评论管理</h1>
-              <p>查看点赞和评论</p>
+              <p>查看收到的评论</p>
             </div>
           </header>
 
-          <div class="interaction-tabs">
-            <button 
-              v-for="tab in interactionTabs" 
-              :key="tab.value"
-              class="interaction-tab-btn"
-              :class="{ active: activeInteractionTab === tab.value }"
-              @click="activeInteractionTab = tab.value"
-            >
-              {{ tab.label }}
-              <span class="tab-badge">{{ tab.count }}</span>
-            </button>
-          </div>
-
-          <div v-if="activeInteractionTab === 'likes'" class="interaction-content">
-            <div class="like-list" v-if="!likesLoading">
-              <div class="comment-item" v-for="like in receivedLikesList" :key="like.likeId">
-                <div class="comment-avatar">
-                  <img v-if="like.userAvatar" :src="like.userAvatar" alt="" />
-                  <div v-else class="avatar-placeholder">👤</div>
+          <div class="comment-list" v-if="!commentsLoading">
+            <div class="comment-item" v-for="comment in receivedCommentsList" :key="comment.id">
+              <div class="comment-avatar">
+                <img v-if="comment.userAvatar" :src="comment.userAvatar" alt="" />
+                <div v-else class="avatar-placeholder"></div>
+              </div>
+              <div class="comment-body">
+                <div class="comment-header">
+                  <h4 class="comment-name">{{ comment.userName }}</h4>
+                  <span class="comment-time">{{ formatTime(comment.createTime) }}</span>
                 </div>
-                <div class="comment-body">
-                  <div class="comment-header">
-                    <h4 class="comment-name">{{ like.userName || '未知用户' }}</h4>
-                    <span class="comment-time">{{ formatTime(like.createTime) }}</span>
-                  </div>
-                  <p class="comment-content">赞了你的作品</p>
-                  <div class="comment-post">
-                    <span class="post-title">{{ like.postTitle || '帖子' + like.postId }}</span>
-                  </div>
+                <p class="comment-content">{{ comment.content }}</p>
+                <div class="comment-post">
+                  <span class="post-title">{{ comment.postTitle || '帖子' + comment.postId }}</span>
                 </div>
               </div>
             </div>
-
-            <div class="loading-container" v-else>
-              <div class="loading-spinner"></div>
-              <p>加载中...</p>
-            </div>
-
-            <div class="empty-container" v-if="!likesLoading && receivedLikesList.length === 0">
-              <img src="@/assets/icons/empty.svg" alt="empty" class="empty-icon" />
-              <p>还没有点赞</p>
-            </div>
           </div>
 
-          <div v-else-if="activeInteractionTab === 'comments'" class="interaction-content">
-            <div class="comment-list" v-if="!commentsLoading">
-              <div class="comment-item" v-for="comment in receivedCommentsList" :key="comment.id">
-                <div class="comment-avatar">
-                  <img v-if="comment.userAvatar" :src="comment.userAvatar" alt="" />
-                  <div v-else class="avatar-placeholder">👤</div>
-                </div>
-                <div class="comment-body">
-                  <div class="comment-header">
-                    <h4 class="comment-name">{{ comment.userName }}</h4>
-                    <span class="comment-time">{{ formatTime(comment.createTime) }}</span>
-                  </div>
-                  <p class="comment-content">{{ comment.content }}</p>
-                  <div class="comment-post">
-                    <span class="post-title">{{ comment.postTitle || '帖子' + comment.postId }}</span>
-                  </div>
-                  <div class="comment-actions">
-                    <button class="reply-btn"><img src="@/assets/icons/comment.svg" alt="comment" class="action-icon" />回复</button>
-                    <button :class="['like-btn', { liked: comment.liked }]"><img src="@/assets/icons/like.svg" alt="like" class="action-icon" />{{ comment.likes }}</button>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div class="loading-container" v-else>
+            <div class="loading-spinner"></div>
+            <p>加载中...</p>
+          </div>
 
-            <div class="loading-container" v-else>
-              <div class="loading-spinner"></div>
-              <p>加载中...</p>
-            </div>
-
-            <div class="empty-container" v-if="!commentsLoading && receivedCommentsList.length === 0">
-              <img src="@/assets/icons/empty.svg" alt="empty" class="empty-icon" />
-              <p>还没有评论</p>
-            </div>
+          <div class="empty-container" v-if="!commentsLoading && receivedCommentsList.length === 0">
+            <img src="@/assets/icons/empty.svg" alt="empty" class="empty-icon" />
+            <p>还没有评论</p>
           </div>
         </div>
       </template>
@@ -692,13 +621,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 
-import { getUserPosts, deletePost, updatePost, getPostStats, getTopPosts, getReceivedLikes } from '@/api/post'
-import type { PostVO, PostStatsVO, ReceivedLikeVO } from '@/api/post'
-import { getFollowerList, followUser, unfollowUser, getFollowStats } from '@/api/user'
+import { getUserPosts, deletePost, updatePost, getPostStats, getTopPosts } from '@/api/post'
+import type { PostVO, PostStatsVO } from '@/api/post'
+import { getFollowerList, getFollowingList, followUser, unfollowUser, getFollowStats } from '@/api/user'
 import { getReceivedComments } from '@/api/comment'
 import { useUserStore } from '@/stores/user'
 import type { FollowUserVO } from '@/api/user'
@@ -721,7 +650,8 @@ const postToDelete = ref<PostVO | null>(null)
 const activeContentTab = ref<'all' | 'published' | 'draft' | 'deleted'>('all')
 const searchKeyword = ref('')
 const activeTimeFilter = ref<'week' | 'month' | 'year'>('week')
-const activeInteractionTab = ref<'likes' | 'comments'>('comments')
+
+const activeFansTab = ref<'followers' | 'following'>('followers')
 
 const dataStats = ref<PostStatsVO>({
   totalPosts: 0,
@@ -776,10 +706,7 @@ const timeFilters = computed(() => [
   { label: '本年', value: 'year' as const },
 ])
 
-const interactionTabs = computed(() => [
-  { label: '点赞', value: 'likes' as const, count: likesTotal.value },
-  { label: '评论', value: 'comments' as const, count: commentsTotal.value },
-])
+
 
 // 最近作品（取前3条已发布的作品）
 const recentPosts = computed(() => {
@@ -788,41 +715,16 @@ const recentPosts = computed(() => {
     .slice(0, 3)
 })
 
-// 最近互动（合并评论和点赞，按时间倒序取前3条）
+// 最近互动（取前3条评论）
 const recentInteractions = computed(() => {
-  const interactions: Array<{
-    id: string
-    type: 'comment' | 'like'
-    userName: string
-    avatar: string
-    postTitle: string
-    createTime: string
-  }> = []
-  
-  for (const comment of receivedCommentsList.value) {
-    interactions.push({
+  return receivedCommentsList.value
+    .map(comment => ({
       id: 'cmt-' + comment.id,
-      type: 'comment',
       userName: comment.userName || '用户',
       avatar: comment.userAvatar || '',
       postTitle: comment.postTitle || '',
       createTime: comment.createTime || ''
-    })
-  }
-  
-  for (const like of receivedLikesList.value) {
-    interactions.push({
-      id: 'like-' + like.likeId,
-      type: 'like',
-      userName: like.userName || '用户',
-      avatar: like.userAvatar || '',
-      postTitle: like.postTitle || '',
-      createTime: like.createTime || ''
-    })
-  }
-  
-  return interactions
-    .sort((a, b) => new Date(b.createTime).getTime() - new Date(a.createTime).getTime())
+    }))
     .slice(0, 3)
 })
 
@@ -842,9 +744,6 @@ const fansPageSize = 10
 
 const receivedCommentsList = ref<CommentVO[]>([])
 const commentsTotal = ref(0)
-const receivedLikesList = ref<ReceivedLikeVO[]>([])
-const likesTotal = ref(0)
-const likesLoading = ref(false)
 
 import iconLightbulb from '@/assets/icons/lightbulb.svg'
 import iconEdit from '@/assets/icons/edit.svg'
@@ -1016,7 +915,9 @@ const loadDataStats = async () => {
 const loadFans = async () => {
   fansLoading.value = true
   try {
-    const res = await getFollowerList({ page: fansPage.value, size: fansPageSize })
+    const res = activeFansTab.value === 'followers'
+      ? await getFollowerList({ page: fansPage.value, size: fansPageSize })
+      : await getFollowingList({ page: fansPage.value, size: fansPageSize })
     if (res.data.code === 200) {
       fansList.value = res.data.data.records || []
       fansTotal.value = res.data.data.total || 0
@@ -1026,6 +927,12 @@ const loadFans = async () => {
   } finally {
     fansLoading.value = false
   }
+}
+
+const switchFansTab = (tab: 'followers' | 'following') => {
+  activeFansTab.value = tab
+  fansPage.value = 1
+  loadFans()
 }
 
 const handleFansPageChange = (page: number) => {
@@ -1041,21 +948,6 @@ const loadRanking = async () => {
     }
   } catch (error) {
     console.error('加载排行榜失败:', error)
-  }
-}
-
-const loadReceivedLikes = async () => {
-  likesLoading.value = true
-  try {
-    const res = await getReceivedLikes({ page: 1, size: 20 })
-    if (res.data.code === 200) {
-      receivedLikesList.value = res.data.data.records || []
-      likesTotal.value = res.data.data.total || 0
-    }
-  } catch (error) {
-    console.error('加载点赞列表失败:', error)
-  } finally {
-    likesLoading.value = false
   }
 }
 
@@ -1110,7 +1002,15 @@ onMounted(() => {
   loadFans()
   loadFollowStats()
   loadReceivedComments()
-  loadReceivedLikes()
+
+  if (userStore.creatorActiveNav) {
+    activeNav.value = userStore.creatorActiveNav as typeof activeNav.value
+    userStore.creatorActiveNav = 'home'
+  }
+})
+
+watch(activeNav, (val) => {
+  userStore.creatorActiveNav = val
 })
 </script>
 
@@ -1501,7 +1401,7 @@ onMounted(() => {
 }
 
 .recent-post-item:hover {
-  border-color: var(--accent);
+  border-color: rgba(255, 107, 157, 0.3);
   box-shadow: 0 2px 8px rgba(180, 132, 255, 0.1);
 }
 
@@ -2400,6 +2300,19 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 
+.empty-ranking {
+  text-align: center;
+  padding: 32px 20px;
+  border-radius: 12px;
+  border: 1px dashed rgba(255, 182, 193, 0.3);
+}
+
+.empty-ranking p {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin: 0;
+}
+
 .ranking-list {
   display: flex;
   flex-direction: column;
@@ -2519,58 +2432,40 @@ onMounted(() => {
   background: rgba(239, 68, 68, 0.1);
 }
 
-.fan-stats {
-  text-align: right;
-}
-
-.fan-count {
-  font-size: 28px;
-  font-weight: 800;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  display: block;
-}
-
-.fan-label {
-  font-size: 12px;
-  color: var(--text-dim);
-}
-
-.fans-overview {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+.fans-tabs {
+  display: flex;
+  gap: 6px;
+  background: rgba(255, 107, 157, 0.04);
+  border-radius: 12px;
+  padding: 4px;
   margin-top: 24px;
+  width: fit-content;
 }
 
-.overview-card {
-  background: rgba(255, 107, 157, 0.05);
-  border-radius: 16px;
-  padding: 20px;
+.fans-tab-btn {
+  padding: 7px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  transition: all 0.22s ease-out;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 5px;
+  white-space: nowrap;
 }
 
-.overview-icon {
-  font-size: 32px;
+.fans-tab-btn:hover:not(.active) {
+  background: rgba(255, 107, 157, 0.08);
+  color: var(--pink);
 }
 
-.overview-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.overview-value {
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--text);
-}
-
-.overview-label {
-  font-size: 12px;
-  color: var(--text-dim);
+.fans-tab-btn.active {
+  background: linear-gradient(135deg, rgba(255, 107, 157, 0.15), rgba(180, 132, 255, 0.15));
+  color: var(--pink);
 }
 
 .fans-list {
@@ -2649,25 +2544,30 @@ onMounted(() => {
 }
 
 .fan-action {
-  padding: 8px 20px;
+  padding: 8px 24px;
   border-radius: 20px;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  border: 1.5px solid var(--pink);
-  background: transparent;
-  color: var(--pink);
+  border: 1.5px solid #FFB6CC;
+  background: #FFF7FA;
+  color: #FF6B9D;
   transition: all 0.22s ease-out;
 }
 
 .fan-action:hover {
-  background: rgba(255, 107, 157, 0.1);
+  background: #FFE8F0;
 }
 
 .fan-action.followed {
-  border-color: var(--border);
-  color: var(--text-dim);
+  border-color: transparent;
+  background: #F8DDF8;
+  color: #B14FCF;
   cursor: default;
+}
+
+.fan-action.followed:hover {
+  background: #F8DDF8;
 }
 
 .pagination-container {
@@ -2703,129 +2603,6 @@ onMounted(() => {
 .page-info {
   font-size: 13px;
   color: var(--text-dim);
-}
-
-.interaction-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border);
-}
-
-.interaction-tab-btn {
-  padding: 10px 24px;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  border: none;
-  background: transparent;
-  color: var(--text-dim);
-  transition: all 0.22s ease-out;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.interaction-tab-btn.active {
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  color: white;
-}
-
-.tab-badge {
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.06);
-}
-
-.interaction-tab-btn.active .tab-badge {
-  background: rgba(255, 255, 255, 0.25);
-}
-
-.interaction-content {
-  min-height: 300px;
-}
-
-.like-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.like-item {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 16px;
-  border-radius: 12px;
-  background: rgba(255, 107, 157, 0.03);
-  border: 1.5px solid transparent;
-  transition: all 0.22s ease-out;
-}
-
-.like-item:hover {
-  border-color: rgba(180, 132, 255, 0.3);
-}
-
-.like-avatar {
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.like-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.like-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.like-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: 4px;
-}
-
-.like-time {
-  font-size: 12px;
-  color: var(--text-dim);
-}
-
-.like-post {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.post-preview {
-  width: 60px;
-  height: 60px;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.post-preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.like-post .post-title {
-  font-size: 13px;
-  color: var(--text-secondary);
-  max-width: 150px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .comment-list {
@@ -2897,36 +2674,6 @@ onMounted(() => {
   background: rgba(255, 107, 157, 0.1);
   padding: 4px 10px;
   border-radius: 6px;
-}
-
-.comment-actions {
-  display: flex;
-  gap: 16px;
-  margin-top: 12px;
-}
-
-.reply-btn, .like-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 13px;
-  color: var(--text-dim);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  transition: all 0.22s ease-out;
-}
-
-.reply-btn:hover, .like-btn:hover {
-  color: var(--pink);
-}
-
-.like-btn.liked {
-  color: var(--pink);
-}
-
-.like-btn.liked img {
-  filter: brightness(0) saturate(100%) invert(68%) sepia(91%) saturate(2584%) hue-rotate(308deg) brightness(101%);
 }
 
 .magic-page {
