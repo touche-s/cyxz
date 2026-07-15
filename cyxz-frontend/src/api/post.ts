@@ -124,6 +124,11 @@ export const getPostStats = () => {
   return request.get('/post/stats')
 }
 
+// 获取指定用户的帖子统计数据（个人空间 - 查看他人空间时展示获赞、浏览）
+export const getUserPostStats = (userId: string) => {
+  return request.get(`/post/user/${userId}/stats`)
+}
+
 // 获取用户作品排行榜（按浏览量倒序）
 export const getTopPosts = (limit?: number) => {
   return request.get('/post/top', { params: { limit } })

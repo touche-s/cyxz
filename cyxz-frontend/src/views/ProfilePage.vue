@@ -24,6 +24,13 @@
           <h2>{{ profile.nickname }}</h2>
           <p class="profile-bio">{{ profile.bio || '这个人很懒，什么都没写...' }}</p>
         </div>
+        <button v-if="!isSelf"
+                class="follow-btn"
+                :class="{ followed: following }"
+                :disabled="followLoading"
+                @click="toggleFollow">
+          {{ following ? '已关注' : '关注' }}
+        </button>
       </div>
     </div>
 
@@ -47,19 +54,19 @@
           </div>
           <div class="profile-stats">
             <div class="profile-stat">
-              <div class="num">{{ profile?.followingCount || 89 }}</div>
+              <div class="num">{{ profile?.followingCount ?? 0 }}</div>
               <div class="label">关注</div>
             </div>
             <div class="profile-stat">
-              <div class="num">{{ profile?.followerCount || 256 }}</div>
+              <div class="num">{{ profile?.followerCount ?? 0 }}</div>
               <div class="label">粉丝</div>
             </div>
             <div class="profile-stat">
-              <div class="num">{{ profile?.likeCount || '1.2k' }}</div>
+              <div class="num">{{ postStats?.totalLikes ?? 0 }}</div>
               <div class="label">获赞</div>
             </div>
             <div class="profile-stat">
-              <div class="num">{{ profile?.viewCount || '3.4k' }}</div>
+              <div class="num">{{ postStats?.totalViews ?? 0 }}</div>
               <div class="label">浏览</div>
             </div>
           </div>
@@ -243,11 +250,11 @@
 import { ref, computed, onMounted, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getUserProfile, updateUserProfile } from '@/api/user'
+import { getUserProfile, updateUserProfile, followUser, unfollowUser, isFollowing } from '@/api/user'
 import type { UserInfo } from '@/api/user'
 import { uploadAvatar } from '@/api/upload'
-import { getUserPostsByTarget, getUserFavorites } from '@/api/post'
-import type { PostVO } from '@/api/post'
+import { getUserPostsByTarget, getUserFavorites, getUserPostStats } from '@/api/post'
+import type { PostVO, PostStatsVO } from '@/api/post'
 import { useUserStore } from '@/stores/user'
 import PostCard from '@/components/PostCard.vue'
 
@@ -262,6 +269,8 @@ const saving = ref(false)
 const uploading = ref(false)
 const fileInput = ref<HTMLInputElement>()
 const activeTab = ref('home')
+const following = ref(false)
+const followLoading = ref(false)
 
 const editForm = reactive({
   nickname: '',
@@ -275,6 +284,7 @@ const posts = ref<PostVO[]>([])
 const favorites = ref<PostVO[]>([])
 const postLoading = ref(false)
 const favoriteLoading = ref(false)
+const postStats = ref<PostStatsVO | null>(null)
 
 const isSelf = computed(() => {
   return String(profile.value?.userId) === String(userStore.userInfo?.id)
@@ -291,6 +301,17 @@ onMounted(async () => {
     await loadPosts(userId)
     // 加载收藏列表（主页 tab 也需要展示）
     await loadFavorites(userId)
+    // 加载帖子统计（获赞、浏览）
+    await loadPostStats(userId)
+    // 非本人时查询关注状态
+    if (!isSelf.value) {
+      try {
+        const followRes = await isFollowing(userId)
+        following.value = ((followRes.data as any).data) === true
+      } catch {
+        // 忽略关注状态查询失败
+      }
+    }
   } catch {
     ElMessage.error('加载用户信息失败')
   } finally {
@@ -321,6 +342,23 @@ async function loadFavorites(userId: string) {
     favorites.value = []
   } finally {
     favoriteLoading.value = false
+  }
+}
+
+async function loadPostStats(userId: string) {
+  try {
+    const res = await getUserPostStats(userId)
+    const data = (res.data as any).data || res.data
+    if (data) {
+      postStats.value = {
+        totalPosts: Number(data.totalPosts) || 0,
+        totalViews: Number(data.totalViews) || 0,
+        totalLikes: Number(data.totalLikes) || 0,
+        totalCollections: Number(data.totalCollections) || 0,
+      }
+    }
+  } catch {
+    // 忽略统计加载失败，保留 null 由模板兜底为 0
   }
 }
 
@@ -413,6 +451,37 @@ async function saveEdit() {
     ElMessage.error('保存失败')
   } finally {
     saving.value = false
+  }
+}
+
+async function toggleFollow() {
+  if (!userStore.isLoggedIn) {
+    userStore.openLoginModal()
+    return
+  }
+  const targetUserId = String(route.params.id)
+  followLoading.value = true
+  const oldFollowing = following.value
+  following.value = !oldFollowing
+  try {
+    if (oldFollowing) {
+      await unfollowUser(targetUserId)
+      ElMessage.success('已取消关注')
+    } else {
+      await followUser(targetUserId)
+      ElMessage.success('关注成功')
+    }
+    // 本地更新粉丝数
+    if (profile.value) {
+      profile.value.followerCount = oldFollowing
+        ? Math.max((profile.value.followerCount || 0) - 1, 0)
+        : (profile.value.followerCount || 0) + 1
+    }
+  } catch {
+    following.value = oldFollowing
+    ElMessage.error('操作失败')
+  } finally {
+    followLoading.value = false
   }
 }
 
@@ -564,6 +633,42 @@ function goToPost(post: PostVO) {
   color: rgba(255,255,255,0.9);
   margin-top: 4px;
   text-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+
+.follow-btn {
+  padding: 8px 24px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  color: white;
+  box-shadow: 0 4px 16px rgba(255,107,157,0.3);
+  transition: all 0.25s ease;
+  margin-left: 20px;
+  margin-bottom: 12px;
+  align-self: flex-end;
+  flex-shrink: 0;
+}
+.follow-btn:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 6px 24px rgba(255,107,157,0.4);
+}
+.follow-btn.followed {
+  background: rgba(255,255,255,0.9);
+  color: var(--text-dim);
+  border: 1.5px solid rgba(255,255,255,0.6);
+  box-shadow: none;
+}
+.follow-btn.followed:hover:not(:disabled) {
+  border-color: var(--pink);
+  color: var(--pink);
+  background: white;
+}
+.follow-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .info-bar {

@@ -7,6 +7,8 @@ export interface UserInfo {
   gender: number
   bio: string
   birthday: string
+  followingCount?: number
+  followerCount?: number
 }
 
 export interface UserProfileVO {
