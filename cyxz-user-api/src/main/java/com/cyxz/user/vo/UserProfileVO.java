@@ -26,4 +26,10 @@ public class UserProfileVO {
 
     /** 生日（yyyy-MM-dd） */
     private String birthday;
+
+    /** 关注数 */
+    private Integer followingCount;
+
+    /** 粉丝数 */
+    private Integer followerCount;
 }

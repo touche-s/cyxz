@@ -6,6 +6,7 @@ import com.cyxz.common.base.ErrorCode;
 import com.cyxz.user.dto.UpdateProfileRequest;
 import com.cyxz.user.entity.UserProfilePO;
 import com.cyxz.user.mapper.UserProfileMapper;
+import com.cyxz.user.service.FollowService;
 import com.cyxz.user.service.UserProfileService;
 import com.cyxz.user.vo.UserProfileVO;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ import java.util.stream.Collectors;
 public class UserProfileServiceImpl implements UserProfileService {
 
     private final UserProfileMapper profileMapper;
+    private final FollowService followService;
 
     /**
      * 根据用户 ID 查询资料
@@ -47,6 +49,8 @@ public class UserProfileServiceImpl implements UserProfileService {
         if (po.getBirthday() != null) {
             vo.setBirthday(po.getBirthday().format(DateTimeFormatter.ISO_LOCAL_DATE));
         }
+        vo.setFollowingCount(followService.countFollowing(userId));
+        vo.setFollowerCount(followService.countFollowers(userId));
         return vo;
     }
 
