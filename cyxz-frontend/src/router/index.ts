@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { useUserStore } from '@/stores/user'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -69,6 +70,7 @@ router.beforeEach((to) => {
   if (to.meta.requiresAuth) {
     const token = localStorage.getItem('token')
     if (!token) {
+      useUserStore().openLoginModal()
       return '/'
     }
   }

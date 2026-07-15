@@ -1,14 +1,14 @@
 <template>
-  <Layout @open-login="showLogin = true">
+  <Layout>
     <router-view />
   </Layout>
-  <LoginModal v-model:visible="showLogin" />
+  <LoginModal v-model:visible="userStore.showLoginModal" />
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import Layout from '@/components/Layout.vue'
 import LoginModal from '@/components/LoginModal.vue'
+import { useUserStore } from '@/stores/user'
 
-const showLogin = ref(false)
+const userStore = useUserStore()
 </script>

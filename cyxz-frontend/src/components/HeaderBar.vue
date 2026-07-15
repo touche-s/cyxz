@@ -20,7 +20,7 @@
         <router-link to="/discover" :class="{ active: $route.path === '/discover' }">发现</router-link>
         <router-link to="/following" :class="{ active: $route.path === '/following' }">关注</router-link>
         <router-link to="/community" :class="{ active: $route.path === '/community' }">社区</router-link>
-        <router-link to="/creator" :class="{ active: $route.path === '/creator' }">创作中心</router-link>
+        <a href="javascript:;" :class="{ active: $route.path === '/creator' }" @click="goCreator">创作中心</a>
         <template v-if="userStore.isLoggedIn">
           <el-dropdown trigger="hover" @command="handleCommand" placement="bottom">
             <div class="nav-avatar">
@@ -42,14 +42,14 @@
             </template>
           </el-dropdown>
         </template>
-        <button v-else class="btn-login" @click="$emit('openLogin')">登录</button>
+        <button v-else class="btn-login" @click="userStore.openLoginModal()">登录</button>
       </nav>
       <div class="header-icons">
         <button class="icon-btn"><el-icon><Star /></el-icon></button>
         <button class="icon-btn"><el-icon><ChatLineSquare /></el-icon></button>
         <button class="icon-btn"><el-icon><Bell /></el-icon></button>
       </div>
-      <button class="btn-create" @click="handleCreate">
+      <button class="btn-create" @click="goPublish">
         <el-icon><Plus /></el-icon>
         发布
       </button>
@@ -64,16 +64,23 @@ import { useRouter } from 'vue-router'
 import { logout } from '@/api/auth'
 import { ElMessage } from 'element-plus'
 
-defineEmits<{ openLogin: [] }>()
-
 const userStore = useUserStore()
 const router = useRouter()
 
-function handleCreate() {
+function goCreator() {
   if (!userStore.isLoggedIn) {
-    ElMessage.warning('请先登录')
+    userStore.openLoginModal()
     return
   }
+  router.push('/creator')
+}
+
+function goPublish() {
+  if (!userStore.isLoggedIn) {
+    userStore.openLoginModal()
+    return
+  }
+  userStore.creatorActiveNav = 'publish'
   router.push('/creator')
 }
 

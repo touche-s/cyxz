@@ -1,15 +1,13 @@
 <template>
   <div class="layout">
     <div class="bg-layer"></div>
-    <HeaderBar @open-login="$emit('openLogin')" />
+    <HeaderBar />
     <slot />
   </div>
 </template>
 
 <script setup lang="ts">
 import HeaderBar from '@/components/HeaderBar.vue'
-
-defineEmits<{ openLogin: [] }>()
 </script>
 
 <style scoped>

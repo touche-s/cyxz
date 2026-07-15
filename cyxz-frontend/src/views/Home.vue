@@ -99,7 +99,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import { getPostList, getCategoryList, togglePostLike, togglePostCollect } from '@/api/post'
 import type { PostVO, CategoryVO } from '@/api/post'
 import { useUserStore } from '@/stores/user'
@@ -209,13 +208,17 @@ const selectCategory = (categoryId: number | null) => {
 }
 
 const viewPost = (post: PostVO) => {
+  if (!userStore.isLoggedIn) {
+    userStore.openLoginModal()
+    return
+  }
   const url = router.resolve(`/post/${post.id}`).href
   window.open(url, '_blank')
 }
 
 const toggleSave = async (post: PostVO) => {
   if (!userStore.isLoggedIn) {
-    ElMessage.warning('请先登录')
+    userStore.openLoginModal()
     return
   }
 
@@ -238,7 +241,7 @@ const toggleSave = async (post: PostVO) => {
 
 const handlePostLike = async (post: PostVO) => {
   if (!userStore.isLoggedIn) {
-    ElMessage.warning('请先登录')
+    userStore.openLoginModal()
     return
   }
 

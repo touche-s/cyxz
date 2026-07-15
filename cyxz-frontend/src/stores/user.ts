@@ -11,8 +11,18 @@ export const useUserStore = defineStore('user', () => {
   const userInfo = ref<StoredUserInfo | null>(
     JSON.parse(localStorage.getItem('userInfo') || 'null')
   )
+  const showLoginModal = ref(false)
+  const creatorActiveNav = ref('home')
 
   const isLoggedIn = computed(() => !!token.value)
+
+  function openLoginModal() {
+    showLoginModal.value = true
+  }
+
+  function closeLoginModal() {
+    showLoginModal.value = false
+  }
 
   function setToken(val: string) {
     token.value = val
@@ -31,5 +41,5 @@ export const useUserStore = defineStore('user', () => {
     localStorage.removeItem('userInfo')
   }
 
-  return { token, userInfo, isLoggedIn, setToken, setUserInfo, clearAuth }
+  return { token, userInfo, isLoggedIn, showLoginModal, creatorActiveNav, openLoginModal, closeLoginModal, setToken, setUserInfo, clearAuth }
 })
