@@ -1,7 +1,6 @@
 package com.cyxz.comment.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cyxz.comment.dto.CreateCommentRequest;
 import com.cyxz.comment.entity.CommentLikePO;
@@ -53,18 +52,22 @@ public class CommentServiceImpl implements CommentService {
     @Transactional(rollbackFor = Exception.class)
     public CommentVO createComment(Long userId, CreateCommentRequest request) {
         CommentPO po = new CommentPO();
-        po.setPostId(request.getPostId());
+        po.setPostId(request.getPostIdAsLong());
         po.setUserId(userId);
         po.setContent(request.getContent());
-        po.setParentId(request.getParentId());
-        po.setReplyToUserId(request.getReplyToUserId());
+        po.setParentId(request.getParentIdAsLong());
+        po.setReplyToUserId(request.getReplyToUserIdAsLong());
         po.setLikes(0);
         po.setStatus(1);
 
         try {
-            Result<Long> result = postFeignClient.getPostAuthor(request.getPostId());
+            Result<Long> result = postFeignClient.getPostAuthor(request.getPostIdAsLong());
             if (result != null && result.getData() != null) {
                 po.setPostAuthorId(result.getData());
+                log.debug("设置帖子作者成功: postId={}, postAuthorId={}", request.getPostId(), result.getData());
+            } else {
+                log.warn("获取帖子作者返回为空: postId={}, resultCode={}",
+                    request.getPostId(), result != null ? result.getCode() : "null");
             }
         } catch (Exception e) {
             log.warn("获取帖子作者失败: postId={}", request.getPostId(), e);
@@ -246,9 +249,6 @@ public class CommentServiceImpl implements CommentService {
                 .eq(CommentLikePO::getCommentId, commentId);
         CommentLikePO likePO = commentLikeMapper.selectOne(wrapper);
 
-        LambdaUpdateWrapper<CommentPO> updateWrapper = new LambdaUpdateWrapper<>();
-        updateWrapper.eq(CommentPO::getId, commentId);
-
         if (likePO == null) {
             // 不存在 → 插入 status=1
             CommentLikePO newLike = new CommentLikePO();
@@ -256,22 +256,19 @@ public class CommentServiceImpl implements CommentService {
             newLike.setUserId(userId);
             newLike.setStatus(1);
             commentLikeMapper.insert(newLike);
-            updateWrapper.setSql("likes = likes + 1");
-            commentMapper.update(null, updateWrapper);
+            commentMapper.updateLikes(commentId, 1);
             log.info("点赞评论: commentId={}, userId={}", commentId, userId);
         } else if (likePO.getStatus() == 0) {
             // 已取消 → 恢复点赞
             likePO.setStatus(1);
             commentLikeMapper.updateById(likePO);
-            updateWrapper.setSql("likes = likes + 1");
-            commentMapper.update(null, updateWrapper);
+            commentMapper.updateLikes(commentId, 1);
             log.info("点赞评论(恢复): commentId={}, userId={}", commentId, userId);
         } else {
             // 已点赞 → 取消点赞
             likePO.setStatus(0);
             commentLikeMapper.updateById(likePO);
-            updateWrapper.setSql("likes = GREATEST(likes - 1, 0)");
-            commentMapper.update(null, updateWrapper);
+            commentMapper.updateLikes(commentId, -1);
             log.info("取消点赞评论: commentId={}, userId={}", commentId, userId);
         }
 
@@ -282,6 +279,11 @@ public class CommentServiceImpl implements CommentService {
 
     /**
      * 批量查询用户信息
+     * <p>通过 Feign 调用 user 服务批量获取用户资料，用于填充评论列表中的用户昵称和头像。
+     * 调用失败时返回空 Map，不影响主流程。
+     *
+     * @param userIds 用户 ID 集合
+     * @return 用户 ID 到用户资料的映射 Map
      */
     private Map<Long, UserProfileVO> getUserMap(Set<Long> userIds) {
         if (userIds == null || userIds.isEmpty()) {
@@ -354,10 +356,16 @@ public class CommentServiceImpl implements CommentService {
     }
 
     @Override
-    public PageResult<CommentVO> listReceivedComments(Long userId, int page, int size) {
+    public PageResult<CommentVO> listReceivedComments(Long userId, Long currentUserId, int page, int size) {
+        // 查"评论我的帖子"或"回复我的评论"，排除自己
         LambdaQueryWrapper<CommentPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(CommentPO::getPostAuthorId, userId)
-                .eq(CommentPO::getStatus, 1)
+        wrapper.eq(CommentPO::getStatus, 1)
+                .ne(CommentPO::getUserId, userId)
+                .and(w -> w
+                        .eq(CommentPO::getPostAuthorId, userId)
+                        .or()
+                        .eq(CommentPO::getReplyToUserId, userId)
+                )
                 .orderByDesc(CommentPO::getCreateTime);
 
         Page<CommentPO> pageResult = commentMapper.selectPage(
@@ -368,18 +376,62 @@ public class CommentServiceImpl implements CommentService {
             return PageResult.empty(page, size);
         }
 
-        Set<Long> userIds = comments.stream()
-                .map(CommentPO::getUserId)
-                .collect(Collectors.toSet());
+        // 收集用户 ID
+        Set<Long> userIds = new HashSet<>();
         for (CommentPO comment : comments) {
+            userIds.add(comment.getUserId());
             if (comment.getReplyToUserId() != null) {
                 userIds.add(comment.getReplyToUserId());
             }
         }
         Map<Long, UserProfileVO> userMap = getUserMap(userIds);
 
-        List<CommentVO> voList = convertToVOList(comments, userMap, Collections.emptySet());
+        // 查当前用户已点赞的评论 ID
+        Set<Long> likedCommentIds = getLikedCommentIds(currentUserId);
+
+        // 批量查帖子标题
+        Set<Long> postIds = comments.stream()
+                .map(CommentPO::getPostId)
+                .collect(Collectors.toSet());
+        Map<Long, String> postTitleMap = getPostTitles(postIds);
+
+        List<CommentVO> voList = comments.stream()
+                .map(po -> {
+                    CommentVO vo = toVO(po, userMap, likedCommentIds);
+                    vo.setPostTitle(postTitleMap.getOrDefault(po.getPostId(), ""));
+                    return vo;
+                })
+                .collect(Collectors.toList());
 
         return PageResult.of(voList, pageResult.getTotal(), page, size);
+    }
+
+    /**
+     * 批量查询帖子标题
+     * <p>通过 Feign 调用 post 服务批量获取帖子标题，用于填充收到的评论列表中的帖子信息。
+     * 单个帖子查询失败不影响整体结果，仅记录警告日志。
+     *
+     * @param postIds 帖子 ID 集合
+     * @return 帖子 ID 到标题的映射 Map
+     */
+    private Map<Long, String> getPostTitles(Set<Long> postIds) {
+        if (postIds == null || postIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<Long, String> result = new HashMap<>();
+        for (Long postId : postIds) {
+            try {
+                Result<Map<String, Object>> res = postFeignClient.getPostInfo(postId);
+                if (res != null && res.getData() != null) {
+                    Object title = res.getData().get("title");
+                    if (title != null) {
+                        result.put(postId, title.toString());
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("获取帖子标题失败: postId={}", postId, e);
+            }
+        }
+        return result;
     }
 }

@@ -17,6 +17,9 @@ public class CommentVO {
     /** 帖子 ID */
     private Long postId;
 
+    /** 帖子标题（收到的评论列表用） */
+    private String postTitle;
+
     /** 评论用户 ID */
     private Long userId;
 

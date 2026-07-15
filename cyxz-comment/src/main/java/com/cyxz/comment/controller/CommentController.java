@@ -108,6 +108,6 @@ public class CommentController {
     public Result<PageResult<CommentVO>> received(@RequestHeader("X-User-Id") Long userId,
                                                   @RequestParam(value = "page", defaultValue = "1") int page,
                                                   @RequestParam(value = "size", defaultValue = "20") int size) {
-        return Result.success(commentService.listReceivedComments(userId, page, size));
+        return Result.success(commentService.listReceivedComments(userId, userId, page, size));
     }
 }

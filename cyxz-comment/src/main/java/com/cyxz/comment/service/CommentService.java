@@ -61,13 +61,14 @@ public interface CommentService {
     int toggleLike(Long userId, Long commentId);
 
     /**
-     * 查询用户收到的评论列表（对用户帖子的评论）
-     * <p>用于互动管理，查询当前用户所有帖子收到的评论，按创建时间倒序。
+     * 查询用户收到的评论列表（对用户帖子的评论 + 回复我的评论）
+     * <p>用于互动管理，查询当前用户所有帖子收到的评论和回复自己的评论，按创建时间倒序。
      *
-     * @param userId    当前登录用户 ID
-     * @param page      页码（从 1 开始）
-     * @param size      每页条数
+     * @param userId        当前用户 ID
+     * @param currentUserId 当前登录用户 ID（用于查点赞状态）
+     * @param page          页码（从 1 开始）
+     * @param size          每页条数
      * @return 分页结果
      */
-    PageResult<CommentVO> listReceivedComments(Long userId, int page, int size);
+    PageResult<CommentVO> listReceivedComments(Long userId, Long currentUserId, int page, int size);
 }
