@@ -149,6 +149,7 @@ CREATE TABLE IF NOT EXISTS comment (
     INDEX idx_user_id (user_id),
     INDEX idx_parent_id (parent_id),
     INDEX idx_post_author_id (post_author_id),
+    INDEX idx_reply_to_user_id (reply_to_user_id),
     INDEX idx_create_time (create_time)
 ) ENGINE=InnoDB COMMENT='评论表';
 
