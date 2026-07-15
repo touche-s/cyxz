@@ -16,7 +16,16 @@
                 <img v-if="post.authorAvatar" :src="post.authorAvatar" class="author-avatar" />
                 <div v-else class="author-avatar-placeholder"></div>
                 <div class="author-meta">
-                  <span class="author-name">{{ post.authorName || '匿名用户' }}</span>
+                  <div class="author-name-row">
+                    <span class="author-name">{{ post.authorName || '匿名用户' }}</span>
+                    <button v-if="post.userId && String(post.userId) !== String(currentUserId)"
+                            class="author-follow-btn"
+                            :class="{ followed: following }"
+                            :disabled="followLoading"
+                            @click="toggleFollow">
+                      {{ following ? '已关注' : '关注' }}
+                    </button>
+                  </div>
                   <span class="post-time">{{ formatDateTime(post.createTime) }}</span>
                 </div>
               </div>
@@ -172,6 +181,7 @@ import {
 } from '@/api/comment'
 import type { PostVO } from '@/api/post'
 import type { CommentVO, CreateCommentRequest } from '@/api/comment'
+import { followUser, unfollowUser, isFollowing } from '@/api/user'
 import { useUserStore } from '@/stores/user'
 import CommentItem from '@/components/CommentItem.vue'
 import likeIcon from '@/assets/icons/like.svg'
@@ -189,6 +199,8 @@ const post = ref<PostVO | null>(null)
 const loading = ref(false)
 const liked = ref(false)
 const collected = ref(false)
+const following = ref(false)
+const followLoading = ref(false)
 const commentInput = ref('')
 const commentSection = ref<HTMLElement | null>(null)
 const currentImage = ref(0)
@@ -266,6 +278,15 @@ const loadPost = async () => {
       post.value = res.data.data as PostVO
       liked.value = post.value.liked || false
       collected.value = post.value.collected || false
+      // 非作者本人时查询关注状态
+      if (post.value.userId && String(post.value.userId) !== String(currentUserId.value)) {
+        try {
+          const followRes = await isFollowing(String(post.value.userId))
+          following.value = ((followRes.data as any).data) === true
+        } catch {
+          // 忽略关注状态查询失败
+        }
+      }
     }
   } catch {
     ElMessage.error('加载失败')
@@ -319,6 +340,32 @@ const toggleCollect = async () => {
   } catch {
     collected.value = oldCollected
     post.value.collections = oldCollections
+  }
+}
+
+const toggleFollow = async () => {
+  if (!userStore.isLoggedIn) {
+    ElMessage.warning('请先登录')
+    return
+  }
+  if (!post.value?.userId) return
+  const targetUserId = String(post.value.userId)
+  followLoading.value = true
+  const oldFollowing = following.value
+  following.value = !oldFollowing
+  try {
+    if (oldFollowing) {
+      await unfollowUser(targetUserId)
+      ElMessage.success('已取消关注')
+    } else {
+      await followUser(targetUserId)
+      ElMessage.success('关注成功')
+    }
+  } catch {
+    following.value = oldFollowing
+    ElMessage.error('操作失败')
+  } finally {
+    followLoading.value = false
   }
 }
 
@@ -589,6 +636,12 @@ onMounted(async () => {
   gap: 4px;
 }
 
+.author-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .author-name {
   font-size: 15px;
   font-weight: 700;
@@ -598,6 +651,39 @@ onMounted(async () => {
 .post-time {
   font-size: 13px;
   color: var(--text-dim);
+}
+
+.author-follow-btn {
+  padding: 3px 12px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: #F8DDF8;
+  color: #B14FCF;
+  transition: all 0.25s ease;
+  flex-shrink: 0;
+  line-height: 1.5;
+}
+.author-follow-btn:hover:not(:disabled) {
+  background: #F3C8F3;
+  color: #9A3FB0;
+  transform: translateY(-1px);
+}
+.author-follow-btn.followed {
+  background: white;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+.author-follow-btn.followed:hover:not(:disabled) {
+  border-color: var(--pink);
+  color: var(--pink);
+  background: rgba(255, 182, 193, 0.15);
+}
+.author-follow-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .post-title {
