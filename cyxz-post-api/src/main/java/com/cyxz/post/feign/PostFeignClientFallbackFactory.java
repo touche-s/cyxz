@@ -3,7 +3,9 @@ package com.cyxz.post.feign;
 import com.cyxz.common.base.Result;
 import com.cyxz.post.vo.PostInfoVO;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.cloud.openfeign.FallbackFactory;
+import org.springframework.stereotype.Component;
 
 import java.util.Collections;
 import java.util.List;
@@ -16,6 +18,7 @@ import java.util.Set;
  */
 @Slf4j
 @Component
+@ConditionalOnClass(FallbackFactory.class)
 public class PostFeignClientFallbackFactory implements FallbackFactory<PostFeignClient> {
 
     /**

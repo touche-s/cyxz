@@ -4,6 +4,7 @@ import com.cyxz.common.base.Result;
 import com.cyxz.user.vo.UserProfileVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.openfeign.FallbackFactory;
+import org.springframework.stereotype.Component;
 
 import java.util.Collections;
 import java.util.List;
@@ -12,9 +13,11 @@ import java.util.Map;
 /**
  * 用户服务 Feign 降级工厂
  * <p>当 cyxz-user 服务不可用时返回安全默认值，避免调用方 try-catch 模板。
+ * <p>使用 {@code @ConditionalOnClass} 确保仅在有 openfeign 的消费方服务中注册。
  */
 @Slf4j
 @Component
+@ConditionalOnClass(FallbackFactory.class)
 public class UserFeignClientFallbackFactory implements FallbackFactory<UserFeignClient> {
 
     /**
