@@ -73,11 +73,11 @@
           <h3 class="section-title">数据概览</h3>
           <div class="stats-grid">
             <StatCard icon-class="works-icon" :icon="iconEdit" :value="dataStats?.totalPosts ?? 0" label="总作品" />
-            <StatCard icon-class="views-icon" :icon="iconEye" :value="formatNumber(dataStats?.totalViews ?? 0)" label="总浏览" />
-            <StatCard icon-class="likes-icon" :icon="iconLike" :value="formatNumber(dataStats?.totalLikes ?? 0)" label="总点赞" />
-            <StatCard icon-class="collections-icon" :icon="iconFavorite" :value="formatNumber(dataStats?.totalCollections ?? 0)" label="总收藏" />
-            <StatCard icon-class="fans-icon" :icon="iconFans" :value="formatNumber(followerCount)" label="粉丝数" />
-            <StatCard icon-class="comments-icon" :icon="iconComment" :value="formatNumber(commentsTotal)" label="评论数" />
+            <StatCard icon-class="views-icon" :icon="iconEye" :value="dataStats?.totalViews ?? 0" label="总浏览" />
+            <StatCard icon-class="likes-icon" :icon="iconLike" :value="dataStats?.totalLikes ?? 0" label="总点赞" />
+            <StatCard icon-class="collections-icon" :icon="iconFavorite" :value="dataStats?.totalCollections ?? 0" label="总收藏" />
+            <StatCard icon-class="fans-icon" :icon="iconFans" :value="followerCount" label="粉丝数" />
+            <StatCard icon-class="comments-icon" :icon="iconComment" :value="commentsTotal" label="评论数" />
           </div>
         </div>
 
@@ -247,12 +247,12 @@
 
           <div class="fans-list" v-if="!fansLoading">
             <div class="fan-item" v-for="fan in fansList" :key="fan.userId">
-              <div class="fan-avatar">
+              <div class="fan-avatar clickable" @click="goToUser(fan.userId)">
                 <img v-if="fan.avatar" :src="fan.avatar" alt="" />
                 <div v-else class="avatar-placeholder">👤</div>
               </div>
               <div class="fan-info">
-                <h4 class="fan-name">{{ fan.nickname || '未知用户' }}</h4>
+                <h4 class="fan-name clickable" @click="goToUser(fan.userId)">{{ fan.nickname || '未知用户' }}</h4>
                 <span class="fan-time">{{ formatTime(fan.createTime) }}</span>
               </div>
               <FollowButton :following="fan.following"
@@ -285,6 +285,7 @@
                 v-model="selectedCommentPostId"
                 placeholder="全部帖子"
                 class="comment-post-select"
+                popper-class="comment-post-select-popper"
                 clearable
                 @change="handleCommentPostFilterChange"
               >
@@ -314,13 +315,13 @@
 
           <div class="comment-list" v-if="!commentsLoading && managedCommentsList.length > 0">
             <div class="comment-manage-item" v-for="comment in managedCommentsList" :key="comment.id">
-              <div class="comment-avatar">
+              <div class="comment-avatar clickable" @click="goToUser(comment.userId)">
                 <img v-if="comment.userAvatar" :src="comment.userAvatar" alt="" />
                 <div v-else class="avatar-placeholder"></div>
               </div>
               <div class="comment-body">
                 <div class="comment-top-row">
-                  <span class="comment-name">{{ comment.userName }}</span>
+                  <span class="comment-name clickable" @click="goToUser(comment.userId)">{{ comment.userName }}</span>
                   <span class="comment-time">{{ formatTime(comment.createTime) }}</span>
                 </div>
                 <div class="comment-main-row">
@@ -693,6 +694,10 @@ const goHome = () => {
   activeNav.value = 'home'
 }
 
+const goToUser = (userId: string | number) => {
+  router.push(`/user/${userId}`)
+}
+
 const goCreate = async () => {
   await router.replace('/creator')
   activeNav.value = 'publish'
@@ -891,13 +896,16 @@ onMounted(() => {
   loadPosts()
   postStatsState.loadMyStats()
   loadRanking()
-  loadFans()
   loadFollowStats()
   loadManagedComments()
 
   if (userStore.creatorActiveNav) {
     activeNav.value = userStore.creatorActiveNav as typeof activeNav.value
+    if (activeNav.value === 'fans') {
+      activeFansTab.value = userStore.creatorFansTab
+    }
   }
+  loadFans()
 })
 
 watch(activeNav, (val) => {
@@ -2088,11 +2096,26 @@ watch(activeNav, (val) => {
 }
 
 .fan-avatar {
-  width: 56px;
-  height: 56px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   overflow: hidden;
   flex-shrink: 0;
+}
+
+.fan-avatar.clickable,
+.comment-avatar.clickable,
+.fan-name.clickable,
+.comment-name.clickable {
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.fan-avatar.clickable:hover,
+.comment-avatar.clickable:hover,
+.fan-name.clickable:hover,
+.comment-name.clickable:hover {
+  opacity: 0.75;
 }
 
 .fan-avatar img {
@@ -2632,5 +2655,20 @@ watch(activeNav, (val) => {
 
 .content-item li:last-child {
   margin-bottom: 0;
+}
+</style>
+
+<style>
+/* el-select 下拉弹出层——非 scoped（popper 挂载到 body） */
+.comment-post-select-popper .el-select-dropdown__item.is-selected {
+  color: #FF6B9D;
+  background: transparent;
+  font-weight: 600;
+}
+
+.comment-post-select-popper .el-select-dropdown__item.hover,
+.comment-post-select-popper .el-select-dropdown__item:hover {
+  background: rgba(255, 107, 157, 0.06);
+  color: #FF6B9D;
 }
 </style>
