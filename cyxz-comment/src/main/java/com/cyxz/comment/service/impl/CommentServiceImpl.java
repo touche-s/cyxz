@@ -15,7 +15,7 @@ import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.post.feign.PostFeignClient;
 import com.cyxz.post.vo.PostInfoVO;
-import com.cyxz.user.service.UserRemoteService;
+import com.cyxz.user.feign.UserFeignClient;
 import com.cyxz.user.vo.UserProfileVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +35,7 @@ public class CommentServiceImpl implements CommentService {
 
     private final CommentMapper commentMapper;
     private final CommentLikeMapper commentLikeMapper;
-    private final UserRemoteService userRemoteService;
+    private final UserFeignClient userFeignClient;
     private final PostFeignClient postFeignClient;
 
     /**
@@ -79,7 +79,7 @@ public class CommentServiceImpl implements CommentService {
         if (po.getReplyToUserId() != null) {
             userIds.add(po.getReplyToUserId());
         }
-        Map<Long, UserProfileVO> userMap = userRemoteService.batchGetByIds(userIds);
+        Map<Long, UserProfileVO> userMap = batchGetUsers(userIds);
         return toVO(po, userMap, Collections.emptySet()); // 刚创建，当前用户不可能已点赞
     }
 
@@ -148,7 +148,7 @@ public class CommentServiceImpl implements CommentService {
                 .collect(Collectors.toSet());
 
         // Step 4: 批量查用户信息 + 点赞状态
-        Map<Long, UserProfileVO> userMap = userRemoteService.batchGetByIds(userIds);
+        Map<Long, UserProfileVO> userMap = batchGetUsers(userIds);
         Set<Long> topCommentIds = topComments.stream()
                 .map(CommentPO::getId)
                 .collect(Collectors.toSet());
@@ -217,7 +217,7 @@ public class CommentServiceImpl implements CommentService {
         // 收集 userId
         Set<Long> userIds = collectUserIds(replies);
 
-        Map<Long, UserProfileVO> userMap = userRemoteService.batchGetByIds(userIds);
+        Map<Long, UserProfileVO> userMap = batchGetUsers(userIds);
         Set<Long> replyCommentIds = replies.stream()
                 .map(CommentPO::getId)
                 .collect(Collectors.toSet());
@@ -327,7 +327,7 @@ public class CommentServiceImpl implements CommentService {
      * @return 评论 VO 列表
      */
     private List<CommentVO> fillCommentVOListWithPost(List<CommentPO> comments, Long currentUserId) {
-        Map<Long, UserProfileVO> userMap = userRemoteService.batchGetByIds(collectUserIds(comments));
+        Map<Long, UserProfileVO> userMap = batchGetUsers(collectUserIds(comments));
         Set<Long> commentIds = comments.stream()
                 .map(CommentPO::getId)
                 .collect(Collectors.toSet());
@@ -423,7 +423,7 @@ public class CommentServiceImpl implements CommentService {
                 userIds.add(comment.getReplyToUserId());
             }
         }
-        Map<Long, UserProfileVO> userMap = userRemoteService.batchGetByIds(userIds);
+        Map<Long, UserProfileVO> userMap = batchGetUsers(userIds);
 
         // 查当前用户在本页评论中已点赞的评论 ID
         Set<Long> commentIds = comments.stream()
@@ -503,5 +503,19 @@ public class CommentServiceImpl implements CommentService {
         }
 
         return PageResult.of(fillCommentVOListWithPost(comments, currentUserId), pageResult.getTotal(), page, size);
+    }
+
+    /**
+     * 批量查询用户资料（封装 Feign 调用结果处理）
+     *
+     * @param userIds 用户ID集合
+     * @return userId → UserProfileVO映射，降级时返回空Map
+     */
+    private Map<Long, UserProfileVO> batchGetUsers(Collection<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Result<Map<Long, UserProfileVO>> result = userFeignClient.batchGetByIds(new ArrayList<>(userIds));
+        return result != null && result.getData() != null ? result.getData() : Collections.emptyMap();
     }
 }

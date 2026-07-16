@@ -5,12 +5,13 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
+import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.common.utils.IpUtil;
 import com.cyxz.post.vo.PostInfoVO;
 import com.cyxz.post.vo.PostStatsVO;
 import com.cyxz.post.vo.ReceivedLikeVO;
-import com.cyxz.user.service.UserRemoteService;
+import com.cyxz.user.feign.UserFeignClient;
 import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
 import com.cyxz.post.entity.CategoryPO;
@@ -48,7 +49,7 @@ public class PostServiceImpl implements PostService {
     private final CategoryService categoryService;
     private final PostLikeMapper postLikeMapper;
     private final PostCollectMapper postCollectMapper;
-    private final UserRemoteService userRemoteService;
+    private final UserFeignClient userFeignClient;
     private final StringRedisTemplate stringRedisTemplate;
 
     /**
@@ -170,7 +171,7 @@ public class PostServiceImpl implements PostService {
         if (po.getStatus() == 0 && !po.getUserId().equals(currentUserId)) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
-        Map<Long, UserProfileVO> userMap = userRemoteService.batchGetByIds(Set.of(po.getUserId()));
+        Map<Long, UserProfileVO> userMap = batchGetUsers(Set.of(po.getUserId()));
         Map<Long, CategoryPO> categoryMap = categoryService.getByIds(extractCategoryIds(List.of(po)));
         Set<Long> likedPostIds = getLikedPostIds(currentUserId);
         Set<Long> collectedPostIds = getCollectedPostIds(currentUserId);
@@ -218,7 +219,7 @@ public class PostServiceImpl implements PostService {
         wrapper.orderByDesc(PostPO::getCreateTime);
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
 
-        Map<Long, UserProfileVO> userMap = userRemoteService.batchGetByIds(result.getRecords().stream().map(PostPO::getUserId).collect(Collectors.toSet()));
+        Map<Long, UserProfileVO> userMap = batchGetUsers(result.getRecords().stream().map(PostPO::getUserId).collect(Collectors.toSet()));
         Map<Long, CategoryPO> categoryMap = categoryService.getByIds(extractCategoryIds(result.getRecords()));
         Set<Long> likedPostIds = getLikedPostIds(userId);
         Set<Long> collectedPostIds = getCollectedPostIds(userId);
@@ -297,7 +298,7 @@ public class PostServiceImpl implements PostService {
      * @return 帖子 VO 列表
      */
     private List<PostVO> fillPostVOList(List<PostPO> posts, Long currentUserId) {
-        Map<Long, UserProfileVO> userMap = userRemoteService.batchGetByIds(
+        Map<Long, UserProfileVO> userMap = batchGetUsers(
                 posts.stream().map(PostPO::getUserId).collect(Collectors.toSet()));
         Map<Long, CategoryPO> categoryMap = categoryService.getByIds(extractCategoryIds(posts));
         Set<Long> likedPostIds = getLikedPostIds(currentUserId);
@@ -585,7 +586,7 @@ public class PostServiceImpl implements PostService {
         if (topPosts.isEmpty()) {
             return Collections.emptyList();
         }
-        Map<Long, UserProfileVO> userMap = userRemoteService.batchGetByIds(topPosts.stream().map(PostPO::getUserId).collect(Collectors.toSet()));
+        Map<Long, UserProfileVO> userMap = batchGetUsers(topPosts.stream().map(PostPO::getUserId).collect(Collectors.toSet()));
         return topPosts.stream()
                 .map(po -> convertToVO(po, userMap, Collections.emptyMap(), Collections.emptySet(), Collections.emptySet()))
                 .collect(Collectors.toList());
@@ -669,7 +670,7 @@ public class PostServiceImpl implements PostService {
         Set<Long> userIds = records.stream()
                 .map(ReceivedLikeVO::getUserId)
                 .collect(Collectors.toSet());
-        Map<Long, UserProfileVO> userMap = userRemoteService.batchGetByIds(userIds);
+        Map<Long, UserProfileVO> userMap = batchGetUsers(userIds);
         records.forEach(vo -> {
             UserProfileVO user = userMap.get(vo.getUserId());
             if (user != null) {
@@ -681,4 +682,17 @@ public class PostServiceImpl implements PostService {
         return PageResult.of(records, total, page, size);
     }
 
+    /**
+     * 批量查询用户资料（封装 Feign 调用结果处理）
+     *
+     * @param userIds 用户ID集合
+     * @return userId → UserProfileVO映射，降级时返回空Map
+     */
+    private Map<Long, UserProfileVO> batchGetUsers(Collection<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Result<Map<Long, UserProfileVO>> result = userFeignClient.batchGetByIds(new ArrayList<>(userIds));
+        return result != null && result.getData() != null ? result.getData() : Collections.emptyMap();
+    }
 }
