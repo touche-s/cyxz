@@ -2,6 +2,7 @@ package com.cyxz.user.controller;
 
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
+import com.cyxz.common.web.CurrentUser;
 import com.cyxz.user.dto.UpdateProfileRequest;
 import com.cyxz.user.service.FollowService;
 import com.cyxz.user.service.UserProfileService;
@@ -45,7 +46,7 @@ public class UserProfileController {
      */
     @PutMapping("/profile")
     public Result<Void> update(@Valid @RequestBody UpdateProfileRequest request,
-                                @RequestHeader("X-User-Id") Long userId) {
+                                @CurrentUser Long userId) {
         profileService.updateProfile(userId, request);
         return Result.success();
     }
@@ -59,7 +60,7 @@ public class UserProfileController {
      * @return 当前用户资料
      */
     @GetMapping("/profile/me")
-    public Result<UserProfileVO> getMyProfile(@RequestHeader("X-User-Id") Long userId) {
+    public Result<UserProfileVO> getMyProfile(@CurrentUser Long userId) {
         return Result.success(profileService.getOrInitMyProfile(userId));
     }
 
@@ -96,7 +97,7 @@ public class UserProfileController {
      */
     @PostMapping("/{targetUserId}/follow")
     public Result<Void> follow(@PathVariable("targetUserId") Long targetUserId,
-                               @RequestHeader("X-User-Id") Long userId) {
+                               @CurrentUser Long userId) {
         followService.follow(userId, targetUserId);
         return Result.success();
     }
@@ -110,7 +111,7 @@ public class UserProfileController {
      */
     @DeleteMapping("/{targetUserId}/follow")
     public Result<Void> unfollow(@PathVariable("targetUserId") Long targetUserId,
-                                 @RequestHeader("X-User-Id") Long userId) {
+                                 @CurrentUser Long userId) {
         followService.unfollow(userId, targetUserId);
         return Result.success();
     }
@@ -124,7 +125,7 @@ public class UserProfileController {
      */
     @GetMapping("/{targetUserId}/is-following")
     public Result<Boolean> isFollowing(@PathVariable("targetUserId") Long targetUserId,
-                                       @RequestHeader("X-User-Id") Long userId) {
+                                       @CurrentUser Long userId) {
         return Result.success(followService.isFollowing(userId, targetUserId));
     }
 
@@ -137,7 +138,7 @@ public class UserProfileController {
      * @return 关注用户列表
      */
     @GetMapping("/following")
-    public Result<PageResult<FollowUserVO>> listFollowing(@RequestHeader("X-User-Id") Long userId,
+    public Result<PageResult<FollowUserVO>> listFollowing(@CurrentUser Long userId,
                                                      @RequestParam(value = "page", defaultValue = "1") int page,
                                                      @RequestParam(value = "size", defaultValue = "20") int size) {
         return Result.success(followService.listFollowing(userId, page, size));
@@ -152,7 +153,7 @@ public class UserProfileController {
      * @return 粉丝列表
      */
     @GetMapping("/followers")
-    public Result<PageResult<FollowUserVO>> listFollowers(@RequestHeader("X-User-Id") Long userId,
+    public Result<PageResult<FollowUserVO>> listFollowers(@CurrentUser Long userId,
                                                      @RequestParam(value = "page", defaultValue = "1") int page,
                                                      @RequestParam(value = "size", defaultValue = "20") int size) {
         return Result.success(followService.listFollowers(userId, page, size));
@@ -165,7 +166,7 @@ public class UserProfileController {
      * @return 关注数和粉丝数
      */
     @GetMapping("/follow-stats")
-    public Result<Map<String, Integer>> getFollowStats(@RequestHeader("X-User-Id") Long userId) {
+    public Result<Map<String, Integer>> getFollowStats(@CurrentUser Long userId) {
         return Result.success(Map.of(
                 "followingCount", followService.countFollowing(userId),
                 "followerCount", followService.countFollowers(userId)

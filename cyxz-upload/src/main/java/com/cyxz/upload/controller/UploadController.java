@@ -1,6 +1,7 @@
 package com.cyxz.upload.controller;
 
 import com.cyxz.common.base.Result;
+import com.cyxz.common.web.CurrentUser;
 import com.cyxz.upload.service.UploadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -26,7 +27,7 @@ public class UploadController {
      */
     @PostMapping("/avatar")
     public Result<String> uploadAvatar(@RequestParam("file") MultipartFile file,
-                                       @RequestHeader("X-User-Id") Long userId) {
+                                       @CurrentUser Long userId) {
         String url = uploadService.uploadAvatar(file, userId);
         return Result.success("操作成功", url);
     }

@@ -74,11 +74,7 @@ public class UserProfileServiceImpl implements UserProfileService {
         );
         Map<Long, UserProfileVO> result = new HashMap<>();
         for (UserProfilePO po : profiles) {
-            UserProfileVO vo = new UserProfileVO();
-            BeanUtils.copyProperties(po, vo);
-            if (po.getBirthday() != null) {
-                vo.setBirthday(po.getBirthday().format(DateTimeFormatter.ISO_LOCAL_DATE));
-            }
+            UserProfileVO vo = toVO(po);
             result.put(po.getUserId(), vo);
         }
         return result;
@@ -156,6 +152,18 @@ public class UserProfileServiceImpl implements UserProfileService {
         if (po == null) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
+        UserProfileVO vo = toVO(po);
+        return vo;
+    }
+
+    /**
+     * 将用户资料实体转换为视图对象
+     * <p>统一处理 birthday 的 LocalDate → String(yyyy-MM-dd) 格式化。
+     *
+     * @param po 用户资料实体
+     * @return 用户资料视图对象
+     */
+    private UserProfileVO toVO(UserProfilePO po) {
         UserProfileVO vo = new UserProfileVO();
         BeanUtils.copyProperties(po, vo);
         if (po.getBirthday() != null) {
