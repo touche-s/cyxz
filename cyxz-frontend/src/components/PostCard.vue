@@ -15,8 +15,8 @@
     </div>
     <div class="card-body">
       <div class="card-title">{{ post.title }}</div>
-      <div class="card-tags" v-if="post.tags && post.tags.length > 0">
-        <span class="card-tag" v-for="tag in post.tags.slice(0, 3)" :key="tag">{{ tag }}</span>
+      <div class="card-tags">
+        <span class="card-tag" v-for="tag in (post.tags || []).slice(0, 3)" :key="tag">{{ tag }}</span>
       </div>
       <div class="card-meta">
         <div class="card-author">
@@ -173,6 +173,7 @@ const getGradient = (id: string | number) => {
   flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 12px;
+  min-height: 20px;
 }
 
 .card-tag {
