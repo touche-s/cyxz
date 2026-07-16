@@ -302,7 +302,11 @@ public class CommentServiceImpl implements CommentService {
     }
 
     /**
-     * 收集评论列表中涉及的用户 ID（评论作者 + 被回复者，null 安全）
+     * 收集评论列表中涉及的用户 ID
+     * <p>遍历评论列表，提取评论作者与被回复者 ID，null 安全。
+     *
+     * @param comments 评论实体列表
+     * @return 去重后的用户 ID 集合
      */
     private Set<Long> collectUserIds(List<CommentPO> comments) {
         Set<Long> userIds = new HashSet<>();
@@ -341,6 +345,12 @@ public class CommentServiceImpl implements CommentService {
 
     /**
      * 批量转换 PO 列表为 VO 列表
+     * <p>统一将评论实体列表转换为视图对象列表，用于评论/回复分页结果填充。
+     *
+     * @param pos             评论实体列表
+     * @param userMap         用户 ID → UserProfileVO 映射
+     * @param likedCommentIds 当前用户已点赞的评论 ID 集合
+     * @return 评论视图对象列表
      */
     private List<CommentVO> convertToVOList(List<CommentPO> pos, Map<Long, UserProfileVO> userMap,
                                              Set<Long> likedCommentIds) {
