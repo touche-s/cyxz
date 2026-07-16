@@ -15,6 +15,11 @@ import java.util.List;
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class WebMvcConfig implements WebMvcConfigurer {
 
+    /**
+     * 注册 {@link CurrentUserResolver} 参数解析器。
+     *
+     * @param resolvers 参数解析器注册列表
+     */
     @Override
     public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
         resolvers.add(new CurrentUserResolver());

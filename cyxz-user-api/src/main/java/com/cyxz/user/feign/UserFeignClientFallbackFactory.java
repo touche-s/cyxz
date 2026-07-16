@@ -16,6 +16,12 @@ import java.util.Map;
 @Slf4j
 public class UserFeignClientFallbackFactory implements FallbackFactory<UserFeignClient> {
 
+    /**
+     * 创建用户服务 Feign 降级实例，各方法返回安全默认值（null/空 Map/失败 Result）。
+     *
+     * @param cause 降级原因
+     * @return 降级后的 UserFeignClient 实现
+     */
     @Override
     public UserFeignClient create(Throwable cause) {
         log.warn("用户服务调用降级: {}", cause.getMessage());

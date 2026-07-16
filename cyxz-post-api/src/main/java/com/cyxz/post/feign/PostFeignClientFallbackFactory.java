@@ -17,6 +17,12 @@ import java.util.Set;
 @Slf4j
 public class PostFeignClientFallbackFactory implements FallbackFactory<PostFeignClient> {
 
+    /**
+     * 创建帖子服务 Feign 降级实例，各方法返回安全默认值（null/空集合）。
+     *
+     * @param cause 降级原因
+     * @return 降级后的 PostFeignClient 实现
+     */
     @Override
     public PostFeignClient create(Throwable cause) {
         log.warn("帖子服务调用降级: {}", cause.getMessage());
