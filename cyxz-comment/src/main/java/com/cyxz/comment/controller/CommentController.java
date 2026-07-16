@@ -125,7 +125,8 @@ public class CommentController {
     public Result<PageResult<CommentVO>> manage(@RequestHeader("X-User-Id") Long userId,
                                                  @RequestParam(value = "postId", required = false) Long postId,
                                                  @RequestParam(value = "page", defaultValue = "1") int page,
-                                                 @RequestParam(value = "size", defaultValue = "20") int size) {
-        return Result.success(commentService.listManagedComments(userId, postId, page, size));
+                                                 @RequestParam(value = "size", defaultValue = "20") int size,
+                                                 @RequestParam(value = "sortAsc", defaultValue = "false") boolean sortAsc) {
+        return Result.success(commentService.listManagedComments(userId, postId, page, size, sortAsc));
     }
 }

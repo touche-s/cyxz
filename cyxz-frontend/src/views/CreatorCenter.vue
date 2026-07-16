@@ -175,24 +175,6 @@
           </div>
         </div>
 
-        <div class="recent-section">
-          <h3 class="section-title">最近互动</h3>
-          <div class="recent-interactions" v-if="recentInteractions.length > 0">
-            <div class="interaction-line" v-for="item in recentInteractions" :key="item.id">
-              <img v-if="item.avatar" :src="item.avatar" class="interaction-avatar" />
-              <div v-else class="interaction-avatar-placeholder">👤</div>
-              <span class="interaction-text">
-                <strong>{{ item.userName || '用户' }}</strong>
-                {{ item.type === 'comment' ? '评论了你的' : '赞了你的' }}
-                <span class="interaction-post-title">《{{ item.postTitle || '帖子' }}》</span>
-              </span>
-              <span class="interaction-time">{{ formatTime(item.createTime) }}</span>
-            </div>
-          </div>
-          <div class="empty-light" v-else>
-            <p>还没有新的互动</p>
-          </div>
-        </div>
       </template>
 
       <template v-else-if="activeNav === 'content'">
@@ -363,34 +345,63 @@
 
           <div class="filter-bar">
             <div class="filter-group comment-filter-group">
-              <select class="comment-post-select" v-model="selectedCommentPostId" @change="handleCommentPostFilterChange">
-                <option value="">全部帖子</option>
-                <option v-for="post in publishedPostOptions" :key="post.id" :value="post.id">{{ post.title }}</option>
-              </select>
+              <el-select
+                v-model="selectedCommentPostId"
+                placeholder="全部帖子"
+                class="comment-post-select"
+                clearable
+                @change="handleCommentPostFilterChange"
+              >
+                <el-option value="" label="全部帖子" />
+                <el-option
+                  v-for="post in publishedPostOptions"
+                  :key="post.id"
+                  :value="post.id"
+                  :label="post.title"
+                />
+              </el-select>
+              <span class="comment-total">共 {{ commentsTotal }} 条评论</span>
+            </div>
+            <div class="sort-group">
+              <button
+                class="sort-btn"
+                :class="{ active: !commentSortAsc }"
+                @click="handleCommentSortChange(false)"
+              >最新</button>
+              <button
+                class="sort-btn"
+                :class="{ active: commentSortAsc }"
+                @click="handleCommentSortChange(true)"
+              >最早</button>
             </div>
           </div>
 
           <div class="comment-list" v-if="!commentsLoading && managedCommentsList.length > 0">
-            <div class="comment-item" v-for="comment in managedCommentsList" :key="comment.id">
+            <div class="comment-manage-item" v-for="comment in managedCommentsList" :key="comment.id">
               <div class="comment-avatar">
                 <img v-if="comment.userAvatar" :src="comment.userAvatar" alt="" />
                 <div v-else class="avatar-placeholder"></div>
               </div>
               <div class="comment-body">
-                <div class="comment-header">
-                  <div class="comment-header-left">
-                    <h4 class="comment-name">{{ comment.userName }}</h4>
-                    <span v-if="comment.replyToUserName" class="comment-reply-to">回复了 {{ comment.replyToUserName }}</span>
-                  </div>
+                <div class="comment-top-row">
+                  <span class="comment-name">{{ comment.userName }}</span>
                   <span class="comment-time">{{ formatTime(comment.createTime) }}</span>
                 </div>
-                <p class="comment-content">{{ comment.content }}</p>
-                <div class="comment-post">
-                  <span class="post-title">{{ comment.postTitle || '帖子' + comment.postId }}</span>
+                <div class="comment-main-row">
+                  <span class="comment-context">
+                    在「<span class="context-post-title" @click="viewPost(comment.postId)" :title="comment.postTitle">{{ truncatePostTitle(comment.postTitle, comment.postId) }}</span>」中
+                    <template v-if="comment.replyToUserName">
+                      回复了 <span class="context-reply-to">@{{ comment.replyToUserName }}</span>
+                    </template>
+                    <template v-else>
+                      发表了评论
+                    </template>
+                  </span>
+                  <span class="comment-content">{{ comment.content }}</span>
                 </div>
               </div>
-              <button class="comment-delete-btn" @click="confirmDeleteManagedComment(comment)" title="删除">
-                <img src="@/assets/icons/trash.svg" alt="delete" class="action-icon" />
+              <button class="comment-delete-btn" @click="confirmDeleteManagedComment(comment)" title="删除评论">
+                <img src="@/assets/icons/trash.svg" alt="delete" class="delete-icon" />
               </button>
             </div>
           </div>
@@ -402,7 +413,14 @@
 
           <div class="empty-container" v-else>
             <img src="@/assets/icons/empty.svg" alt="empty" class="empty-icon" />
-            <p>{{ selectedCommentPostId ? '当前帖子还没有评论' : '当前还没有人给你的作品留言' }}</p>
+            <p v-if="selectedCommentPostId">当前帖子还没有评论</p>
+            <p v-else>当前还没有人给你的作品留言</p>
+          </div>
+
+          <div class="comment-pagination" v-if="commentsTotal > commentPageSize">
+            <button class="comment-page-btn" :disabled="commentPage <= 1" @click="handleCommentPageChange(commentPage - 1)">上一页</button>
+            <span class="comment-page-info">{{ commentPage }} / {{ Math.ceil(commentsTotal / commentPageSize) }}</span>
+            <button class="comment-page-btn" :disabled="commentPage >= Math.ceil(commentsTotal / commentPageSize)" @click="handleCommentPageChange(commentPage + 1)">下一页</button>
           </div>
         </div>
       </template>
@@ -680,6 +698,9 @@ const fansPageSize = 10
 const managedCommentsList = ref<CommentVO[]>([])
 const commentsTotal = ref(0)
 const selectedCommentPostId = ref('')
+const commentSortAsc = ref(false)
+const commentPage = ref(1)
+const commentPageSize = 20
 
 import iconLightbulb from '@/assets/icons/lightbulb.svg'
 import iconEdit from '@/assets/icons/edit.svg'
@@ -737,6 +758,11 @@ const formatDateTime = (time: string) => {
   const h = String(d.getHours()).padStart(2, '0')
   const min = String(d.getMinutes()).padStart(2, '0')
   return `${y}年${m}月${day}日 ${h}:${min}`
+}
+
+const truncatePostTitle = (title: string | undefined, postId: string) => {
+  const name = title || '帖子' + postId
+  return name.length > 12 ? name.slice(0, 12) + '...' : name
 }
 
 const loadPosts = async () => {
@@ -902,7 +928,11 @@ const loadFollowStats = async () => {
 const loadManagedComments = async () => {
   commentsLoading.value = true
   try {
-    const params: { page: number; size: number; postId?: string } = { page: 1, size: 20 }
+    const params: { page: number; size: number; postId?: string; sortAsc?: boolean } = {
+      page: commentPage.value,
+      size: commentPageSize,
+      sortAsc: commentSortAsc.value,
+    }
     if (selectedCommentPostId.value) {
       params.postId = selectedCommentPostId.value
     }
@@ -919,6 +949,18 @@ const loadManagedComments = async () => {
 }
 
 const handleCommentPostFilterChange = () => {
+  commentPage.value = 1
+  loadManagedComments()
+}
+
+const handleCommentSortChange = (sortAsc: boolean) => {
+  commentSortAsc.value = sortAsc
+  commentPage.value = 1
+  loadManagedComments()
+}
+
+const handleCommentPageChange = (page: number) => {
+  commentPage.value = page
   loadManagedComments()
 }
 
@@ -1404,65 +1446,6 @@ watch(activeNav, (val) => {
 .recent-post-time {
   font-size: 12px;
   color: var(--text-dim);
-}
-
-.recent-interactions {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.interaction-line {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-}
-
-.interaction-avatar,
-.interaction-avatar-placeholder {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-}
-
-.interaction-avatar-placeholder {
-  background: var(--bg-secondary);
-}
-
-.interaction-text {
-  font-size: 13px;
-  color: var(--text);
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.interaction-post-title {
-  color: var(--accent);
-}
-
-.interaction-time {
-  font-size: 12px;
-  color: var(--text-dim);
-  flex-shrink: 0;
-}
-
-.empty-light {
-  text-align: center;
-  padding: 20px;
-  color: var(--text-dim);
-  font-size: 13px;
 }
 
 /* 排行榜时间 */
@@ -2460,55 +2443,76 @@ watch(activeNav, (val) => {
 .comment-filter-group {
   display: flex;
   align-items: center;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
 }
 
 .comment-post-select {
-  padding: 8px 14px;
-  border-radius: 10px;
-  border: 1.5px solid var(--border);
-  background: white;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-  cursor: pointer;
-  outline: none;
+  min-width: 180px;
+}
+
+/* el-select 粉色圆角定制 */
+.comment-post-select {
+  --el-color-primary: #FF6B9D;
+  --el-color-primary-light-3: #ff8fb5;
+  --el-color-primary-light-5: #ffb6cc;
+  --el-border-color-hover: #FF6B9D;
+  --el-border-color: #FFB6CC;
+  --el-input-focus-border-color: #FF6B9D;
+}
+
+.comment-post-select :deep(.el-input__wrapper) {
+  border-radius: 20px;
+  border-color: #FFB6CC;
+  background: #FFF7FA;
+  box-shadow: none;
   transition: all 0.22s ease-out;
-  min-width: 200px;
-  max-width: 360px;
 }
 
-.comment-post-select:hover {
-  border-color: var(--pink);
+.comment-post-select :deep(.el-input__wrapper:hover) {
+  border-color: #FF6B9D;
+  background: #FFF0F5;
 }
 
-.comment-post-select:focus {
-  border-color: #B484FF;
-  box-shadow: 0 0 0 3px rgba(180, 132, 255, 0.1);
+.comment-post-select :deep(.el-input__wrapper.is-focus),
+.comment-post-select :deep(.el-select__wrapper.is-focused),
+.comment-post-select :deep(.el-input.is-focus .el-input__wrapper) {
+  border-color: #FF6B9D !important;
+  box-shadow: 0 0 0 3px rgba(255, 107, 157, 0.15) !important;
+  background: white;
 }
+
+.comment-post-select :deep(.el-select__caret) {
+  color: #FF6B9D;
+}
+
+.comment-post-select :deep(.el-select__placeholder) {
+  color: #C4A0B4;
+}
+
 
 .comment-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  border-top: 1px solid var(--border);
 }
 
-.comment-item {
+.comment-manage-item {
   display: flex;
-  gap: 16px;
-  padding: 16px;
-  border-radius: 12px;
-  background: rgba(255, 107, 157, 0.03);
-  border: 1.5px solid transparent;
-  transition: all 0.22s ease-out;
+  gap: 14px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
 }
 
-.comment-item:hover {
-  border-color: rgba(180, 132, 255, 0.3);
+.comment-manage-item:hover {
+  background: rgba(0, 0, 0, 0.012);
 }
 
 .comment-avatar {
-  width: 48px;
-  height: 48px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   overflow: hidden;
   flex-shrink: 0;
@@ -2522,77 +2526,171 @@ watch(activeNav, (val) => {
 
 .comment-body {
   flex: 1;
+  min-width: 0;
 }
 
-.comment-header {
+.comment-top-row {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.comment-header-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 6px;
 }
 
 .comment-name {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text);
-}
-
-.comment-reply-to {
-  font-size: 12px;
-  color: var(--text-dim);
-  background: rgba(180, 132, 255, 0.1);
-  padding: 2px 8px;
-  border-radius: 6px;
 }
 
 .comment-time {
   font-size: 12px;
-  color: var(--text-dim);
+  color: #999;
 }
 
-.comment-delete-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
+.comment-main-row {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.22s ease-out;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0;
+  line-height: 1.65;
 }
 
-.comment-delete-btn:hover {
-  background: rgba(239, 68, 68, 0.1);
+.comment-context {
+  font-size: 13px;
+  color: #999;
+  white-space: nowrap;
+  margin-right: 6px;
 }
 
-.comment-delete-btn .action-icon {
-  width: 16px;
-  height: 16px;
+.context-post-title {
+  color: var(--purple);
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.context-post-title:hover {
+  opacity: 0.75;
+}
+
+.context-reply-to {
+  color: var(--purple);
 }
 
 .comment-content {
   font-size: 14px;
-  color: var(--text-secondary);
-  line-height: 1.6;
-  margin-bottom: 8px;
+  color: #222;
+  word-break: break-word;
 }
 
-.comment-post .post-title {
-  font-size: 12px;
-  color: var(--text-dim);
-  background: rgba(255, 107, 157, 0.1);
-  padding: 4px 10px;
+.comment-delete-btn {
+  padding: 4px;
+  border: none;
   border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  align-self: flex-start;
+  transition: background 0.15s;
+  line-height: 0;
+}
+
+.comment-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.delete-icon {
+  width: 15px;
+  height: 15px;
+  opacity: 0.35;
+  transition: opacity 0.15s;
+}
+
+.comment-delete-btn:hover .delete-icon {
+  opacity: 0.7;
+}
+
+/* 整行 hover 时才让删除按钮显现 */
+.comment-manage-item .delete-icon {
+  opacity: 0.35;
+  transition: opacity 0.15s;
+}
+
+.comment-manage-item:hover .delete-icon {
+  opacity: 0.6;
+}
+
+/* 总数 */
+.comment-total {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-left: 4px;
+  white-space: nowrap;
+}
+
+/* 排序按钮组 */
+.sort-group {
+  display: flex;
+  gap: 2px;
+  background: rgba(255, 107, 157, 0.04);
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.sort-btn {
+  padding: 5px 14px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.sort-btn:hover:not(.active) {
+  color: var(--pink);
+}
+
+.sort-btn.active {
+  background: white;
+  color: var(--pink);
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+/* 评论分页 */
+.comment-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px 0 8px;
+}
+
+.comment-page-btn {
+  padding: 6px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: white;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.comment-page-btn:hover:not(:disabled) {
+  border-color: var(--pink);
+  color: var(--pink);
+}
+
+.comment-page-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.comment-page-info {
+  font-size: 13px;
+  color: var(--text-dim);
 }
 
 .magic-page {

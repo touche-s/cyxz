@@ -68,6 +68,6 @@ export const getReceivedComments = (params: { page?: number; size?: number }) =>
 }
 
 /** 评论管理：查询当前用户自己帖子下的评论 */
-export const getManagedComments = (params: { postId?: string; page?: number; size?: number }) => {
+export const getManagedComments = (params: { postId?: string; page?: number; size?: number; sortAsc?: boolean }) => {
   return request.get('/comment/manage', { params })
 }

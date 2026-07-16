@@ -82,5 +82,5 @@ public interface CommentService {
      * @param size          每页条数
      * @return 分页结果（含帖子标题、回复目标用户昵称）
      */
-    PageResult<CommentVO> listManagedComments(Long currentUserId, Long postId, int page, int size);
+    PageResult<CommentVO> listManagedComments(Long currentUserId, Long postId, int page, int size, boolean sortAsc);
 }

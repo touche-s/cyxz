@@ -1,13 +1,21 @@
 <template>
   <div class="comment-item" :class="{ 'is-reply': !isTopLevel }">
     <!-- 用户头像 -->
-    <img v-if="comment.userAvatar" :src="comment.userAvatar" class="comment-avatar" />
-    <div v-else class="comment-avatar-placeholder"></div>
+    <img v-if="comment.userAvatar"
+         :src="comment.userAvatar"
+         class="comment-avatar"
+         :class="{ clickable: comment.userId }"
+         @click="comment.userId && goToUser()" />
+    <div v-else class="comment-avatar-placeholder"
+         :class="{ clickable: comment.userId }"
+         @click="comment.userId && goToUser()"></div>
 
     <div class="comment-body">
       <!-- 头部：用户名 + 内容（子评论时同行显示） -->
       <div class="comment-header">
-        <span class="comment-author">{{ comment.userName || '匿名用户' }}</span>
+        <span class="comment-author"
+              :class="{ clickable: comment.userId }"
+              @click="comment.userId && goToUser()">{{ comment.userName || '匿名用户' }}</span>
         <span v-if="isReply" class="comment-text-inline">
           <template v-if="comment.replyToUserName">
             回复 <span class="reply-mention">@{{ comment.replyToUserName }}</span> : {{ comment.content }}
@@ -121,12 +129,15 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { toggleCommentLike, deleteComment, getCommentReplies } from '@/api/comment'
 import type { CommentVO } from '@/api/comment'
 import { useUserStore } from '@/stores/user'
 import likeIcon from '@/assets/icons/like.svg'
 import likeOutlineIcon from '@/assets/icons/like-outline.svg'
+
+const router = useRouter()
 
 const props = defineProps<{
   comment: CommentVO
@@ -145,6 +156,12 @@ const emit = defineEmits<{
 const handleReply = () => {
   const parentId = props.isTopLevel ? props.comment.id : (props.topLevelId ?? props.comment.id)
   emit('reply', { comment: props.comment, parentId })
+}
+
+function goToUser() {
+  if (props.comment.userId) {
+    router.push(`/user/${props.comment.userId}`)
+  }
 }
 
 const userStore = useUserStore()
@@ -387,6 +404,14 @@ const formatTime = (time: string) => {
 
 .comment-item.is-reply .comment-author {
   font-size: 14px;
+}
+
+.clickable {
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+.clickable:hover {
+  opacity: 0.8;
 }
 
 .comment-text-inline {

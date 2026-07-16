@@ -457,14 +457,18 @@ public class CommentServiceImpl implements CommentService {
      * @return 分页结果（含帖子标题、回复目标用户昵称）
      */
     @Override
-    public PageResult<CommentVO> listManagedComments(Long currentUserId, Long postId, int page, int size) {
+    public PageResult<CommentVO> listManagedComments(Long currentUserId, Long postId, int page, int size, boolean sortAsc) {
         LambdaQueryWrapper<CommentPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CommentPO::getStatus, 1)
                 .eq(CommentPO::getPostAuthorId, currentUserId);
         if (postId != null) {
             wrapper.eq(CommentPO::getPostId, postId);
         }
-        wrapper.orderByDesc(CommentPO::getCreateTime);
+        if (sortAsc) {
+            wrapper.orderByAsc(CommentPO::getCreateTime);
+        } else {
+            wrapper.orderByDesc(CommentPO::getCreateTime);
+        }
 
         Page<CommentPO> pageResult = commentMapper.selectPage(
                 new Page<>(page, size), wrapper);
