@@ -1,22 +1,53 @@
 <template>
-  <div class="stat-card">
+  <div ref="cardRef" class="stat-card">
     <div class="stat-icon-wrapper" :class="iconClass">
       <img :src="icon" :alt="label" class="stat-icon" />
     </div>
     <div class="stat-info">
-      <span class="stat-value">{{ value }}</span>
+      <span class="stat-value">{{ formattedValue }}</span>
       <span class="stat-label">{{ label }}</span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-defineProps<{
+import { ref, computed, watch, onMounted } from 'vue'
+import { useCountUp } from '@/composables/useCountUp'
+import { formatNumber } from '@/utils/format'
+
+const props = defineProps<{
   icon: string
   iconClass: string
   value: string | number
   label: string
 }>()
+
+const cardRef = ref<HTMLElement | null>(null)
+const targetValue = () => Number(props.value) || 0
+const { displayValue, animate } = useCountUp(targetValue)
+
+const formattedValue = computed(() => formatNumber(displayValue.value))
+
+let started = false
+
+onMounted(() => {
+  if (cardRef.value) {
+    startIfReady()
+  }
+})
+
+watch(() => props.value, () => {
+  startIfReady()
+})
+
+function startIfReady() {
+  if (started) return
+  if (targetValue() <= 0) return
+  if (!cardRef.value) return
+  started = true
+  displayValue.value = 0
+  animate()
+}
 </script>
 
 <style scoped>
