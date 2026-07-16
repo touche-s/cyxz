@@ -258,6 +258,7 @@ const router = useRouter()
 const userStore = useUserStore()
 const { requireLogin } = useAuth()
 const { following, followLoading, checkFollowing, toggleFollow: doFollow } = useFollow()
+const { stats: postStats, loadUserStats: loadPostStats } = usePostStats()
 
 const profile = ref<UserInfo | null>(null)
 const loading = ref(true)
@@ -279,7 +280,6 @@ const posts = ref<PostVO[]>([])
 const favorites = ref<PostVO[]>([])
 const postLoading = ref(false)
 const favoriteLoading = ref(false)
-const postStats = ref<PostStatsVO | null>(null)
 
 const isSelf = computed(() => {
   return String(profile.value?.userId) === String(userStore.userInfo?.id)
