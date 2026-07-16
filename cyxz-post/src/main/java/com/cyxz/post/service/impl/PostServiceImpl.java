@@ -127,8 +127,12 @@ public class PostServiceImpl implements PostService {
     }
 
     /**
-     * 删除帖子（软删除）
+     * 删除帖子（逻辑删除）
      * <p>仅将帖子状态改为 2（已删除），不物理删除数据，可在回收站恢复。
+     * 校验帖子归属权，非作者本人无权删除。
+     *
+     * @param userId 当前登录用户 ID
+     * @param postId 帖子 ID
      */
     @Override
     public void deletePost(Long userId, Long postId) {
