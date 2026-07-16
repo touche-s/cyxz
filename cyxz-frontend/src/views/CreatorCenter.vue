@@ -72,60 +72,12 @@
         <div class="stats-section">
           <h3 class="section-title">数据概览</h3>
           <div class="stats-grid">
-            <div class="stat-card">
-              <div class="stat-icon-wrapper works-icon">
-                <img src="@/assets/icons/edit.svg" alt="edit" class="stat-icon" />
-              </div>
-              <div class="stat-info">
-                <span class="stat-value">{{ dataStats.totalPosts }}</span>
-                <span class="stat-label">总作品</span>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon-wrapper views-icon">
-                <img src="@/assets/icons/eye.svg" alt="eye" class="stat-icon" />
-              </div>
-              <div class="stat-info">
-                <span class="stat-value">{{ formatNumber(dataStats.totalViews) }}</span>
-                <span class="stat-label">总浏览</span>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon-wrapper likes-icon">
-                <img src="@/assets/icons/like.svg" alt="like" class="stat-icon" />
-              </div>
-              <div class="stat-info">
-                <span class="stat-value">{{ formatNumber(dataStats.totalLikes) }}</span>
-                <span class="stat-label">总点赞</span>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon-wrapper collections-icon">
-                <img src="@/assets/icons/favorite.svg" alt="favorite" class="stat-icon" />
-              </div>
-              <div class="stat-info">
-                <span class="stat-value">{{ formatNumber(dataStats.totalCollections) }}</span>
-                <span class="stat-label">总收藏</span>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon-wrapper fans-icon">
-                <img src="@/assets/icons/fans-nav.svg" alt="fans" class="stat-icon" />
-              </div>
-              <div class="stat-info">
-                <span class="stat-value">{{ formatNumber(followerCount) }}</span>
-                <span class="stat-label">粉丝数</span>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon-wrapper comments-icon">
-                <img src="@/assets/icons/comment.svg" alt="comment" class="stat-icon" />
-              </div>
-              <div class="stat-info">
-                <span class="stat-value">{{ formatNumber(commentsTotal) }}</span>
-                <span class="stat-label">评论数</span>
-              </div>
-            </div>
+            <StatCard icon-class="works-icon" :icon="iconEdit" :value="dataStats?.totalPosts ?? 0" label="总作品" />
+            <StatCard icon-class="views-icon" :icon="iconEye" :value="formatNumber(dataStats?.totalViews ?? 0)" label="总浏览" />
+            <StatCard icon-class="likes-icon" :icon="iconLike" :value="formatNumber(dataStats?.totalLikes ?? 0)" label="总点赞" />
+            <StatCard icon-class="collections-icon" :icon="iconFavorite" :value="formatNumber(dataStats?.totalCollections ?? 0)" label="总收藏" />
+            <StatCard icon-class="fans-icon" :icon="iconFans" :value="formatNumber(followerCount)" label="粉丝数" />
+            <StatCard icon-class="comments-icon" :icon="iconComment" :value="formatNumber(commentsTotal)" label="评论数" />
           </div>
         </div>
 
@@ -169,9 +121,7 @@
                 </div>
               </div>
             </div>
-            <div v-if="rankingList.length === 0" class="empty-ranking">
-              <p>还没有发布作品</p>
-            </div>
+            <EmptyState v-if="rankingList.length === 0" title="还没有发布作品" />
           </div>
         </div>
 
@@ -267,16 +217,13 @@
             </div>
           </div>
 
-          <div class="empty-container" v-else-if="!loading">
-            <img src="@/assets/icons/empty.svg" alt="empty" class="empty-icon" />
-            <p>还没有{{ activeContentTab === 'published' ? '已发布的' : activeContentTab === 'draft' ? '草稿' : activeContentTab === 'deleted' ? '已删除的' : '' }}作品</p>
-            <button class="create-btn" @click="goCreate">去创作</button>
-          </div>
+          <EmptyState v-else-if="!loading" :icon="iconEmpty" :title="`还没有${activeContentTab === 'published' ? '已发布的' : activeContentTab === 'draft' ? '草稿' : activeContentTab === 'deleted' ? '已删除的' : ''}作品`">
+            <template #actions>
+              <button class="create-btn" @click="goCreate">去创作</button>
+            </template>
+          </EmptyState>
 
-          <div class="loading-container" v-else>
-            <div class="loading-spinner"></div>
-            <p>加载中...</p>
-          </div>
+          <LoadingSpinner v-else text="加载中..." />
         </div>
       </template>
 
@@ -308,29 +255,18 @@
                 <h4 class="fan-name">{{ fan.nickname || '未知用户' }}</h4>
                 <span class="fan-time">{{ formatTime(fan.createTime) }}</span>
               </div>
-              <button :class="['fan-action', { followed: fan.following }]"
-                      @click="handleFollow(fan.userId, fan.following)">
-                {{ fan.following ? '已关注' : '回关' }}
-              </button>
+              <FollowButton :following="fan.following"
+                      text="回关"
+                      variant="list"
+                      @click="handleFollow(fan.userId, fan.following)" />
             </div>
           </div>
 
-          <div class="loading-container" v-else>
-            <div class="loading-spinner"></div>
-            <p>加载中...</p>
-          </div>
+          <LoadingSpinner v-else text="加载中..." />
 
-          <div class="empty-container" v-if="!fansLoading && fansList.length === 0">
-            <img src="@/assets/icons/empty.svg" alt="empty" class="empty-icon" />
-            <p>{{ activeFansTab === 'followers' ? '还没有粉丝' : '还没有关注的人' }}</p>
-            <p class="empty-hint">{{ activeFansTab === 'followers' ? '发布更多优质内容，吸引粉丝关注' : '去发现有趣的内容和人吧' }}</p>
-          </div>
+          <EmptyState v-if="!fansLoading && fansList.length === 0" :icon="iconEmpty" :title="activeFansTab === 'followers' ? '还没有粉丝' : '还没有关注的人'" :hint="activeFansTab === 'followers' ? '发布更多优质内容，吸引粉丝关注' : '去发现有趣的内容和人吧'" />
 
-          <div class="pagination-container" v-if="fansTotal > fansPageSize">
-            <button class="page-btn" :disabled="fansPage <= 1" @click="handleFansPageChange(fansPage - 1)">上一页</button>
-            <span class="page-info">{{ fansPage }} / {{ Math.ceil(fansTotal / fansPageSize) }}</span>
-            <button class="page-btn" :disabled="fansPage >= Math.ceil(fansTotal / fansPageSize)" @click="handleFansPageChange(fansPage + 1)">下一页</button>
-          </div>
+          <Pagination :current="fansPage" :total="fansTotal" :page-size="fansPageSize" @change="handleFansPageChange" />
         </div>
       </template>
 
@@ -406,22 +342,11 @@
             </div>
           </div>
 
-          <div class="loading-container" v-else-if="commentsLoading">
-            <div class="loading-spinner"></div>
-            <p>加载中...</p>
-          </div>
+          <LoadingSpinner v-else-if="commentsLoading" text="加载中..." />
 
-          <div class="empty-container" v-else>
-            <img src="@/assets/icons/empty.svg" alt="empty" class="empty-icon" />
-            <p v-if="selectedCommentPostId">当前帖子还没有评论</p>
-            <p v-else>当前还没有人给你的作品留言</p>
-          </div>
+          <EmptyState v-else :icon="iconEmpty" :title="selectedCommentPostId ? '当前帖子还没有评论' : '当前还没有人给你的作品留言'" />
 
-          <div class="comment-pagination" v-if="commentsTotal > commentPageSize">
-            <button class="comment-page-btn" :disabled="commentPage <= 1" @click="handleCommentPageChange(commentPage - 1)">上一页</button>
-            <span class="comment-page-info">{{ commentPage }} / {{ Math.ceil(commentsTotal / commentPageSize) }}</span>
-            <button class="comment-page-btn" :disabled="commentPage >= Math.ceil(commentsTotal / commentPageSize)" @click="handleCommentPageChange(commentPage + 1)">下一页</button>
-          </div>
+          <Pagination :current="commentPage" :total="commentsTotal" :page-size="commentPageSize" @change="handleCommentPageChange" />
         </div>
       </template>
 
@@ -588,14 +513,20 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-import { getUserPosts, deletePost, updatePost, getPostStats, getTopPosts } from '@/api/post'
-import type { PostVO, PostStatsVO } from '@/api/post'
+import { getUserPosts, deletePost, updatePost, getTopPosts } from '@/api/post'
+import { formatNumber, formatTime, formatDateTime } from '@/utils/format'
+import type { PostVO } from '@/api/post'
+import { usePostStats } from '@/composables/usePostStats'
 import { getFollowerList, getFollowingList, followUser, unfollowUser, getFollowStats } from '@/api/user'
 import { getManagedComments, deleteComment } from '@/api/comment'
 import { useUserStore } from '@/stores/user'
 import type { FollowUserVO } from '@/api/user'
 import type { CommentVO } from '@/api/comment'
 import PostCreate from '@/views/PostCreate.vue'
+import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import Pagination from '@/components/Pagination.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import FollowButton from '@/components/FollowButton.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -704,8 +635,14 @@ const commentPageSize = 20
 
 import iconLightbulb from '@/assets/icons/lightbulb.svg'
 import iconEdit from '@/assets/icons/edit.svg'
+import iconEye from '@/assets/icons/eye.svg'
+import iconLike from '@/assets/icons/like.svg'
+import iconFavorite from '@/assets/icons/favorite.svg'
+import iconFans from '@/assets/icons/fans-nav.svg'
+import iconComment from '@/assets/icons/comment.svg'
 import iconImage from '@/assets/icons/image.svg'
 import iconChart from '@/assets/icons/chart.svg'
+import iconEmpty from '@/assets/icons/empty.svg'
 
 const magicFeatures = ref([
   { icon: iconLightbulb, title: '智能选题', desc: '输入关键词，AI帮你生成热门选题', btnText: '开始选题' },
@@ -721,43 +658,6 @@ const statusText = (status: number) => {
     case 2: return '已删除'
     default: return '未知'
   }
-}
-
-const formatNumber = (num: number) => {
-  if (num >= 10000) {
-    return (num / 10000).toFixed(1) + 'w'
-  }
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'k'
-  }
-  return num.toString()
-}
-
-const formatTime = (time: string) => {
-  if (!time) return ''
-  const date = new Date(time)
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(diff / 3600000)
-  const days = Math.floor(diff / 86400000)
-  
-  if (minutes < 1) return '刚刚'
-  if (minutes < 60) return `${minutes}分钟前`
-  if (hours < 24) return `${hours}小时前`
-  if (days < 30) return `${days}天前`
-  return date.toLocaleDateString('zh-CN')
-}
-
-const formatDateTime = (time: string) => {
-  if (!time) return ''
-  const d = new Date(time)
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  const h = String(d.getHours()).padStart(2, '0')
-  const min = String(d.getMinutes()).padStart(2, '0')
-  return `${y}年${m}月${day}日 ${h}:${min}`
 }
 
 const truncatePostTitle = (title: string | undefined, postId: string) => {
@@ -857,20 +757,6 @@ const doDelete = async () => {
   } catch (error) {
     console.error('删除失败:', error)
     ElMessage.error('删除失败')
-  }
-}
-
-const loadDataStats = async () => {
-  dataLoading.value = true
-  try {
-    const res = await getPostStats()
-    if (res.data.code === 200) {
-      dataStats.value = res.data.data
-    }
-  } catch (error) {
-    console.error('加载数据统计失败:', error)
-  } finally {
-    dataLoading.value = false
   }
 }
 
@@ -1282,62 +1168,9 @@ watch(activeNav, (val) => {
   gap: 16px;
 }
 
-.stat-card {
-  background: white;
-  border-radius: 16px;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  border: 1.5px solid var(--border);
-  box-shadow: 0 4px 12px rgba(180, 132, 255, 0.06);
-  transition: all 0.22s ease-out;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(180, 132, 255, 0.12);
-}
-
-.stat-icon-wrapper {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.works-icon {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(99, 102, 241, 0.1));
-}
-
-.views-icon {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(52, 211, 153, 0.1));
-}
-
-.likes-icon {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(248, 113, 113, 0.1));
-}
-
-.collections-icon {
-  background: linear-gradient(135deg, rgba(234, 179, 8, 0.1), rgba(250, 204, 21, 0.1));
-}
-
-.stat-icon {
-  font-size: 24px;
-  width: 24px;
-  height: 24px;
-}
-
 .action-icon {
   width: 16px;
   height: 16px;
-}
-
-.empty-icon {
-  width: 64px;
-  height: 64px;
 }
 
 .title-icon {
@@ -1454,15 +1287,6 @@ watch(activeNav, (val) => {
   font-size: 12px;
   color: var(--text-dim);
   margin-bottom: 4px;
-}
-
-/* 首页概览切换的图标样式 */
-.stat-icon-wrapper.fans-icon {
-  background: linear-gradient(135deg, #e8d5f5, #d4b8f0);
-}
-
-.stat-icon-wrapper.comments-icon {
-  background: linear-gradient(135deg, #d5e8f5, #b8d4f0);
 }
 
 /* 内容管理页面样式 */
@@ -1839,22 +1663,6 @@ watch(activeNav, (val) => {
   filter: brightness(0) saturate(100%) invert(35%) sepia(80%) saturate(500%) hue-rotate(340deg) brightness(95%) contrast(90%);
 }
 
-.empty-container {
-  text-align: center;
-  padding: 80px 20px;
-}
-
-.empty-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
-}
-
-.empty-container p {
-  font-size: 16px;
-  color: var(--text-dim);
-  margin-bottom: 24px;
-}
-
 .create-btn {
   padding: 12px 32px;
   border-radius: 25px;
@@ -1871,33 +1679,6 @@ watch(activeNav, (val) => {
 .create-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(255, 107, 157, 0.4);
-}
-
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 80px 20px;
-  gap: 16px;
-}
-
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid rgba(255, 107, 157, 0.2);
-  border-top-color: var(--pink);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.loading-container p {
-  font-size: 14px;
-  color: var(--text-dim);
 }
 
 .status-tabs {
@@ -2151,19 +1932,6 @@ watch(activeNav, (val) => {
   }
 }
 
-.empty-ranking {
-  text-align: center;
-  padding: 32px 20px;
-  border-radius: 12px;
-  border: 1px dashed rgba(255, 182, 193, 0.3);
-}
-
-.empty-ranking p {
-  font-size: 14px;
-  color: var(--text-dim);
-  margin: 0;
-}
-
 .ranking-list {
   display: flex;
   flex-direction: column;
@@ -2376,68 +2144,6 @@ watch(activeNav, (val) => {
   border-radius: 12px;
   background: rgba(255, 107, 157, 0.1);
   color: var(--pink);
-}
-
-.fan-action {
-  padding: 8px 24px;
-  border-radius: 20px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  border: 1.5px solid #FFB6CC;
-  background: #FFF7FA;
-  color: #FF6B9D;
-  transition: all 0.22s ease-out;
-}
-
-.fan-action:hover {
-  background: #FFE8F0;
-}
-
-.fan-action.followed {
-  border-color: transparent;
-  background: #F8DDF8;
-  color: #B14FCF;
-  cursor: default;
-}
-
-.fan-action.followed:hover {
-  background: #F8DDF8;
-}
-
-.pagination-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  margin-top: 20px;
-  padding-bottom: 8px;
-}
-
-.page-btn {
-  padding: 6px 16px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.page-btn:hover:not(:disabled) {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.page-btn:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.page-info {
-  font-size: 13px;
-  color: var(--text-dim);
 }
 
 .comment-filter-group {
@@ -2658,41 +2364,6 @@ watch(activeNav, (val) => {
   box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 }
 
-/* 评论分页 */
-.comment-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 20px 0 8px;
-}
-
-.comment-page-btn {
-  padding: 6px 16px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: white;
-  color: var(--text);
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.comment-page-btn:hover:not(:disabled) {
-  border-color: var(--pink);
-  color: var(--pink);
-}
-
-.comment-page-btn:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
-.comment-page-info {
-  font-size: 13px;
-  color: var(--text-dim);
-}
-
 .magic-page {
   padding: 0;
 }
@@ -2798,12 +2469,6 @@ watch(activeNav, (val) => {
   color: var(--text-secondary);
   line-height: 2;
   margin-bottom: 6px;
-}
-
-.empty-hint {
-  font-size: 14px;
-  color: var(--text-dim);
-  margin-top: 8px;
 }
 
 .agreement-page {

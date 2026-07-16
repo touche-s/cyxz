@@ -140,9 +140,7 @@
               <span>{{ isEditMode ? '保存草稿' : '保存为草稿' }}</span>
             </button>
             <button type="submit" class="action-btn publish-btn" :disabled="loading">
-              <svg v-if="loading" class="loading-spinner" viewBox="0 0 24 24">
-                <circle class="path" cx="12" cy="12" r="10" fill="none" stroke-width="4"/>
-              </svg>
+              <LoadingSpinner v-if="loading" inline text="" />
               <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="12" y1="19" x2="12" y2="5"/>
                 <polyline points="5 12 12 5 19 12"/>
@@ -176,6 +174,7 @@ import { ElMessage } from 'element-plus'
 import { createPost, updatePost, getPostDetail, getCategoryList } from '@/api/post'
 import { uploadPostImage } from '@/api/upload'
 import type { PostVO, CategoryVO } from '@/api/post'
+import LoadingSpinner from '@/components/LoadingSpinner.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -765,26 +764,6 @@ onMounted(() => {
 .publish-btn:disabled {
   opacity: 0.7;
   cursor: not-allowed;
-}
-
-.loading-spinner {
-  animation: spin 0.8s linear infinite;
-}
-
-.loading-spinner .path {
-  stroke: white;
-  stroke-linecap: round;
-  animation: spinner-path 1.5s ease-in-out infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes spinner-path {
-  0% { stroke-dasharray: 1, 150; stroke-dashoffset: 0; }
-  50% { stroke-dasharray: 90, 150; stroke-dashoffset: -35; }
-  100% { stroke-dasharray: 90, 150; stroke-dashoffset: -124; }
 }
 
 .hidden-input {

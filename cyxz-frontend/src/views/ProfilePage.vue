@@ -23,13 +23,11 @@
         <div class="profile-detail">
           <div class="name-row">
             <h2>{{ profile.nickname }}</h2>
-            <button v-if="!isSelf"
-                    class="follow-btn"
-                    :class="{ followed: following }"
-                    :disabled="followLoading"
-                    @click="toggleFollow">
-              {{ following ? '已关注' : '关注' }}
-            </button>
+            <FollowButton v-if="!isSelf"
+                    :following="following"
+                    :loading="followLoading"
+                    variant="profile"
+                    @toggle="toggleFollow" />
           </div>
           <p class="profile-bio">{{ profile.bio || '这个人很懒，什么都没写...' }}</p>
         </div>
@@ -97,15 +95,13 @@
               @click="goToPost"
             />
           </div>
-          <div v-else-if="!postLoading" class="empty-state">
-            <p class="empty-text">这里还没有任何内容</p>
-            <p class="empty-hint">发布你的第一条动态，让大家认识你吧~</p>
-            <div class="empty-actions" v-if="isSelf">
+          <EmptyState v-else-if="!postLoading" title="这里还没有任何内容" hint="发布你的第一条动态，让大家认识你吧~">
+            <template v-if="isSelf" #actions>
               <button class="guide-btn guide-btn-primary" @click="goToCreatePost">
                 <img src="@/assets/icons/edit.svg" alt="edit" class="btn-icon" />投稿作品
               </button>
-            </div>
-          </div>
+            </template>
+          </EmptyState>
           <div v-else class="loading-placeholder">加载中...</div>
         </div>
 
@@ -127,10 +123,7 @@
               @click="goToPost"
             />
           </div>
-          <div v-else-if="!favoriteLoading" class="empty-state">
-            <p class="empty-text">还没有收藏任何内容</p>
-            <p class="empty-hint">发现喜欢的帖子就收藏起来吧~</p>
-          </div>
+          <EmptyState v-else-if="!favoriteLoading" title="还没有收藏任何内容" hint="发现喜欢的帖子就收藏起来吧~" />
           <div v-else class="loading-placeholder">加载中...</div>
         </div>
       </div>
@@ -148,15 +141,13 @@
             @click="goToPost"
           />
         </div>
-        <div v-else-if="!postLoading" class="empty-state">
-          <p class="empty-text">你还没有发布任何作品</p>
-          <p class="empty-hint">快去发布你的第一篇帖子吧~</p>
-          <div class="empty-actions" v-if="isSelf">
+        <EmptyState v-else-if="!postLoading" title="你还没有发布任何作品" hint="快去发布你的第一篇帖子吧~">
+          <template v-if="isSelf" #actions>
             <button class="guide-btn guide-btn-primary" @click="goToCreatePost">
               <img src="@/assets/icons/edit.svg" alt="edit" class="btn-icon" />发布帖子
             </button>
-          </div>
-        </div>
+          </template>
+        </EmptyState>
         <div v-else class="loading-placeholder">加载中...</div>
       </div>
 
@@ -173,10 +164,7 @@
             @click="goToPost"
           />
         </div>
-        <div v-else-if="!favoriteLoading" class="empty-state">
-          <p class="empty-text">你还没有收藏任何内容</p>
-          <p class="empty-hint">发现喜欢的帖子就收藏起来吧~</p>
-        </div>
+        <EmptyState v-else-if="!favoriteLoading" title="你还没有收藏任何内容" hint="发现喜欢的帖子就收藏起来吧~" />
         <div v-else class="loading-placeholder">加载中...</div>
       </div>
     </div>
@@ -252,17 +240,24 @@
 import { ref, computed, onMounted, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getUserProfile, updateUserProfile, followUser, unfollowUser, isFollowing } from '@/api/user'
+import { getUserProfile, updateUserProfile } from '@/api/user'
 import type { UserInfo } from '@/api/user'
 import { uploadAvatar } from '@/api/upload'
-import { getUserPostsByTarget, getUserFavorites, getUserPostStats } from '@/api/post'
-import type { PostVO, PostStatsVO } from '@/api/post'
+import { getUserPostsByTarget, getUserFavorites } from '@/api/post'
+import type { PostVO } from '@/api/post'
+import { usePostStats } from '@/composables/usePostStats'
 import { useUserStore } from '@/stores/user'
+import { useAuth } from '@/composables/useAuth'
+import { useFollow } from '@/composables/useFollow'
 import PostCard from '@/components/PostCard.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import FollowButton from '@/components/FollowButton.vue'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const { requireLogin } = useAuth()
+const { following, followLoading, checkFollowing, toggleFollow: doFollow } = useFollow()
 
 const profile = ref<UserInfo | null>(null)
 const loading = ref(true)
@@ -271,8 +266,6 @@ const saving = ref(false)
 const uploading = ref(false)
 const fileInput = ref<HTMLInputElement>()
 const activeTab = ref('home')
-const following = ref(false)
-const followLoading = ref(false)
 
 const editForm = reactive({
   nickname: '',
@@ -307,12 +300,7 @@ onMounted(async () => {
     await loadPostStats(userId)
     // 非本人时查询关注状态
     if (!isSelf.value) {
-      try {
-        const followRes = await isFollowing(userId)
-        following.value = ((followRes.data as any).data) === true
-      } catch {
-        // 忽略关注状态查询失败
-      }
+      await checkFollowing(userId)
     }
   } catch {
     ElMessage.error('加载用户信息失败')
@@ -344,23 +332,6 @@ async function loadFavorites(userId: string) {
     favorites.value = []
   } finally {
     favoriteLoading.value = false
-  }
-}
-
-async function loadPostStats(userId: string) {
-  try {
-    const res = await getUserPostStats(userId)
-    const data = (res.data as any).data || res.data
-    if (data) {
-      postStats.value = {
-        totalPosts: Number(data.totalPosts) || 0,
-        totalViews: Number(data.totalViews) || 0,
-        totalLikes: Number(data.totalLikes) || 0,
-        totalCollections: Number(data.totalCollections) || 0,
-      }
-    }
-  } catch {
-    // 忽略统计加载失败，保留 null 由模板兜底为 0
   }
 }
 
@@ -420,15 +391,6 @@ function cancelEdit() {
   showEdit.value = false
 }
 
-function formatDate(date: Date | string): string {
-  if (!date) return ''
-  const d = typeof date === 'string' ? new Date(date) : date
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
 async function saveEdit() {
   saving.value = true
   try {
@@ -456,35 +418,14 @@ async function saveEdit() {
   }
 }
 
-async function toggleFollow() {
-  if (!userStore.isLoggedIn) {
-    userStore.openLoginModal()
-    return
-  }
-  const targetUserId = String(route.params.id)
-  followLoading.value = true
-  const oldFollowing = following.value
-  following.value = !oldFollowing
-  try {
-    if (oldFollowing) {
-      await unfollowUser(targetUserId)
-      ElMessage.success('已取消关注')
-    } else {
-      await followUser(targetUserId)
-      ElMessage.success('关注成功')
-    }
-    // 本地更新粉丝数
+function toggleFollow() {
+  doFollow(String(route.params.id), (nowFollowing) => {
     if (profile.value) {
-      profile.value.followerCount = oldFollowing
-        ? Math.max((profile.value.followerCount || 0) - 1, 0)
-        : (profile.value.followerCount || 0) + 1
+      profile.value.followerCount = nowFollowing
+        ? (profile.value.followerCount || 0) + 1
+        : Math.max((profile.value.followerCount || 0) - 1, 0)
     }
-  } catch {
-    following.value = oldFollowing
-    ElMessage.error('操作失败')
-  } finally {
-    followLoading.value = false
-  }
+  })
 }
 
 function goToCreatePost() {
@@ -643,39 +584,6 @@ function goToPost(post: PostVO) {
   text-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
 
-.follow-btn {
-  padding: 4px 14px;
-  border-radius: 14px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  color: white;
-  box-shadow: 0 2px 8px rgba(255,107,157,0.25);
-  transition: all 0.25s ease;
-  flex-shrink: 0;
-}
-.follow-btn:hover:not(:disabled) {
-  transform: translateY(-2px) scale(1.03);
-  box-shadow: 0 6px 24px rgba(255,107,157,0.4);
-}
-.follow-btn.followed {
-  background: rgba(255,255,255,0.9);
-  color: var(--text-dim);
-  border: 1.5px solid rgba(255,255,255,0.6);
-  box-shadow: none;
-}
-.follow-btn.followed:hover:not(:disabled) {
-  border-color: var(--pink);
-  color: var(--pink);
-  background: white;
-}
-.follow-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
 .info-bar {
   background: white;
   border-bottom: 1px solid var(--border);
@@ -810,27 +718,6 @@ function goToPost(post: PostVO) {
   gap: 16px;
 }
 
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 60px 0 40px;
-}
-.empty-text {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text);
-  margin: 0 0 6px;
-}
-.empty-hint {
-  font-size: 13px;
-  color: var(--text-dim);
-  margin: 0 0 24px;
-}
-.empty-actions {
-  display: flex;
-  gap: 12px;
-}
 .guide-btn {
   display: flex;
   align-items: center;
@@ -1172,7 +1059,6 @@ function goToPost(post: PostVO) {
   .profile-stat .num { font-size: 16px; }
   .content-area { padding: 16px; }
   .content-grid { grid-template-columns: repeat(2, 1fr); }
-  .empty-actions { flex-direction: column; width: 100%; max-width: 280px; }
   .guide-btn { justify-content: center; }
 }
 </style>

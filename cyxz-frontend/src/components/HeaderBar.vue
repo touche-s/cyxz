@@ -60,26 +60,22 @@
 <script setup lang="ts">
 import { Search, Plus, UserFilled, SwitchButton, EditPen, Setting, Bell, ChatLineSquare, Star } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
+import { useAuth } from '@/composables/useAuth'
 import { useRouter } from 'vue-router'
 import { logout } from '@/api/auth'
 import { ElMessage } from 'element-plus'
 
 const userStore = useUserStore()
+const { requireLogin } = useAuth()
 const router = useRouter()
 
 function goCreator() {
-  if (!userStore.isLoggedIn) {
-    userStore.openLoginModal()
-    return
-  }
+  if (!requireLogin()) return
   router.push('/creator')
 }
 
 function goPublish() {
-  if (!userStore.isLoggedIn) {
-    userStore.openLoginModal()
-    return
-  }
+  if (!requireLogin()) return
   userStore.creatorActiveNav = 'publish'
   router.push('/creator')
 }

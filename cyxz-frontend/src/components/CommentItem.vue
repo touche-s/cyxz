@@ -38,7 +38,7 @@
 
       <!-- 操作栏：时间 + 点赞 + 回复 -->
       <div class="comment-actions">
-        <span class="comment-time">{{ formatTime(comment.createTime) }}</span>
+        <span class="comment-time">{{ formatDateTime(comment.createTime) }}</span>
         <button
           class="comment-action-btn"
           :class="{ active: comment.liked }"
@@ -134,8 +134,10 @@ import { ElMessage } from 'element-plus'
 import { toggleCommentLike, deleteComment, getCommentReplies } from '@/api/comment'
 import type { CommentVO } from '@/api/comment'
 import { useUserStore } from '@/stores/user'
+import { useAuth } from '@/composables/useAuth'
 import likeIcon from '@/assets/icons/like.svg'
 import likeOutlineIcon from '@/assets/icons/like-outline.svg'
+import { formatDateTime } from '@/utils/format'
 
 const router = useRouter()
 
@@ -165,13 +167,11 @@ function goToUser() {
 }
 
 const userStore = useUserStore()
+const { requireLogin } = useAuth()
 
 // ===== 点赞 =====
 const handleToggleLike = async () => {
-  if (!userStore.isLoggedIn) {
-    ElMessage.warning('请先登录')
-    return
-  }
+  if (!requireLogin()) return
 
   const oldLiked = props.comment.liked
   const oldLikes = props.comment.likes
@@ -318,18 +318,6 @@ watch(() => props.comment.totalReplies, async (newVal, oldVal) => {
     }
   }
 })
-
-// ===== 时间格式化 =====
-const formatTime = (time: string) => {
-  if (!time) return ''
-  const date = new Date(time)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hour = String(date.getHours()).padStart(2, '0')
-  const minute = String(date.getMinutes()).padStart(2, '0')
-  return `${year}-${month}-${day} ${hour}:${minute}`
-}
 </script>
 
 <style scoped>

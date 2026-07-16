@@ -1,6 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
-import { useUserStore } from '@/stores/user'
+import { useAuth } from '@/composables/useAuth'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -68,9 +68,8 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   if (to.meta.requiresAuth) {
-    const token = localStorage.getItem('token')
-    if (!token) {
-      useUserStore().openLoginModal()
+    const { requireLogin } = useAuth()
+    if (!requireLogin()) {
       return '/'
     }
   }

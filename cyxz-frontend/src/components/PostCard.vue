@@ -44,6 +44,7 @@ import likeIconSrc from '@/assets/icons/like.svg'
 import likeOutlineIconSrc from '@/assets/icons/like-outline.svg'
 import favoriteIconSrc from '@/assets/icons/favorite.svg'
 import favoriteOutlineIconSrc from '@/assets/icons/favorite-outline.svg'
+import { formatNumber } from '@/utils/format'
 
 defineProps<{
   post: PostVO
@@ -73,13 +74,6 @@ const getGradient = (id: string | number) => {
   const source = String(id)
   const lastDigit = Number(source[source.length - 1] || '0')
   return gradients[lastDigit % gradients.length]
-}
-
-const formatNumber = (num: number) => {
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'k'
-  }
-  return num.toString()
 }
 </script>
 

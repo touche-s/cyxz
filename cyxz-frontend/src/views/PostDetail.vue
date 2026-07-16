@@ -4,10 +4,7 @@
 
     <main class="main-content">
       <div class="page-inner">
-        <div v-if="loading" class="loading-container">
-          <div class="loading-spinner"></div>
-          <p>加载中...</p>
-        </div>
+        <LoadingSpinner v-if="loading" text="加载中..." />
 
         <div v-else-if="post" class="post-detail">
           <div class="post-main-card">
@@ -18,13 +15,11 @@
                 <div class="author-meta">
                   <div class="author-name-row">
                     <span class="author-name">{{ post.authorName || '匿名用户' }}</span>
-                    <button v-if="post.userId && String(post.userId) !== String(currentUserId)"
-                            class="author-follow-btn"
-                            :class="{ followed: following }"
-                            :disabled="followLoading"
-                            @click="toggleFollow">
-                      {{ following ? '已关注' : '关注' }}
-                    </button>
+                    <FollowButton v-if="post.userId && String(post.userId) !== String(currentUserId)"
+                            :following="following"
+                            :loading="followLoading"
+                            variant="author"
+                            @toggle="toggleFollow" />
                   </div>
                   <span class="post-time">{{ formatDateTime(post.createTime) }}</span>
                 </div>
@@ -161,10 +156,11 @@
           </div>
         </div>
 
-        <div v-else class="empty-state">
-          <p>帖子不存在或已删除</p>
-          <button class="back-btn" @click="goHome">返回首页</button>
-        </div>
+        <EmptyState v-else title="帖子不存在或已删除">
+          <template #actions>
+            <button class="back-btn" @click="goHome">返回首页</button>
+          </template>
+        </EmptyState>
       </div>
     </main>
   </div>
@@ -175,15 +171,20 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getPostDetail, togglePostLike, togglePostCollect, recordPostView } from '@/api/post'
+import { formatNumber, formatTime, formatDateTime } from '@/utils/format'
 import {
   getCommentList,
   createComment,
 } from '@/api/comment'
 import type { PostVO } from '@/api/post'
 import type { CommentVO, CreateCommentRequest } from '@/api/comment'
-import { followUser, unfollowUser, isFollowing } from '@/api/user'
 import { useUserStore } from '@/stores/user'
+import { useAuth } from '@/composables/useAuth'
+import { useFollow } from '@/composables/useFollow'
 import CommentItem from '@/components/CommentItem.vue'
+import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import FollowButton from '@/components/FollowButton.vue'
 import likeIcon from '@/assets/icons/like.svg'
 import likeOutlineIcon from '@/assets/icons/like-outline.svg'
 import favoriteIcon from '@/assets/icons/favorite.svg'
@@ -194,13 +195,13 @@ import commentIcon from '@/assets/icons/comment.svg'
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
+const { requireLogin } = useAuth()
+const { following, followLoading, checkFollowing, toggleFollow: doFollow } = useFollow()
 
 const post = ref<PostVO | null>(null)
 const loading = ref(false)
 const liked = ref(false)
 const collected = ref(false)
-const following = ref(false)
-const followLoading = ref(false)
 const commentInput = ref('')
 const commentSection = ref<HTMLElement | null>(null)
 const currentImage = ref(0)
@@ -243,37 +244,6 @@ const nextImage = () => {
   }
 }
 
-const formatNumber = (num: number) => {
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'k'
-  return num.toString()
-}
-
-const formatTime = (time: string) => {
-  if (!time) return ''
-  const date = new Date(time)
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(diff / 3600000)
-  const days = Math.floor(diff / 86400000)
-  if (minutes < 1) return '刚刚'
-  if (minutes < 60) return `${minutes}分钟前`
-  if (hours < 24) return `${hours}小时前`
-  if (days < 30) return `${days}天前`
-  return date.toLocaleDateString('zh-CN')
-}
-
-const formatDateTime = (time: string) => {
-  if (!time) return ''
-  const d = new Date(time)
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  const h = String(d.getHours()).padStart(2, '0')
-  const min = String(d.getMinutes()).padStart(2, '0')
-  return `${y}年${m}月${day}日 ${h}:${min}`
-}
-
 // ===== 帖子 =====
 const loadPost = async () => {
   const postId = String(route.params.id)
@@ -286,12 +256,7 @@ const loadPost = async () => {
       collected.value = post.value.collected || false
       // 非作者本人时查询关注状态
       if (post.value.userId && String(post.value.userId) !== String(currentUserId.value)) {
-        try {
-          const followRes = await isFollowing(String(post.value.userId))
-          following.value = ((followRes.data as any).data) === true
-        } catch {
-          // 忽略关注状态查询失败
-        }
+        await checkFollowing(String(post.value.userId))
       }
     }
   } catch {
@@ -302,10 +267,7 @@ const loadPost = async () => {
 }
 
 const togglePostLike = async () => {
-  if (!userStore.isLoggedIn) {
-    ElMessage.warning('请先登录')
-    return
-  }
+  if (!requireLogin()) return
   if (!post.value) return
 
   const oldLiked = liked.value
@@ -326,10 +288,7 @@ const togglePostLike = async () => {
 }
 
 const toggleCollect = async () => {
-  if (!userStore.isLoggedIn) {
-    ElMessage.warning('请先登录')
-    return
-  }
+  if (!requireLogin()) return
   if (!post.value) return
 
   const oldCollected = collected.value
@@ -349,30 +308,9 @@ const toggleCollect = async () => {
   }
 }
 
-const toggleFollow = async () => {
-  if (!userStore.isLoggedIn) {
-    ElMessage.warning('请先登录')
-    return
-  }
+function toggleFollow() {
   if (!post.value?.userId) return
-  const targetUserId = String(post.value.userId)
-  followLoading.value = true
-  const oldFollowing = following.value
-  following.value = !oldFollowing
-  try {
-    if (oldFollowing) {
-      await unfollowUser(targetUserId)
-      ElMessage.success('已取消关注')
-    } else {
-      await followUser(targetUserId)
-      ElMessage.success('关注成功')
-    }
-  } catch {
-    following.value = oldFollowing
-    ElMessage.error('操作失败')
-  } finally {
-    followLoading.value = false
-  }
+  doFollow(String(post.value.userId))
 }
 
 const handleShare = () => {
@@ -431,10 +369,7 @@ const loadMoreComments = () => {
 // ===== 发表评论 / 回复 =====
 const submitTopComment = async () => {
   if (!commentInput.value.trim()) return
-  if (!userStore.isLoggedIn) {
-    ElMessage.warning('请先登录')
-    return
-  }
+  if (!requireLogin()) return
   if (!post.value) return
 
   try {
@@ -457,10 +392,7 @@ const submitTopComment = async () => {
 
 const submitComment = async () => {
   if (!commentInput.value.trim()) return
-  if (!userStore.isLoggedIn) {
-    ElMessage.warning('请先登录')
-    return
-  }
+  if (!requireLogin()) return
   if (!post.value || !replyTarget.value) return
 
   try {
@@ -498,10 +430,7 @@ const submitComment = async () => {
 }
 
 const handleReply = (payload: { comment: CommentVO; parentId: string }) => {
-  if (!userStore.isLoggedIn) {
-    ElMessage.warning('请先登录')
-    return
-  }
+  if (!requireLogin()) return
   replyTarget.value = payload
   activeReplyId.value = payload.parentId
   commentInput.value = ''
@@ -560,33 +489,6 @@ onMounted(async () => {
   max-width: 860px;
   margin: 0 auto;
   padding: 0 20px;
-}
-
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 100px 20px;
-}
-
-.loading-spinner {
-  width: 48px;
-  height: 48px;
-  border: 3px solid rgba(255, 107, 157, 0.2);
-  border-top-color: var(--pink);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.loading-container p {
-  margin-top: 16px;
-  font-size: 14px;
-  color: var(--text-dim);
 }
 
 .post-detail {
@@ -665,39 +567,6 @@ onMounted(async () => {
 .post-time {
   font-size: 13px;
   color: var(--text-dim);
-}
-
-.author-follow-btn {
-  padding: 3px 12px;
-  border-radius: 14px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  background: #F8DDF8;
-  color: #B14FCF;
-  transition: all 0.25s ease;
-  flex-shrink: 0;
-  line-height: 1.5;
-}
-.author-follow-btn:hover:not(:disabled) {
-  background: #F3C8F3;
-  color: #9A3FB0;
-  transform: translateY(-1px);
-}
-.author-follow-btn.followed {
-  background: white;
-  color: var(--text-dim);
-  border: 1px solid var(--border);
-}
-.author-follow-btn.followed:hover:not(:disabled) {
-  border-color: var(--pink);
-  color: var(--pink);
-  background: rgba(255, 182, 193, 0.15);
-}
-.author-follow-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .post-title {
@@ -1043,21 +912,7 @@ onMounted(async () => {
   color: var(--text-dim);
 }
 
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 100px 20px;
-}
-
-.empty-state p {
-  font-size: 16px;
-  color: var(--text-dim);
-  margin-bottom: 20px;
-}
-
-.empty-state .back-btn {
+.back-btn {
   padding: 10px 32px;
   border-radius: 20px;
   background: linear-gradient(135deg, var(--pink), var(--purple));
@@ -1069,7 +924,7 @@ onMounted(async () => {
   transition: all 0.22s ease-out;
 }
 
-.empty-state .back-btn:hover {
+.back-btn:hover {
   box-shadow: 0 4px 16px rgba(255, 107, 157, 0.35);
 }
 

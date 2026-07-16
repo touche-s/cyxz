@@ -74,14 +74,9 @@
       />
     </div>
 
-    <div v-else class="loading-container">
-      <div class="loading-spinner"></div>
-      <p>加载中...</p>
-    </div>
+    <LoadingSpinner v-else text="加载中..." />
 
-    <div v-if="!loading && posts.length === 0" class="empty-state">
-      <p>暂无内容</p>
-    </div>
+    <EmptyState v-if="!loading && posts.length === 0" title="暂无内容" />
 
     <footer class="footer">
       <div class="footer-links">
@@ -102,10 +97,14 @@ import { useRouter } from 'vue-router'
 import { getPostList, getCategoryList, togglePostLike, togglePostCollect } from '@/api/post'
 import type { PostVO, CategoryVO } from '@/api/post'
 import { useUserStore } from '@/stores/user'
+import { useAuth } from '@/composables/useAuth'
 import PostCard from '@/components/PostCard.vue'
+import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import EmptyState from '@/components/EmptyState.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
+const { requireLogin } = useAuth()
 
 const posts = ref<PostVO[]>([])
 const categories = ref<CategoryVO[]>([])
@@ -208,19 +207,13 @@ const selectCategory = (categoryId: number | null) => {
 }
 
 const viewPost = (post: PostVO) => {
-  if (!userStore.isLoggedIn) {
-    userStore.openLoginModal()
-    return
-  }
+  if (!requireLogin()) return
   const url = router.resolve(`/post/${post.id}`).href
   window.open(url, '_blank')
 }
 
 const toggleSave = async (post: PostVO) => {
-  if (!userStore.isLoggedIn) {
-    userStore.openLoginModal()
-    return
-  }
+  if (!requireLogin()) return
 
   const oldCollected = post.collected
   const oldCollections = post.collections
@@ -240,10 +233,7 @@ const toggleSave = async (post: PostVO) => {
 }
 
 const handlePostLike = async (post: PostVO) => {
-  if (!userStore.isLoggedIn) {
-    userStore.openLoginModal()
-    return
-  }
+  if (!requireLogin()) return
 
   const oldLiked = post.liked
   const oldLikes = post.likes
@@ -809,44 +799,6 @@ onUnmounted(() => {
 
 .like-btn.active {
   color: var(--pink);
-}
-
-/* ===== Loading & Empty States ===== */
-.loading-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 80px 20px;
-  gap: 16px;
-}
-
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid rgba(255, 107, 157, 0.2);
-  border-top-color: var(--pink);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.loading-container p {
-  font-size: 14px;
-  color: var(--text-dim);
-}
-
-.empty-state {
-  text-align: center;
-  padding: 80px 20px;
-}
-
-.empty-state p {
-  font-size: 16px;
-  color: var(--text-dim);
 }
 
 /* ===== Footer ===== */
