@@ -138,6 +138,14 @@ public class UserProfileServiceImpl implements UserProfileService {
         log.info("创建默认用户资料: userId={}, username={}", userId, username);
     }
 
+    /**
+     * 查询当前登录用户的资料，查不到则兜底初始化
+     * <p>如果资料不存在则自动创建默认资料（昵称"用户+ID"）再返回。
+     * 确保注册后进个人空间能立刻查到资料。
+     *
+     * @param userId 当前登录用户 ID（来自 X-User-Id Header）
+     * @return 用户资料视图对象
+     */
     @Override
     public UserProfileVO getOrInitMyProfile(Long userId) {
         UserProfilePO po = profileMapper.selectOne(

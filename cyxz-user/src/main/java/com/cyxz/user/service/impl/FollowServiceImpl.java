@@ -17,6 +17,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * 关注服务实现
+ * <p>管理 user_follow 表的关注/取关、统计与列表查询。
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -24,6 +28,14 @@ public class FollowServiceImpl implements FollowService {
 
     private final UserFollowMapper followMapper;
 
+    /**
+     * 关注目标用户（幂等）
+     * <p>不存在关注记录则插入 status=1，已存在且 status=0 则恢复关注，已关注则忽略。
+     * 不允许关注自己。
+     *
+     * @param userId       当前登录用户 ID
+     * @param targetUserId 目标用户 ID
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void follow(Long userId, Long targetUserId) {
@@ -50,6 +62,13 @@ public class FollowServiceImpl implements FollowService {
         }
     }
 
+    /**
+     * 取消关注目标用户（幂等）
+     * <p>已关注则将 status 设为 0，不存在或已取消则忽略。
+     *
+     * @param userId       当前登录用户 ID
+     * @param targetUserId 目标用户 ID
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void unfollow(Long userId, Long targetUserId) {
@@ -65,6 +84,13 @@ public class FollowServiceImpl implements FollowService {
         }
     }
 
+    /**
+     * 查询当前用户是否关注了目标用户
+     *
+     * @param userId       当前登录用户 ID
+     * @param targetUserId 目标用户 ID
+     * @return true=已关注
+     */
     @Override
     public boolean isFollowing(Long userId, Long targetUserId) {
         LambdaQueryWrapper<UserFollowPO> wrapper = new LambdaQueryWrapper<>();
@@ -74,16 +100,37 @@ public class FollowServiceImpl implements FollowService {
         return followMapper.selectCount(wrapper) > 0;
     }
 
+    /**
+     * 统计当前用户的关注数
+     *
+     * @param userId 用户 ID
+     * @return 关注数
+     */
     @Override
     public int countFollowing(Long userId) {
         return followMapper.countFollowing(userId);
     }
 
+    /**
+     * 统计当前用户的粉丝数
+     *
+     * @param userId 用户 ID
+     * @return 粉丝数
+     */
     @Override
     public int countFollowers(Long userId) {
         return followMapper.countFollowers(userId);
     }
 
+    /**
+     * 分页查询当前用户的关注列表
+     * <p>结果中 following 字段始终为 true（因为都是自己关注的人）。
+     *
+     * @param userId 用户 ID
+     * @param page   页码（从 1 开始）
+     * @param size   每页条数
+     * @return 关注用户列表
+     */
     @Override
     public PageResult<FollowUserVO> listFollowing(Long userId, int page, int size) {
         int total = followMapper.countFollowing(userId);
@@ -97,6 +144,15 @@ public class FollowServiceImpl implements FollowService {
         return PageResult.of(records, total, page, size);
     }
 
+    /**
+     * 分页查询当前用户的粉丝列表
+     * <p>批量查询当前用户已关注的用户 ID 集合，为每个粉丝补 following 字段（是否已回关）。
+     *
+     * @param userId 用户 ID
+     * @param page   页码（从 1 开始）
+     * @param size   每页条数
+     * @return 粉丝用户列表（含 following 回关状态）
+     */
     @Override
     public PageResult<FollowUserVO> listFollowers(Long userId, int page, int size) {
         int total = followMapper.countFollowers(userId);
