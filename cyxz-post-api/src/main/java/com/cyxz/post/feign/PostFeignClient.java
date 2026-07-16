@@ -15,7 +15,7 @@ import java.util.Set;
  * 帖子服务 Feign 客户端
  * <p>供其他微服务（如 comment 服务）通过内部接口调用帖子服务。
  */
-@FeignClient(name = "cyxz-post", path = "/post")
+@FeignClient(name = "cyxz-post", path = "/post", fallbackFactory = PostFeignClientFallbackFactory.class)
 public interface PostFeignClient {
 
     /**

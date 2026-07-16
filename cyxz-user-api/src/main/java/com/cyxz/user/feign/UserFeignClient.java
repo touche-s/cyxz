@@ -15,7 +15,7 @@ import java.util.Map;
  * 用户服务 Feign 客户端
  * <p>供其他微服务调用 cyxz-user 的接口。
  */
-@FeignClient(name = "cyxz-user")
+@FeignClient(name = "cyxz-user", fallbackFactory = UserFeignClientFallbackFactory.class)
 public interface UserFeignClient {
 
     /**

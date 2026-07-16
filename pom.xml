@@ -14,6 +14,8 @@
     <modules>
         <module>cyxz-common</module>
         <module>cyxz-user-api</module>
+        <module>cyxz-auth-api</module>
+        <module>cyxz-post-api</module>
         <module>cyxz-gateway</module>
         <module>cyxz-auth</module>
         <module>cyxz-user</module>
@@ -81,6 +83,16 @@
             <dependency>
                 <groupId>com.cyxz</groupId>
                 <artifactId>cyxz-user-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.cyxz</groupId>
+                <artifactId>cyxz-auth-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.cyxz</groupId>
+                <artifactId>cyxz-post-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
