@@ -20,10 +20,6 @@
             <img src="@/assets/icons/content-nav.svg" class="nav-icon" />
             <span class="nav-text">内容管理</span>
           </button>
-          <button class="nav-item" :class="{ active: activeNav === 'data' }" @click="activeNav = 'data'">
-            <img src="@/assets/icons/data-nav.svg" class="nav-icon" />
-            <span class="nav-text">数据中心</span>
-          </button>
         </div>
 
         <div class="nav-divider"></div>
@@ -95,6 +91,24 @@
               </div>
             </div>
             <div class="stat-card">
+              <div class="stat-icon-wrapper likes-icon">
+                <img src="@/assets/icons/like.svg" alt="like" class="stat-icon" />
+              </div>
+              <div class="stat-info">
+                <span class="stat-value">{{ formatNumber(dataStats.totalLikes) }}</span>
+                <span class="stat-label">总点赞</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon-wrapper collections-icon">
+                <img src="@/assets/icons/favorite.svg" alt="favorite" class="stat-icon" />
+              </div>
+              <div class="stat-info">
+                <span class="stat-value">{{ formatNumber(dataStats.totalCollections) }}</span>
+                <span class="stat-label">总收藏</span>
+              </div>
+            </div>
+            <div class="stat-card">
               <div class="stat-icon-wrapper fans-icon">
                 <img src="@/assets/icons/fans-nav.svg" alt="fans" class="stat-icon" />
               </div>
@@ -132,6 +146,31 @@
                 <span class="stat-item"><img src="@/assets/icons/like.svg" alt="like" class="stat-mini-icon" />{{ post.likes }}</span>
                 <span class="stat-item"><img src="@/assets/icons/favorite.svg" alt="favorite" class="stat-mini-icon" />{{ post.collections }}</span>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="recent-section">
+          <h3 class="section-title">热门作品</h3>
+          <div class="ranking-list">
+            <div class="ranking-item" v-for="(item, index) in rankingList" :key="item.id" @click="viewPost(item.id)">
+              <div class="rank-num" :class="'rank-' + (index + 1)">{{ index + 1 }}</div>
+              <div class="rank-cover">
+                <img v-if="item.cover" :src="item.cover" alt="" />
+                <div v-else class="cover-placeholder-small">📷</div>
+              </div>
+              <div class="rank-info">
+                <h4>{{ item.title }}</h4>
+                <span class="rank-time">{{ formatDateTime(item.createTime) }}</span>
+                <div class="rank-stats">
+                  <span class="stat-item"><img src="@/assets/icons/eye.svg" alt="eye" class="stat-mini-icon" />{{ item.views }}</span>
+                  <span class="stat-item"><img src="@/assets/icons/like.svg" alt="like" class="stat-mini-icon" />{{ item.likes }}</span>
+                  <span class="stat-item"><img src="@/assets/icons/favorite.svg" alt="favorite" class="stat-mini-icon" />{{ item.collections }}</span>
+                </div>
+              </div>
+            </div>
+            <div v-if="rankingList.length === 0" class="empty-ranking">
+              <p>还没有发布作品</p>
             </div>
           </div>
         </div>
@@ -255,115 +294,6 @@
           <div class="loading-container" v-else>
             <div class="loading-spinner"></div>
             <p>加载中...</p>
-          </div>
-        </div>
-      </template>
-
-      <template v-else-if="activeNav === 'data'">
-        <div class="page-container">
-          <header class="page-header">
-            <div class="header-left">
-              <h1>数据中心</h1>
-              <p>查看你的作品数据表现</p>
-            </div>
-            <div class="time-filter">
-              <button 
-                v-for="time in timeFilters" 
-                :key="time.value"
-                class="time-btn"
-                :class="{ active: activeTimeFilter === time.value }"
-                @click="activeTimeFilter = time.value"
-              >
-                {{ time.label }}
-              </button>
-            </div>
-          </header>
-
-          <div class="stats-grid">
-            <div class="stat-card">
-              <div class="stat-icon-wrapper works-icon">
-                <img src="@/assets/icons/edit.svg" alt="edit" class="stat-icon" />
-              </div>
-              <div class="stat-info">
-                <span class="stat-value">{{ dataStats.totalPosts }}</span>
-                <span class="stat-label">已发布作品</span>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon-wrapper views-icon">
-                <img src="@/assets/icons/eye.svg" alt="eye" class="stat-icon" />
-              </div>
-              <div class="stat-info">
-                <span class="stat-value">{{ formatNumber(dataStats.totalViews) }}</span>
-                <span class="stat-label">总浏览量</span>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon-wrapper likes-icon">
-                <img src="@/assets/icons/like.svg" alt="like" class="stat-icon" />
-              </div>
-              <div class="stat-info">
-                <span class="stat-value">{{ formatNumber(dataStats.totalLikes) }}</span>
-                <span class="stat-label">总点赞数</span>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon-wrapper collections-icon">
-              <img src="@/assets/icons/favorite.svg" alt="favorite" class="stat-icon" />
-            </div>
-              <div class="stat-info">
-                <span class="stat-value">{{ formatNumber(dataStats.totalCollections) }}</span>
-                <span class="stat-label">总收藏数</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="ranking-section">
-            <h3>作品排行榜</h3>
-            <div class="ranking-list">
-              <div class="ranking-item" v-for="(item, index) in rankingList" :key="item.id">
-                <div class="rank-num" :class="'rank-' + (index + 1)">{{ index + 1 }}</div>
-                <div class="rank-cover">
-                  <img v-if="item.cover" :src="item.cover" alt="" />
-                  <div v-else class="cover-placeholder-small">📷</div>
-                </div>
-                <div class="rank-info">
-                  <h4>{{ item.title }}</h4>
-                  <span class="rank-time">{{ formatDateTime(item.createTime) }}</span>
-                  <div class="rank-stats">
-                    <span class="stat-item"><img src="@/assets/icons/eye.svg" alt="eye" class="stat-mini-icon" />{{ item.views }}</span>
-                    <span class="stat-item"><img src="@/assets/icons/like.svg" alt="like" class="stat-mini-icon" />{{ item.likes }}</span>
-                    <span class="stat-item"><img src="@/assets/icons/favorite.svg" alt="favorite" class="stat-mini-icon" />{{ item.collections }}</span>
-                  </div>
-                </div>
-              </div>
-              <div v-if="rankingList.length === 0" class="empty-ranking">
-                <p>还没有发布作品</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="ranking-section">
-            <h3>全部作品表现</h3>
-            <div class="perf-table" v-if="allPerformancePosts.length > 0">
-              <div class="perf-row perf-header">
-                <span class="perf-col perf-col-title">作品</span>
-                <span class="perf-col perf-col-time">发布时间</span>
-                <span class="perf-col perf-col-num">浏览</span>
-                <span class="perf-col perf-col-num">点赞</span>
-                <span class="perf-col perf-col-num">收藏</span>
-              </div>
-              <div class="perf-row" v-for="post in allPerformancePosts" :key="post.id">
-                <span class="perf-col perf-col-title">{{ post.title }}</span>
-                <span class="perf-col perf-col-time">{{ formatDateTime(post.createTime) }}</span>
-                <span class="perf-col perf-col-num">{{ formatNumber(post.views) }}</span>
-                <span class="perf-col perf-col-num">{{ formatNumber(post.likes) }}</span>
-                <span class="perf-col perf-col-num">{{ formatNumber(post.collections) }}</span>
-              </div>
-            </div>
-            <div class="empty-light" v-else>
-              <p>还没有已发布的作品</p>
-            </div>
           </div>
         </div>
       </template>
@@ -643,13 +573,12 @@ const dataLoading = ref(false)
 const fansLoading = ref(false)
 const commentsLoading = ref(false)
 const showDeleteModal = ref(false)
-const activeNav = ref<'home' | 'content' | 'data' | 'fans' | 'interaction' | 'magic' | 'agreement' | 'publish'>('home')
+const activeNav = ref<'home' | 'content' | 'fans' | 'interaction' | 'magic' | 'agreement' | 'publish'>('home')
 
 const postToDelete = ref<PostVO | null>(null)
 
 const activeContentTab = ref<'all' | 'published' | 'draft' | 'deleted'>('all')
 const searchKeyword = ref('')
-const activeTimeFilter = ref<'week' | 'month' | 'year'>('week')
 
 const activeFansTab = ref<'followers' | 'following'>('followers')
 
@@ -696,17 +625,9 @@ const filteredContentPosts = computed(() => {
     const keyword = searchKeyword.value.trim().toLowerCase()
     filtered = filtered.filter(p => p.title.toLowerCase().includes(keyword))
   }
-  
+
   return filtered
 })
-
-const timeFilters = computed(() => [
-  { label: '本周', value: 'week' as const },
-  { label: '本月', value: 'month' as const },
-  { label: '本年', value: 'year' as const },
-])
-
-
 
 // 最近作品（取前3条已发布的作品）
 const recentPosts = computed(() => {
@@ -726,13 +647,6 @@ const recentInteractions = computed(() => {
       createTime: comment.createTime || ''
     }))
     .slice(0, 3)
-})
-
-// 全部作品表现（已发布，按浏览量倒序）
-const allPerformancePosts = computed(() => {
-  return posts.value
-    .filter(p => p.status === 1)
-    .sort((a, b) => b.views - a.views)
 })
 
 const rankingList = ref<PostVO[]>([])
@@ -1498,63 +1412,12 @@ watch(activeNav, (val) => {
   font-size: 13px;
 }
 
-/* 数据中心：排行榜时间 */
+/* 排行榜时间 */
 .rank-time {
   display: block;
   font-size: 12px;
   color: var(--text-dim);
   margin-bottom: 4px;
-}
-
-/* 数据中心：作品表现表格 */
-.perf-table {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.perf-row {
-  display: flex;
-  align-items: center;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--border);
-}
-
-.perf-row:last-child {
-  border-bottom: none;
-}
-
-.perf-row.perf-header {
-  background: rgba(180, 132, 255, 0.06);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-dim);
-}
-
-.perf-col {
-  font-size: 13px;
-  color: var(--text);
-}
-
-.perf-col-title {
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding-right: 8px;
-}
-
-.perf-col-time {
-  width: 120px;
-  flex-shrink: 0;
-  text-align: center;
-}
-
-.perf-col-num {
-  width: 60px;
-  flex-shrink: 0;
-  text-align: center;
 }
 
 /* 首页概览切换的图标样式 */
@@ -2252,54 +2115,6 @@ watch(activeNav, (val) => {
   }
 }
 
-.time-filter {
-  display: flex;
-  gap: 8px;
-}
-
-.time-btn {
-  padding: 10px 20px;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  border: 1.5px solid var(--border);
-  background: white;
-  color: var(--text-secondary);
-  transition: all 0.22s ease-out;
-}
-
-.time-btn.active {
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  color: white;
-  border-color: transparent;
-}
-
-.stat-trend {
-  font-size: 12px;
-  font-weight: 600;
-  margin-top: 4px;
-}
-
-.stat-trend.up {
-  color: #10b981;
-}
-
-.stat-trend.down {
-  color: #ef4444;
-}
-
-.ranking-section {
-  margin-top: 24px;
-}
-
-.ranking-section h3 {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text);
-  margin-bottom: 16px;
-}
-
 .empty-ranking {
   text-align: center;
   padding: 32px 20px;
@@ -2328,6 +2143,7 @@ watch(activeNav, (val) => {
   background: rgba(255, 107, 157, 0.03);
   border: 1.5px solid transparent;
   transition: all 0.22s ease-out;
+  cursor: pointer;
 }
 
 .ranking-item:hover {
@@ -2413,23 +2229,6 @@ watch(activeNav, (val) => {
   align-items: center;
   gap: 4px;
   line-height: 1;
-}
-
-.rank-trend {
-  font-size: 14px;
-  font-weight: 600;
-  padding: 4px 12px;
-  border-radius: 8px;
-}
-
-.rank-trend.up {
-  color: #10b981;
-  background: rgba(16, 185, 129, 0.1);
-}
-
-.rank-trend.down {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.1);
 }
 
 .fans-tabs {
