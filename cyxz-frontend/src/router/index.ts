@@ -11,12 +11,12 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/following',
     name: 'Following',
-    component: () => import('@/views/Home.vue'),
+    component: () => import('@/views/Following.vue'),
   },
   {
     path: '/community',
     name: 'Community',
-    component: () => import('@/views/Home.vue'),
+    component: () => import('@/views/Community.vue'),
   },
   {
     path: '/user/:id',
