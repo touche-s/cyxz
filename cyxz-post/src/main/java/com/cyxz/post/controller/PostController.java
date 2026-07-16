@@ -2,6 +2,7 @@ package com.cyxz.post.controller;
 
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
+import com.cyxz.common.web.CurrentUser;
 import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
 import com.cyxz.post.service.PostService;
@@ -37,7 +38,7 @@ public class PostController {
      */
     @PostMapping
     public Result<Long> create(@Valid @RequestBody CreatePostRequest request,
-                               @RequestHeader("X-User-Id") Long userId) {
+                               @CurrentUser Long userId) {
         Long postId = postService.createPost(userId, request);
         return Result.success("创建成功", postId);
     }
@@ -51,7 +52,7 @@ public class PostController {
      */
     @PutMapping
     public Result<Void> update(@Valid @RequestBody UpdatePostRequest request,
-                               @RequestHeader("X-User-Id") Long userId) {
+                               @CurrentUser Long userId) {
         postService.updatePost(userId, request);
         return Result.success("更新成功");
     }
@@ -65,7 +66,7 @@ public class PostController {
      */
     @DeleteMapping("/{postId}")
     public Result<Void> delete(@PathVariable("postId") Long postId,
-                               @RequestHeader("X-User-Id") Long userId) {
+                               @CurrentUser Long userId) {
         postService.deletePost(userId, postId);
         return Result.success("删除成功");
     }
@@ -79,7 +80,7 @@ public class PostController {
      */
     @GetMapping("/{postId}")
     public Result<PostVO> getById(@PathVariable("postId") Long postId,
-                                  @RequestHeader(value = "X-User-Id", required = false) Long currentUserId) {
+                                  @CurrentUser(required = false) Long currentUserId) {
         return Result.success(postService.getById(postId, currentUserId));
     }
 
@@ -96,7 +97,7 @@ public class PostController {
     public Result<PageResult<PostVO>> list(@RequestParam(value = "categoryId", required = false) Long categoryId,
                                      @RequestParam(value = "page", defaultValue = "1") int page,
                                      @RequestParam(value = "size", defaultValue = "10") int size,
-                                     @RequestHeader(value = "X-User-Id", required = false) Long currentUserId) {
+                                     @CurrentUser(required = false) Long currentUserId) {
         return Result.success(postService.listPosts(categoryId, page, size, currentUserId));
     }
 
@@ -109,7 +110,7 @@ public class PostController {
      * @return 帖子列表
      */
     @GetMapping("/user")
-    public Result<PageResult<PostVO>> listByUser(@RequestHeader("X-User-Id") Long userId,
+    public Result<PageResult<PostVO>> listByUser(@CurrentUser Long userId,
                                            @RequestParam(value = "page", defaultValue = "1") int page,
                                            @RequestParam(value = "size", defaultValue = "10") int size) {
         return Result.success(postService.listByUserId(userId, page, size));
@@ -128,7 +129,7 @@ public class PostController {
     public Result<PageResult<PostVO>> listByTargetUser(@PathVariable("targetUserId") Long targetUserId,
                                                  @RequestParam(value = "page", defaultValue = "1") int page,
                                                  @RequestParam(value = "size", defaultValue = "10") int size,
-                                                 @RequestHeader(value = "X-User-Id", required = false) Long currentUserId) {
+                                                 @CurrentUser(required = false) Long currentUserId) {
         return Result.success(postService.listByTargetUserId(targetUserId, currentUserId, page, size));
     }
 
@@ -145,7 +146,7 @@ public class PostController {
     public Result<PageResult<PostVO>> listUserFavorites(@PathVariable("targetUserId") Long targetUserId,
                                                   @RequestParam(value = "page", defaultValue = "1") int page,
                                                   @RequestParam(value = "size", defaultValue = "10") int size,
-                                                  @RequestHeader(value = "X-User-Id", required = false) Long currentUserId) {
+                                                  @CurrentUser(required = false) Long currentUserId) {
         return Result.success(postService.listFavorites(targetUserId, currentUserId, page, size));
     }
 
@@ -158,7 +159,7 @@ public class PostController {
      */
     @PostMapping("/{postId}/like")
     public Result<Integer> like(@PathVariable("postId") Long postId,
-                                @RequestHeader("X-User-Id") Long userId) {
+                                @CurrentUser Long userId) {
         int likes = postService.toggleLike(userId, postId);
         return Result.success(likes);
     }
@@ -172,7 +173,7 @@ public class PostController {
      */
     @PostMapping("/{postId}/collect")
     public Result<Integer> collect(@PathVariable("postId") Long postId,
-                                   @RequestHeader("X-User-Id") Long userId) {
+                                   @CurrentUser Long userId) {
         int collections = postService.toggleCollect(userId, postId);
         return Result.success(collections);
     }
@@ -188,7 +189,7 @@ public class PostController {
      */
     @PostMapping("/{postId}/view")
     public Result<Void> recordView(@PathVariable("postId") Long postId,
-                                   @RequestHeader(value = "X-User-Id", required = false) Long currentUserId,
+                                   @CurrentUser(required = false) Long currentUserId,
                                    HttpServletRequest request) {
         postService.recordView(postId, currentUserId, request);
         return Result.success();
@@ -202,7 +203,7 @@ public class PostController {
      * @return 统计数据
      */
     @GetMapping("/stats")
-    public Result<PostStatsVO> getStats(@RequestHeader("X-User-Id") Long userId) {
+    public Result<PostStatsVO> getStats(@CurrentUser Long userId) {
         return Result.success(postService.getPostStats(userId));
     }
 
@@ -226,7 +227,7 @@ public class PostController {
      * @return 帖子列表
      */
     @GetMapping("/top")
-    public Result<List<PostVO>> getTopPosts(@RequestHeader("X-User-Id") Long userId,
+    public Result<List<PostVO>> getTopPosts(@CurrentUser Long userId,
                                             @RequestParam(value = "limit", defaultValue = "5") int limit) {
         return Result.success(postService.getTopPosts(userId, limit));
     }
@@ -273,7 +274,7 @@ public class PostController {
      * @return 点赞列表
      */
     @GetMapping("/received-likes")
-    public Result<PageResult<ReceivedLikeVO>> getReceivedLikes(@RequestHeader("X-User-Id") Long userId,
+    public Result<PageResult<ReceivedLikeVO>> getReceivedLikes(@CurrentUser Long userId,
                                                                 @RequestParam(value = "page", defaultValue = "1") int page,
                                                                 @RequestParam(value = "size", defaultValue = "20") int size) {
         return Result.success(postService.getReceivedLikes(userId, page, size));
