@@ -383,6 +383,17 @@ public class CommentServiceImpl implements CommentService {
         return vo;
     }
 
+    /**
+     * 查询用户收到的评论列表（评论我的帖子 + 回复我的评论）
+     * <p>查询条件：状态正常 且 评论作者不是自己 且（帖子作者是自己 或 被回复者是自己）。
+     * 排除自己评论自己的记录，按创建时间倒序分页。
+     *
+     * @param userId        被查看的用户 ID（用于筛选收到的评论）
+     * @param currentUserId 当前登录用户 ID（用于查点赞状态）
+     * @param page          页码（从 1 开始）
+     * @param size          每页条数
+     * @return 分页结果（含帖子标题、回复目标用户昵称）
+     */
     @Override
     public PageResult<CommentVO> listReceivedComments(Long userId, Long currentUserId, int page, int size) {
         // 查"评论我的帖子"或"回复我的评论"，排除自己
