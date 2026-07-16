@@ -570,12 +570,11 @@ onUnmounted(() => {
 }
 
 .cat-pill.active {
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  color: white;
-  border-color: transparent;
-  box-shadow:
-    0 4px 16px rgba(255, 107, 157, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: #FF6B9D;
+  border-color: rgba(255, 107, 157, 0.4);
+  box-shadow: none;
+  font-weight: 700;
 }
 
 .cat-pill:hover:not(.active) {
