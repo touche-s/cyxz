@@ -2,6 +2,7 @@ package com.cyxz.comment.controller;
 
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
+import com.cyxz.common.web.CurrentUser;
 import com.cyxz.comment.dto.CreateCommentRequest;
 import com.cyxz.comment.service.CommentService;
 import com.cyxz.comment.vo.CommentVO;
@@ -28,7 +29,7 @@ public class CommentController {
      */
     @PostMapping
     public Result<CommentVO> create(@Valid @RequestBody CreateCommentRequest request,
-                               @RequestHeader("X-User-Id") Long userId) {
+                               @CurrentUser Long userId) {
         CommentVO vo = commentService.createComment(userId, request);
         return Result.success("评论成功", vo);
     }
@@ -42,7 +43,7 @@ public class CommentController {
      */
     @DeleteMapping("/{commentId}")
     public Result<Void> delete(@PathVariable("commentId") Long commentId,
-                               @RequestHeader("X-User-Id") Long userId) {
+                               @CurrentUser Long userId) {
         commentService.deleteComment(userId, commentId);
         return Result.success("删除成功");
     }
@@ -60,7 +61,7 @@ public class CommentController {
     public Result<PageResult<CommentVO>> list(@RequestParam("postId") Long postId,
                                         @RequestParam(value = "page", defaultValue = "1") int page,
                                         @RequestParam(value = "size", defaultValue = "20") int size,
-                                        @RequestHeader(value = "X-User-Id", required = false) Long currentUserId) {
+                                        @CurrentUser(required = false) Long currentUserId) {
         return Result.success(commentService.listComments(postId, page, size, currentUserId));
     }
 
@@ -77,7 +78,7 @@ public class CommentController {
     public Result<PageResult<CommentVO>> replies(@RequestParam("parentId") Long parentId,
                                            @RequestParam(value = "page", defaultValue = "1") int page,
                                            @RequestParam(value = "size", defaultValue = "5") int size,
-                                           @RequestHeader(value = "X-User-Id", required = false) Long currentUserId) {
+                                           @CurrentUser(required = false) Long currentUserId) {
         return Result.success(commentService.listReplies(parentId, page, size, currentUserId));
     }
 
@@ -90,7 +91,7 @@ public class CommentController {
      */
     @PostMapping("/{commentId}/like")
     public Result<Integer> toggleLike(@PathVariable("commentId") Long commentId,
-                                       @RequestHeader("X-User-Id") Long userId) {
+                                       @CurrentUser Long userId) {
         int likes = commentService.toggleLike(userId, commentId);
         return Result.success(likes);
     }
@@ -105,7 +106,7 @@ public class CommentController {
      * @return 评论列表
      */
     @GetMapping("/received")
-    public Result<PageResult<CommentVO>> received(@RequestHeader("X-User-Id") Long userId,
+    public Result<PageResult<CommentVO>> received(@CurrentUser Long userId,
                                                   @RequestParam(value = "page", defaultValue = "1") int page,
                                                   @RequestParam(value = "size", defaultValue = "20") int size) {
         return Result.success(commentService.listReceivedComments(userId, userId, page, size));
@@ -122,7 +123,7 @@ public class CommentController {
      * @return 评论列表（含帖子标题、回复目标用户昵称）
      */
     @GetMapping("/manage")
-    public Result<PageResult<CommentVO>> manage(@RequestHeader("X-User-Id") Long userId,
+    public Result<PageResult<CommentVO>> manage(@CurrentUser Long userId,
                                                  @RequestParam(value = "postId", required = false) Long postId,
                                                  @RequestParam(value = "page", defaultValue = "1") int page,
                                                  @RequestParam(value = "size", defaultValue = "20") int size,
