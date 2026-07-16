@@ -1,5 +1,6 @@
 import request from '@/utils/request'
 
+/** 上传头像 */
 export const uploadAvatar = (file: File) => {
   const formData = new FormData()
   formData.append('file', file)
@@ -10,6 +11,7 @@ export const uploadAvatar = (file: File) => {
   })
 }
 
+/** 上传封面图 */
 export const uploadCover = (file: File) => {
   const formData = new FormData()
   formData.append('file', file)
@@ -18,6 +20,7 @@ export const uploadCover = (file: File) => {
   })
 }
 
+/** 上传帖子图片 */
 export const uploadPostImage = (file: File) => {
   const formData = new FormData()
   formData.append('file', file)
