@@ -14,6 +14,7 @@ import java.util.Map;
  * <p>当 cyxz-user 服务不可用时返回安全默认值，避免调用方 try-catch 模板。
  */
 @Slf4j
+@Component
 public class UserFeignClientFallbackFactory implements FallbackFactory<UserFeignClient> {
 
     /**

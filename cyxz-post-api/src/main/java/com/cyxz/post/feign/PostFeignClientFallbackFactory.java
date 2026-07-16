@@ -15,6 +15,7 @@ import java.util.Set;
  * <p>当 cyxz-post 服务不可用时返回安全默认值，避免调用方 try-catch 模板。
  */
 @Slf4j
+@Component
 public class PostFeignClientFallbackFactory implements FallbackFactory<PostFeignClient> {
 
     /**
