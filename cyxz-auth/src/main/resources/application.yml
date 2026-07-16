@@ -11,6 +11,9 @@ spring:
       config:
         server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
         file-extension: yml
+    openfeign:
+      circuitbreaker:
+        enabled: true
   config:
     import:
       - "optional:nacos:${spring.application.name}.yml"

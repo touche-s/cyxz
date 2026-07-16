@@ -2,7 +2,7 @@ package com.cyxz.gateway.filter;
 
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
-import com.cyxz.gateway.util.JwtUtil;
+import com.cyxz.auth.util.JwtUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
