@@ -227,6 +227,12 @@ const contentParagraphs = computed(() => {
   return post.value.content.split('\n').filter(p => p.trim())
 })
 
+function goToAuthor() {
+  if (post.value?.userId) {
+    router.push(`/user/${post.value.userId}`)
+  }
+}
+
 const prevImage = () => {
   if (currentImage.value > 0) currentImage.value--
 }
@@ -646,6 +652,14 @@ onMounted(async () => {
   font-size: 15px;
   font-weight: 700;
   color: var(--text);
+}
+
+.clickable {
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+.clickable:hover {
+  opacity: 0.8;
 }
 
 .post-time {

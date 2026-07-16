@@ -21,16 +21,18 @@
           </div>
         </div>
         <div class="profile-detail">
-          <h2>{{ profile.nickname }}</h2>
+          <div class="name-row">
+            <h2>{{ profile.nickname }}</h2>
+            <button v-if="!isSelf"
+                    class="follow-btn"
+                    :class="{ followed: following }"
+                    :disabled="followLoading"
+                    @click="toggleFollow">
+              {{ following ? '已关注' : '关注' }}
+            </button>
+          </div>
           <p class="profile-bio">{{ profile.bio || '这个人很懒，什么都没写...' }}</p>
         </div>
-        <button v-if="!isSelf"
-                class="follow-btn"
-                :class="{ followed: following }"
-                :disabled="followLoading"
-                @click="toggleFollow">
-          {{ following ? '已关注' : '关注' }}
-        </button>
       </div>
     </div>
 
@@ -622,11 +624,17 @@ function goToPost(post: PostVO) {
 }
 
 .profile-detail { padding-bottom: 10px; }
+.name-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 .profile-detail h2 {
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 700;
   color: white;
   text-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  margin: 0;
 }
 .profile-bio {
   font-size: 13px;
@@ -636,19 +644,16 @@ function goToPost(post: PostVO) {
 }
 
 .follow-btn {
-  padding: 8px 24px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 700;
+  padding: 4px 14px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
   border: none;
   background: linear-gradient(135deg, var(--pink), var(--purple));
   color: white;
-  box-shadow: 0 4px 16px rgba(255,107,157,0.3);
+  box-shadow: 0 2px 8px rgba(255,107,157,0.25);
   transition: all 0.25s ease;
-  margin-left: 20px;
-  margin-bottom: 12px;
-  align-self: flex-end;
   flex-shrink: 0;
 }
 .follow-btn:hover:not(:disabled) {
