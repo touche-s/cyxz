@@ -527,6 +527,7 @@ import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import Pagination from '@/components/Pagination.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import FollowButton from '@/components/FollowButton.vue'
+import StatCard from '@/components/StatCard.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -546,7 +547,8 @@ const searchKeyword = ref('')
 
 const activeFansTab = ref<'followers' | 'following'>('followers')
 
-const { stats: dataStats, loadMyStats: loadDataStats } = usePostStats()
+const postStatsState = usePostStats()
+const dataStats = postStatsState.stats
 
 const followerCount = ref(0)
 const followingCount = ref(0)
@@ -887,16 +889,15 @@ const handleFollow = async (userId: string, isFollowing: boolean) => {
 
 onMounted(() => {
   loadPosts()
-  loadDataStats()
+  postStatsState.loadMyStats()
   loadRanking()
   loadFans()
   loadFollowStats()
   loadManagedComments()
 
-  if (userStore.creatorActiveNav && userStore.creatorActiveNav !== 'publish') {
+  if (userStore.creatorActiveNav) {
     activeNav.value = userStore.creatorActiveNav as typeof activeNav.value
   }
-  userStore.creatorActiveNav = 'home'
 })
 
 watch(activeNav, (val) => {
