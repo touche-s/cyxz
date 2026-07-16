@@ -10,11 +10,11 @@
           <div class="post-main-card">
             <div class="post-header">
               <div class="author-info">
-                <img v-if="post.authorAvatar" :src="post.authorAvatar" class="author-avatar" />
-                <div v-else class="author-avatar-placeholder"></div>
+                <img v-if="post.authorAvatar" :src="post.authorAvatar" class="author-avatar clickable" @click="goToAuthor" />
+                <div v-else class="author-avatar-placeholder clickable" @click="goToAuthor"></div>
                 <div class="author-meta">
                   <div class="author-name-row">
-                    <span class="author-name">{{ post.authorName || '匿名用户' }}</span>
+                    <span class="author-name clickable" @click="goToAuthor">{{ post.authorName || '匿名用户' }}</span>
                     <FollowButton v-if="post.userId && String(post.userId) !== String(currentUserId)"
                             :following="following"
                             :loading="followLoading"
@@ -61,11 +61,11 @@
           </div>
 
           <div class="post-action-bar">
-            <button class="action-btn" :class="{ active: liked }" @click="togglePostLike">
+            <button class="action-btn" :class="{ active: liked, popping: likePopping }" @click="togglePostLike">
               <img :src="liked ? likeIcon : likeOutlineIcon" alt="like" class="action-icon" />
               <span class="action-count">{{ formatNumber(post.likes) }}</span>
             </button>
-            <button class="action-btn" :class="{ active: collected }" @click="toggleCollect">
+            <button class="action-btn" :class="{ active: collected, popping: collectPopping }" @click="toggleCollect">
               <img :src="collected ? favoriteIcon : favoriteOutlineIcon" alt="favorite" class="action-icon" />
               <span class="action-count">{{ formatNumber(post.collections) }}</span>
             </button>
@@ -167,10 +167,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getPostDetail, togglePostLike, togglePostCollect, recordPostView } from '@/api/post'
+import { getPostDetail, togglePostLike as doPostLike, togglePostCollect as doPostCollect, recordPostView } from '@/api/post'
 import { formatNumber, formatTime, formatDateTime } from '@/utils/format'
 import {
   getCommentList,
@@ -207,6 +207,9 @@ const commentSection = ref<HTMLElement | null>(null)
 const currentImage = ref(0)
 const replyTarget = ref<{ comment: CommentVO; parentId: string } | null>(null)
 const activeReplyId = ref<string | null>(null) // 哪个顶级评论下方显示回复框
+
+const likePopping = ref(false)
+const collectPopping = ref(false)
 
 // ===== 评论列表 =====
 const comments = ref<CommentVO[]>([])
@@ -275,9 +278,11 @@ const togglePostLike = async () => {
 
   liked.value = !oldLiked
   post.value.likes = oldLiked ? Math.max(oldLikes - 1, 0) : oldLikes + 1
+  likePopping.value = true
+  setTimeout(() => { likePopping.value = false }, 450)
 
   try {
-    const res = await togglePostLike(String(post.value.id))
+    const res = await doPostLike(String(post.value.id))
     if (res.data.code === 200) {
       post.value.likes = res.data.data
     }
@@ -296,9 +301,11 @@ const toggleCollect = async () => {
 
   collected.value = !oldCollected
   post.value.collections = oldCollected ? Math.max(oldCollections - 1, 0) : oldCollections + 1
+  collectPopping.value = true
+  setTimeout(() => { collectPopping.value = false }, 450)
 
   try {
-    const res = await togglePostCollect(String(post.value.id))
+    const res = await doPostCollect(String(post.value.id))
     if (res.data.code === 200) {
       post.value.collections = res.data.data
     }
@@ -957,5 +964,17 @@ onMounted(async () => {
   .comment-section {
     padding: 16px;
   }
+}
+
+/* ===== 点击弹跳动效 ===== */
+@keyframes postLikePop {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.4); }
+  65%  { transform: scale(0.85); }
+  100% { transform: scale(1); }
+}
+
+.action-btn.popping img {
+  animation: postLikePop 0.45s cubic-bezier(0.4, 0, 0.2, 1);
 }
 </style>
