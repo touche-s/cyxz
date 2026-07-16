@@ -188,6 +188,7 @@ const isInCreatorCenter = computed(() => route.path.startsWith('/creator'))
 
 const categories = ref<CategoryVO[]>([])
 const loading = ref(false)
+const showAgreement = ref(false)
 
 const form = ref({
   title: '',
