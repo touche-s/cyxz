@@ -71,4 +71,16 @@ public interface CommentService {
      * @return 分页结果
      */
     PageResult<CommentVO> listReceivedComments(Long userId, Long currentUserId, int page, int size);
+
+    /**
+     * 评论管理：查询当前用户自己帖子下的评论
+     * <p>用于评论管理页，按创建时间倒序。传 postId 时只查该帖子下的评论。
+     *
+     * @param currentUserId 当前登录用户 ID（作为帖子作者筛选）
+     * @param postId        帖子 ID（可选，null 表示查所有帖子）
+     * @param page          页码（从 1 开始）
+     * @param size          每页条数
+     * @return 分页结果（含帖子标题、回复目标用户昵称）
+     */
+    PageResult<CommentVO> listManagedComments(Long currentUserId, Long postId, int page, int size);
 }

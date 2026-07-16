@@ -110,4 +110,22 @@ public class CommentController {
                                                   @RequestParam(value = "size", defaultValue = "20") int size) {
         return Result.success(commentService.listReceivedComments(userId, userId, page, size));
     }
+
+    /**
+     * 评论管理：分页查询当前用户自己帖子下的评论
+     * <p>用于评论管理页，按创建时间倒序。不传 postId 查所有帖子，传 postId 只查指定帖子。
+     *
+     * @param userId 当前登录用户 ID（由 Gateway 注入，作为帖子作者筛选）
+     * @param postId 帖子 ID（可选）
+     * @param page   页码（从 1 开始，默认 1）
+     * @param size   每页条数（默认 20）
+     * @return 评论列表（含帖子标题、回复目标用户昵称）
+     */
+    @GetMapping("/manage")
+    public Result<PageResult<CommentVO>> manage(@RequestHeader("X-User-Id") Long userId,
+                                                 @RequestParam(value = "postId", required = false) Long postId,
+                                                 @RequestParam(value = "page", defaultValue = "1") int page,
+                                                 @RequestParam(value = "size", defaultValue = "20") int size) {
+        return Result.success(commentService.listManagedComments(userId, postId, page, size));
+    }
 }

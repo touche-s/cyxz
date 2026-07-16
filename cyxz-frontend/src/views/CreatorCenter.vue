@@ -357,19 +357,31 @@
           <header class="page-header">
             <div class="header-left">
               <h1>评论管理</h1>
-              <p>查看收到的评论</p>
+              <p>管理你作品下的评论内容</p>
             </div>
           </header>
 
-          <div class="comment-list" v-if="!commentsLoading">
-            <div class="comment-item" v-for="comment in receivedCommentsList" :key="comment.id">
+          <div class="filter-bar">
+            <div class="filter-group comment-filter-group">
+              <select class="comment-post-select" v-model="selectedCommentPostId" @change="handleCommentPostFilterChange">
+                <option value="">全部帖子</option>
+                <option v-for="post in publishedPostOptions" :key="post.id" :value="post.id">{{ post.title }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="comment-list" v-if="!commentsLoading && managedCommentsList.length > 0">
+            <div class="comment-item" v-for="comment in managedCommentsList" :key="comment.id">
               <div class="comment-avatar">
                 <img v-if="comment.userAvatar" :src="comment.userAvatar" alt="" />
                 <div v-else class="avatar-placeholder"></div>
               </div>
               <div class="comment-body">
                 <div class="comment-header">
-                  <h4 class="comment-name">{{ comment.userName }}</h4>
+                  <div class="comment-header-left">
+                    <h4 class="comment-name">{{ comment.userName }}</h4>
+                    <span v-if="comment.replyToUserName" class="comment-reply-to">回复了 {{ comment.replyToUserName }}</span>
+                  </div>
                   <span class="comment-time">{{ formatTime(comment.createTime) }}</span>
                 </div>
                 <p class="comment-content">{{ comment.content }}</p>
@@ -377,17 +389,20 @@
                   <span class="post-title">{{ comment.postTitle || '帖子' + comment.postId }}</span>
                 </div>
               </div>
+              <button class="comment-delete-btn" @click="confirmDeleteManagedComment(comment)" title="删除">
+                <img src="@/assets/icons/trash.svg" alt="delete" class="action-icon" />
+              </button>
             </div>
           </div>
 
-          <div class="loading-container" v-else>
+          <div class="loading-container" v-else-if="commentsLoading">
             <div class="loading-spinner"></div>
             <p>加载中...</p>
           </div>
 
-          <div class="empty-container" v-if="!commentsLoading && receivedCommentsList.length === 0">
+          <div class="empty-container" v-else>
             <img src="@/assets/icons/empty.svg" alt="empty" class="empty-icon" />
-            <p>还没有评论</p>
+            <p>{{ selectedCommentPostId ? '当前帖子还没有评论' : '当前还没有人给你的作品留言' }}</p>
           </div>
         </div>
       </template>
@@ -553,12 +568,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 import { getUserPosts, deletePost, updatePost, getPostStats, getTopPosts } from '@/api/post'
 import type { PostVO, PostStatsVO } from '@/api/post'
 import { getFollowerList, getFollowingList, followUser, unfollowUser, getFollowStats } from '@/api/user'
-import { getReceivedComments } from '@/api/comment'
+import { getManagedComments, deleteComment } from '@/api/comment'
 import { useUserStore } from '@/stores/user'
 import type { FollowUserVO } from '@/api/user'
 import type { CommentVO } from '@/api/comment'
@@ -636,15 +651,21 @@ const recentPosts = computed(() => {
     .slice(0, 3)
 })
 
+// 评论管理帖子筛选下拉框选项（已发布帖子）
+const publishedPostOptions = computed(() => {
+  return posts.value.filter(p => p.status === 1)
+})
+
 // 最近互动（取前3条评论）
 const recentInteractions = computed(() => {
-  return receivedCommentsList.value
+  return managedCommentsList.value
     .map(comment => ({
       id: 'cmt-' + comment.id,
       userName: comment.userName || '用户',
       avatar: comment.userAvatar || '',
       postTitle: comment.postTitle || '',
-      createTime: comment.createTime || ''
+      createTime: comment.createTime || '',
+      type: 'comment' as const
     }))
     .slice(0, 3)
 })
@@ -656,8 +677,9 @@ const fansTotal = ref(0)
 const fansPage = ref(1)
 const fansPageSize = 10
 
-const receivedCommentsList = ref<CommentVO[]>([])
+const managedCommentsList = ref<CommentVO[]>([])
 const commentsTotal = ref(0)
+const selectedCommentPostId = ref('')
 
 import iconLightbulb from '@/assets/icons/lightbulb.svg'
 import iconEdit from '@/assets/icons/edit.svg'
@@ -877,18 +899,49 @@ const loadFollowStats = async () => {
   }
 }
 
-const loadReceivedComments = async () => {
+const loadManagedComments = async () => {
   commentsLoading.value = true
   try {
-    const res = await getReceivedComments({ page: 1, size: 20 })
+    const params: { page: number; size: number; postId?: string } = { page: 1, size: 20 }
+    if (selectedCommentPostId.value) {
+      params.postId = selectedCommentPostId.value
+    }
+    const res = await getManagedComments(params)
     if (res.data.code === 200) {
-      receivedCommentsList.value = res.data.data.records || []
+      managedCommentsList.value = res.data.data.records || []
       commentsTotal.value = res.data.data.total || 0
     }
   } catch (error) {
-    console.error('加载收到的评论失败:', error)
+    console.error('加载评论失败:', error)
   } finally {
     commentsLoading.value = false
+  }
+}
+
+const handleCommentPostFilterChange = () => {
+  loadManagedComments()
+}
+
+const confirmDeleteManagedComment = (comment: CommentVO) => {
+  ElMessageBox.confirm('确定删除这条评论吗？删除后不可恢复', '删除评论', {
+    confirmButtonText: '删除',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(() => {
+    handleDeleteManagedComment(comment.id)
+  }).catch(() => {})
+}
+
+const handleDeleteManagedComment = async (commentId: string) => {
+  try {
+    const res = await deleteComment(commentId)
+    if (res.data.code === 200) {
+      ElMessage.success('删除成功')
+      managedCommentsList.value = managedCommentsList.value.filter(c => c.id !== commentId)
+      commentsTotal.value = Math.max(0, commentsTotal.value - 1)
+    }
+  } catch (error) {
+    console.error('删除评论失败:', error)
   }
 }
 
@@ -915,7 +968,7 @@ onMounted(() => {
   loadRanking()
   loadFans()
   loadFollowStats()
-  loadReceivedComments()
+  loadManagedComments()
 
   if (userStore.creatorActiveNav) {
     activeNav.value = userStore.creatorActiveNav as typeof activeNav.value
@@ -2404,6 +2457,35 @@ watch(activeNav, (val) => {
   color: var(--text-dim);
 }
 
+.comment-filter-group {
+  display: flex;
+  align-items: center;
+}
+
+.comment-post-select {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: white;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  outline: none;
+  transition: all 0.22s ease-out;
+  min-width: 200px;
+  max-width: 360px;
+}
+
+.comment-post-select:hover {
+  border-color: var(--pink);
+}
+
+.comment-post-select:focus {
+  border-color: #B484FF;
+  box-shadow: 0 0 0 3px rgba(180, 132, 255, 0.1);
+}
+
 .comment-list {
   display: flex;
   flex-direction: column;
@@ -2449,15 +2531,53 @@ watch(activeNav, (val) => {
   margin-bottom: 8px;
 }
 
+.comment-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .comment-name {
   font-size: 14px;
   font-weight: 600;
   color: var(--text);
 }
 
+.comment-reply-to {
+  font-size: 12px;
+  color: var(--text-dim);
+  background: rgba(180, 132, 255, 0.1);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
 .comment-time {
   font-size: 12px;
   color: var(--text-dim);
+}
+
+.comment-delete-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.22s ease-out;
+}
+
+.comment-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.comment-delete-btn .action-icon {
+  width: 16px;
+  height: 16px;
 }
 
 .comment-content {

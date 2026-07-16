@@ -66,3 +66,8 @@ export const toggleCommentLike = (commentId: string) =>
 export const getReceivedComments = (params: { page?: number; size?: number }) => {
   return request.get('/comment/received', { params })
 }
+
+/** 评论管理：查询当前用户自己帖子下的评论 */
+export const getManagedComments = (params: { postId?: string; page?: number; size?: number }) => {
+  return request.get('/comment/manage', { params })
+}

@@ -90,7 +90,7 @@ public class CommentServiceImpl implements CommentService {
     /**
      * 删除评论（逻辑删除）
      * <p>将评论状态设为 0（已删除），不做物理删除。
-     * 校验评论归属权，非作者本人无权删除。
+     * 权限：评论作者本人 或 帖子作者可删除。
      *
      * @param userId    当前登录用户 ID
      * @param commentId 评论 ID
@@ -102,7 +102,9 @@ public class CommentServiceImpl implements CommentService {
         if (po == null || po.getStatus() == 0) {
             throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
         }
-        if (!po.getUserId().equals(userId)) {
+        boolean isCommentAuthor = po.getUserId().equals(userId);
+        boolean isPostAuthor = po.getPostAuthorId() != null && po.getPostAuthorId().equals(userId);
+        if (!isCommentAuthor && !isPostAuthor) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
         po.setStatus(0);
@@ -440,5 +442,65 @@ public class CommentServiceImpl implements CommentService {
             log.warn("批量获取帖子标题失败: postIds={}", postIds, e);
         }
         return Collections.emptyMap();
+    }
+
+    /**
+     * 评论管理：查询当前用户自己帖子下的评论
+     * <p>按 postAuthorId = currentUserId 筛选，传 postId 时再补充 postId 条件。
+     * 含自己评论自己的也会被查到（postAuthorId = userId 且 userId = userId），
+     * 但实际场景少且管理页应展示全貌，予以保留。
+     *
+     * @param currentUserId 当前登录用户 ID（作为帖子作者筛选）
+     * @param postId        帖子 ID（可选，null 表示查所有帖子）
+     * @param page          页码（从 1 开始）
+     * @param size          每页条数
+     * @return 分页结果（含帖子标题、回复目标用户昵称）
+     */
+    @Override
+    public PageResult<CommentVO> listManagedComments(Long currentUserId, Long postId, int page, int size) {
+        LambdaQueryWrapper<CommentPO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CommentPO::getStatus, 1)
+                .eq(CommentPO::getPostAuthorId, currentUserId);
+        if (postId != null) {
+            wrapper.eq(CommentPO::getPostId, postId);
+        }
+        wrapper.orderByDesc(CommentPO::getCreateTime);
+
+        Page<CommentPO> pageResult = commentMapper.selectPage(
+                new Page<>(page, size), wrapper);
+
+        List<CommentPO> comments = pageResult.getRecords();
+        if (comments.isEmpty()) {
+            return PageResult.empty(page, size);
+        }
+
+        Set<Long> userIds = new HashSet<>();
+        for (CommentPO comment : comments) {
+            userIds.add(comment.getUserId());
+            if (comment.getReplyToUserId() != null) {
+                userIds.add(comment.getReplyToUserId());
+            }
+        }
+        Map<Long, UserProfileVO> userMap = getUserMap(userIds);
+
+        Set<Long> commentIds = comments.stream()
+                .map(CommentPO::getId)
+                .collect(Collectors.toSet());
+        Set<Long> likedCommentIds = getLikedCommentIds(currentUserId, commentIds);
+
+        Set<Long> postIds = comments.stream()
+                .map(CommentPO::getPostId)
+                .collect(Collectors.toSet());
+        Map<Long, String> postTitleMap = getPostTitles(postIds);
+
+        List<CommentVO> voList = comments.stream()
+                .map(po -> {
+                    CommentVO vo = toVO(po, userMap, likedCommentIds);
+                    vo.setPostTitle(postTitleMap.getOrDefault(po.getPostId(), ""));
+                    return vo;
+                })
+                .collect(Collectors.toList());
+
+        return PageResult.of(voList, pageResult.getTotal(), page, size);
     }
 }
