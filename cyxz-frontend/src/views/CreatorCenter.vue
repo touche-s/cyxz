@@ -546,12 +546,7 @@ const searchKeyword = ref('')
 
 const activeFansTab = ref<'followers' | 'following'>('followers')
 
-const dataStats = ref<PostStatsVO>({
-  totalPosts: 0,
-  totalViews: 0,
-  totalLikes: 0,
-  totalCollections: 0
-})
+const { stats: dataStats, loadMyStats: loadDataStats } = usePostStats()
 
 const followerCount = ref(0)
 const followingCount = ref(0)
