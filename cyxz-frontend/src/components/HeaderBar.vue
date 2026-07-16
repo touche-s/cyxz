@@ -23,7 +23,7 @@
       </nav>
       <template v-if="userStore.isLoggedIn">
         <div class="user-dropdown" :class="{ open: dropdownOpen }">
-          <div class="avatar-trigger" @mouseenter="dropdownOpen = true" @mouseleave="dropdownOpen = false">
+          <div class="avatar-trigger" @click="goToProfile" @mouseenter="dropdownOpen = true" @mouseleave="dropdownOpen = false">
             <img v-if="userStore.userInfo?.avatar" :src="userStore.userInfo.avatar" alt="avatar" class="avatar-img" />
             <span v-else class="avatar-placeholder">{{ (userStore.userInfo?.nickname || 'U').charAt(0) }}</span>
           </div>
@@ -36,32 +36,22 @@
                 </div>
               </div>
               <div class="panel-stats">
-                <div class="stat-item" @click="goToProfile">
+                <div class="stat-item" @click="goFans('following')">
                   <span class="stat-num">{{ followStats.following }}</span>
                   <span class="stat-label">关注</span>
                 </div>
-                <div class="stat-item" @click="goToProfile">
+                <div class="stat-item" @click="goFans('followers')">
                   <span class="stat-num">{{ followStats.followers }}</span>
                   <span class="stat-label">粉丝</span>
                 </div>
               </div>
               <div class="panel-menu">
-                <div class="menu-item" @click="handleCommand('profile')">
-                  <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                    <circle cx="12" cy="7" r="4"/>
-                  </svg>
-                  <span>个人中心</span>
-                  <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="9 18 15 12 9 6"/>
-                  </svg>
-                </div>
-                <div class="menu-item" @click="handleCommand('creator')">
+                <div class="menu-item" @click="handleCommand('user-center')">
                   <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                     <path d="M12 20h9"/>
                     <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
                   </svg>
-                  <span>投稿管理</span>
+                  <span>个人中心</span>
                   <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="9 18 15 12 9 6"/>
                   </svg>
@@ -80,6 +70,9 @@
           </Transition>
         </div>
       </template>
+      <div v-else class="login-circle" @click="userStore.openLoginModal()">
+        <span>登录</span>
+      </div>
       <div class="header-icons">
         <button class="icon-btn"><el-icon><Star /></el-icon></button>
         <button class="icon-btn"><el-icon><ChatLineSquare /></el-icon></button>
@@ -89,7 +82,6 @@
         <el-icon><Plus /></el-icon>
         发布
       </button>
-      <button v-if="!userStore.isLoggedIn" class="btn-login" @click="userStore.openLoginModal()">登录</button>
     </div>
   </header>
 </template>
@@ -123,6 +115,16 @@ function goPublish() {
   router.push('/creator')
 }
 
+/** 进入粉丝管理页面对应 tab */
+function goFans(tab: 'followers' | 'following') {
+  dropdownOpen.value = false
+  if (!requireLogin()) return
+  userStore.creatorActiveNav = 'fans'
+  userStore.creatorFansTab = tab
+  router.push('/creator')
+}
+
+/** 点击头像进入个人空间 */
 function goToProfile() {
   dropdownOpen.value = false
   const uid = userStore.userInfo?.id
@@ -131,11 +133,8 @@ function goToProfile() {
 
 async function handleCommand(cmd: string) {
   dropdownOpen.value = false
-  if (cmd === 'profile') {
-    const uid = userStore.userInfo?.id
-    if (uid) router.push(`/user/${uid}`)
-  } else if (cmd === 'creator') {
-    router.push('/creator')
+  if (cmd === 'user-center') {
+    router.push('/user-center')
   } else if (cmd === 'logout') {
     try { await logout() } catch { /* ignore */ }
     userStore.clearAuth()
@@ -332,21 +331,33 @@ onMounted(() => {
   transform: scale(0.97);
 }
 
-.btn-login {
-  padding: 9px 20px;
-  border-radius: 14px;
-  border: 1.5px solid var(--border);
-  background: white;
+.login-circle {
+   width: 40px;
+   height: 40px;
+   border-radius: 50%;
+   cursor: pointer;
+   border: 2px solid rgba(255, 107, 157, 0.35);
+   background: white;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   transition: all 0.22s ease-out;
+   flex-shrink: 0;
+   margin: 0 18px;
+ }
+
+.login-circle span {
+  font-size: 12px;
+  font-weight: 700;
   color: var(--pink);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
+  line-height: 1;
 }
 
-.btn-login:hover {
-  border-color: var(--pink);
-}
+.login-circle:hover {
+   border-color: var(--pink);
+   box-shadow: 0 4px 20px rgba(255, 107, 157, 0.2);
+   transform: scale(1.08);
+ }
 
 .avatar-img {
   width: 100%;
@@ -431,7 +442,8 @@ onMounted(() => {
   width: 260px;
   background: #fff;
   border-radius: 18px;
-  box-shadow: 0 18px 48px rgba(31, 35, 41, 0.14), 0 2px 10px rgba(31, 35, 41, 0.06);
+  border: 1.5px solid rgba(255, 107, 157, 0.12);
+  box-shadow: 0 18px 48px rgba(255, 107, 157, 0.10), 0 2px 10px rgba(255, 107, 157, 0.06);
   z-index: 200;
   overflow: visible;
   padding-top: 38px;
@@ -483,8 +495,8 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   padding: 12px 12px 10px;
-  border-top: 1px solid rgba(243, 224, 234, 0.9);
-  border-bottom: 1px solid rgba(243, 224, 234, 0.9);
+  border-top: 1px solid rgba(255, 107, 157, 0.15);
+  border-bottom: 1px solid rgba(255, 107, 157, 0.15);
 }
 
 .stat-item {
@@ -532,7 +544,7 @@ onMounted(() => {
 }
 
 .menu-item:hover {
-  background: rgba(255, 182, 193, 0.12);
+  background: linear-gradient(135deg, rgba(255, 107, 157, 0.08), rgba(180, 132, 255, 0.06));
   color: var(--pink);
 }
 
@@ -560,7 +572,7 @@ onMounted(() => {
 
 .menu-divider {
   height: 1px;
-  background: rgba(230, 220, 229, 0.95);
+  background: linear-gradient(90deg, transparent, rgba(255, 107, 157, 0.2), transparent);
   margin: 8px 16px;
 }
 
