@@ -7,8 +7,8 @@
       <button
         v-if="showCollect"
         class="card-save"
-        :class="{ active: post.collected }"
-        @click.stop="$emit('collect', post)"
+        :class="{ active: post.collected, popping: collectPopping[post.id] }"
+        @click.stop="handleCollect(post)"
       >
         <img :src="post.collected ? favoriteIconSrc : favoriteOutlineIconSrc" alt="collect" class="collect-icon" />
       </button>
@@ -20,16 +20,16 @@
       </div>
       <div class="card-meta">
         <div class="card-author">
-          <div class="card-avatar" v-if="!post.authorAvatar"></div>
-          <img v-else :src="post.authorAvatar" class="card-avatar" alt="avatar" />
-          <span class="card-author-name">{{ post.authorName || '匿名用户' }}</span>
+          <div class="card-avatar clickable" v-if="!post.authorAvatar" @click.stop="goToAuthor"></div>
+          <img v-else :src="post.authorAvatar" class="card-avatar clickable" alt="avatar" @click.stop="goToAuthor" />
+          <span class="card-author-name clickable" @click.stop="goToAuthor">{{ post.authorName || '匿名用户' }}</span>
         </div>
         <div class="card-stats">
           <button
             v-if="showLike"
             class="like-btn"
-            :class="{ active: post.liked }"
-            @click.stop="$emit('like', post)"
+            :class="{ active: post.liked, popping: likePopping[post.id] }"
+            @click.stop="handleLike(post)"
           >
             <img :src="post.liked ? likeIconSrc : likeOutlineIconSrc" alt="like" class="stat-icon" />
             {{ formatNumber(post.likes) }}
@@ -42,6 +42,8 @@
 </template>
 
 <script setup lang="ts">
+import { ref, reactive } from 'vue'
+import { useRouter } from 'vue-router'
 import type { PostVO } from '@/api/post'
 import likeIconSrc from '@/assets/icons/like.svg'
 import likeOutlineIconSrc from '@/assets/icons/like-outline.svg'
@@ -49,18 +51,43 @@ import favoriteIconSrc from '@/assets/icons/favorite.svg'
 import favoriteOutlineIconSrc from '@/assets/icons/favorite-outline.svg'
 import { formatNumber } from '@/utils/format'
 
-defineProps<{
+const props = defineProps<{
   post: PostVO
   showCollect?: boolean
   showLike?: boolean
   size?: 'normal' | 'small'
 }>()
 
-defineEmits<{
+const router = useRouter()
+
+function goToAuthor() {
+  if (props.post.userId) {
+    router.push(`/user/${props.post.userId}`)
+  }
+}
+
+const emit = defineEmits<{
   click: [post: PostVO]
   like: [post: PostVO]
   collect: [post: PostVO]
 }>()
+
+const likePopping = reactive<Record<string, boolean>>({})
+const collectPopping = reactive<Record<string, boolean>>({})
+
+function handleLike(post: PostVO) {
+  const key = String(post.id)
+  likePopping[key] = true
+  emit('like', post)
+  setTimeout(() => { likePopping[key] = false }, 500)
+}
+
+function handleCollect(post: PostVO) {
+  const key = String(post.id)
+  collectPopping[key] = true
+  emit('collect', post)
+  setTimeout(() => { collectPopping[key] = false }, 500)
+}
 
 const gradients = [
   'linear-gradient(135deg, #ffd4e8, #ffa8c8, #ff8db5)',
@@ -213,6 +240,15 @@ const getGradient = (id: string | number) => {
 .card-author-name:hover {
   color: var(--pink);
 }
+.card-author-name.clickable { cursor: pointer; }
+
+.card-avatar.clickable {
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.card-avatar.clickable:hover {
+  opacity: 0.75;
+}
 
 .card-stats {
   display: flex;
@@ -319,5 +355,28 @@ const getGradient = (id: string | number) => {
 
 .like-btn.active {
   color: var(--pink);
+}
+
+/* ===== 点击弹跳动效 ===== */
+@keyframes likePop {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.45); }
+  65%  { transform: scale(0.85); }
+  100% { transform: scale(1); }
+}
+
+.like-btn.popping .stat-icon {
+  animation: likePop 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes collectPop {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.35); }
+  65%  { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+
+.card-save.popping .collect-icon {
+  animation: collectPop 0.45s cubic-bezier(0.4, 0, 0.2, 1);
 }
 </style>
