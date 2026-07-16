@@ -893,10 +893,10 @@ onMounted(() => {
   loadFollowStats()
   loadManagedComments()
 
-  if (userStore.creatorActiveNav) {
+  if (userStore.creatorActiveNav && userStore.creatorActiveNav !== 'publish') {
     activeNav.value = userStore.creatorActiveNav as typeof activeNav.value
-    userStore.creatorActiveNav = 'home'
   }
+  userStore.creatorActiveNav = 'home'
 })
 
 watch(activeNav, (val) => {
