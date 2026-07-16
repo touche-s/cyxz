@@ -1,10 +1,13 @@
 <template>
   <Teleport to="body">
-    <Transition name="fade">
+    <Transition name="modal">
       <div v-if="visible" class="auth-overlay" @click.self="close">
         <div class="auth-modal">
           <!-- 左侧：平台介绍 -->
           <div class="auth-left">
+            <div class="float-orb orb-1"></div>
+            <div class="float-orb orb-2"></div>
+            <div class="float-orb orb-3"></div>
             <div class="auth-left-inner">
               <div class="brand">
                 <h1>次元小站</h1>
@@ -222,6 +225,17 @@ async function loadCaptcha() {
   }
 }
 
+function handleBusinessError(data: any) {
+  const msg = data?.message || ''
+  if (msg.includes('验证码已过期') || msg.includes('验证码错误')) {
+    ElMessage.error(msg)
+    form.captcha = ''
+    loadCaptcha()
+  } else {
+    ElMessage.error(msg || (tab.value === 'login' ? '登录失败' : '注册失败'))
+  }
+}
+
 async function handleSubmit() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
@@ -249,7 +263,7 @@ async function handleSubmit() {
         emit('update:visible', false)
         router.push(`/user/${data.data.userId}`)
       } else {
-        ElMessage.error(data.message || '登录失败')
+        handleBusinessError(data)
       }
     } else {
       const res = await register({
@@ -265,11 +279,11 @@ async function handleSubmit() {
         tab.value = 'login'
         loadCaptcha()
       } else {
-        ElMessage.error(data.message || '注册失败')
+        handleBusinessError(data)
       }
     }
-  } catch {
-    ElMessage.error(tab.value === 'login' ? '登录失败' : '注册失败')
+  } catch (err: any) {
+    handleBusinessError(err?.response?.data || {})
   } finally {
     submitting.value = false
   }
@@ -321,6 +335,43 @@ async function handleSubmit() {
   background:
     radial-gradient(circle at 20% 80%, rgba(255,255,255,0.15) 0%, transparent 50%),
     radial-gradient(circle at 80% 20%, rgba(255,255,255,0.1) 0%, transparent 40%);
+}
+
+/* 浮动装饰圆 */
+.float-orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+.orb-1 {
+  width: 120px;
+  height: 120px;
+  background: radial-gradient(circle, rgba(255,255,255,0.1), transparent 70%);
+  top: -30px;
+  right: -40px;
+  animation: orbFloat 8s ease-in-out infinite;
+}
+.orb-2 {
+  width: 80px;
+  height: 80px;
+  background: radial-gradient(circle, rgba(255,255,255,0.08), transparent 70%);
+  bottom: 100px;
+  left: -20px;
+  animation: orbFloat 6s ease-in-out 2s infinite;
+}
+.orb-3 {
+  width: 60px;
+  height: 60px;
+  background: radial-gradient(circle, rgba(255,255,255,0.06), transparent 70%);
+  top: 40%;
+  right: 60px;
+  animation: orbFloat 7s ease-in-out 4s infinite;
+}
+
+@keyframes orbFloat {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-20px) scale(1.1); }
 }
 .auth-left-inner {
   position: relative;
@@ -435,11 +486,12 @@ async function handleSubmit() {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
+  transition: all 0.3s ease;
 }
 .close-btn:hover {
   background: #f5f0f7;
   color: var(--text);
+  transform: rotate(90deg);
 }
 
 .form-title {
@@ -528,13 +580,27 @@ async function handleSubmit() {
 }
 
 /* Animation */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.25s ease;
+.modal-enter-active {
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.fade-enter-from,
-.fade-leave-to {
+.modal-leave-active {
+  transition: all 0.2s ease;
+}
+
+.modal-enter-from {
   opacity: 0;
+}
+.modal-enter-from .auth-modal {
+  transform: translateY(40px) scale(0.96);
+  opacity: 0;
+}
+
+.modal-leave-to {
+  opacity: 0;
+}
+
+.auth-modal {
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease;
 }
 
 /* Responsive */
