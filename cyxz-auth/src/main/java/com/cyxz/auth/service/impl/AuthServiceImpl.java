@@ -10,6 +10,7 @@ import com.cyxz.auth.service.AuthService;
 import com.cyxz.auth.util.JwtUtil;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
+import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.user.feign.UserFeignClient;
 import lombok.RequiredArgsConstructor;

@@ -3,6 +3,7 @@ package com.cyxz.user.feign;
 import com.cyxz.common.base.Result;
 import com.cyxz.user.vo.UserProfileVO;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.cloud.openfeign.FallbackFactory;
 import org.springframework.stereotype.Component;
 
