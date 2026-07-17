@@ -211,6 +211,7 @@ import { getMyProfile, updateUserProfile } from '@/api/user'
 import type { UserInfo } from '@/api/user'
 import { uploadAvatar } from '@/api/upload'
 import { useUserStore } from '@/stores/user'
+import { formatDate } from '@/utils/format'
 
 const userStore = useUserStore()
 

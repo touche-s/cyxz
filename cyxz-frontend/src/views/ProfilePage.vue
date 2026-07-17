@@ -1,45 +1,53 @@
 <template>
   <div class="profile-page">
-    <div class="cover-banner">
-      <span class="cover-deco star-1"></span>
-      <img src="@/assets/icons/favorite.svg" alt="star" class="cover-deco star-2" />
-      <span class="cover-deco star-3"></span>
-      <span class="cover-deco star-4"></span>
-      <img src="@/assets/icons/sparkle.svg" alt="sparkle" class="cover-deco star-5" />
+    <!-- ===== 顶部：Banner ===== -->
+    <div class="cover-banner"></div>
 
-      <div class="profile-on-banner" v-if="profile">
-        <div class="avatar-wrapper" @click="isSelf && startEdit()">
-          <div class="profile-avatar">
-            <img v-if="profile.avatar" :src="profile.avatar" alt="avatar" class="profile-avatar-img" />
-            <span v-else>{{ (profile.nickname || 'U').charAt(0) }}</span>
+    <!-- ===== 用户信息主卡 ===== -->
+    <div class="profile-card-wrap" v-if="profile">
+      <div class="profile-card">
+        <div class="pc-top">
+          <div class="pc-left">
+            <div class="avatar-wrapper" @click="isSelf && startEdit()">
+              <div class="profile-avatar">
+                <img v-if="profile.avatar" :src="profile.avatar" alt="avatar" class="profile-avatar-img" />
+                <span v-else>{{ (profile.nickname || 'U').charAt(0) }}</span>
+              </div>
+            </div>
+            <div class="pc-info">
+              <div class="pc-name-row">
+                <h2 class="pc-name">{{ profile.nickname }}</h2>
+              </div>
+              <p class="pc-bio">{{ profile.bio || '这个人很懒，什么都没写...' }}</p>
+            </div>
           </div>
-          <div v-if="isSelf" class="avatar-edit-badge" title="编辑资料">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
+          <div class="pc-right">
+            <template v-if="isSelf">
+              <button class="pc-action-btn pc-edit-btn" @click="startEdit">编辑资料</button>
+            </template>
+            <template v-else>
+              <FollowButton
+                :following="following"
+                :loading="followLoading"
+                variant="profile"
+                @toggle="toggleFollow"
+              />
+            </template>
           </div>
         </div>
-        <div class="profile-detail">
-          <div class="name-row">
-            <h2>{{ profile.nickname }}</h2>
-            <FollowButton v-if="!isSelf"
-                    :following="following"
-                    :loading="followLoading"
-                    variant="profile"
-                    @toggle="toggleFollow" />
-          </div>
-          <p class="profile-bio">{{ profile.bio || '这个人很懒，什么都没写...' }}</p>
+        <div class="pc-stats-row">
+          <span class="pc-stat"><strong>{{ profile?.followingCount ?? 0 }}</strong> 关注</span>
+          <span class="pc-stat"><strong>{{ profile?.followerCount ?? 0 }}</strong> 粉丝</span>
+          <span class="pc-stat"><strong>{{ postStats?.totalLikes ?? 0 }}</strong> 获赞</span>
+          <span class="pc-stat"><strong>{{ postStats?.totalViews ?? 0 }}</strong> 浏览</span>
         </div>
       </div>
     </div>
 
+    <!-- ===== Tab 栏 + 搜索 ===== -->
     <div class="info-bar">
       <div class="info-bar-inner">
         <div class="tab-nav">
-          <a href="#" :class="{ active: activeTab === 'home' }" @click.prevent="onTabChange('home')">
-            <img src="@/assets/icons/home.svg" alt="home" class="tab-icon" />主页
-          </a>
           <a href="#" :class="{ active: activeTab === 'works' }" @click.prevent="onTabChange('works')">
             <img src="@/assets/icons/post.svg" alt="post" class="tab-icon" />作品
           </a>
@@ -47,88 +55,19 @@
             <img src="@/assets/icons/favorite.svg" alt="favorite" class="tab-icon" />收藏
           </a>
         </div>
-        <div class="info-bar-right">
-          <div class="tab-search">
-            <img src="@/assets/icons/search.svg" alt="search" class="search-icon" />
-            <input type="text" placeholder="搜索作品、动态" />
-          </div>
-          <div class="profile-stats">
-            <div class="profile-stat">
-              <div class="num">{{ profile?.followingCount ?? 0 }}</div>
-              <div class="label">关注</div>
-            </div>
-            <div class="profile-stat">
-              <div class="num">{{ profile?.followerCount ?? 0 }}</div>
-              <div class="label">粉丝</div>
-            </div>
-            <div class="profile-stat">
-              <div class="num">{{ postStats?.totalLikes ?? 0 }}</div>
-              <div class="label">获赞</div>
-            </div>
-            <div class="profile-stat">
-              <div class="num">{{ postStats?.totalViews ?? 0 }}</div>
-              <div class="label">浏览</div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
 
+    <!-- ===== 内容区 ===== -->
     <div class="content-area">
-      <!-- 主页 tab：作品 + 收藏 -->
-      <div v-if="activeTab === 'home'">
-        <!-- 作品 -->
-        <div class="section-block">
-          <div class="section-block-title">
-            <img src="@/assets/icons/post.svg" alt="post" class="section-block-icon" />
-            作品
-            <span class="section-block-count">{{ posts.length }}</span>
-          </div>
-          <div class="content-grid" v-if="posts.length">
-            <PostCard
-              v-for="item in posts"
-              :key="item.id"
-              :post="item"
-              size="small"
-              :show-collect="false"
-              :show-like="false"
-              @click="goToPost"
-            />
-          </div>
-          <EmptyState v-else-if="!postLoading" title="这里还没有任何内容" hint="发布你的第一条动态，让大家认识你吧~">
-            <template v-if="isSelf" #actions>
-              <button class="guide-btn guide-btn-primary" @click="goToCreatePost">
-                <img src="@/assets/icons/edit.svg" alt="edit" class="btn-icon" />投稿作品
-              </button>
-            </template>
-          </EmptyState>
-          <div v-else class="loading-placeholder">加载中...</div>
-        </div>
-
-        <!-- 收藏 -->
-        <div class="section-block">
-          <div class="section-block-title">
-            <img src="@/assets/icons/favorite.svg" alt="favorite" class="section-block-icon" />
-            收藏
-            <span class="section-block-count">{{ favorites.length }}</span>
-          </div>
-          <div class="content-grid" v-if="favorites.length">
-            <PostCard
-              v-for="item in favorites"
-              :key="item.id"
-              :post="item"
-              size="small"
-              :show-collect="false"
-              :show-like="false"
-              @click="goToPost"
-            />
-          </div>
-          <EmptyState v-else-if="!favoriteLoading" title="还没有收藏任何内容" hint="发现喜欢的帖子就收藏起来吧~" />
-          <div v-else class="loading-placeholder">加载中...</div>
+      <div class="content-tools">
+        <div class="tab-search">
+          <img src="@/assets/icons/search.svg" alt="search" class="search-icon" />
+          <input :placeholder="activeTab === 'works' ? '搜索作品...' : '搜索收藏...'"></input>
         </div>
       </div>
 
-      <!-- 作品 tab：显示作品 -->
+      <!-- 作品 tab -->
       <div v-if="activeTab === 'works'">
         <div class="content-grid" v-if="posts.length">
           <PostCard
@@ -141,7 +80,7 @@
             @click="goToPost"
           />
         </div>
-        <EmptyState v-else-if="!postLoading" title="你还没有发布任何作品" hint="快去发布你的第一篇帖子吧~">
+        <EmptyState v-else-if="!postLoading" title="还没有发布任何作品" :hint="isSelf ? '快去发布你的第一篇帖子吧~' : ''">
           <template v-if="isSelf" #actions>
             <button class="guide-btn guide-btn-primary" @click="goToCreatePost">
               <img src="@/assets/icons/edit.svg" alt="edit" class="btn-icon" />发布帖子
@@ -151,7 +90,7 @@
         <div v-else class="loading-placeholder">加载中...</div>
       </div>
 
-      <!-- 收藏 tab：显示收藏 -->
+      <!-- 收藏 tab -->
       <div v-if="activeTab === 'favorites'">
         <div class="content-grid" v-if="favorites.length">
           <PostCard
@@ -164,7 +103,7 @@
             @click="goToPost"
           />
         </div>
-        <EmptyState v-else-if="!favoriteLoading" title="你还没有收藏任何内容" hint="发现喜欢的帖子就收藏起来吧~" />
+        <EmptyState v-else-if="!favoriteLoading" title="还没有收藏任何内容" hint="发现喜欢的帖子就收藏起来吧~" />
         <div v-else class="loading-placeholder">加载中...</div>
       </div>
     </div>
@@ -249,6 +188,7 @@ import { usePostStats } from '@/composables/usePostStats'
 import { useUserStore } from '@/stores/user'
 import { useAuth } from '@/composables/useAuth'
 import { useFollow } from '@/composables/useFollow'
+import { formatDate } from '@/utils/format'
 import PostCard from '@/components/PostCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import FollowButton from '@/components/FollowButton.vue'
@@ -266,7 +206,7 @@ const showEdit = ref(false)
 const saving = ref(false)
 const uploading = ref(false)
 const fileInput = ref<HTMLInputElement>()
-const activeTab = ref('home')
+const activeTab = ref('works')
 
 const editForm = reactive({
   nickname: '',
@@ -433,108 +373,138 @@ function goToCreatePost() {
 }
 
 function goToPost(post: PostVO) {
-  router.push(`/post/${post.id}`)
+  const url = router.resolve(`/post/${post.id}`).href
+  window.open(url, '_blank')
 }
 </script>
 
 <style scoped>
 .profile-page {
   padding-bottom: 60px;
+  background: var(--bg);
 }
 
+/* ===== Banner ===== */
 .cover-banner {
   width: 100%;
-  height: 260px;
-  background: linear-gradient(135deg, #fce4ec 0%, #e8eaf6 40%, #f3e5f5 70%, #fce4ec 100%);
+  height: 280px;
+  background-image:
+    linear-gradient(180deg, rgba(255,255,255,0) 50%, rgba(0,0,0,0.22) 100%),
+    url('@/assets/images/post-detail-bg.svg');
+  background-size: cover;
+  background-position: center;
+}
+
+/* ===== 用户信息主卡 ===== */
+.profile-card-wrap {
+  max-width: 1220px;
+  margin: -160px auto 0;
+  padding: 0 24px;
   position: relative;
-  overflow: hidden;
-}
-.cover-banner::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 20% 50%, rgba(255,107,157,0.15) 0%, transparent 50%),
-    radial-gradient(circle at 80% 30%, rgba(192,132,252,0.15) 0%, transparent 50%),
-    radial-gradient(circle at 60% 80%, rgba(96,165,250,0.1) 0%, transparent 40%);
-}
-
-.cover-deco {
-  position: absolute;
-  font-size: 60px;
-  opacity: 0.12;
-}
-.star-1 {
-  top: 20px; left: 10%;
-  width: 30px; height: 30px;
-  background: radial-gradient(circle, rgba(255,182,193,0.5), transparent 70%);
-  border-radius: 50%;
-  animation: twinkle 3s ease-in-out infinite;
-}
-.star-2 {
-  top: 60px; left: 30%;
-  font-size: 40px;
-  animation: float 4s ease-in-out infinite;
-}
-.star-3 {
-  bottom: 10px; left: 55%;
-  font-size: 50px;
-  animation: float 5s ease-in-out infinite 1s;
-}
-.star-4 {
-  top: 30px; right: 15%;
-  width: 24px; height: 24px;
-  background: radial-gradient(circle, rgba(192,132,252,0.4), transparent 70%);
-  border-radius: 50%;
-  animation: twinkle 4s ease-in-out infinite 0.5s;
-}
-.star-5 {
-  bottom: 20px; right: 30%;
-  font-size: 35px;
-  animation: float 3.5s ease-in-out infinite 0.8s;
-}
-
-@keyframes twinkle {
-  0%, 100% { opacity: 0.1; transform: scale(1); }
-  50% { opacity: 0.25; transform: scale(1.3); }
-}
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
-}
-
-.profile-on-banner {
-  position: absolute;
-  bottom: 20px;
-  left: calc((100vw - 1500px) / 2 + 32px);
-  display: flex;
-  align-items: flex-end;
-  gap: 20px;
   z-index: 10;
 }
+.profile-card {
+  padding: 0 4px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  border-radius: 20px 20px 0 0;
+}
+.pc-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.pc-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.pc-info { display: flex; flex-direction: column; gap: 6px; }
+.pc-name-row { display: flex; align-items: center; gap: 10px; }
+.pc-name {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+  text-shadow: 0 1px 4px rgba(255,255,255,0.6);
+}
+.pc-bio {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin: 0;
+  line-height: 1.5;
+  text-shadow: 0 1px 3px rgba(255,255,255,0.5);
+}
 
+/* stats row */
+.pc-stats-row {
+  display: flex;
+  gap: 24px;
+  padding: 14px 4px 8px;
+  flex-wrap: wrap;
+}
+.pc-stat {
+  font-size: 13px;
+  color: rgba(255,255,255,0.8);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.pc-stat strong {
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+}
+.pc-stat:hover {
+  opacity: 0.85;
+}
+
+/* right actions */
+.pc-right { flex-shrink: 0; }
+.pc-action-btn {
+  padding: 8px 24px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.18);
+  color: white;
+}
+.pc-action-btn:hover {
+  background: rgba(255,255,255,0.35);
+  transform: translateY(-1px);
+}
+
+/* avatar */
 .avatar-wrapper {
   position: relative;
   cursor: default;
   flex-shrink: 0;
+  align-self: flex-end;
 }
 .avatar-wrapper:hover .avatar-edit-badge {
   transform: translate(50%, -50%) scale(1.15);
   opacity: 1;
 }
 .profile-avatar {
-  width: 86px;
-  height: 86px;
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--pink), var(--purple));
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  font-size: 34px;
+  font-size: 36px;
   font-weight: 800;
-  border: 4px solid white;
-  box-shadow: 0 4px 20px rgba(255,107,157,0.3);
+  border: 4px solid var(--bg);
+  box-shadow: 0 4px 16px rgba(255,107,157,0.25);
   transition: transform 0.2s;
   overflow: hidden;
 }
@@ -544,7 +514,7 @@ function goToPost(post: PostVO) {
   object-fit: cover;
 }
 .avatar-wrapper:hover .profile-avatar {
-  transform: scale(1.03);
+  transform: scale(1.04);
 }
 .avatar-edit-badge {
   position: absolute;
@@ -564,133 +534,104 @@ function goToPost(post: PostVO) {
   box-shadow: 0 2px 8px rgba(255,107,157,0.3);
 }
 
-.profile-detail { padding-bottom: 10px; }
-.name-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.profile-detail h2 {
-  font-size: 18px;
-  font-weight: 700;
-  color: white;
-  text-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  margin: 0;
-}
-.profile-bio {
-  font-size: 13px;
-  color: rgba(255,255,255,0.9);
-  margin-top: 4px;
-  text-shadow: 0 1px 4px rgba(0,0,0,0.1);
-}
-
+/* ===== Tab 栏 ===== */
 .info-bar {
-  background: white;
-  border-bottom: 1px solid var(--border);
+  background: transparent;
+  border-bottom: none;
+  position: sticky;
+  top: 78px;
+  z-index: 20;
+  padding-top: 14px;
 }
 .info-bar-inner {
-  max-width: 1500px;
+  max-width: 1220px;
   margin: 0 auto;
-  padding: 0 32px;
+  padding: 10px 24px 4px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  height: 64px;
+  justify-content: center;
+  gap: 16px;
+  min-height: 48px;
 }
-.tab-nav { display: flex; gap: 4px; }
+.tab-nav {
+  display: inline-flex;
+  gap: 8px;
+  margin: 0 auto;
+  padding: 6px;
+  background: rgba(255,244,250,0.96);
+  border: 1px solid rgba(255,107,157,0.1);
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(255,107,157,0.06);
+}
 .tab-nav a {
   text-decoration: none;
   color: var(--text-dim);
-  font-size: 14px;
-  font-weight: 600;
-  padding: 18px 20px;
-  border-bottom: 3px solid transparent;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 999px;
   transition: all 0.2s;
   display: flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
 }
-.tab-nav a:first-child { padding-left: 0; }
-.tab-nav a:hover { color: var(--pink); }
-.tab-nav a.active {
+.tab-nav a:hover {
   color: var(--pink);
-  border-bottom-color: var(--pink);
+  background: rgba(255,107,157,0.06);
 }
-.info-bar-right {
-  display: flex;
-  align-items: center;
-  gap: 24px;
+.tab-nav a.active {
+  color: #ff5f9a;
+  font-weight: 700;
+  background: white;
+  box-shadow:
+    0 4px 12px rgba(255,107,157,0.1),
+    inset 0 0 0 1px rgba(255,107,157,0.16);
 }
+.tab-icon { width: 16px; height: 16px; }
+
 .tab-search {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #f5f0f7;
-  border-radius: 20px;
+  background: rgba(255,248,252,0.95);
+  border: 1px solid rgba(255,107,157,0.18);
+  border-radius: 999px;
   padding: 8px 16px;
+  box-shadow: inset 0 1px 3px rgba(255,107,157,0.06);
+  transition: background 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.tab-search:focus-within {
+  background: white;
+  border-color: rgba(255,107,157,0.32);
+  box-shadow:
+    inset 0 1px 3px rgba(255,107,157,0.06),
+    0 0 0 2px rgba(255,107,157,0.12);
 }
 .tab-search input {
   border: none;
   background: none;
   outline: none;
-  font-size: 12px;
-  width: 140px;
+  font-size: 13px;
+  width: 150px;
   color: var(--text);
 }
 .tab-search input::placeholder { color: #bbb; }
-.tab-search .search-icon { width: 14px; height: 14px; opacity: 0.5; }
+.tab-search .search-icon { width: 14px; height: 14px; opacity: 0.4; }
 
-.tab-icon { width: 16px; height: 16px; }
-.btn-icon { width: 16px; height: 16px; margin-right: 6px; filter: brightness(0) invert(1); }
-
-.profile-stats {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  flex-shrink: 0;
-}
-.profile-stat {
-  text-align: center;
-  cursor: pointer;
-  padding: 6px 16px;
-  border-radius: 12px;
-  transition: all 0.25s ease;
-}
-.profile-stat:hover {
-  background: rgba(255,107,157,0.06);
-  transform: translateY(-2px);
-}
-.profile-stat .num {
-  font-size: 20px;
-  font-weight: 800;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-.profile-stat .label {
-  font-size: 11px;
-  color: var(--text-dim);
-  margin-top: 2px;
-}
-
+/* ===== 内容区 ===== */
 .content-area {
-  max-width: 1500px;
+  max-width: 1220px;
   margin: 0 auto;
-  padding: 24px 32px 60px;
+  padding: 0 24px 60px;
+}
+.content-tools {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 18px;
 }
 
-/* ===== Section Block (主页 tab 分块) ===== */
-.section-block {
-  margin-bottom: 36px;
-  padding-bottom: 36px;
-  border-bottom: 1px solid var(--border);
-}
-.section-block:last-child {
-  margin-bottom: 0;
-  padding-bottom: 0;
-  border-bottom: none;
-}
-.section-block-title {
+.section-header {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -699,27 +640,42 @@ function goToPost(post: PostVO) {
   color: var(--text);
   margin-bottom: 16px;
 }
-.section-block-icon {
-  width: 18px;
-  height: 18px;
-}
-.section-block-count {
+.section-icon { width: 18px; height: 18px; }
+.section-count {
   font-size: 12px;
   font-weight: 500;
   color: var(--text-dim);
-  background: rgba(180, 132, 255, 0.08);
+  background: rgba(180,132,255,0.08);
   padding: 2px 8px;
   border-radius: 10px;
 }
 
+/* 内容网格：四列 */
 .content-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 270px));
   gap: 16px;
+  justify-content: start;
+}
+.content-grid :deep(.card) {
+  width: 270px;
+  border-radius: 14px;
+  border: 1px solid rgba(255,107,157,0.08);
+  box-shadow: 0 2px 12px rgba(180,132,255,0.07);
+  transition: all 0.25s ease;
+}
+.content-grid :deep(.card:hover) {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 28px rgba(255,107,157,0.14);
+  border-color: rgba(255,107,157,0.18);
+}
+.content-grid :deep(.card-cover) {
+  height: 146px;
 }
 
+/* 通用 */
 .guide-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 10px 24px;
@@ -739,7 +695,7 @@ function goToPost(post: PostVO) {
   transform: translateY(-2px);
   box-shadow: 0 6px 28px rgba(255,107,157,0.4);
 }
-
+.btn-icon { width: 16px; height: 16px; margin-right: 6px; filter: brightness(0) invert(1); }
 .loading-placeholder {
   text-align: center;
   padding: 60px 0;
@@ -747,6 +703,7 @@ function goToPost(post: PostVO) {
   font-size: 14px;
 }
 
+/* ===== 编辑资料弹窗（保持不变） ===== */
 .avatar-upload-row {
   display: flex;
   align-items: center;
@@ -801,28 +758,22 @@ function goToPost(post: PostVO) {
   height: 24px;
   transition: transform 0.3s ease;
 }
-.avatar-preview:hover .avatar-upload-mask {
-  opacity: 1;
-}
+.avatar-preview:hover .avatar-upload-mask { opacity: 1; }
 .avatar-preview:hover .avatar-upload-camera {
   animation: cameraPop 0.4s ease-out;
 }
-
 @keyframes cameraPop {
   0% { transform: scale(0.3); opacity: 0; }
   60% { transform: scale(1.3); }
   100% { transform: scale(1); opacity: 1; }
 }
-.avatar-upload-hint {
-  font-size: 12px;
-  color: #999;
-}
+.avatar-upload-hint { font-size: 12px; color: #999; }
 
 .edit-overlay {
   position: fixed;
   inset: 0;
   z-index: 300;
-  background: rgba(180, 132, 255, 0.15);
+  background: rgba(180,132,255,0.15);
   backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
@@ -835,12 +786,11 @@ function goToPost(post: PostVO) {
   width: 480px;
   max-width: 92vw;
   box-shadow:
-    0 8px 30px rgba(180, 132, 255, 0.18),
-    0 2px 8px rgba(255, 138, 200, 0.08);
+    0 8px 30px rgba(180,132,255,0.18),
+    0 2px 8px rgba(255,138,200,0.08);
   position: relative;
   overflow: hidden;
 }
-
 .modal-deco {
   position: absolute;
   font-size: 28px;
@@ -848,20 +798,10 @@ function goToPost(post: PostVO) {
   pointer-events: none;
   user-select: none;
 }
-.deco-tl {
-  top: 12px;
-  left: 16px;
-}
-.deco-tl::before {
-  content: '✦';
-}
-.deco-br {
-  bottom: 12px;
-  right: 16px;
-}
-.deco-br::before {
-  content: '♡';
-}
+.deco-tl { top: 12px; left: 16px; }
+.deco-tl::before { content: '✦'; }
+.deco-br { bottom: 12px; right: 16px; }
+.deco-br::before { content: '♡'; }
 
 .edit-title {
   font-size: 22px;
@@ -879,7 +819,6 @@ function goToPost(post: PostVO) {
   margin-bottom: 20px;
   opacity: 0.25;
 }
-
 .edit-close {
   position: absolute;
   top: 14px;
@@ -902,17 +841,13 @@ function goToPost(post: PostVO) {
   color: #FF8AC8;
   transform: scale(1.1);
 }
-
-.edit-modal :deep(.el-form-item) {
-  margin-bottom: 20px;
-}
+.edit-modal :deep(.el-form-item) { margin-bottom: 20px; }
 .edit-modal :deep(.el-form-item__label) {
   font-size: 14px;
   font-weight: 600;
   color: #555;
   padding-bottom: 8px;
 }
-
 .edit-modal :deep(.el-input__wrapper) {
   border-radius: 12px;
   box-shadow: none;
@@ -922,14 +857,11 @@ function goToPost(post: PostVO) {
   background: white;
   transition: all 0.22s ease;
 }
-.edit-modal :deep(.el-input__wrapper:hover) {
-  border-color: rgba(255,138,200,0.45);
-}
+.edit-modal :deep(.el-input__wrapper:hover) { border-color: rgba(255,138,200,0.45); }
 .edit-modal :deep(.el-input__wrapper.is-focus) {
   border-color: #B484FF;
   box-shadow: 0 0 0 3px rgba(180,132,255,0.12);
 }
-
 .edit-modal :deep(.el-textarea__inner) {
   border-radius: 12px;
   box-shadow: none;
@@ -938,24 +870,14 @@ function goToPost(post: PostVO) {
   transition: all 0.22s ease;
   min-height: 80px;
 }
-.edit-modal :deep(.el-textarea__inner:hover) {
-  border-color: rgba(255,138,200,0.45);
-}
+.edit-modal :deep(.el-textarea__inner:hover) { border-color: rgba(255,138,200,0.45); }
 .edit-modal :deep(.el-textarea__inner:focus) {
   border-color: #B484FF;
   box-shadow: 0 0 0 3px rgba(180,132,255,0.12);
 }
-
-.gender-item {
-  margin-bottom: 24px !important;
-}
-.gender-group {
-  display: flex;
-  gap: 24px;
-}
-.birthday-picker {
-  width: 100%;
-}
+.gender-item { margin-bottom: 24px !important; }
+.gender-group { display: flex; gap: 24px; }
+.birthday-picker { width: 100%; }
 .edit-modal :deep(.el-radio) {
   margin-right: 0;
   padding: 6px 20px;
@@ -967,9 +889,7 @@ function goToPost(post: PostVO) {
   border-color: rgba(255,138,200,0.4);
   background: rgba(255,138,200,0.03);
 }
-.edit-modal :deep(.el-radio__input) {
-  display: none;
-}
+.edit-modal :deep(.el-radio__input) { display: none; }
 .edit-modal :deep(.el-radio__label) {
   font-size: 14px;
   font-weight: 500;
@@ -989,7 +909,6 @@ function goToPost(post: PostVO) {
   background-clip: text;
   font-weight: 700;
 }
-
 .edit-actions {
   display: flex;
   justify-content: flex-end;
@@ -1029,16 +948,10 @@ function goToPost(post: PostVO) {
     inset 0 1px 0 rgba(255,255,255,0.2);
   transform: scale(1.03);
 }
-.edit-save-btn:active {
-  transform: scale(0.98);
-}
+.edit-save-btn:active { transform: scale(0.98); }
 
-.modal-slide-enter-active {
-  transition: all 0.25s ease-out;
-}
-.modal-slide-leave-active {
-  transition: all 0.2s ease-in;
-}
+.modal-slide-enter-active { transition: all 0.25s ease-out; }
+.modal-slide-leave-active { transition: all 0.2s ease-in; }
 .modal-slide-enter-from {
   opacity: 0;
   transform: translateY(20px) scale(0.97);
@@ -1048,17 +961,40 @@ function goToPost(post: PostVO) {
   transform: translateY(10px) scale(0.98);
 }
 
+/* 响应式 */
 @media (max-width: 768px) {
-  .cover-banner { height: 200px; }
-  .profile-on-banner { left: 20px; }
-  .info-bar-inner { flex-direction: column; height: auto; padding: 12px 16px; gap: 12px; }
-  .tab-nav { overflow-x: auto; }
+  .cover-banner { height: 124px; }
+  .profile-card {
+    gap: 16px;
+    padding: 20px;
+  }
+  .pc-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .pc-left { gap: 14px; }
+  .pc-name { font-size: 18px; }
+  .pc-stats-row { gap: 14px; flex-wrap: wrap; }
+  .content-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .content-grid :deep(.card) {
+    width: 100%;
+  }
+  .info-bar-inner {
+    padding: 8px 16px;
+    justify-content: center;
+  }
+  .tab-nav {
+    width: 100%;
+    justify-content: center;
+    overflow-x: auto;
+  }
+  .tab-nav a { padding: 10px 12px; font-size: 13px; }
   .tab-search { display: none; }
-  .profile-stats { gap: 12px; }
-  .profile-stat { padding: 4px 10px; }
-  .profile-stat .num { font-size: 16px; }
-  .content-area { padding: 16px; }
-  .content-grid { grid-template-columns: repeat(2, 1fr); }
-  .guide-btn { justify-content: center; }
+  .content-area { padding: 20px 16px 40px; }
+  .section-block { padding: 16px; }
 }
 </style>
