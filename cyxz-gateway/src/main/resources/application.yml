@@ -11,11 +11,21 @@ spring:
       config:
         server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
         file-extension: yml
-  config:
-    import:
-      - optional:nacos:
+        import-check:
+          enabled: false
 
-# JWT 配置
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DB:0}
+
 jwt:
-  secret: ${JWT_SECRET:default-secret-key-at-least-32-chars}
+  secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:86400}
+
+app:
+  security:
+    cors:
+      allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:http://localhost:*,http://127.0.0.1:*}

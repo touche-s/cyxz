@@ -13,12 +13,17 @@
 
     <modules>
         <module>cyxz-common</module>
+        <module>cyxz-user-api</module>
+        <module>cyxz-auth-api</module>
+        <module>cyxz-post-api</module>
         <module>cyxz-gateway</module>
         <module>cyxz-auth</module>
         <module>cyxz-user</module>
         <module>cyxz-post</module>
+        <module>cyxz-comment</module>
         <module>cyxz-message</module>
         <module>cyxz-search</module>
+        <module>cyxz-upload</module>
     </modules>
 
     <properties>
@@ -30,14 +35,14 @@
         <spring-cloud.version>2025.0.0</spring-cloud.version>
         <spring-cloud-alibaba.version>2023.0.3.2</spring-cloud-alibaba.version>
 
-        <lombok.version>1.18.30</lombok.version>
+        <lombok.version>1.18.34</lombok.version>
         <hutool.version>5.8.28</hutool.version>
         <commons-lang3.version>3.14.0</commons-lang3.version>
         <jjwt.version>0.12.3</jjwt.version>
         <mybatis-plus.version>3.5.5</mybatis-plus.version>
         <mybatis-spring.version>3.0.3</mybatis-spring.version>
         <mysql.version>8.0.33</mysql.version>
-        <aliyun-oss.version>3.17.4</aliyun-oss.version>
+        <minio.version>8.5.7</minio.version>
     </properties>
 
     <dependencyManagement>
@@ -73,6 +78,21 @@
             <dependency>
                 <groupId>com.cyxz</groupId>
                 <artifactId>cyxz-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.cyxz</groupId>
+                <artifactId>cyxz-user-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.cyxz</groupId>
+                <artifactId>cyxz-auth-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.cyxz</groupId>
+                <artifactId>cyxz-post-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
@@ -129,11 +149,11 @@
                 <version>${mysql.version}</version>
             </dependency>
 
-            <!-- Aliyun OSS -->
+            <!-- MinIO -->
             <dependency>
-                <groupId>com.aliyun.oss</groupId>
-                <artifactId>aliyun-sdk-oss</artifactId>
-                <version>${aliyun-oss.version}</version>
+                <groupId>io.minio</groupId>
+                <artifactId>minio</artifactId>
+                <version>${minio.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
