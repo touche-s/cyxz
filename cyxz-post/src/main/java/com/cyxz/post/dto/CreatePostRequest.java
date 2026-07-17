@@ -1,0 +1,37 @@
+package com.cyxz.post.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import lombok.Data;
+
+import java.util.List;
+
+/**
+ * 创建帖子请求
+ */
+@Data
+public class CreatePostRequest {
+
+    /** 分类 ID */
+    @NotNull(message = "分类不能为空")
+    private Long categoryId;
+
+    /** 标题 */
+    @NotBlank(message = "标题不能为空")
+    private String title;
+
+    /** 正文内容 */
+    private String content;
+
+    /** 封面图 URL */
+    private String cover;
+
+    /** 图片列表 */
+    private List<String> images;
+
+    /** 标签列表 */
+    private List<String> tags;
+
+    /** 状态：0=草稿 1=发布 */
+    private Integer status;
+}
