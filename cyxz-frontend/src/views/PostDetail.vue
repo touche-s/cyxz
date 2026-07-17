@@ -233,7 +233,8 @@ const contentParagraphs = computed(() => {
 
 function goToAuthor() {
   if (post.value?.userId) {
-    router.push(`/user/${post.value.userId}`)
+    const url = router.resolve(`/user/${post.value.userId}`).href
+    window.open(url, '_blank')
   }
 }
 

@@ -695,7 +695,8 @@ const goHome = () => {
 }
 
 const goToUser = (userId: string | number) => {
-  router.push(`/user/${userId}`)
+  const url = router.resolve(`/user/${userId}`).href
+  window.open(url, '_blank')
 }
 
 const goCreate = async () => {
@@ -1168,8 +1169,9 @@ watch(activeNav, (val) => {
 
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 220px));
+  gap: 14px;
+  justify-content: start;
 }
 
 .action-icon {

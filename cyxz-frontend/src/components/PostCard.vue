@@ -62,7 +62,8 @@ const router = useRouter()
 
 function goToAuthor() {
   if (props.post.userId) {
-    router.push(`/user/${props.post.userId}`)
+    const url = router.resolve(`/user/${props.post.userId}`).href
+    window.open(url, '_blank')
   }
 }
 

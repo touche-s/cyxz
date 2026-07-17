@@ -14,16 +14,16 @@
         <input type="text" placeholder="搜索感兴趣的内容..." />
       </div>
     </div>
+    <nav class="nav">
+      <router-link to="/" :class="{ active: $route.path === '/' }">发现</router-link>
+      <router-link to="/following" :class="{ active: $route.path === '/following' }">关注</router-link>
+      <router-link to="/community" :class="{ active: $route.path === '/community' }">社区</router-link>
+      <a href="javascript:;" :class="{ active: $route.path === '/creator' }" @click="goCreator">创作中心</a>
+    </nav>
     <div class="header-right">
-      <nav class="nav">
-        <router-link to="/" :class="{ active: $route.path === '/' }">发现</router-link>
-        <router-link to="/following" :class="{ active: $route.path === '/following' }">关注</router-link>
-        <router-link to="/community" :class="{ active: $route.path === '/community' }">社区</router-link>
-        <a href="javascript:;" :class="{ active: $route.path === '/creator' }" @click="goCreator">创作中心</a>
-      </nav>
       <template v-if="userStore.isLoggedIn">
         <div class="user-dropdown" :class="{ open: dropdownOpen }">
-          <div class="avatar-trigger" @click="goToProfile" @mouseenter="dropdownOpen = true" @mouseleave="dropdownOpen = false">
+          <div class="avatar-trigger" @click.stop="goToProfile" @mouseenter="dropdownOpen = true" @mouseleave="dropdownOpen = false">
             <img v-if="userStore.userInfo?.avatar" :src="userStore.userInfo.avatar" alt="avatar" class="avatar-img" />
             <span v-else class="avatar-placeholder">{{ (userStore.userInfo?.nickname || 'U').charAt(0) }}</span>
           </div>
@@ -74,9 +74,18 @@
         <span>登录</span>
       </div>
       <div class="header-icons">
-        <button class="icon-btn"><el-icon><Star /></el-icon></button>
-        <button class="icon-btn"><el-icon><ChatLineSquare /></el-icon></button>
-        <button class="icon-btn"><el-icon><Bell /></el-icon></button>
+        <button class="header-action">
+          <el-icon><Star /></el-icon>
+          <span class="action-label">收藏</span>
+        </button>
+        <button class="header-action" @click="goMessages">
+          <el-icon><Bell /></el-icon>
+          <span class="action-label">消息</span>
+        </button>
+        <button class="header-action">
+          <el-icon><Clock /></el-icon>
+          <span class="action-label">历史</span>
+        </button>
       </div>
       <button class="btn-create" @click="goPublish">
         <el-icon><Plus /></el-icon>
@@ -88,7 +97,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { Search, Plus, Bell, ChatLineSquare, Star } from '@element-plus/icons-vue'
+import { Search, Plus, Bell, ChatLineSquare, Star, Clock } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useAuth } from '@/composables/useAuth'
 import { useRouter } from 'vue-router'
@@ -109,6 +118,11 @@ function goCreator() {
   router.push('/creator')
 }
 
+function goMessages() {
+  if (!requireLogin()) return
+  router.push('/messages')
+}
+
 function goPublish() {
   if (!requireLogin()) return
   userStore.creatorActiveNav = 'publish'
@@ -124,17 +138,21 @@ function goFans(tab: 'followers' | 'following') {
   router.push('/creator')
 }
 
-/** 点击头像进入个人空间 */
+/** 点击头像进入个人空间（新标签页） */
 function goToProfile() {
-  dropdownOpen.value = false
   const uid = userStore.userInfo?.id
-  if (uid) router.push(`/user/${uid}`)
+  if (uid) {
+    const url = router.resolve(`/user/${uid}`).href
+    window.open(url, '_blank')
+  }
+  dropdownOpen.value = false
 }
 
 async function handleCommand(cmd: string) {
   dropdownOpen.value = false
   if (cmd === 'user-center') {
-    router.push('/user-center')
+    const url = router.resolve('/user-center').href
+    window.open(url, '_blank')
   } else if (cmd === 'logout') {
     try { await logout() } catch { /* ignore */ }
     userStore.clearAuth()
@@ -367,32 +385,52 @@ onMounted(() => {
 
 .header-icons {
   display: flex;
+  align-items: center;
   gap: 4px;
+  margin: 0 8px;
 }
 
-.icon-btn {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
+.header-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 46px;
+  height: 54px;
   border: none;
   background: transparent;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.22s ease-out;
+  border-radius: 10px;
+  padding: 0;
+  transition: background 0.2s ease;
 }
 
-.icon-btn .el-icon {
+.header-action:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.header-action .el-icon {
   color: var(--text-dim);
-  font-size: 18px;
+  font-size: 19px;
+  line-height: 1;
+  transition: color 0.2s ease, transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.icon-btn:hover {
-  background: rgba(0, 0, 0, 0.06);
+.header-action:hover .el-icon {
+  color: var(--pink);
+  transform: translateY(-2px);
 }
 
-.icon-btn:hover .el-icon {
+.action-label {
+  font-size: 11px;
+  line-height: 1;
+  color: #9f8ca9;
+  transition: color 0.2s ease;
+  white-space: nowrap;
+}
+
+.header-action:hover .action-label {
   color: var(--pink);
 }
 
@@ -590,7 +628,33 @@ onMounted(() => {
 }
 
 @media (max-width: 768px) {
-  .header-bar { padding: 0 16px; }
+  .header-bar {
+    padding: 0 16px;
+    height: auto;
+    min-height: 66px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .header-center {
+    order: 3;
+    width: 100%;
+  }
+  .search-wrap {
+    width: 100%;
+  }
+  .search-wrap input {
+    width: 100%;
+  }
   .nav { display: none; }
+  .header-right {
+    gap: 6px;
+  }
+  .header-icons {
+    margin: 0;
+    gap: 6px;
+  }
+  .btn-create {
+    padding: 8px 14px;
+  }
 }
 </style>

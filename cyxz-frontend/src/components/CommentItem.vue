@@ -162,7 +162,8 @@ const handleReply = () => {
 
 function goToUser() {
   if (props.comment.userId) {
-    router.push(`/user/${props.comment.userId}`)
+    const url = router.resolve(`/user/${props.comment.userId}`).href
+    window.open(url, '_blank')
   }
 }
 
