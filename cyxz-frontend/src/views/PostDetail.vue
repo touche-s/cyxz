@@ -29,9 +29,17 @@
             <h1 class="post-title">{{ post.title }}</h1>
 
             <div class="post-images" v-if="post.images && post.images.length > 0">
-              <div class="carousel-container">
+              <div class="carousel-container" :style="{ aspectRatio: carouselAspectRatio }">
                 <div class="carousel-track" :style="{ transform: `translateX(-${currentImage * 100}%)` }">
-                  <img v-for="(img, index) in post.images" :key="index" :src="img" :alt="`图片${index + 1}`" class="carousel-slide" />
+                  <img
+                    v-for="(img, index) in post.images"
+                    :key="index"
+                    :src="img"
+                    :alt="`图片${index + 1}`"
+                    class="carousel-slide"
+                    @load="(e) => onImageLoad(index, e)"
+                    @click.stop="openLightbox(index)"
+                  />
                 </div>
 
                 <!-- 左右箭头 -->
@@ -163,6 +171,35 @@
         </EmptyState>
       </div>
     </main>
+
+    <!-- 图片放大预览 -->
+    <Teleport to="body">
+      <Transition name="lightbox-fade">
+        <div v-if="lightboxVisible" class="lightbox-overlay" @click.self="closeLightbox" @keydown="handleLightboxKeydown" tabindex="0" ref="lightboxOverlay">
+          <div class="lightbox-image-wrap">
+            <img :src="lightboxImages[lightboxIndex]" class="lightbox-image" alt="预览图片" />
+          </div>
+
+          <button class="lightbox-close" @click="closeLightbox">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+
+          <template v-if="lightboxImages.length > 1">
+            <button class="lightbox-arrow lightbox-prev" @click.stop="lightboxPrev">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <button class="lightbox-arrow lightbox-next" @click.stop="lightboxNext">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+            </button>
+          </template>
+
+          <div class="lightbox-counter" v-if="lightboxImages.length > 1">{{ lightboxIndex + 1 }} / {{ lightboxImages.length }}</div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -205,6 +242,18 @@ const collected = ref(false)
 const commentInput = ref('')
 const commentSection = ref<HTMLElement | null>(null)
 const currentImage = ref(0)
+
+// ===== 图片轮播动态比例 =====
+const imageNaturalRatios = ref<number[]>([])
+function onImageLoad(index: number, e: Event) {
+  const img = e.target as HTMLImageElement
+  imageNaturalRatios.value[index] = img.naturalWidth / img.naturalHeight
+}
+const carouselAspectRatio = computed(() => {
+  const ratio = imageNaturalRatios.value[currentImage.value]
+  return ratio ? `${ratio}` : '4/3'
+})
+
 const replyTarget = ref<{ comment: CommentVO; parentId: string } | null>(null)
 const activeReplyId = ref<string | null>(null) // 哪个顶级评论下方显示回复框
 
@@ -245,6 +294,42 @@ const prevImage = () => {
 const nextImage = () => {
   if (post.value?.images && currentImage.value < post.value.images.length - 1) {
     currentImage.value++
+  }
+}
+
+// ===== 图片放大预览 =====
+const lightboxVisible = ref(false)
+const lightboxIndex = ref(0)
+const lightboxImages = computed(() => post.value?.images || [])
+const lightboxOverlay = ref<HTMLElement | null>(null)
+
+function openLightbox(index: number) {
+  lightboxIndex.value = index
+  lightboxVisible.value = true
+  nextTick(() => {
+    lightboxOverlay.value?.focus()
+  })
+}
+
+function closeLightbox() {
+  lightboxVisible.value = false
+}
+
+function lightboxPrev() {
+  if (lightboxIndex.value > 0) lightboxIndex.value--
+}
+
+function lightboxNext() {
+  if (lightboxIndex.value < lightboxImages.value.length - 1) lightboxIndex.value++
+}
+
+function handleLightboxKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') {
+    closeLightbox()
+  } else if (e.key === 'ArrowLeft') {
+    lightboxPrev()
+  } else if (e.key === 'ArrowRight') {
+    lightboxNext()
   }
 }
 
@@ -606,23 +691,25 @@ onMounted(async () => {
 .carousel-container {
   position: relative;
   width: 100%;
-  aspect-ratio: 16/9;
+  max-height: 60vh;
   overflow: hidden;
-  background: #f5f5f5;
+  background: #fff;
+  transition: height 0.35s ease, aspect-ratio 0.35s ease;
 }
 
 .carousel-track {
   display: flex;
-  transition: transform 0.3s ease;
   height: 100%;
+  transition: transform 0.3s ease;
 }
 
 .carousel-slide {
   min-width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
+  cursor: pointer;
   user-select: none;
-  pointer-events: none;
 }
 
 .carousel-arrow {
@@ -945,6 +1032,141 @@ onMounted(async () => {
 
 .back-btn:hover {
   box-shadow: 0 4px 16px rgba(255, 107, 157, 0.35);
+}
+
+/* ===== 图片放大预览 Lightbox ===== */
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(18, 12, 27, 0.62);
+  backdrop-filter: blur(20px) saturate(140%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+}
+
+.lightbox-image-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 90vw;
+  max-height: 85vh;
+}
+
+.lightbox-image {
+  max-width: 90vw;
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 24px;
+  right: 28px;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(8px);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.24s ease;
+  z-index: 10;
+}
+
+.lightbox-close:hover {
+  background: rgba(255, 107, 157, 0.6);
+  border-color: rgba(255, 107, 157, 0.5);
+  transform: rotate(90deg) scale(1.05);
+}
+
+.lightbox-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.lightbox-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.22s ease;
+  z-index: 10;
+}
+
+.lightbox-arrow:hover {
+  background: rgba(255, 107, 157, 0.45);
+  border-color: rgba(255, 107, 157, 0.4);
+  transform: translateY(-50%) scale(1.08);
+}
+
+.lightbox-prev { left: 28px; }
+.lightbox-next { right: 28px; }
+
+.lightbox-counter {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.lightbox-fade-enter-active,
+.lightbox-fade-leave-active {
+  transition: opacity 0.28s ease;
+}
+
+.lightbox-fade-enter-from,
+.lightbox-fade-leave-to {
+  opacity: 0;
+}
+
+@media (max-width: 768px) {
+  .lightbox-close {
+    top: 16px;
+    right: 16px;
+    width: 36px;
+    height: 36px;
+  }
+
+  .lightbox-arrow {
+    width: 40px;
+    height: 40px;
+  }
+
+  .lightbox-prev { left: 12px; }
+  .lightbox-next { right: 12px; }
+
+  .lightbox-image {
+    max-width: 95vw;
+    max-height: 80vh;
+  }
 }
 
 @media (max-width: 768px) {

@@ -3,11 +3,11 @@
     <aside class="sidebar">
       <nav class="sidebar-nav">
         <div class="nav-section">
-        <button class="nav-item nav-item-primary" :class="{ active: activeNav === 'publish' }" @click="goPublish">
+        <button class="nav-item nav-item-primary" :class="{ active: activeNav === 'publish' }" @click="switchNav('publish')">
           <img src="@/assets/icons/edit.svg" class="nav-icon" />
           <span class="nav-text">发布</span>
         </button>
-        <button class="nav-item" :class="{ active: activeNav === 'home' }" @click="activeNav = 'home'">
+        <button class="nav-item" :class="{ active: activeNav === 'home' }" @click="switchNav('home')">
           <img src="@/assets/icons/home-nav.svg" class="nav-icon" />
           <span class="nav-text">创作首页</span>
         </button>
@@ -16,7 +16,7 @@
         <div class="nav-divider"></div>
 
         <div class="nav-section">
-          <button class="nav-item" :class="{ active: activeNav === 'content' }" @click="activeNav = 'content'">
+          <button class="nav-item" :class="{ active: activeNav === 'content' }" @click="switchNav('content')">
             <img src="@/assets/icons/content-nav.svg" class="nav-icon" />
             <span class="nav-text">内容管理</span>
           </button>
@@ -25,11 +25,11 @@
         <div class="nav-divider"></div>
 
         <div class="nav-section">
-          <button class="nav-item" :class="{ active: activeNav === 'fans' }" @click="activeNav = 'fans'">
+          <button class="nav-item" :class="{ active: activeNav === 'fans' }" @click="switchNav('fans')">
             <img src="@/assets/icons/fans-nav.svg" class="nav-icon" />
             <span class="nav-text">粉丝管理</span>
           </button>
-          <button class="nav-item" :class="{ active: activeNav === 'interaction' }" @click="activeNav = 'interaction'">
+          <button class="nav-item" :class="{ active: activeNav === 'interaction' }" @click="switchNav('interaction')">
             <img src="@/assets/icons/interaction-nav.svg" class="nav-icon" />
             <span class="nav-text">评论管理</span>
           </button>
@@ -38,7 +38,7 @@
         <div class="nav-divider"></div>
 
         <div class="nav-section">
-          <button class="nav-item" :class="{ active: activeNav === 'magic' }" @click="activeNav = 'magic'">
+          <button class="nav-item" :class="{ active: activeNav === 'magic' }" @click="switchNav('magic')">
             <img src="@/assets/icons/magic-nav.svg" class="nav-icon" />
             <span class="nav-text">妙笔</span>
           </button>
@@ -47,7 +47,7 @@
         <div class="nav-divider"></div>
 
         <div class="nav-section">
-          <button class="nav-item" :class="{ active: activeNav === 'agreement' }" @click="activeNav = 'agreement'">
+          <button class="nav-item" :class="{ active: activeNav === 'agreement' }" @click="switchNav('agreement')">
             <img src="@/assets/icons/community-agreement-nav.svg" class="nav-icon" />
             <span class="nav-text">社区公约</span>
           </button>
@@ -56,7 +56,7 @@
     </aside>
 
     <main class="main-content">
-      <PostCreate v-if="activeNav === 'publish'" @go-back="goHome" @publish-success="handlePublishSuccess" />
+      <PostCreate ref="postCreateRef" v-if="activeNav === 'publish'" @go-back="goHome" @publish-success="handlePublishSuccess" />
       <template v-else-if="activeNav === 'home'">
         <div class="home-hero">
           <div class="hero-info">
@@ -540,6 +540,15 @@ const fansLoading = ref(false)
 const commentsLoading = ref(false)
 const showDeleteModal = ref(false)
 const activeNav = ref<'home' | 'content' | 'fans' | 'interaction' | 'magic' | 'agreement' | 'publish'>('home')
+const postCreateRef = ref<InstanceType<typeof PostCreate>>()
+
+const switchNav = async (nav: typeof activeNav.value) => {
+  if (activeNav.value === 'publish' && nav !== 'publish' && postCreateRef.value) {
+    const canLeave = await postCreateRef.value.confirmLeave()
+    if (!canLeave) return
+  }
+  activeNav.value = nav
+}
 
 const postToDelete = ref<PostVO | null>(null)
 
@@ -683,10 +692,6 @@ const refreshPosts = () => {
   if (!loading.value) {
     loadPosts()
   }
-}
-
-const goPublish = () => {
-  activeNav.value = 'publish'
 }
 
 const goHome = () => {

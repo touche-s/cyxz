@@ -34,6 +34,14 @@
                 class="image-item"
               >
                 <img :src="img" class="image-preview" />
+                <button type="button" class="image-crop-btn" @click.stop="openImageCropper(img, index)" title="裁剪图片">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="6" cy="6" r="2"/>
+                    <circle cx="6" cy="18" r="2"/>
+                    <line x1="7.5" y1="7" x2="20" y2="14"/>
+                    <line x1="7.5" y1="17" x2="20" y2="10"/>
+                  </svg>
+                </button>
                 <button type="button" class="image-remove" @click="removeImage(index)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="18" y1="6" x2="6" y2="18"/>
@@ -177,17 +185,19 @@
       ref="imageCropperRef"
       :visible="showImageCropper"
       title="裁剪图片"
-      :aspect-ratio="16 / 9"
+      :aspect-ratio="currentCropAspectRatio"
       :circular="false"
+      :ratio-options="cropperRatioOptions"
       @crop="onImageCrop"
       @cancel="onImageCropCancel"
+      @update:aspect-ratio="currentCropAspectRatio = $event"
     />
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { createPost, updatePost, getPostDetail, getCategoryList } from '@/api/post'
 import { uploadPostImage, deleteUploadedFile } from '@/api/upload'
 import type { PostVO, CategoryVO } from '@/api/post'
@@ -221,9 +231,20 @@ const tagInput = ref('')
 const imageInput = ref<HTMLInputElement | null>(null)
 const imageUploading = ref(false)
 const dirty = ref(false)
+const formInitialized = ref(false)
 const imageCropperRef = ref<InstanceType<typeof ImageCropper> | null>(null)
 const showImageCropper = ref(false)
-const pendingFiles = ref<File[]>([])
+const currentCropImageUrl = ref('')
+const currentCropImageIndex = ref(-1)
+const currentCropAspectRatio = ref(4 / 3)
+
+const cropperRatioOptions = [
+  { label: '16:9', value: 16 / 9 },
+  { label: '4:3', value: 4 / 3 },
+  { label: '3:2', value: 3 / 2 },
+  { label: '1:1', value: 1 },
+  { label: '自由', value: 0 },
+]
 
 const loadCategories = async () => {
   try {
@@ -266,48 +287,73 @@ const handleImageChange = async (event: Event) => {
   const target = event.target as HTMLInputElement
   const files = target.files
   if (files) {
-    const remainingSlots = 9 - form.value.images.length - pendingFiles.value.length
+    const remainingSlots = 9 - form.value.images.length
     const filesToAdd = Array.from(files).slice(0, remainingSlots)
-    if (filesToAdd.length > 0) {
-      pendingFiles.value.push(...filesToAdd)
-      startCroppingNext()
+    for (const file of filesToAdd) {
+      await uploadImage(file)
     }
   }
   target.value = ''
 }
 
-const handleImageDrop = (event: DragEvent) => {
+const handleImageDrop = async (event: DragEvent) => {
   const files = event.dataTransfer?.files
   if (files) {
-    const remainingSlots = 9 - form.value.images.length - pendingFiles.value.length
+    const remainingSlots = 9 - form.value.images.length
     const filesToAdd = Array.from(files)
       .filter(f => f.type.startsWith('image/'))
       .slice(0, remainingSlots)
-    if (filesToAdd.length > 0) {
-      pendingFiles.value.push(...filesToAdd)
-      startCroppingNext()
+    for (const file of filesToAdd) {
+      await uploadImage(file)
     }
   }
 }
 
-function startCroppingNext() {
-  if (showImageCropper.value) return
-  const file = pendingFiles.value.shift()
-  if (!file) return
-  imageCropperRef.value?.loadImage(file)
+function openImageCropper(url: string, index: number) {
+  currentCropImageUrl.value = url
+  currentCropImageIndex.value = index
+  currentCropAspectRatio.value = 4 / 3
+  imageCropperRef.value?.setImageUrl(url)
   showImageCropper.value = true
 }
 
 async function onImageCrop(blob: Blob) {
   showImageCropper.value = false
   const file = new File([blob], 'post-image.jpg', { type: 'image/jpeg' })
-  await uploadImage(file)
-  startCroppingNext()
+  if (currentCropImageIndex.value >= 0) {
+    await uploadAndReplace(currentCropImageIndex.value, file)
+  }
+  currentCropImageIndex.value = -1
+  currentCropImageUrl.value = ''
 }
 
 function onImageCropCancel() {
   showImageCropper.value = false
-  startCroppingNext()
+  currentCropImageIndex.value = -1
+  currentCropImageUrl.value = ''
+}
+
+async function uploadAndReplace(index: number, file: File) {
+  const oldUrl = form.value.images[index]
+  imageUploading.value = true
+  try {
+    const res = await uploadPostImage(file)
+    if (res.data.code === 200) {
+      const newUrl = res.data.data
+      form.value.images[index] = newUrl
+      if (form.value.cover === oldUrl) {
+        form.value.cover = newUrl
+      }
+      dirty.value = true
+      deleteUploadedFile(oldUrl).catch(() => {})
+      ElMessage.success('裁剪完成')
+    }
+  } catch (error) {
+    ElMessage.error('图片上传失败')
+    console.error('裁剪上传失败:', error)
+  } finally {
+    imageUploading.value = false
+  }
 }
 
 const uploadImage = async (file: File) => {
@@ -397,10 +443,10 @@ const handleSubmit = async () => {
   }
 }
 
-const saveDraft = async () => {
+const saveDraftOnly = async (): Promise<boolean> => {
   if (!form.value.title) {
-    ElMessage.warning('请至少填写标题')
-    return
+    ElMessage.warning('请至少填写标题后再保存草稿')
+    return false
   }
 
   loading.value = true
@@ -418,28 +464,66 @@ const saveDraft = async () => {
 
     if (isEditMode.value) {
       await updatePost(data as any)
-      ElMessage.success('草稿保存成功')
     } else {
       await createPost(data as any)
-      ElMessage.success('草稿保存成功')
     }
 
     dirty.value = false
-
-    if (isInCreatorCenter.value) {
-      emit('goBack')
-    } else {
-      router.push('/creator')
-    }
-  } catch (error) {
-    ElMessage.error('保存失败')
+    ElMessage.success('草稿保存成功')
+    return true
+  } catch (error: any) {
+    const msg = error?.response?.data?.msg || '保存失败'
+    ElMessage.error(msg)
     console.error('保存草稿失败:', error)
+    return false
   } finally {
     loading.value = false
   }
 }
 
-const goBack = () => {
+const saveDraft = async () => {
+  if (!form.value.title) {
+    ElMessage.warning('请至少填写标题')
+    return
+  }
+  const ok = await saveDraftOnly()
+  if (!ok) return
+
+  if (isInCreatorCenter.value) {
+    emit('goBack')
+  } else {
+    router.push('/creator')
+  }
+}
+
+const confirmLeave = async (): Promise<boolean> => {
+  if (!dirty.value) return true
+
+  try {
+    await ElMessageBox.confirm('有未保存的内容，是否保存为草稿？', '提示', {
+      confirmButtonText: '保存',
+      cancelButtonText: '不保存',
+      distinguishCancelAndClose: true,
+      customClass: 'leave-confirm-dialog',
+    })
+    // 点击保存
+    const ok = await saveDraftOnly()
+    return ok
+  } catch (action: any) {
+    if (action === 'cancel') {
+      // 点击不保存
+      dirty.value = false
+      return true
+    }
+    // 关闭弹窗
+    return false
+  }
+}
+
+const goBack = async () => {
+  const canLeave = await confirmLeave()
+  if (!canLeave) return
+
   if (isInCreatorCenter.value) {
     emit('goBack')
   } else {
@@ -447,11 +531,22 @@ const goBack = () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   loadCategories()
-  loadPostDetail()
+  await loadPostDetail()
+  formInitialized.value = true
   window.addEventListener('beforeunload', handleBeforeUnload)
 })
+
+// 监听表单字段变化，标记 dirty
+watch(
+  () => [form.value.title, form.value.categoryId, form.value.content, form.value.cover],
+  () => {
+    if (formInitialized.value) {
+      dirty.value = true
+    }
+  }
+)
 
 const handleBeforeUnload = (e: BeforeUnloadEvent) => {
   if (dirty.value) {
@@ -464,34 +559,10 @@ onBeforeUnmount(() => {
 })
 
 onBeforeRouteLeave(async () => {
-  if (!dirty.value) return true
-
-  // 尝试自动保存草稿
-  if (form.value.title || form.value.images.length > 0) {
-    try {
-      const data = {
-        ...(isEditMode.value && { id: postId.value }),
-        categoryId: form.value.categoryId ? Number(form.value.categoryId) : undefined,
-        title: form.value.title,
-        content: form.value.content || undefined,
-        cover: form.value.cover || undefined,
-        images: form.value.images.length > 0 ? form.value.images : undefined,
-        tags: form.value.tags.length > 0 ? form.value.tags : undefined,
-        status: 0,
-      }
-      if (isEditMode.value) {
-        await updatePost(data as any)
-      } else {
-        await createPost(data as any)
-      }
-      dirty.value = false
-      ElMessage.success('已自动保存为草稿')
-    } catch {
-      console.error('自动保存草稿失败')
-    }
-  }
-  return true
+  return confirmLeave()
 })
+
+defineExpose({ dirty, confirmLeave })
 </script>
 
 <style scoped>
@@ -674,6 +745,33 @@ onBeforeRouteLeave(async () => {
 
 .image-remove:hover {
   background: rgba(255, 71, 87, 0.9);
+}
+
+.image-crop-btn {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.22s ease-out;
+  opacity: 1;
+}
+
+.image-crop-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.image-crop-btn:hover {
+  background: rgba(255, 107, 157, 0.9);
 }
 
 .add-image-btn {
@@ -924,5 +1022,88 @@ onBeforeRouteLeave(async () => {
   .images-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+</style>
+
+<style>
+.leave-confirm-dialog {
+  border-radius: 16px;
+  padding-bottom: 8px;
+  box-shadow: 0 12px 48px rgba(120, 60, 160, 0.18);
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
+}
+
+.leave-confirm-dialog .el-message-box__header {
+  padding: 20px 24px 0;
+}
+
+.leave-confirm-dialog .el-message-box__title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #3d2c4a;
+}
+
+.leave-confirm-dialog .el-message-box__close {
+  color: #b8a0cc;
+  transition: color 0.2s, transform 0.25s;
+}
+
+.leave-confirm-dialog .el-message-box__close:hover {
+  color: #ff6b9d;
+  transform: rotate(90deg);
+}
+
+.leave-confirm-dialog .el-message-box__content {
+  padding: 12px 24px 20px;
+}
+
+.leave-confirm-dialog .el-message-box__message {
+  color: #6b5b7a;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.leave-confirm-dialog .el-message-box__btns {
+  padding: 0 24px 20px;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.leave-confirm-dialog .el-button {
+  border-radius: 10px;
+  padding: 9px 22px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.22s ease;
+}
+
+.leave-confirm-dialog .el-button--primary {
+  background: linear-gradient(135deg, #ff6b9d, #c47ef0);
+  border: none;
+  box-shadow: 0 4px 14px rgba(255, 107, 157, 0.3);
+}
+
+.leave-confirm-dialog .el-button--primary:hover {
+  background: linear-gradient(135deg, #ff7db0, #d190f5);
+  box-shadow: 0 6px 20px rgba(255, 107, 157, 0.4);
+  transform: translateY(-1px);
+}
+
+.leave-confirm-dialog .el-button--primary:active {
+  transform: translateY(0);
+}
+
+.leave-confirm-dialog .el-button:not(.el-button--primary) {
+  background: transparent;
+  border: 1.5px solid #e0d4ee;
+  color: #8b7a9e;
+}
+
+.leave-confirm-dialog .el-button:not(.el-button--primary):hover {
+  border-color: #c47ef0;
+  color: #6b4f8a;
+  background: rgba(196, 126, 240, 0.06);
 }
 </style>

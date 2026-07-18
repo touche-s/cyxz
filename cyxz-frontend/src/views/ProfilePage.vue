@@ -141,6 +141,25 @@
               <div class="avatar-upload-hint">支持 PNG / JPG / GIF，最大 10MB</div>
             </div>
 
+            <div v-if="avatarHistory.length > 0" class="avatar-history">
+              <div class="history-label">历史头像</div>
+              <div class="history-list">
+                <div
+                  v-for="(url, idx) in avatarHistory"
+                  :key="idx"
+                  class="history-item"
+                  :class="{ active: url === editForm.avatar }"
+                  @click="editForm.avatar = url"
+                >
+                  <img :src="url" alt="" />
+                  <button
+                    class="history-delete"
+                    @click.stop="deleteAvatarHistory(url, idx)"
+                  >×</button>
+                </div>
+              </div>
+            </div>
+
             <el-form :model="editForm" label-position="top">
               <el-form-item label="昵称">
                 <el-input v-model="editForm.nickname" maxlength="20" placeholder="输入你的昵称" />
@@ -191,7 +210,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getUserProfile, updateUserProfile } from '@/api/user'
 import type { UserInfo } from '@/api/user'
-import { uploadAvatar } from '@/api/upload'
+import { uploadAvatar, getAvatarHistory, deleteUploadedFile } from '@/api/upload'
 import { getUserPostsByTarget, getUserFavorites } from '@/api/post'
 import type { PostVO } from '@/api/post'
 import { usePostStats } from '@/composables/usePostStats'
@@ -219,6 +238,8 @@ const uploading = ref(false)
 const fileInput = ref<HTMLInputElement>()
 const avatarCropperRef = ref<InstanceType<typeof ImageCropper> | null>(null)
 const showAvatarCropper = ref(false)
+const avatarHistory = ref<string[]>([])
+const pendingAvatars = ref<string[]>([])
 const activeTab = ref('works')
 
 const editForm = reactive({
@@ -306,7 +327,35 @@ function startEdit() {
   editForm.gender = profile.value.gender ?? 0
   editForm.avatar = profile.value.avatar || ''
   editForm.birthday = profile.value.birthday || ''
+  pendingAvatars.value = []
   showEdit.value = true
+  loadAvatarHistory()
+}
+
+async function loadAvatarHistory() {
+  try {
+    const res = await getAvatarHistory()
+    const data = (res.data as any).data || res.data
+    avatarHistory.value = Array.isArray(data) ? data : []
+  } catch {
+    // 静默失败，不影响编辑
+  }
+}
+
+async function deleteAvatarHistory(url: string, idx: number) {
+  if (url === profile.value?.avatar) {
+    ElMessage.warning('不能删除当前正在使用的头像')
+    return
+  }
+  try {
+    await deleteUploadedFile(url)
+    avatarHistory.value.splice(idx, 1)
+    if (editForm.avatar === url) {
+      editForm.avatar = avatarHistory.value[0] || ''
+    }
+  } catch {
+    ElMessage.error('删除失败')
+  }
 }
 
 function triggerUpload() {
@@ -338,6 +387,7 @@ async function onAvatarCrop(blob: Blob) {
     const url = typeof data === 'string' ? data : data?.url
     if (url) {
       editForm.avatar = url
+      pendingAvatars.value.push(url)
       ElMessage.success('头像上传成功')
     }
   } catch {
@@ -348,6 +398,11 @@ async function onAvatarCrop(blob: Blob) {
 }
 
 function cancelEdit() {
+  // 清理未保存的头像文件
+  for (const url of pendingAvatars.value) {
+    deleteUploadedFile(url).catch(() => {})
+  }
+  pendingAvatars.value = []
   showEdit.value = false
 }
 
@@ -370,6 +425,7 @@ async function saveEdit() {
       userStore.setUserInfo({ ...userStore.userInfo, nickname: editForm.nickname, avatar: editForm.avatar } as any)
     }
     ElMessage.success('保存成功')
+    pendingAvatars.value = []
     showEdit.value = false
   } catch {
     ElMessage.error('保存失败')
@@ -690,7 +746,7 @@ function goToPost(post: PostVO) {
   border-color: rgba(255,107,157,0.18);
 }
 .content-grid :deep(.card-cover) {
-  height: 146px;
+  /* 使用 PostCard 默认的 4:3 比例，不做覆盖 */
 }
 
 /* 通用 */
@@ -788,6 +844,81 @@ function goToPost(post: PostVO) {
   100% { transform: scale(1); opacity: 1; }
 }
 .avatar-upload-hint { font-size: 12px; color: #999; }
+
+.avatar-history {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+}
+
+.history-label {
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 8px;
+}
+
+.history-list {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.history-item {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+  opacity: 0.6;
+}
+
+.history-item:hover {
+  opacity: 1;
+  border-color: rgba(255, 138, 200, 0.4);
+}
+
+.history-item.active {
+  opacity: 1;
+  border-color: #FF8AC8;
+  box-shadow: 0 0 0 3px rgba(255, 138, 200, 0.15);
+}
+
+.history-delete {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 11px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.history-item:hover .history-delete {
+  opacity: 1;
+}
+
+.history-delete:hover {
+  background: #ff4d4f;
+}
+
+.history-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 
 .edit-overlay {
   position: fixed;

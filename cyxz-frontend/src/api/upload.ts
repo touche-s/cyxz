@@ -24,3 +24,8 @@ export const uploadPostImage = (file: File) => {
 export const deleteUploadedFile = (url: string) => {
   return request.delete('/upload/file', { params: { url } })
 }
+
+/** 获取用户历史头像列表 */
+export const getAvatarHistory = () => {
+  return request.get('/upload/avatar-history')
+}
