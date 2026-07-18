@@ -1,6 +1,7 @@
 package com.cyxz.user.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
@@ -10,6 +11,7 @@ import com.cyxz.user.service.FollowService;
 import com.cyxz.user.vo.FollowUserVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,8 +31,14 @@ public class FollowServiceImpl implements FollowService {
     private final UserFollowMapper followMapper;
 
     /**
-     * 关注目标用户（幂等）
-     * <p>不存在关注记录则插入 status=1，已存在且 status=0 则恢复关注，已关注则忽略。
+     * 关注目标用户（幂等，并发安全）
+     * <p>目标：设为 status=1。并发安全策略：
+     * <ol>
+     *   <li>不存在记录 → 尝试插入，冲突时捕获 DuplicateKeyException 重查真实状态</li>
+     *   <li>存在且 status=0 → 条件更新为 1</li>
+     *   <li>存在且 status=1 → 幂等忽略</li>
+     * </ol>
+     * 唯一索引 uk_user_follow 作为数据库最终兜底。
      * 不允许关注自己。
      *
      * @param userId       当前登录用户 ID
@@ -43,28 +51,44 @@ public class FollowServiceImpl implements FollowService {
             throw new BusinessException(ErrorCode.FORBIDDEN, "不能关注自己");
         }
 
-        LambdaQueryWrapper<UserFollowPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserFollowPO::getUserId, userId)
-                .eq(UserFollowPO::getFollowUserId, targetUserId);
-        UserFollowPO exist = followMapper.selectOne(wrapper);
+        UserFollowPO exist = queryFollow(userId, targetUserId);
 
         if (exist == null) {
-            UserFollowPO newFollow = new UserFollowPO();
-            newFollow.setUserId(userId);
-            newFollow.setFollowUserId(targetUserId);
-            newFollow.setStatus(1);
-            followMapper.insert(newFollow);
-            log.info("关注用户: userId={}, followUserId={}", userId, targetUserId);
-        } else if (exist.getStatus() == 0) {
-            exist.setStatus(1);
-            followMapper.updateById(exist);
-            log.info("恢复关注: userId={}, followUserId={}", userId, targetUserId);
+            try {
+                UserFollowPO newFollow = new UserFollowPO();
+                newFollow.setUserId(userId);
+                newFollow.setFollowUserId(targetUserId);
+                newFollow.setStatus(1);
+                followMapper.insert(newFollow);
+                log.info("关注用户: userId={}, followUserId={}", userId, targetUserId);
+            } catch (DuplicateKeyException e) {
+                // 并发冲突：另一请求已插入，重查真实状态
+                UserFollowPO conflict = queryFollow(userId, targetUserId);
+                if (conflict.getStatus() == 1) {
+                    return; // 已被置为已关注
+                }
+                boolean updated = updateFollowStatus(conflict.getId(), 0, 1);
+                if (updated) {
+                    log.info("关注用户(并发恢复): userId={}, followUserId={}", userId, targetUserId);
+                }
+            }
+            return;
         }
+
+        if (exist.getStatus() == 0) {
+            boolean updated = updateFollowStatus(exist.getId(), 0, 1);
+            if (updated) {
+                log.info("恢复关注: userId={}, followUserId={}", userId, targetUserId);
+            }
+            return;
+        }
+
+        log.debug("关注用户(幂等忽略): userId={}, followUserId={}", userId, targetUserId);
     }
 
     /**
-     * 取消关注目标用户（幂等）
-     * <p>已关注则将 status 设为 0，不存在或已取消则忽略。
+     * 取消关注目标用户（幂等，并发安全）
+     * <p>目标：设为 status=0。仅在 status=1 时执行条件更新。
      *
      * @param userId       当前登录用户 ID
      * @param targetUserId 目标用户 ID
@@ -72,16 +96,29 @@ public class FollowServiceImpl implements FollowService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void unfollow(Long userId, Long targetUserId) {
+        UserFollowPO exist = queryFollow(userId, targetUserId);
+        if (exist == null || exist.getStatus() == 0) {
+            return;
+        }
+
+        boolean updated = updateFollowStatus(exist.getId(), 1, 0);
+        if (updated) {
+            log.info("取消关注: userId={}, followUserId={}", userId, targetUserId);
+        }
+    }
+
+    private UserFollowPO queryFollow(Long userId, Long targetUserId) {
         LambdaQueryWrapper<UserFollowPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserFollowPO::getUserId, userId)
                 .eq(UserFollowPO::getFollowUserId, targetUserId);
-        UserFollowPO exist = followMapper.selectOne(wrapper);
+        return followMapper.selectOne(wrapper);
+    }
 
-        if (exist != null && exist.getStatus() == 1) {
-            exist.setStatus(0);
-            followMapper.updateById(exist);
-            log.info("取消关注: userId={}, followUserId={}", userId, targetUserId);
-        }
+    private boolean updateFollowStatus(Long id, int oldStatus, int newStatus) {
+        UpdateWrapper<UserFollowPO> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("id", id).eq("status", oldStatus)
+                .set("status", newStatus);
+        return followMapper.update(null, updateWrapper) > 0;
     }
 
     /**
