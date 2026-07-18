@@ -151,31 +151,59 @@ public class PostController {
     }
 
     /**
-     * 点赞 / 取消点赞帖子
+     * 点赞帖子（幂等）
      *
      * @param postId 帖子 ID
      * @param userId 当前登录用户 ID（由 Gateway 注入）
-     * @return 更新后的点赞数
+     * @return 操作结果
      */
-    @PostMapping("/{postId}/like")
-    public Result<Integer> like(@PathVariable("postId") Long postId,
-                                @CurrentUser Long userId) {
-        int likes = postService.toggleLike(userId, postId);
-        return Result.success(likes);
+    @PutMapping("/{postId}/like")
+    public Result<Void> like(@PathVariable("postId") Long postId,
+                             @CurrentUser Long userId) {
+        postService.likePost(userId, postId);
+        return Result.success();
     }
 
     /**
-     * 收藏 / 取消收藏帖子
+     * 取消点赞帖子（幂等）
      *
      * @param postId 帖子 ID
      * @param userId 当前登录用户 ID（由 Gateway 注入）
-     * @return 更新后的收藏数
+     * @return 操作结果
      */
-    @PostMapping("/{postId}/collect")
-    public Result<Integer> collect(@PathVariable("postId") Long postId,
-                                   @CurrentUser Long userId) {
-        int collections = postService.toggleCollect(userId, postId);
-        return Result.success(collections);
+    @DeleteMapping("/{postId}/like")
+    public Result<Void> unlike(@PathVariable("postId") Long postId,
+                               @CurrentUser Long userId) {
+        postService.unlikePost(userId, postId);
+        return Result.success();
+    }
+
+    /**
+     * 收藏帖子（幂等）
+     *
+     * @param postId 帖子 ID
+     * @param userId 当前登录用户 ID（由 Gateway 注入）
+     * @return 操作结果
+     */
+    @PutMapping("/{postId}/collect")
+    public Result<Void> collect(@PathVariable("postId") Long postId,
+                                @CurrentUser Long userId) {
+        postService.collectPost(userId, postId);
+        return Result.success();
+    }
+
+    /**
+     * 取消收藏帖子（幂等）
+     *
+     * @param postId 帖子 ID
+     * @param userId 当前登录用户 ID（由 Gateway 注入）
+     * @return 操作结果
+     */
+    @DeleteMapping("/{postId}/collect")
+    public Result<Void> uncollect(@PathVariable("postId") Long postId,
+                                  @CurrentUser Long userId) {
+        postService.uncollectPost(userId, postId);
+        return Result.success();
     }
 
     /**

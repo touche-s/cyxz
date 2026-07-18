@@ -1,6 +1,7 @@
 package com.cyxz.post.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
@@ -28,6 +29,7 @@ import com.cyxz.user.vo.UserProfileVO;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -376,54 +378,112 @@ public class PostServiceImpl implements PostService {
     }
 
     /**
-     * 切换帖子点赞状态
-     * <p>使用 post_like 表存储用户点赞关系（逻辑状态型）。
-     * 不存在则插入 status=1，已存在则切换 status，同时原子更新 post.likes。
+     * 点赞帖子（幂等，并发安全）
+     * <p>目标：设为 status=1。并发安全策略：
+     * <ol>
+     *   <li>不存在记录 → 尝试插入，冲突则重查真实状态处理</li>
+     *   <li>存在且 status=0 → 条件更新为 1，成功则计数 +1</li>
+     *   <li>存在且 status=1 → 直接返回（幂等）</li>
+     * </ol>
+     * 唯一索引 uk_user_post 作为数据库最终兜底。
      *
      * @param userId 当前登录用户 ID
      * @param postId 帖子 ID
-     * @return 更新后的点赞数
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public int toggleLike(Long userId, Long postId) {
+    public void likePost(Long userId, Long postId) {
         PostPO po = postMapper.selectById(postId);
         if (po == null) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
 
-        // 查询是否已存在点赞关系
-        LambdaQueryWrapper<PostLikePO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PostLikePO::getUserId, userId)
-                .eq(PostLikePO::getPostId, postId);
-        PostLikePO likePO = postLikeMapper.selectOne(wrapper);
+        PostLikePO exist = queryPostLike(userId, postId);
 
-        if (likePO == null) {
-            // 不存在 → 插入 status=1
-            PostLikePO newLike = new PostLikePO();
-            newLike.setPostId(postId);
-            newLike.setUserId(userId);
-            newLike.setStatus(1);
-            postLikeMapper.insert(newLike);
-            postMapper.updateLikes(postId, 1);
-            log.info("点赞帖子: postId={}, userId={}", postId, userId);
-        } else if (likePO.getStatus() == 0) {
-            // 已取消 → 恢复点赞
-            likePO.setStatus(1);
-            postLikeMapper.updateById(likePO);
-            postMapper.updateLikes(postId, 1);
-            log.info("点赞帖子(恢复): postId={}, userId={}", postId, userId);
-        } else {
-            // 已点赞 → 取消点赞
-            likePO.setStatus(0);
-            postLikeMapper.updateById(likePO);
+        if (exist == null) {
+            try {
+                PostLikePO newLike = new PostLikePO();
+                newLike.setPostId(postId);
+                newLike.setUserId(userId);
+                newLike.setStatus(1);
+                postLikeMapper.insert(newLike);
+                postMapper.updateLikes(postId, 1);
+                log.info("点赞帖子: postId={}, userId={}", postId, userId);
+            } catch (DuplicateKeyException e) {
+                // 并发冲突：另一请求已插入，重查真实状态
+                PostLikePO conflict = queryPostLike(userId, postId);
+                if (conflict.getStatus() == 1) {
+                    return; // 已被置为已点赞，幂等返回
+                }
+                // status=0 → 条件更新为 1
+                boolean updated = updatePostLikeStatus(conflict.getId(), 0, 1);
+                if (updated) {
+                    postMapper.updateLikes(postId, 1);
+                    log.info("点赞帖子(并发恢复): postId={}, userId={}", postId, userId);
+                }
+            }
+            return;
+        }
+
+        if (exist.getStatus() == 0) {
+            boolean updated = updatePostLikeStatus(exist.getId(), 0, 1);
+            if (updated) {
+                postMapper.updateLikes(postId, 1);
+                log.info("点赞帖子(恢复): postId={}, userId={}", postId, userId);
+            }
+            return;
+        }
+
+        log.debug("点赞帖子(幂等忽略): postId={}, userId={}", postId, userId);
+    }
+
+    /**
+     * 取消点赞帖子（幂等，并发安全）
+     * <p>目标：设为 status=0。仅在 status=1 时执行条件更新，保证计数只减一次。
+     *
+     * @param userId 当前登录用户 ID
+     * @param postId 帖子 ID
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void unlikePost(Long userId, Long postId) {
+        PostPO po = postMapper.selectById(postId);
+        if (po == null) {
+            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
+        }
+
+        PostLikePO exist = queryPostLike(userId, postId);
+        if (exist == null || exist.getStatus() == 0) {
+            return; // 不存在或已取消，幂等返回
+        }
+
+        boolean updated = updatePostLikeStatus(exist.getId(), 1, 0);
+        if (updated) {
             postMapper.updateLikes(postId, -1);
             log.info("取消点赞帖子: postId={}, userId={}", postId, userId);
         }
+    }
 
-        // 重新查询最新点赞数
-        PostPO updated = postMapper.selectById(postId);
-        return updated.getLikes();
+    private PostLikePO queryPostLike(Long userId, Long postId) {
+        LambdaQueryWrapper<PostLikePO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PostLikePO::getUserId, userId)
+                .eq(PostLikePO::getPostId, postId);
+        return postLikeMapper.selectOne(wrapper);
+    }
+
+    /**
+     * 条件更新点赞状态（仅 oldStatus 匹配时才更新）
+     *
+     * @param id        记录主键
+     * @param oldStatus 期望的旧状态
+     * @param newStatus 目标新状态
+     * @return true=更新成功（确实发生了状态变化）
+     */
+    private boolean updatePostLikeStatus(Long id, int oldStatus, int newStatus) {
+        UpdateWrapper<PostLikePO> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("id", id).eq("status", oldStatus)
+                .set("status", newStatus);
+        return postLikeMapper.update(null, updateWrapper) > 0;
     }
 
     /**
@@ -471,54 +531,96 @@ public class PostServiceImpl implements PostService {
     }
 
     /**
-     * 切换帖子收藏状态
-     * <p>使用 post_collect 表存储用户收藏关系（逻辑状态型）。
-     * 不存在则插入 status=1，已存在则切换 status，同时原子更新 post.collections。
+     * 收藏帖子（幂等，并发安全）
+     * <p>目标：设为 status=1。并发安全策略同 {@link #likePost}。
      *
      * @param userId 当前登录用户 ID
      * @param postId 帖子 ID
-     * @return 更新后的收藏数
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public int toggleCollect(Long userId, Long postId) {
+    public void collectPost(Long userId, Long postId) {
         PostPO po = postMapper.selectById(postId);
         if (po == null) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
 
-        // 查询是否已存在收藏关系
-        LambdaQueryWrapper<PostCollectPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PostCollectPO::getUserId, userId)
-                .eq(PostCollectPO::getPostId, postId);
-        PostCollectPO collectPO = postCollectMapper.selectOne(wrapper);
+        PostCollectPO exist = queryPostCollect(userId, postId);
 
-        if (collectPO == null) {
-            // 不存在 → 插入 status=1
-            PostCollectPO newCollect = new PostCollectPO();
-            newCollect.setPostId(postId);
-            newCollect.setUserId(userId);
-            newCollect.setStatus(1);
-            postCollectMapper.insert(newCollect);
-            postMapper.updateCollections(postId, 1);
-            log.info("收藏帖子: postId={}, userId={}", postId, userId);
-        } else if (collectPO.getStatus() == 0) {
-            // 已取消 → 恢复收藏
-            collectPO.setStatus(1);
-            postCollectMapper.updateById(collectPO);
-            postMapper.updateCollections(postId, 1);
-            log.info("收藏帖子(恢复): postId={}, userId={}", postId, userId);
-        } else {
-            // 已收藏 → 取消收藏
-            collectPO.setStatus(0);
-            postCollectMapper.updateById(collectPO);
+        if (exist == null) {
+            try {
+                PostCollectPO newCollect = new PostCollectPO();
+                newCollect.setPostId(postId);
+                newCollect.setUserId(userId);
+                newCollect.setStatus(1);
+                postCollectMapper.insert(newCollect);
+                postMapper.updateCollections(postId, 1);
+                log.info("收藏帖子: postId={}, userId={}", postId, userId);
+            } catch (DuplicateKeyException e) {
+                PostCollectPO conflict = queryPostCollect(userId, postId);
+                if (conflict.getStatus() == 1) {
+                    return;
+                }
+                boolean updated = updatePostCollectStatus(conflict.getId(), 0, 1);
+                if (updated) {
+                    postMapper.updateCollections(postId, 1);
+                    log.info("收藏帖子(并发恢复): postId={}, userId={}", postId, userId);
+                }
+            }
+            return;
+        }
+
+        if (exist.getStatus() == 0) {
+            boolean updated = updatePostCollectStatus(exist.getId(), 0, 1);
+            if (updated) {
+                postMapper.updateCollections(postId, 1);
+                log.info("收藏帖子(恢复): postId={}, userId={}", postId, userId);
+            }
+            return;
+        }
+
+        log.debug("收藏帖子(幂等忽略): postId={}, userId={}", postId, userId);
+    }
+
+    /**
+     * 取消收藏帖子（幂等，并发安全）
+     * <p>目标：设为 status=0。仅在 status=1 时执行条件更新，保证计数只减一次。
+     *
+     * @param userId 当前登录用户 ID
+     * @param postId 帖子 ID
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void uncollectPost(Long userId, Long postId) {
+        PostPO po = postMapper.selectById(postId);
+        if (po == null) {
+            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
+        }
+
+        PostCollectPO exist = queryPostCollect(userId, postId);
+        if (exist == null || exist.getStatus() == 0) {
+            return;
+        }
+
+        boolean updated = updatePostCollectStatus(exist.getId(), 1, 0);
+        if (updated) {
             postMapper.updateCollections(postId, -1);
             log.info("取消收藏帖子: postId={}, userId={}", postId, userId);
         }
+    }
 
-        // 重新查询最新收藏数
-        PostPO updated = postMapper.selectById(postId);
-        return updated.getCollections();
+    private PostCollectPO queryPostCollect(Long userId, Long postId) {
+        LambdaQueryWrapper<PostCollectPO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PostCollectPO::getUserId, userId)
+                .eq(PostCollectPO::getPostId, postId);
+        return postCollectMapper.selectOne(wrapper);
+    }
+
+    private boolean updatePostCollectStatus(Long id, int oldStatus, int newStatus) {
+        UpdateWrapper<PostCollectPO> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("id", id).eq("status", oldStatus)
+                .set("status", newStatus);
+        return postCollectMapper.update(null, updateWrapper) > 0;
     }
 
     /**

@@ -107,26 +107,44 @@ public interface PostService {
     PageResult<PostVO> listFavorites(Long targetUserId, Long currentUserId, int page, int size);
 
     /**
-     * 切换帖子点赞状态
-     * <p>已点赞则取消，未点赞则添加。使用 post_like 表存储用户点赞关系，
-     * 同时原子更新 post.likes。
+     * 点赞帖子（幂等）
+     * <p>使用 post_like 表存储用户点赞关系（逻辑状态型）。
+     * 并发安全：尝试插入 status=1，冲突时捕获 DuplicateKeyException 重查真实状态。
+     * 仅在真实状态变化（null→1 或 0→1）时更新计数 +1。
      *
      * @param userId 当前登录用户 ID
      * @param postId 帖子 ID
-     * @return 更新后的点赞数
      */
-    int toggleLike(Long userId, Long postId);
+    void likePost(Long userId, Long postId);
 
     /**
-     * 切换帖子收藏状态
-     * <p>已收藏则取消，未收藏则添加。使用 post_collect 表存储用户收藏关系，
-     * 同时原子更新 post.collections。
+     * 取消点赞帖子（幂等）
+     * <p>使用条件更新，仅在 status=1 时改为 0，保证计数只减一次。
      *
      * @param userId 当前登录用户 ID
      * @param postId 帖子 ID
-     * @return 更新后的收藏数
      */
-    int toggleCollect(Long userId, Long postId);
+    void unlikePost(Long userId, Long postId);
+
+    /**
+     * 收藏帖子（幂等）
+     * <p>使用 post_collect 表存储用户收藏关系（逻辑状态型）。
+     * 并发安全：尝试插入 status=1，冲突时捕获 DuplicateKeyException 重查真实状态。
+     * 仅在真实状态变化（null→1 或 0→1）时更新计数 +1。
+     *
+     * @param userId 当前登录用户 ID
+     * @param postId 帖子 ID
+     */
+    void collectPost(Long userId, Long postId);
+
+    /**
+     * 取消收藏帖子（幂等）
+     * <p>使用条件更新，仅在 status=1 时改为 0，保证计数只减一次。
+     *
+     * @param userId 当前登录用户 ID
+     * @param postId 帖子 ID
+     */
+    void uncollectPost(Long userId, Long postId);
 
     /**
      * 记录浏览
