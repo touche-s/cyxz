@@ -1,6 +1,7 @@
 package com.cyxz.comment.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cyxz.comment.dto.CreateCommentRequest;
 import com.cyxz.comment.entity.CommentLikePO;
@@ -19,6 +20,7 @@ import com.cyxz.user.feign.UserFeignClient;
 import com.cyxz.user.vo.UserProfileVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -228,54 +230,102 @@ public class CommentServiceImpl implements CommentService {
     }
 
     /**
-     * 点赞 / 取消点赞评论
-     * <p>使用 comment_like 表存储用户点赞关系（逻辑状态型）。
-     * 不存在则插入 status=1，已存在则切换 status，同时原子更新 comment.likes。
+     * 点赞评论（幂等，并发安全）
+     * <p>目标：设为 status=1。并发安全策略：
+     * <ol>
+     *   <li>不存在记录 → 尝试插入，冲突则重查真实状态处理</li>
+     *   <li>存在且 status=0 → 条件更新为 1，成功则计数 +1</li>
+     *   <li>存在且 status=1 → 直接返回（幂等）</li>
+     * </ol>
+     * 唯一索引 uk_user_comment 作为数据库最终兜底。
      *
      * @param userId    当前登录用户 ID
      * @param commentId 评论 ID
-     * @return 操作后的点赞数
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public int toggleLike(Long userId, Long commentId) {
+    public void likeComment(Long userId, Long commentId) {
         CommentPO po = commentMapper.selectById(commentId);
         if (po == null || po.getStatus() == 0) {
             throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
         }
 
-        // 查询是否已存在点赞关系
-        LambdaQueryWrapper<CommentLikePO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(CommentLikePO::getUserId, userId)
-                .eq(CommentLikePO::getCommentId, commentId);
-        CommentLikePO likePO = commentLikeMapper.selectOne(wrapper);
+        CommentLikePO exist = queryCommentLike(userId, commentId);
 
-        if (likePO == null) {
-            // 不存在 → 插入 status=1
-            CommentLikePO newLike = new CommentLikePO();
-            newLike.setCommentId(commentId);
-            newLike.setUserId(userId);
-            newLike.setStatus(1);
-            commentLikeMapper.insert(newLike);
-            commentMapper.updateLikes(commentId, 1);
-            log.info("点赞评论: commentId={}, userId={}", commentId, userId);
-        } else if (likePO.getStatus() == 0) {
-            // 已取消 → 恢复点赞
-            likePO.setStatus(1);
-            commentLikeMapper.updateById(likePO);
-            commentMapper.updateLikes(commentId, 1);
-            log.info("点赞评论(恢复): commentId={}, userId={}", commentId, userId);
-        } else {
-            // 已点赞 → 取消点赞
-            likePO.setStatus(0);
-            commentLikeMapper.updateById(likePO);
+        if (exist == null) {
+            try {
+                CommentLikePO newLike = new CommentLikePO();
+                newLike.setCommentId(commentId);
+                newLike.setUserId(userId);
+                newLike.setStatus(1);
+                commentLikeMapper.insert(newLike);
+                commentMapper.updateLikes(commentId, 1);
+                log.info("点赞评论: commentId={}, userId={}", commentId, userId);
+            } catch (DuplicateKeyException e) {
+                CommentLikePO conflict = queryCommentLike(userId, commentId);
+                if (conflict.getStatus() == 1) {
+                    return;
+                }
+                boolean updated = updateCommentLikeStatus(conflict.getId(), 0, 1);
+                if (updated) {
+                    commentMapper.updateLikes(commentId, 1);
+                    log.info("点赞评论(并发恢复): commentId={}, userId={}", commentId, userId);
+                }
+            }
+            return;
+        }
+
+        if (exist.getStatus() == 0) {
+            boolean updated = updateCommentLikeStatus(exist.getId(), 0, 1);
+            if (updated) {
+                commentMapper.updateLikes(commentId, 1);
+                log.info("点赞评论(恢复): commentId={}, userId={}", commentId, userId);
+            }
+            return;
+        }
+
+        log.debug("点赞评论(幂等忽略): commentId={}, userId={}", commentId, userId);
+    }
+
+    /**
+     * 取消点赞评论（幂等，并发安全）
+     * <p>目标：设为 status=0。仅在 status=1 时执行条件更新，保证计数只减一次。
+     *
+     * @param userId    当前登录用户 ID
+     * @param commentId 评论 ID
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void unlikeComment(Long userId, Long commentId) {
+        CommentPO po = commentMapper.selectById(commentId);
+        if (po == null || po.getStatus() == 0) {
+            throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
+        }
+
+        CommentLikePO exist = queryCommentLike(userId, commentId);
+        if (exist == null || exist.getStatus() == 0) {
+            return;
+        }
+
+        boolean updated = updateCommentLikeStatus(exist.getId(), 1, 0);
+        if (updated) {
             commentMapper.updateLikes(commentId, -1);
             log.info("取消点赞评论: commentId={}, userId={}", commentId, userId);
         }
+    }
 
-        // 查询最新点赞数
-        CommentPO updated = commentMapper.selectById(commentId);
-        return updated.getLikes();
+    private CommentLikePO queryCommentLike(Long userId, Long commentId) {
+        LambdaQueryWrapper<CommentLikePO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CommentLikePO::getUserId, userId)
+                .eq(CommentLikePO::getCommentId, commentId);
+        return commentLikeMapper.selectOne(wrapper);
+    }
+
+    private boolean updateCommentLikeStatus(Long id, int oldStatus, int newStatus) {
+        UpdateWrapper<CommentLikePO> updateWrapper = new UpdateWrapper<>();
+        updateWrapper.eq("id", id).eq("status", oldStatus)
+                .set("status", newStatus);
+        return commentLikeMapper.update(null, updateWrapper) > 0;
     }
 
     /**

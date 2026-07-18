@@ -83,17 +83,31 @@ public class CommentController {
     }
 
     /**
-     * 点赞 / 取消点赞评论
+     * 点赞评论（幂等）
      *
      * @param commentId 评论 ID
      * @param userId    当前登录用户 ID（由 Gateway 注入）
-     * @return 操作后的点赞数
+     * @return 操作结果
      */
-    @PostMapping("/{commentId}/like")
-    public Result<Integer> toggleLike(@PathVariable("commentId") Long commentId,
-                                       @CurrentUser Long userId) {
-        int likes = commentService.toggleLike(userId, commentId);
-        return Result.success(likes);
+    @PutMapping("/{commentId}/like")
+    public Result<Void> like(@PathVariable("commentId") Long commentId,
+                             @CurrentUser Long userId) {
+        commentService.likeComment(userId, commentId);
+        return Result.success();
+    }
+
+    /**
+     * 取消点赞评论（幂等）
+     *
+     * @param commentId 评论 ID
+     * @param userId    当前登录用户 ID（由 Gateway 注入）
+     * @return 操作结果
+     */
+    @DeleteMapping("/{commentId}/like")
+    public Result<Void> unlike(@PathVariable("commentId") Long commentId,
+                               @CurrentUser Long userId) {
+        commentService.unlikeComment(userId, commentId);
+        return Result.success();
     }
 
     /**
