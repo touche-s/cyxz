@@ -1,7 +1,6 @@
 package com.cyxz.post.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.util.List;
@@ -13,7 +12,6 @@ import java.util.List;
 public class CreatePostRequest {
 
     /** 分类 ID */
-    @NotNull(message = "分类不能为空")
     private Long categoryId;
 
     /** 标题 */
