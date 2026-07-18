@@ -44,14 +44,21 @@
               <div
                 v-if="form.images.length < 9"
                 class="add-image-btn"
+                :class="{ uploading: imageUploading }"
                 @click="triggerImageUpload"
                 @dragover.prevent
                 @drop.prevent="handleImageDrop"
               >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <path d="M12 5v14M5 12h14"/>
-                </svg>
-                <span>添加图片</span>
+                <template v-if="imageUploading">
+                  <span class="upload-spinner"></span>
+                  <span>上传中...</span>
+                </template>
+                <template v-else>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M12 5v14M5 12h14"/>
+                  </svg>
+                  <span>添加图片</span>
+                </template>
               </div>
             </div>
             <input ref="imageInput" type="file" accept="image/*" multiple class="hidden-input" @change="handleImageChange" />
@@ -165,21 +172,32 @@
         </div>
       </div>
     </div>
+
+    <ImageCropper
+      ref="imageCropperRef"
+      :visible="showImageCropper"
+      title="裁剪图片"
+      :aspect-ratio="16 / 9"
+      :circular="false"
+      @crop="onImageCrop"
+      @cancel="onImageCropCancel"
+    />
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { createPost, updatePost, getPostDetail, getCategoryList } from '@/api/post'
-import { uploadPostImage } from '@/api/upload'
+import { uploadPostImage, deleteUploadedFile } from '@/api/upload'
 import type { PostVO, CategoryVO } from '@/api/post'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import ImageCropper from '@/components/ImageCropper.vue'
 
 const router = useRouter()
 const route = useRoute()
 
-const emit = defineEmits<{ goBack: [] }>()
+const emit = defineEmits<{ goBack: []; publishSuccess: [] }>()
 
 const editPostId = computed(() => (route.query.edit as string) || undefined)
 const isEditMode = computed(() => !!(editPostId.value || route.params.id))
@@ -201,6 +219,11 @@ const form = ref({
 
 const tagInput = ref('')
 const imageInput = ref<HTMLInputElement | null>(null)
+const imageUploading = ref(false)
+const dirty = ref(false)
+const imageCropperRef = ref<InstanceType<typeof ImageCropper> | null>(null)
+const showImageCropper = ref(false)
+const pendingFiles = ref<File[]>([])
 
 const loadCategories = async () => {
   try {
@@ -243,10 +266,11 @@ const handleImageChange = async (event: Event) => {
   const target = event.target as HTMLInputElement
   const files = target.files
   if (files) {
-    const remainingSlots = 9 - form.value.images.length
-    const filesToUpload = Array.from(files).slice(0, remainingSlots)
-    for (const file of filesToUpload) {
-      await uploadImage(file)
+    const remainingSlots = 9 - form.value.images.length - pendingFiles.value.length
+    const filesToAdd = Array.from(files).slice(0, remainingSlots)
+    if (filesToAdd.length > 0) {
+      pendingFiles.value.push(...filesToAdd)
+      startCroppingNext()
     }
   }
   target.value = ''
@@ -255,19 +279,44 @@ const handleImageChange = async (event: Event) => {
 const handleImageDrop = (event: DragEvent) => {
   const files = event.dataTransfer?.files
   if (files) {
-    const remainingSlots = 9 - form.value.images.length
-    Array.from(files)
+    const remainingSlots = 9 - form.value.images.length - pendingFiles.value.length
+    const filesToAdd = Array.from(files)
       .filter(f => f.type.startsWith('image/'))
       .slice(0, remainingSlots)
-      .forEach(file => uploadImage(file))
+    if (filesToAdd.length > 0) {
+      pendingFiles.value.push(...filesToAdd)
+      startCroppingNext()
+    }
   }
 }
 
+function startCroppingNext() {
+  if (showImageCropper.value) return
+  const file = pendingFiles.value.shift()
+  if (!file) return
+  imageCropperRef.value?.loadImage(file)
+  showImageCropper.value = true
+}
+
+async function onImageCrop(blob: Blob) {
+  showImageCropper.value = false
+  const file = new File([blob], 'post-image.jpg', { type: 'image/jpeg' })
+  await uploadImage(file)
+  startCroppingNext()
+}
+
+function onImageCropCancel() {
+  showImageCropper.value = false
+  startCroppingNext()
+}
+
 const uploadImage = async (file: File) => {
+  imageUploading.value = true
   try {
     const res = await uploadPostImage(file)
     if (res.data.code === 200) {
       form.value.images.push(res.data.data)
+      dirty.value = true
       if (form.value.images.length === 1 && !form.value.cover) {
         form.value.cover = res.data.data
       }
@@ -275,12 +324,15 @@ const uploadImage = async (file: File) => {
   } catch (error) {
     ElMessage.error('图片上传失败')
     console.error('上传图片失败:', error)
+  } finally {
+    imageUploading.value = false
   }
 }
 
 const removeImage = (index: number) => {
   const removed = form.value.images[index]
   form.value.images.splice(index, 1)
+  deleteUploadedFile(removed).catch(() => {})
   if (form.value.cover === removed) {
     form.value.cover = form.value.images[0] || ''
   }
@@ -330,8 +382,10 @@ const handleSubmit = async () => {
       ElMessage.success('发布成功')
     }
 
+    dirty.value = false
+
     if (isInCreatorCenter.value) {
-      emit('goBack')
+      emit('publishSuccess')
     } else {
       router.push('/creator')
     }
@@ -370,6 +424,8 @@ const saveDraft = async () => {
       ElMessage.success('草稿保存成功')
     }
 
+    dirty.value = false
+
     if (isInCreatorCenter.value) {
       emit('goBack')
     } else {
@@ -394,6 +450,47 @@ const goBack = () => {
 onMounted(() => {
   loadCategories()
   loadPostDetail()
+  window.addEventListener('beforeunload', handleBeforeUnload)
+})
+
+const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+  if (dirty.value) {
+    e.preventDefault()
+  }
+}
+
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+})
+
+onBeforeRouteLeave(async () => {
+  if (!dirty.value) return true
+
+  // 尝试自动保存草稿
+  if (form.value.title || form.value.images.length > 0) {
+    try {
+      const data = {
+        ...(isEditMode.value && { id: postId.value }),
+        categoryId: form.value.categoryId ? Number(form.value.categoryId) : undefined,
+        title: form.value.title,
+        content: form.value.content || undefined,
+        cover: form.value.cover || undefined,
+        images: form.value.images.length > 0 ? form.value.images : undefined,
+        tags: form.value.tags.length > 0 ? form.value.tags : undefined,
+        status: 0,
+      }
+      if (isEditMode.value) {
+        await updatePost(data as any)
+      } else {
+        await createPost(data as any)
+      }
+      dirty.value = false
+      ElMessage.success('已自动保存为草稿')
+    } catch {
+      console.error('自动保存草稿失败')
+    }
+  }
+  return true
 })
 </script>
 
@@ -607,6 +704,26 @@ onMounted(() => {
   border-color: var(--pink);
   background: rgba(255, 107, 157, 0.05);
   color: var(--pink);
+}
+
+.add-image-btn.uploading {
+  border-color: var(--pink);
+  color: var(--pink);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.upload-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 107, 157, 0.15);
+  border-top-color: var(--pink);
+  border-radius: 50%;
+  animation: uploadSpin 0.6s linear infinite;
+}
+
+@keyframes uploadSpin {
+  to { transform: rotate(360deg); }
 }
 
 .field-hint {

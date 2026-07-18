@@ -56,7 +56,7 @@
     </aside>
 
     <main class="main-content">
-      <PostCreate v-if="activeNav === 'publish'" @go-back="goHome" />
+      <PostCreate v-if="activeNav === 'publish'" @go-back="goHome" @publish-success="handlePublishSuccess" />
       <template v-else-if="activeNav === 'home'">
         <div class="home-hero">
           <div class="hero-info">
@@ -692,6 +692,14 @@ const goPublish = () => {
 const goHome = () => {
   router.replace('/creator')
   activeNav.value = 'home'
+}
+
+const handlePublishSuccess = async () => {
+  await router.replace('/creator')
+  activeNav.value = 'content'
+  activeContentTab.value = 'all'
+  searchKeyword.value = ''
+  await loadPosts()
 }
 
 const goToUser = (userId: string | number) => {

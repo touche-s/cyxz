@@ -172,6 +172,16 @@
         </div>
       </Transition>
     </Teleport>
+
+    <ImageCropper
+      ref="avatarCropperRef"
+      :visible="showAvatarCropper"
+      title="裁剪头像"
+      :aspect-ratio="1"
+      :circular="true"
+      @crop="onAvatarCrop"
+      @cancel="showAvatarCropper = false"
+    />
   </div>
 </template>
 
@@ -192,6 +202,7 @@ import { formatDate } from '@/utils/format'
 import PostCard from '@/components/PostCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import FollowButton from '@/components/FollowButton.vue'
+import ImageCropper from '@/components/ImageCropper.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -206,6 +217,8 @@ const showEdit = ref(false)
 const saving = ref(false)
 const uploading = ref(false)
 const fileInput = ref<HTMLInputElement>()
+const avatarCropperRef = ref<InstanceType<typeof ImageCropper> | null>(null)
+const showAvatarCropper = ref(false)
 const activeTab = ref('works')
 
 const editForm = reactive({
@@ -310,8 +323,16 @@ async function handleAvatarChange(e: Event) {
     return
   }
 
+  avatarCropperRef.value?.loadImage(file)
+  showAvatarCropper.value = true
+  input.value = ''
+}
+
+async function onAvatarCrop(blob: Blob) {
+  showAvatarCropper.value = false
   uploading.value = true
   try {
+    const file = new File([blob], 'avatar.jpg', { type: 'image/jpeg' })
     const res = await uploadAvatar(file)
     const data = (res.data as any).data || res.data
     const url = typeof data === 'string' ? data : data?.url
@@ -323,7 +344,6 @@ async function handleAvatarChange(e: Event) {
     ElMessage.error('头像上传失败')
   } finally {
     uploading.value = false
-    input.value = ''
   }
 }
 
@@ -773,7 +793,7 @@ function goToPost(post: PostVO) {
   position: fixed;
   inset: 0;
   z-index: 300;
-  background: rgba(180,132,255,0.15);
+  background: rgba(255,138,200,0.12);
   backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
@@ -786,7 +806,7 @@ function goToPost(post: PostVO) {
   width: 480px;
   max-width: 92vw;
   box-shadow:
-    0 8px 30px rgba(180,132,255,0.18),
+    0 8px 30px rgba(255,138,200,0.18),
     0 2px 8px rgba(255,138,200,0.08);
   position: relative;
   overflow: hidden;
@@ -859,8 +879,8 @@ function goToPost(post: PostVO) {
 }
 .edit-modal :deep(.el-input__wrapper:hover) { border-color: rgba(255,138,200,0.45); }
 .edit-modal :deep(.el-input__wrapper.is-focus) {
-  border-color: #B484FF;
-  box-shadow: 0 0 0 3px rgba(180,132,255,0.12);
+  border-color: #FF8AC8;
+  box-shadow: 0 0 0 3px rgba(255,138,200,0.12);
 }
 .edit-modal :deep(.el-textarea__inner) {
   border-radius: 12px;
@@ -872,8 +892,8 @@ function goToPost(post: PostVO) {
 }
 .edit-modal :deep(.el-textarea__inner:hover) { border-color: rgba(255,138,200,0.45); }
 .edit-modal :deep(.el-textarea__inner:focus) {
-  border-color: #B484FF;
-  box-shadow: 0 0 0 3px rgba(180,132,255,0.12);
+  border-color: #FF8AC8;
+  box-shadow: 0 0 0 3px rgba(255,138,200,0.12);
 }
 .gender-item { margin-bottom: 24px !important; }
 .gender-group { display: flex; gap: 24px; }
@@ -898,9 +918,9 @@ function goToPost(post: PostVO) {
   transition: color 0.2s;
 }
 .edit-modal :deep(.el-radio.is-checked) {
-  border-color: #B484FF;
-  background: rgba(180,132,255,0.04);
-  box-shadow: 0 0 0 3px rgba(180,132,255,0.08);
+  border-color: #FF8AC8;
+  background: rgba(255,138,200,0.04);
+  box-shadow: 0 0 0 3px rgba(255,138,200,0.08);
 }
 .edit-modal :deep(.el-radio.is-checked .el-radio__label) {
   background: linear-gradient(135deg, #FF8AC8, #B484FF);
@@ -922,12 +942,12 @@ function goToPost(post: PostVO) {
   font-size: 14px;
   padding: 10px 28px;
   background: white;
-  border: 1.5px solid rgba(180,132,255,0.3) !important;
-  color: #B484FF;
+  border: 1.5px solid rgba(255,138,200,0.3) !important;
+  color: #FF8AC8;
   transition: all 0.22s ease;
 }
 .edit-cancel-btn:hover {
-  background: rgba(180,132,255,0.04);
+  background: rgba(255,138,200,0.04);
   transform: translateY(-1px);
 }
 .edit-save-btn {
@@ -944,7 +964,7 @@ function goToPost(post: PostVO) {
 }
 .edit-save-btn:hover {
   box-shadow:
-    0 6px 24px rgba(180,132,255,0.3),
+    0 6px 24px rgba(255,138,200,0.3),
     inset 0 1px 0 rgba(255,255,255,0.2);
   transform: scale(1.03);
 }
