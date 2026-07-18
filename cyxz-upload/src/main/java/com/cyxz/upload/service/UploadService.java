@@ -2,6 +2,8 @@ package com.cyxz.upload.service;
 
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 /**
  * 文件上传服务接口
  * <p>提供头像、帖子图片的上传与删除能力。
@@ -31,4 +33,12 @@ public interface UploadService {
      * @param objectName MinIO 中的对象路径
      */
     void deleteFile(String objectName);
+
+    /**
+     * 列出用户历史头像
+     *
+     * @param userId 用户 ID
+     * @return 头像 URL 列表，按上传时间倒序
+     */
+    List<String> listAvatarHistory(Long userId);
 }

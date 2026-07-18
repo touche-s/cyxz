@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 /**
  * 文件上传控制器
  * <p>提供头像和帖子图片的上传接口。
@@ -61,5 +63,11 @@ public class UploadController {
         String objectName = url.substring(prefix.length());
         uploadService.deleteFile(objectName);
         return Result.success("操作成功", null);
+    }
+
+    @GetMapping("/avatar-history")
+    public Result<List<String>> getAvatarHistory(@CurrentUser Long userId) {
+        List<String> urls = uploadService.listAvatarHistory(userId);
+        return Result.success("操作成功", urls);
     }
 }

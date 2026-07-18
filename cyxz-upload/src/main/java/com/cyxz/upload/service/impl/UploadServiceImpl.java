@@ -5,8 +5,11 @@ import com.cyxz.common.base.ErrorCode;
 import com.cyxz.upload.config.MinioConfig;
 import com.cyxz.upload.service.UploadService;
 import io.minio.MinioClient;
+import io.minio.ListObjectsArgs;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
+import io.minio.Result;
+import io.minio.messages.Item;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -17,6 +20,8 @@ import javax.imageio.ImageIO;
 import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
@@ -66,6 +71,29 @@ public class UploadServiceImpl implements UploadService {
             log.error("删除文件失败: {}", objectName, e);
             throw new BusinessException(ErrorCode.FAIL, "文件删除失败");
         }
+    }
+
+    @Override
+    public List<String> listAvatarHistory(Long userId) {
+        String prefix = "avatar/" + userId + "/";
+        List<String> urls = new ArrayList<>();
+        try {
+            Iterable<Result<Item>> results = minioClient.listObjects(
+                    ListObjectsArgs.builder()
+                            .bucket(minioConfig.getBucketName())
+                            .prefix(prefix)
+                            .build()
+            );
+            String baseUrl = minioConfig.getEndpoint() + "/" + minioConfig.getBucketName() + "/";
+            for (Result<Item> result : results) {
+                Item item = result.get();
+                urls.add(baseUrl + item.objectName());
+            }
+            urls.sort((a, b) -> b.compareTo(a));
+        } catch (Exception e) {
+            log.error("查询历史头像失败: userId={}", userId, e);
+        }
+        return urls;
     }
 
     /**
