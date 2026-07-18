@@ -18,14 +18,6 @@ public interface UploadService {
     String uploadAvatar(MultipartFile file, Long userId);
 
     /**
-     * 上传帖子封面
-     *
-     * @param file 图片文件
-     * @return 文件访问 URL
-     */
-    String uploadCover(MultipartFile file);
-
-    /**
      * 上传帖子图片
      *
      * @param file 图片文件

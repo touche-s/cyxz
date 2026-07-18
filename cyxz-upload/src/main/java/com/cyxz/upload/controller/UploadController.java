@@ -2,6 +2,7 @@ package com.cyxz.upload.controller;
 
 import com.cyxz.common.base.Result;
 import com.cyxz.common.web.CurrentUser;
+import com.cyxz.upload.config.MinioConfig;
 import com.cyxz.upload.service.UploadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 public class UploadController {
 
     private final UploadService uploadService;
+    private final MinioConfig minioConfig;
 
     /**
      * 上传用户头像
@@ -33,18 +35,6 @@ public class UploadController {
     }
 
     /**
-     * 上传帖子封面
-     *
-     * @param file 图片文件
-     * @return 文件访问 URL
-     */
-    @PostMapping("/cover")
-    public Result<String> uploadCover(@RequestParam("file") MultipartFile file) {
-        String url = uploadService.uploadCover(file);
-        return Result.success("操作成功", url);
-    }
-
-    /**
      * 上传帖子图片
      *
      * @param file 图片文件
@@ -54,5 +44,22 @@ public class UploadController {
     public Result<String> uploadPostImage(@RequestParam("file") MultipartFile file) {
         String url = uploadService.uploadPostImage(file);
         return Result.success("操作成功", url);
+    }
+
+    /**
+     * 删除已上传的文件
+     *
+     * @param url 文件完整 URL
+     * @return 操作结果
+     */
+    @DeleteMapping("/file")
+    public Result<Void> deleteFile(@RequestParam("url") String url) {
+        String prefix = minioConfig.getEndpoint() + "/" + minioConfig.getBucketName() + "/";
+        if (!url.startsWith(prefix)) {
+            return Result.fail("非法的文件地址");
+        }
+        String objectName = url.substring(prefix.length());
+        uploadService.deleteFile(objectName);
+        return Result.success("操作成功", null);
     }
 }
