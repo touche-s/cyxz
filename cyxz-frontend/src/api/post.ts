@@ -100,14 +100,24 @@ export const getCategoryList = () => {
   return request.get('/category/list')
 }
 
-/** 点赞 / 取消点赞帖子 */
-export const togglePostLike = (postId: string) => {
-  return request.post(`/post/${postId}/like`)
+/** 点赞帖子 */
+export const likePost = (postId: string) => {
+  return request.put(`/post/${postId}/like`)
 }
 
-/** 收藏 / 取消收藏帖子 */
-export const togglePostCollect = (postId: string) => {
-  return request.post(`/post/${postId}/collect`)
+/** 取消点赞帖子 */
+export const unlikePost = (postId: string) => {
+  return request.delete(`/post/${postId}/like`)
+}
+
+/** 收藏帖子 */
+export const collectPost = (postId: string) => {
+  return request.put(`/post/${postId}/collect`)
+}
+
+/** 取消收藏帖子 */
+export const uncollectPost = (postId: string) => {
+  return request.delete(`/post/${postId}/collect`)
 }
 
 /** 记录浏览（进入详情页静默上报，失败不影响展示） */

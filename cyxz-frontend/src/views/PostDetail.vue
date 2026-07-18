@@ -61,11 +61,11 @@
           </div>
 
           <div class="post-action-bar">
-            <button class="action-btn" :class="{ active: liked, popping: likePopping }" @click="togglePostLike">
+            <button class="action-btn" :class="{ active: liked, popping: likePopping }" @click="handlePostLike">
               <img :src="liked ? likeIcon : likeOutlineIcon" alt="like" class="action-icon" />
               <span class="action-count">{{ formatNumber(post.likes) }}</span>
             </button>
-            <button class="action-btn" :class="{ active: collected, popping: collectPopping }" @click="toggleCollect">
+            <button class="action-btn" :class="{ active: collected, popping: collectPopping }" @click="handleCollect">
               <img :src="collected ? favoriteIcon : favoriteOutlineIcon" alt="favorite" class="action-icon" />
               <span class="action-count">{{ formatNumber(post.collections) }}</span>
             </button>
@@ -167,10 +167,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, reactive } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getPostDetail, togglePostLike as doPostLike, togglePostCollect as doPostCollect, recordPostView } from '@/api/post'
+import { getPostDetail, likePost, unlikePost, collectPost, uncollectPost, recordPostView } from '@/api/post'
 import { formatNumber, formatTime, formatDateTime } from '@/utils/format'
 import {
   getCommentList,
@@ -270,49 +270,60 @@ const loadPost = async () => {
   }
 }
 
-const togglePostLike = async () => {
+const likeLoading = ref(false)
+const collectLoading = ref(false)
+
+const handlePostLike = async () => {
   if (!requireLogin()) return
-  if (!post.value) return
+  if (!post.value || likeLoading.value) return
 
   const oldLiked = liked.value
   const oldLikes = post.value.likes
 
+  likeLoading.value = true
   liked.value = !oldLiked
   post.value.likes = oldLiked ? Math.max(oldLikes - 1, 0) : oldLikes + 1
   likePopping.value = true
   setTimeout(() => { likePopping.value = false }, 450)
 
   try {
-    const res = await doPostLike(String(post.value.id))
-    if (res.data.code === 200) {
-      post.value.likes = res.data.data
+    if (oldLiked) {
+      await unlikePost(String(post.value.id))
+    } else {
+      await likePost(String(post.value.id))
     }
   } catch {
     liked.value = oldLiked
     post.value.likes = oldLikes
+  } finally {
+    likeLoading.value = false
   }
 }
 
-const toggleCollect = async () => {
+const handleCollect = async () => {
   if (!requireLogin()) return
-  if (!post.value) return
+  if (!post.value || collectLoading.value) return
 
   const oldCollected = collected.value
   const oldCollections = post.value.collections
 
+  collectLoading.value = true
   collected.value = !oldCollected
   post.value.collections = oldCollected ? Math.max(oldCollections - 1, 0) : oldCollections + 1
   collectPopping.value = true
   setTimeout(() => { collectPopping.value = false }, 450)
 
   try {
-    const res = await doPostCollect(String(post.value.id))
-    if (res.data.code === 200) {
-      post.value.collections = res.data.data
+    if (oldCollected) {
+      await uncollectPost(String(post.value.id))
+    } else {
+      await collectPost(String(post.value.id))
     }
   } catch {
     collected.value = oldCollected
     post.value.collections = oldCollections
+  } finally {
+    collectLoading.value = false
   }
 }
 

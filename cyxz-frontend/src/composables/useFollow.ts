@@ -24,6 +24,7 @@ export function useFollow() {
    */
   async function toggleFollow(targetUserId: string, onSuccess?: (nowFollowing: boolean) => void) {
     if (!requireLogin()) return
+    if (followLoading.value) return  // 防重复点击
     followLoading.value = true
     const oldFollowing = following.value
     following.value = !oldFollowing

@@ -131,7 +131,7 @@
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { toggleCommentLike, deleteComment, getCommentReplies } from '@/api/comment'
+import { likeComment, unlikeComment, deleteComment, getCommentReplies } from '@/api/comment'
 import type { CommentVO } from '@/api/comment'
 import { useUserStore } from '@/stores/user'
 import { useAuth } from '@/composables/useAuth'
@@ -171,23 +171,30 @@ const userStore = useUserStore()
 const { requireLogin } = useAuth()
 
 // ===== 点赞 =====
+const likeLoading = ref(false)
+
 const handleToggleLike = async () => {
   if (!requireLogin()) return
+  if (likeLoading.value) return
 
   const oldLiked = props.comment.liked
   const oldLikes = props.comment.likes
 
+  likeLoading.value = true
   props.comment.liked = !oldLiked
   props.comment.likes = oldLiked ? Math.max(oldLikes - 1, 0) : oldLikes + 1
 
   try {
-    const res = await toggleCommentLike(props.comment.id)
-    if (res.data.code === 200) {
-      props.comment.likes = res.data.data
+    if (oldLiked) {
+      await unlikeComment(props.comment.id)
+    } else {
+      await likeComment(props.comment.id)
     }
   } catch {
     props.comment.liked = oldLiked
     props.comment.likes = oldLikes
+  } finally {
+    likeLoading.value = false
   }
 }
 

@@ -94,7 +94,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getPostList, getCategoryList, togglePostLike, togglePostCollect } from '@/api/post'
+import { getPostList, getCategoryList, likePost, unlikePost, collectPost, uncollectPost } from '@/api/post'
 import type { PostVO, CategoryVO } from '@/api/post'
 import { useUserStore } from '@/stores/user'
 import { useAuth } from '@/composables/useAuth'
@@ -222,9 +222,10 @@ const toggleSave = async (post: PostVO) => {
   post.collections = oldCollected ? Math.max(oldCollections - 1, 0) : oldCollections + 1
 
   try {
-    const res = await togglePostCollect(post.id)
-    if (res.data.code === 200) {
-      post.collections = res.data.data
+    if (oldCollected) {
+      await uncollectPost(post.id)
+    } else {
+      await collectPost(post.id)
     }
   } catch {
     post.collected = oldCollected
@@ -242,9 +243,10 @@ const handlePostLike = async (post: PostVO) => {
   post.likes = oldLiked ? Math.max(oldLikes - 1, 0) : oldLikes + 1
 
   try {
-    const res = await togglePostLike(post.id)
-    if (res.data.code === 200) {
-      post.likes = res.data.data
+    if (oldLiked) {
+      await unlikePost(post.id)
+    } else {
+      await likePost(post.id)
     }
   } catch {
     post.liked = oldLiked

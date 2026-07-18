@@ -404,7 +404,7 @@ function goToPost(post: PostVO) {
   z-index: 10;
 }
 .profile-card {
-  padding: 0 4px 20px;
+  padding: 0 4px 10px;
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -432,10 +432,10 @@ function goToPost(post: PostVO) {
 }
 .pc-bio {
   font-size: 13px;
-  color: var(--text-dim);
+  color: #fff;
   margin: 0;
   line-height: 1.5;
-  text-shadow: 0 1px 3px rgba(255,255,255,0.5);
+  text-shadow: 0 1px 3px rgba(0,0,0,0.18);
 }
 
 /* stats row */
@@ -447,7 +447,7 @@ function goToPost(post: PostVO) {
 }
 .pc-stat {
   font-size: 13px;
-  color: rgba(255,255,255,0.8);
+  color: rgba(255,255,255,0.9);
   cursor: pointer;
   transition: all 0.2s;
   display: inline-flex;
@@ -541,12 +541,12 @@ function goToPost(post: PostVO) {
   position: sticky;
   top: 78px;
   z-index: 20;
-  padding-top: 14px;
+  padding-top: 6px;
 }
 .info-bar-inner {
   max-width: 1220px;
   margin: 0 auto;
-  padding: 10px 24px 4px;
+  padding: 4px 24px 4px;
   display: flex;
   align-items: center;
   justify-content: center;

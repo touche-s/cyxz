@@ -58,9 +58,13 @@ export const createComment = (data: CreateCommentRequest): Promise<{ data: { cod
 export const deleteComment = (commentId: string) =>
   request.delete(`/comment/${commentId}`)
 
-/** 点赞/取消点赞评论 */
-export const toggleCommentLike = (commentId: string) =>
-  request.post(`/comment/${commentId}/like`)
+/** 点赞评论 */
+export const likeComment = (commentId: string) =>
+  request.put(`/comment/${commentId}/like`)
+
+/** 取消点赞评论 */
+export const unlikeComment = (commentId: string) =>
+  request.delete(`/comment/${commentId}/like`)
 
 /** 查询用户收到的评论列表 */
 export const getReceivedComments = (params: { page?: number; size?: number }) => {
