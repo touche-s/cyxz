@@ -146,7 +146,12 @@
           </div>
 
           <div class="form-actions">
-            <button type="button" class="action-btn draft-btn" @click="saveDraft">
+            <button
+              v-if="!isEditingPublished"
+              type="button"
+              class="action-btn draft-btn"
+              @click="saveDraft"
+            >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
                 <polyline points="17 21 17 13 7 13 7 21"/>
@@ -154,13 +159,17 @@
               </svg>
               <span>{{ isEditMode ? '保存草稿' : '保存为草稿' }}</span>
             </button>
-            <button type="submit" class="action-btn publish-btn" :disabled="loading">
+            <button
+              type="submit"
+              class="action-btn publish-btn"
+              :disabled="loading"
+            >
               <LoadingSpinner v-if="loading" inline text="" />
               <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="12" y1="19" x2="12" y2="5"/>
                 <polyline points="5 12 12 5 19 12"/>
               </svg>
-              <span>{{ loading ? '发布中...' : (isEditMode ? '更新帖子' : '发布帖子') }}</span>
+              <span>{{ loading ? '发布中...' : (isEditingPublished ? '更新发布' : '发布帖子') }}</span>
             </button>
           </div>
         </form>
@@ -198,21 +207,26 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { createPost, updatePost, getPostDetail, getCategoryList } from '@/api/post'
+import { createPost, saveDraftPost, updatePost, getPostDetail, getCategoryList } from '@/api/post'
 import { uploadPostImage, deleteUploadedFile } from '@/api/upload'
-import type { PostVO, CategoryVO } from '@/api/post'
+import type { SaveDraftRequest, PostVO, CategoryVO } from '@/api/post'
+import { isDraft, isPublished } from '@/utils/postStatus'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import ImageCropper from '@/components/ImageCropper.vue'
 
 const router = useRouter()
 const route = useRoute()
 
-const emit = defineEmits<{ goBack: []; publishSuccess: [] }>()
+const emit = defineEmits<{ goBack: [wasEditingDraft?: boolean]; publishSuccess: [] }>()
 
 const editPostId = computed(() => (route.query.edit as string) || undefined)
 const isEditMode = computed(() => !!(editPostId.value || route.params.id))
 const postId = computed(() => editPostId.value || (route.params.id as string))
 const isInCreatorCenter = computed(() => route.path.startsWith('/creator'))
+
+const currentPostStatus = ref<number | null>(null)
+const isEditingDraft = computed(() => isEditMode.value && isDraft(currentPostStatus.value))
+const isEditingPublished = computed(() => isEditMode.value && isPublished(currentPostStatus.value))
 
 const categories = ref<CategoryVO[]>([])
 const loading = ref(false)
@@ -271,6 +285,7 @@ const loadPostDetail = async () => {
         images: post.images || [],
         tags: post.tags || [],
       }
+      currentPostStatus.value = post.status
     }
   } catch (error) {
     console.error('加载帖子详情失败:', error)
@@ -396,6 +411,13 @@ const removeTag = (index: number) => {
   form.value.tags.splice(index, 1)
 }
 
+const hasDraftContent = () => {
+  return form.value.title.trim() !== ''
+    || (form.value.categoryId !== null && form.value.categoryId !== '')
+    || form.value.content.trim() !== ''
+    || form.value.images.length > 0
+}
+
 const handleSubmit = async () => {
   if (!form.value.title || !form.value.categoryId || !form.value.content) {
     ElMessage.warning('请填写必填项')
@@ -409,22 +431,29 @@ const handleSubmit = async () => {
 
   loading.value = true
   try {
-    const data = {
-      ...(isEditMode.value && { id: postId.value }),
-      categoryId: Number(form.value.categoryId),
-      title: form.value.title,
-      content: form.value.content,
-      cover: form.value.cover || undefined,
-      images: form.value.images.length > 0 ? form.value.images : undefined,
-      tags: form.value.tags.length > 0 ? form.value.tags : undefined,
-      status: 1,
-    }
+    const images = form.value.images.length > 0 ? form.value.images : []
 
     if (isEditMode.value) {
-      await updatePost(data as any)
-      ElMessage.success('更新成功')
+      await updatePost({
+        id: postId.value,
+        categoryId: Number(form.value.categoryId),
+        title: form.value.title,
+        content: form.value.content,
+        cover: form.value.cover || undefined,
+        images,
+        tags: form.value.tags.length > 0 ? form.value.tags : undefined,
+        status: 1,
+      })
+      ElMessage.success(isEditingPublished.value ? '更新成功' : '发布成功')
     } else {
-      await createPost(data as any)
+      await createPost({
+        categoryId: Number(form.value.categoryId),
+        title: form.value.title,
+        content: form.value.content,
+        cover: form.value.cover || undefined,
+        images,
+        tags: form.value.tags.length > 0 ? form.value.tags : undefined,
+      })
       ElMessage.success('发布成功')
     }
 
@@ -436,7 +465,7 @@ const handleSubmit = async () => {
       router.push('/creator')
     }
   } catch (error) {
-    ElMessage.error(isEditMode.value ? '更新失败' : '发布失败')
+    ElMessage.error(isEditingPublished.value ? '更新失败' : '发布失败')
     console.error('提交失败:', error)
   } finally {
     loading.value = false
@@ -444,28 +473,26 @@ const handleSubmit = async () => {
 }
 
 const saveDraftOnly = async (): Promise<boolean> => {
-  if (!form.value.title) {
-    ElMessage.warning('请至少填写标题后再保存草稿')
+  if (!hasDraftContent()) {
+    ElMessage.warning('请至少填写一项内容后再保存草稿')
     return false
   }
 
   loading.value = true
   try {
-    const data = {
-      ...(isEditMode.value && { id: postId.value }),
+    const data: SaveDraftRequest = {
       categoryId: form.value.categoryId ? Number(form.value.categoryId) : undefined,
-      title: form.value.title,
+      title: form.value.title || undefined,
       content: form.value.content || undefined,
       cover: form.value.cover || undefined,
       images: form.value.images.length > 0 ? form.value.images : undefined,
       tags: form.value.tags.length > 0 ? form.value.tags : undefined,
-      status: 0,
     }
 
     if (isEditMode.value) {
-      await updatePost(data as any)
+      await updatePost({ ...data, id: postId.value } as any)
     } else {
-      await createPost(data as any)
+      await saveDraftPost(data)
     }
 
     dirty.value = false
@@ -482,15 +509,15 @@ const saveDraftOnly = async (): Promise<boolean> => {
 }
 
 const saveDraft = async () => {
-  if (!form.value.title) {
-    ElMessage.warning('请至少填写标题')
+  if (!hasDraftContent()) {
+    ElMessage.warning('请至少填写一项内容')
     return
   }
   const ok = await saveDraftOnly()
   if (!ok) return
 
   if (isInCreatorCenter.value) {
-    emit('goBack')
+    emit('goBack', true)
   } else {
     router.push('/creator')
   }
@@ -525,7 +552,7 @@ const goBack = async () => {
   if (!canLeave) return
 
   if (isInCreatorCenter.value) {
-    emit('goBack')
+    emit('goBack', isEditingDraft.value)
   } else {
     router.back()
   }

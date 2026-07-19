@@ -1,6 +1,5 @@
 package com.cyxz.post.dto;
 
-import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 import java.util.List;
@@ -14,8 +13,7 @@ public class CreatePostRequest {
     /** 分类 ID */
     private Long categoryId;
 
-    /** 标题 */
-    @NotBlank(message = "标题不能为空")
+    /** 标题（草稿时可为空，发布时必填） */
     private String title;
 
     /** 正文内容 */

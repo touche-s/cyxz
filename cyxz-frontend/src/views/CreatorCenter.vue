@@ -191,11 +191,11 @@
                 </span>
               </div>
               <div class="content-actions">
-                <button v-if="post.status !== 2" class="action-btn edit" @click="editPost(post.id)" title="编辑">
+                <button v-if="!isDeleted(post.status)" class="action-btn edit" @click="editPost(post.id)" title="编辑">
                   <img src="@/assets/icons/edit.svg" alt="edit" class="action-icon" />
                 </button>
                 <button 
-                  v-if="post.status === 1" 
+                  v-if="isPublished(post.status)" 
                   class="action-btn unpublish" 
                   @click="unpublishPost(post.id)" 
                   title="转为草稿"
@@ -208,7 +208,7 @@
                   </svg>
                 </button>
                 <button 
-                  v-if="post.status === 0" 
+                  v-if="isDraft(post.status)" 
                   class="action-btn publish" 
                   @click="publishPost(post.id)" 
                   title="发布"
@@ -216,14 +216,14 @@
                   <img src="@/assets/icons/rocket.svg" alt="rocket" class="action-icon" />
                 </button>
                 <button 
-                  v-if="post.status === 2" 
+                  v-if="isDeleted(post.status)" 
                   class="action-btn restore" 
                   @click="restorePost(post.id)" 
                   title="恢复"
                 >
                   <img src="@/assets/icons/refresh.svg" alt="refresh" class="action-icon" />
                 </button>
-                <button class="action-btn delete" @click="confirmDelete(post)" :title="post.status === 2 ? '彻底删除' : '删除'">
+                <button class="action-btn delete" @click="confirmDelete(post)" :title="isDeleted(post.status) ? '彻底删除' : '删除'">
                   <img src="@/assets/icons/trash.svg" alt="trash" class="action-icon" />
                 </button>
               </div>
@@ -501,13 +501,13 @@
 
     <ConfirmModal
       v-model:visible="showDeleteModal"
-      :title="postToDelete?.status === 2 ? '确认彻底删除' : '确认删除'"
+      :title="isDeleted(postToDelete?.status) ? '确认彻底删除' : '确认删除'"
       :post-title="postToDelete?.title"
-      :hint="postToDelete?.status === 2 ? '彻底删除后将无法恢复，同时会清理该帖子的评论、评论点赞、帖子点赞和收藏数据' : '删除后可在已删除标签中恢复'"
-      :confirm-text="postToDelete?.status === 2 ? '继续彻底删除' : '确认删除'"
-      :danger="postToDelete?.status === 2"
+      :hint="isDeleted(postToDelete?.status) ? '彻底删除后将无法恢复，同时会清理该帖子的评论、评论点赞、帖子点赞和收藏数据' : '删除后可在已删除标签中恢复'"
+      :confirm-text="isDeleted(postToDelete?.status) ? '继续彻底删除' : '确认删除'"
+      :danger="isDeleted(postToDelete?.status)"
       danger-badge="高风险操作"
-      :warning-text="postToDelete?.status === 2 ? '确认后还需再次确认一次，请谨慎操作' : undefined"
+      :warning-text="isDeleted(postToDelete?.status) ? '确认后还需再次确认一次，请谨慎操作' : undefined"
       @confirm="doDelete"
       @cancel="cancelDelete"
     >
@@ -620,7 +620,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 
 import { getUserPosts, deletePost, permanentDeletePost, updatePost, getTopPosts } from '@/api/post'
@@ -639,8 +639,10 @@ import EmptyState from '@/components/EmptyState.vue'
 import FollowButton from '@/components/FollowButton.vue'
 import StatCard from '@/components/StatCard.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
+import { isDraft, isPublished, isDeleted, statusText, canPublish } from '@/utils/postStatus'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 
 const posts = ref<PostVO[]>([])
@@ -661,6 +663,10 @@ const switchNav = async (nav: typeof activeNav.value) => {
   if (activeNav.value === 'publish' && nav !== 'publish' && postCreateRef.value) {
     const canLeave = await postCreateRef.value.confirmLeave()
     if (!canLeave) return
+  }
+  // 离开发布页时清除编辑参数，避免下次回来残留旧帖子数据
+  if (activeNav.value === 'publish' && nav !== 'publish') {
+    router.replace('/creator')
   }
   activeNav.value = nav
 }
@@ -683,12 +689,12 @@ const followerCount = ref(0)
 const followingCount = ref(0)
 
 const contentTabs = computed(() => {
-  const activePosts = posts.value.filter(p => p.status !== 2)
+  const activePosts = posts.value.filter(p => !isDeleted(p.status))
   return [
     { label: '全部', value: 'all' as const, count: activePosts.length },
-    { label: '已发布', value: 'published' as const, count: posts.value.filter(p => p.status === 1).length },
-    { label: '草稿', value: 'draft' as const, count: posts.value.filter(p => p.status === 0).length },
-    { label: '已删除', value: 'deleted' as const, count: posts.value.filter(p => p.status === 2).length },
+    { label: '已发布', value: 'published' as const, count: posts.value.filter(p => isPublished(p.status)).length },
+    { label: '草稿', value: 'draft' as const, count: posts.value.filter(p => isDraft(p.status)).length },
+    { label: '已删除', value: 'deleted' as const, count: posts.value.filter(p => isDeleted(p.status)).length },
   ]
 })
 
@@ -698,16 +704,16 @@ const filteredContentPosts = computed(() => {
   // 按状态筛选
   switch (activeContentTab.value) {
     case 'published':
-      filtered = filtered.filter(p => p.status === 1)
+      filtered = filtered.filter(p => isPublished(p.status))
       break
     case 'draft':
-      filtered = filtered.filter(p => p.status === 0)
+      filtered = filtered.filter(p => isDraft(p.status))
       break
     case 'deleted':
-      filtered = filtered.filter(p => p.status === 2)
+      filtered = filtered.filter(p => isDeleted(p.status))
       break
     default:
-      filtered = filtered.filter(p => p.status !== 2)
+      filtered = filtered.filter(p => !isDeleted(p.status))
   }
   
   // 按关键词搜索
@@ -722,13 +728,13 @@ const filteredContentPosts = computed(() => {
 // 最近作品（取前3条已发布的作品）
 const recentPosts = computed(() => {
   return posts.value
-    .filter(p => p.status === 1)
+    .filter(p => isPublished(p.status))
     .slice(0, 3)
 })
 
 // 评论管理帖子筛选下拉框选项（排除已删除帖子）
 const publishedPostOptions = computed(() => {
-  return posts.value.filter(p => p.status !== 2)
+  return posts.value.filter(p => !isDeleted(p.status))
 })
 
 // 最近互动（取前3条评论）
@@ -777,15 +783,6 @@ const magicFeatures = ref([
   { icon: iconChart, title: '排版优化', desc: '智能优化文章排版和格式', btnText: '优化排版' },
 ])
 
-const statusText = (status: number) => {
-  switch (status) {
-    case 0: return '草稿'
-    case 1: return '已发布'
-    case 2: return '已删除'
-    default: return '未知'
-  }
-}
-
 const truncatePostTitle = (title: string | undefined, postId: string) => {
   const name = title || '帖子' + postId
   return name.length > 12 ? name.slice(0, 12) + '...' : name
@@ -813,17 +810,30 @@ const refreshPosts = () => {
   }
 }
 
-const goHome = () => {
-  router.replace('/creator')
-  activeNav.value = 'home'
-}
-
-const handlePublishSuccess = async () => {
+const navigateToContent = async (tab: 'all' | 'draft' = 'all') => {
   await router.replace('/creator')
   activeNav.value = 'content'
-  activeContentTab.value = 'all'
+  activeContentTab.value = tab
   searchKeyword.value = ''
   await loadPosts()
+}
+
+const navigateToPublish = async (postId?: string) => {
+  if (postId) {
+    await router.replace({ path: '/creator', query: { edit: postId } })
+  } else {
+    await router.replace('/creator')
+  }
+  activeNav.value = 'publish'
+}
+
+const goHome = (wasEditingDraft?: boolean) => {
+  const toDraftTab = wasEditingDraft ?? (typeof route.query.edit === 'string')
+  navigateToContent(toDraftTab ? 'draft' : 'all')
+}
+
+const handlePublishSuccess = () => {
+  navigateToContent('all')
 }
 
 const goToUser = (userId: string | number) => {
@@ -831,9 +841,8 @@ const goToUser = (userId: string | number) => {
   window.open(url, '_blank')
 }
 
-const goCreate = async () => {
-  await router.replace('/creator')
-  activeNav.value = 'publish'
+const goCreate = () => {
+  navigateToPublish()
 }
 
 const viewPost = (postId: string) => {
@@ -841,9 +850,8 @@ const viewPost = (postId: string) => {
   window.open(url, '_blank')
 }
 
-const editPost = async (postId: string) => {
-  await router.replace({ path: '/creator', query: { edit: postId } })
-  activeNav.value = 'publish'
+const editPost = (postId: string) => {
+  navigateToPublish(postId)
 }
 
 const publishPost = (postId: string) => {
@@ -853,16 +861,39 @@ const publishPost = (postId: string) => {
 
 const doPublish = async () => {
   if (!postToPublish.value) return
+
+  if (!canPublish(postToPublish.value)) {
+    showPublishModal.value = false
+    ElMessage.warning('请先完善标题、分类、正文和图片后再发布')
+    await editPost(postToPublish.value.id)
+    postToPublish.value = null
+    return
+  }
+
   try {
-    await updatePost({ id: postToPublish.value.id, status: 1 })
+    await updatePost({
+      id: postToPublish.value.id,
+      categoryId: postToPublish.value.categoryId,
+      title: postToPublish.value.title,
+      content: postToPublish.value.content,
+      images: postToPublish.value.images,
+      tags: postToPublish.value.tags,
+      cover: postToPublish.value.cover,
+      status: 1,
+    })
     const post = posts.value.find(p => p.id === postToPublish.value?.id)
     if (post) post.status = 1
     ElMessage.success('发布成功')
     showPublishModal.value = false
     postToPublish.value = null
-  } catch (error) {
+  } catch (error: any) {
+    const msg = error?.response?.data?.msg
+    if (msg) {
+      ElMessage.warning(msg)
+    } else {
+      ElMessage.error('发布失败')
+    }
     console.error('发布失败:', error)
-    ElMessage.error('发布失败')
   }
 }
 
@@ -934,7 +965,7 @@ const cancelDelete = () => {
 const doDelete = async () => {
   if (!postToDelete.value) return
   try {
-    const isPermanent = postToDelete.value.status === 2
+    const isPermanent = isDeleted(postToDelete.value.status)
     if (isPermanent) {
       showDeleteModal.value = false
       showPermanentDeleteModal.value = true

@@ -32,15 +32,24 @@ export interface CategoryVO {
   sortOrder: number
 }
 
-/** 创建帖子请求 */
-export interface CreatePostRequest {
+/** 保存草稿请求 */
+export interface SaveDraftRequest {
+  categoryId?: number
+  title?: string
+  content?: string
+  cover?: string
+  images?: string[]
+  tags?: string[]
+}
+
+/** 发布帖子请求（标题、分类、正文、图片必填） */
+export interface PublishPostRequest {
   categoryId: number
   title: string
   content: string
   cover?: string
-  images?: string[]
+  images: string[]
   tags?: string[]
-  status?: number
 }
 
 /** 更新帖子请求 */
@@ -65,9 +74,14 @@ export const getPostDetail = (postId: string) => {
   return request.get(`/post/${postId}`)
 }
 
-/** 创建帖子 */
-export const createPost = (data: CreatePostRequest) => {
+/** 发布帖子 */
+export const createPost = (data: PublishPostRequest) => {
   return request.post('/post', data)
+}
+
+/** 保存草稿 */
+export const saveDraftPost = (data: SaveDraftRequest) => {
+  return request.post('/post/draft', data)
 }
 
 /** 更新帖子 */

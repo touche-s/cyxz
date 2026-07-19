@@ -30,7 +30,7 @@ public class PostController {
     private final PostService postService;
 
     /**
-     * 创建帖子
+     * 创建帖子（发布）
      *
      * @param request 创建帖子请求
      * @param userId  当前登录用户 ID（由 Gateway 注入）
@@ -39,8 +39,24 @@ public class PostController {
     @PostMapping
     public Result<Long> create(@Valid @RequestBody CreatePostRequest request,
                                @CurrentUser Long userId) {
+        request.setStatus(1);
         Long postId = postService.createPost(userId, request);
-        return Result.success("创建成功", postId);
+        return Result.success("发布成功", postId);
+    }
+
+    /**
+     * 新建草稿
+     *
+     * @param request 草稿请求（仅需任一项有内容）
+     * @param userId  当前登录用户 ID（由 Gateway 注入）
+     * @return 帖子 ID
+     */
+    @PostMapping("/draft")
+    public Result<Long> saveDraft(@Valid @RequestBody CreatePostRequest request,
+                                  @CurrentUser Long userId) {
+        request.setStatus(0);
+        Long postId = postService.createPost(userId, request);
+        return Result.success("草稿保存成功", postId);
     }
 
     /**
