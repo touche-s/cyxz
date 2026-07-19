@@ -56,6 +56,49 @@ public class PostServiceImpl implements PostService {
     private final UserFeignClient userFeignClient;
     private final StringRedisTemplate stringRedisTemplate;
 
+    // ==================== 帖子状态常量与流转规则 ====================
+
+    public static final int STATUS_DRAFT = 0;
+    public static final int STATUS_PUBLISHED = 1;
+    public static final int STATUS_DELETED = 2;
+
+    /** 合法的状态流转表：当前状态 → 允许迁入的目标状态列表 */
+    private static final Map<Integer, Set<Integer>> ALLOWED_TRANSITIONS = Map.of(
+            STATUS_DRAFT, Set.of(STATUS_PUBLISHED, STATUS_DELETED),
+            STATUS_PUBLISHED, Set.of(STATUS_DRAFT, STATUS_DELETED),
+            STATUS_DELETED, Set.of(STATUS_DRAFT)
+    );
+
+    private static final Map<Integer, String> STATUS_LABEL = Map.of(
+            STATUS_DRAFT, "草稿",
+            STATUS_PUBLISHED, "已发布",
+            STATUS_DELETED, "已删除"
+    );
+
+    private boolean canTransition(int from, int to) {
+        if (from == to) return true;
+        return ALLOWED_TRANSITIONS.getOrDefault(from, Set.of()).contains(to);
+    }
+
+    private String statusLabel(int status) {
+        return STATUS_LABEL.getOrDefault(status, "未知");
+    }
+
+    /** 帖子是否公开可见（非作者也可看） */
+    private boolean isPublicVisible(PostPO po) {
+        return po != null && po.getStatus() == STATUS_PUBLISHED;
+    }
+
+    /** 帖子是否仅作者可见 */
+    private boolean isAuthorOnly(PostPO po) {
+        return po != null && po.getStatus() != STATUS_PUBLISHED;
+    }
+
+    /** 帖子是否允许互动（点赞、收藏、评论） */
+    private boolean isInteractable(PostPO po) {
+        return isPublicVisible(po);
+    }
+
     /**
      * 创建帖子
      * <p>将前端传入的标题、正文、图片、标签等信息持久化到 post 表。
@@ -67,8 +110,11 @@ public class PostServiceImpl implements PostService {
      */
     @Override
     public Long createPost(Long userId, CreatePostRequest request) {
-        if (request.getStatus() != null && request.getStatus() == 1 && request.getCategoryId() == null) {
-            throw new BusinessException(ErrorCode.PARAM_MISSING, "发布时分类不能为空");
+        if (request.getStatus() != null && request.getStatus() == 1) {
+            validatePublishFields(request.getTitle(), request.getCategoryId(),
+                    request.getContent(), request.getImages());
+        } else {
+            validateDraftHasContent(request);
         }
         PostPO po = new PostPO();
         po.setUserId(userId);
@@ -94,7 +140,12 @@ public class PostServiceImpl implements PostService {
 
     /**
      * 更新帖子
-     * <p>仅更新非 null 字段，不做全量覆盖。
+     * <p>支持三种业务动作：
+     * <ul>
+     *   <li>保存草稿：仅更新内容字段，不触发发布校验</li>
+     *   <li>草稿转发布 / 更新已发布：更新内容 + status=1，强制执行发布完整性校验</li>
+     *   <li>状态迁移（转草稿、恢复）：仅变更 status 字段</li>
+     * </ul>
      * 校验帖子归属权，非作者本人无权修改。
      *
      * @param userId  当前登录用户 ID
@@ -109,29 +160,42 @@ public class PostServiceImpl implements PostService {
         if (!po.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
-        if (request.getCategoryId() != null) {
-            po.setCategoryId(request.getCategoryId());
+
+        // 发布动作：仅校验请求体完整性，前端必须传完整发布数据
+        boolean isPublishAction = request.getStatus() != null && request.getStatus() == 1;
+        if (isPublishAction) {
+            validatePublishFields(
+                    request.getTitle(),
+                    request.getCategoryId(),
+                    request.getContent(),
+                    request.getImages()
+            );
         }
-        if (StringUtils.hasText(request.getTitle())) {
-            po.setTitle(request.getTitle());
-        }
-        if (request.getContent() != null) {
-            po.setContent(request.getContent());
-        }
-        if (request.getCover() != null) {
-            po.setCover(request.getCover());
-        }
-        if (request.getImages() != null) {
-            po.setImages(String.join(",", request.getImages()));
-        }
-        if (request.getTags() != null) {
-            po.setTags(String.join(",", request.getTags()));
-        }
+
+        applyContentUpdate(po, request);
+
         if (request.getStatus() != null) {
+            if (!canTransition(po.getStatus(), request.getStatus())) {
+                throw new BusinessException(ErrorCode.PARAM_ERROR,
+                        "不允许从 " + statusLabel(po.getStatus()) + " 直接变更为 " + statusLabel(request.getStatus()));
+            }
             po.setStatus(request.getStatus());
         }
+
         postMapper.updateById(po);
-        log.info("更新帖子成功: postId={}, userId={}", po.getId(), userId);
+        log.info("{}帖子成功: postId={}, userId={}", isPublishAction ? "发布" : "更新", po.getId(), userId);
+    }
+
+    /**
+     * 将请求中的非 null 字段应用到实体
+     */
+    private void applyContentUpdate(PostPO po, UpdatePostRequest request) {
+        if (request.getCategoryId() != null) po.setCategoryId(request.getCategoryId());
+        if (StringUtils.hasText(request.getTitle())) po.setTitle(request.getTitle());
+        if (request.getContent() != null) po.setContent(request.getContent());
+        if (request.getCover() != null) po.setCover(request.getCover());
+        if (request.getImages() != null) po.setImages(String.join(",", request.getImages()));
+        if (request.getTags() != null) po.setTags(String.join(",", request.getTags()));
     }
 
     /**
@@ -151,7 +215,7 @@ public class PostServiceImpl implements PostService {
         if (!po.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
-        po.setStatus(2);
+        po.setStatus(STATUS_DELETED);
         postMapper.updateById(po);
         log.info("软删除帖子成功: postId={}, userId={}", postId, userId);
     }
@@ -174,7 +238,7 @@ public class PostServiceImpl implements PostService {
         if (!po.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
-        if (po.getStatus() != 2) {
+        if (po.getStatus() != STATUS_DELETED) {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "仅回收站中的帖子可彻底删除");
         }
 
@@ -213,12 +277,8 @@ public class PostServiceImpl implements PostService {
         if (po == null) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
-        // 已删除：仅作者本人可查看
-        if (po.getStatus() == 2 && !po.getUserId().equals(currentUserId)) {
-            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
-        }
-        // 草稿：仅作者本人可查看
-        if (po.getStatus() == 0 && !po.getUserId().equals(currentUserId)) {
+        // 非公开帖子仅作者本人可查看
+        if (isAuthorOnly(po) && !po.getUserId().equals(currentUserId)) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
         Map<Long, UserProfileVO> userMap = batchGetUsers(Set.of(po.getUserId()));
@@ -442,7 +502,7 @@ public class PostServiceImpl implements PostService {
     @Transactional(rollbackFor = Exception.class)
     public void likePost(Long userId, Long postId) {
         PostPO po = postMapper.selectById(postId);
-        if (po == null) {
+        if (po == null || !isInteractable(po)) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
 
@@ -496,7 +556,7 @@ public class PostServiceImpl implements PostService {
     @Transactional(rollbackFor = Exception.class)
     public void unlikePost(Long userId, Long postId) {
         PostPO po = postMapper.selectById(postId);
-        if (po == null) {
+        if (po == null || !isInteractable(po)) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
 
@@ -589,7 +649,7 @@ public class PostServiceImpl implements PostService {
     @Transactional(rollbackFor = Exception.class)
     public void collectPost(Long userId, Long postId) {
         PostPO po = postMapper.selectById(postId);
-        if (po == null) {
+        if (po == null || !isInteractable(po)) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
 
@@ -641,7 +701,7 @@ public class PostServiceImpl implements PostService {
     @Transactional(rollbackFor = Exception.class)
     public void uncollectPost(Long userId, Long postId) {
         PostPO po = postMapper.selectById(postId);
-        if (po == null) {
+        if (po == null || !isInteractable(po)) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
 
@@ -685,7 +745,7 @@ public class PostServiceImpl implements PostService {
     @Override
     public void recordView(Long postId, Long userId, HttpServletRequest request) {
         PostPO po = postMapper.selectById(postId);
-        if (po == null || po.getStatus() != 1) {
+        if (po == null || !isPublicVisible(po)) {
             // 仅已发布帖子记录浏览
             return;
         }
@@ -745,14 +805,19 @@ public class PostServiceImpl implements PostService {
     /**
      * 获取帖子作者 ID（内部接口）
      * <p>用于评论服务创建评论时通过 Feign 调用获取帖子作者。
+     * 仅已发布帖子可评论，草稿和已删除帖子拒绝。
      *
      * @param postId 帖子 ID
-     * @return 作者用户 ID，帖子不存在返回 null
+     * @return 作者用户 ID
+     * @throws BusinessException 帖子不存在或非已发布状态
      */
     @Override
     public Long getPostAuthor(Long postId) {
         PostPO po = postMapper.selectById(postId);
-        return po != null ? po.getUserId() : null;
+        if (po == null || !isInteractable(po)) {
+            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
+        }
+        return po.getUserId();
     }
 
     /**
@@ -830,6 +895,37 @@ public class PostServiceImpl implements PostService {
         });
 
         return PageResult.of(records, total, page, size);
+    }
+
+    /**
+     * 校验发布必填项：标题、分类、正文、图片缺一不可
+     */
+    private void validatePublishFields(String title, Long categoryId, String content, List<String> images) {
+        if (title == null || title.isBlank()) {
+            throw new BusinessException(ErrorCode.PARAM_MISSING, "发布时标题不能为空");
+        }
+        if (categoryId == null) {
+            throw new BusinessException(ErrorCode.PARAM_MISSING, "发布时分类不能为空");
+        }
+        if (content == null || content.isBlank()) {
+            throw new BusinessException(ErrorCode.PARAM_MISSING, "发布时正文不能为空");
+        }
+        if (images == null || images.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAM_MISSING, "发布时至少需要一张图片");
+        }
+    }
+
+    /**
+     * 校验草稿至少有一项内容
+     */
+    private void validateDraftHasContent(CreatePostRequest request) {
+        boolean hasContent = (request.getTitle() != null && !request.getTitle().isBlank())
+                || request.getCategoryId() != null
+                || (request.getContent() != null && !request.getContent().isBlank())
+                || (request.getImages() != null && !request.getImages().isEmpty());
+        if (!hasContent) {
+            throw new BusinessException(ErrorCode.PARAM_MISSING, "草稿至少需要填写一项内容");
+        }
     }
 
     /**
