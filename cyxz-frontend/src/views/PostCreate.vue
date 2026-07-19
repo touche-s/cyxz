@@ -210,7 +210,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { createPost, saveDraftPost, updatePost, getPostDetail, getCategoryList } from '@/api/post'
 import { uploadPostImage, deleteUploadedFile } from '@/api/upload'
 import type { SaveDraftRequest, PostVO, CategoryVO } from '@/api/post'
-import { isDraft, isPublished } from '@/utils/postStatus'
+import { isDraft, isPublished, isDeleted } from '@/utils/postStatus'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import ImageCropper from '@/components/ImageCropper.vue'
 
@@ -286,6 +286,12 @@ const loadPostDetail = async () => {
         tags: post.tags || [],
       }
       currentPostStatus.value = post.status
+      // 已删除帖子不可编辑
+      if (isDeleted(currentPostStatus.value)) {
+        ElMessage.warning('已删除内容不可编辑，请先恢复')
+        router.push('/creator')
+        return
+      }
     }
   } catch (error) {
     console.error('加载帖子详情失败:', error)
