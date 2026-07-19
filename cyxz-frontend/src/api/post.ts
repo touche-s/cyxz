@@ -80,6 +80,11 @@ export const deletePost = (postId: string) => {
   return request.delete(`/post/${postId}`)
 }
 
+/** 彻底删除帖子（物理删除，同时清理关联的评论、点赞、收藏） */
+export const permanentDeletePost = (postId: string) => {
+  return request.delete(`/post/${postId}/permanent`)
+}
+
 /** 查询当前用户的帖子列表（含草稿和已删除，内容管理用） */
 export const getUserPosts = (params: { page?: number; size?: number }) => {
   return request.get('/post/user', { params })

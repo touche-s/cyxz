@@ -191,8 +191,21 @@
                 </span>
               </div>
               <div class="content-actions">
-                <button class="action-btn edit" @click="editPost(post.id)" title="编辑">
+                <button v-if="post.status !== 2" class="action-btn edit" @click="editPost(post.id)" title="编辑">
                   <img src="@/assets/icons/edit.svg" alt="edit" class="action-icon" />
+                </button>
+                <button 
+                  v-if="post.status === 1" 
+                  class="action-btn unpublish" 
+                  @click="unpublishPost(post.id)" 
+                  title="转为草稿"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="action-icon-svg">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="12" y1="13" x2="12" y2="19"/>
+                    <polyline points="9 16 12 19 15 16"/>
+                  </svg>
                 </button>
                 <button 
                   v-if="post.status === 0" 
@@ -210,7 +223,7 @@
                 >
                   <img src="@/assets/icons/refresh.svg" alt="refresh" class="action-icon" />
                 </button>
-                <button class="action-btn delete" @click="confirmDelete(post)" title="删除">
+                <button class="action-btn delete" @click="confirmDelete(post)" :title="post.status === 2 ? '彻底删除' : '删除'">
                   <img src="@/assets/icons/trash.svg" alt="trash" class="action-icon" />
                 </button>
               </div>
@@ -295,7 +308,12 @@
                   :key="post.id"
                   :value="post.id"
                   :label="post.title"
-                />
+                >
+                  <div class="comment-post-option">
+                    <span class="comment-post-option-title">{{ post.title }}</span>
+                    <span class="comment-post-option-status" :class="`status-${post.status}`">{{ statusText(post.status) }}</span>
+                  </div>
+                </el-option>
               </el-select>
               <span class="comment-total">共 {{ commentsTotal }} 条评论</span>
             </div>
@@ -481,30 +499,121 @@
       </template>
     </main>
 
-    <div class="modal-overlay" v-if="showDeleteModal" @click="cancelDelete">
-      <div class="modal-content" @click.stop>
-        <div class="modal-icon-wrapper">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modal-warn-icon">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="8" x2="12" y2="12"/>
-            <line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-        </div>
-        <h3>确认删除</h3>
-        <p class="modal-post-title">「{{ postToDelete?.title }}」</p>
-        <p class="modal-hint">删除后可在"已删除"标签中恢复</p>
-        <div class="modal-actions">
-          <button class="modal-btn cancel" @click="cancelDelete">取消</button>
-          <button class="modal-btn confirm" @click="doDelete">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modal-btn-icon">
-              <polyline points="3 6 5 6 21 6"/>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-            </svg>
-            确认删除
-          </button>
-        </div>
-      </div>
-    </div>
+    <ConfirmModal
+      v-model:visible="showDeleteModal"
+      :title="postToDelete?.status === 2 ? '确认彻底删除' : '确认删除'"
+      :post-title="postToDelete?.title"
+      :hint="postToDelete?.status === 2 ? '彻底删除后将无法恢复，同时会清理该帖子的评论、评论点赞、帖子点赞和收藏数据' : '删除后可在已删除标签中恢复'"
+      :confirm-text="postToDelete?.status === 2 ? '继续彻底删除' : '确认删除'"
+      :danger="postToDelete?.status === 2"
+      danger-badge="高风险操作"
+      :warning-text="postToDelete?.status === 2 ? '确认后还需再次确认一次，请谨慎操作' : undefined"
+      @confirm="doDelete"
+      @cancel="cancelDelete"
+    >
+      <template #icon>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modal-warn-icon">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+          <line x1="10" y1="11" x2="10" y2="17"/>
+          <line x1="14" y1="11" x2="14" y2="17"/>
+        </svg>
+      </template>
+    </ConfirmModal>
+
+    <ConfirmModal
+      v-model:visible="showPublishModal"
+      title="确认发布"
+      :post-title="postToPublish?.title"
+      hint="发布后帖子将公开显示，所有用户均可查看。"
+      confirm-text="确认发布"
+      @confirm="doPublish"
+      @cancel="cancelPublish"
+    >
+      <template #icon>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modal-warn-icon">
+          <path d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 0 0 6.16-12.12A14.98 14.98 0 0 0 9.631 8.41m5.96 5.96a14.926 14.926 0 0 1-5.841 2.58m-.119-8.54a6 6 0 0 0-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 0 0-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 0 1-2.448-2.448 14.9 14.9 0 0 1 .06-.312m-2.24 2.39a4.493 4.493 0 0 0-1.757 4.306 4.493 4.493 0 0 1 4.306-1.758M16.5 9a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z"/>
+        </svg>
+      </template>
+    </ConfirmModal>
+
+    <ConfirmModal
+      v-model:visible="showUnpublishModal"
+      title="确认转为草稿"
+      :post-title="postToUnpublish?.title"
+      hint="转为草稿后帖子将不再公开展示，你可以随时重新发布。"
+      confirm-text="确认转为草稿"
+      @confirm="doUnpublish"
+      @cancel="cancelUnpublish"
+    >
+      <template #icon>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modal-warn-icon">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="12" y1="13" x2="12" y2="19"/>
+          <polyline points="9 16 12 19 15 16"/>
+        </svg>
+      </template>
+    </ConfirmModal>
+
+    <ConfirmModal
+      v-model:visible="showRestoreModal"
+      title="确认恢复"
+      :post-title="postToRestore?.title"
+      hint="恢复后帖子将回到草稿箱，你可以继续编辑后再发布。"
+      confirm-text="确认恢复"
+      @confirm="doRestore"
+      @cancel="cancelRestore"
+    >
+      <template #icon>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modal-warn-icon">
+          <polyline points="1 4 1 10 7 10"/>
+          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+        </svg>
+      </template>
+    </ConfirmModal>
+
+    <ConfirmModal
+      v-model:visible="showDeleteCommentModal"
+      title="删除评论"
+      :hint="commentToDelete ? `确定删除${commentToDelete.userName}的评论吗？删除后不可恢复` : ''"
+      confirm-text="删除"
+      danger
+      @confirm="doDeleteComment"
+      @cancel="cancelDeleteComment"
+    >
+      <template #icon>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modal-warn-icon">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+          <line x1="10" y1="11" x2="10" y2="17"/>
+          <line x1="14" y1="11" x2="14" y2="17"/>
+        </svg>
+      </template>
+    </ConfirmModal>
+
+    <ConfirmModal
+      v-model:visible="showPermanentDeleteModal"
+      title="二次确认"
+      :post-title="postToDelete?.title"
+      :hint="postToDelete ? `帖子「${postToDelete.title}」将被彻底删除，且无法恢复。是否继续？` : ''"
+      confirm-text="仍要彻底删除"
+      danger
+      danger-badge="高风险操作"
+      warning-text="确认后将永久删除，请谨慎操作"
+      @confirm="doPermanentDelete"
+      @cancel="cancelPermanentDelete"
+    >
+      <template #icon>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modal-warn-icon">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+      </template>
+    </ConfirmModal>
 
   </div>
 </template>
@@ -512,9 +621,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 
-import { getUserPosts, deletePost, updatePost, getTopPosts } from '@/api/post'
+import { getUserPosts, deletePost, permanentDeletePost, updatePost, getTopPosts } from '@/api/post'
 import { formatNumber, formatTime, formatDateTime } from '@/utils/format'
 import type { PostVO } from '@/api/post'
 import { usePostStats } from '@/composables/usePostStats'
@@ -529,6 +638,7 @@ import Pagination from '@/components/Pagination.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import FollowButton from '@/components/FollowButton.vue'
 import StatCard from '@/components/StatCard.vue'
+import ConfirmModal from '@/components/ConfirmModal.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -539,6 +649,11 @@ const dataLoading = ref(false)
 const fansLoading = ref(false)
 const commentsLoading = ref(false)
 const showDeleteModal = ref(false)
+const showUnpublishModal = ref(false)
+const showPublishModal = ref(false)
+const showRestoreModal = ref(false)
+const showDeleteCommentModal = ref(false)
+const showPermanentDeleteModal = ref(false)
 const activeNav = ref<'home' | 'content' | 'fans' | 'interaction' | 'magic' | 'agreement' | 'publish'>('home')
 const postCreateRef = ref<InstanceType<typeof PostCreate>>()
 
@@ -551,6 +666,10 @@ const switchNav = async (nav: typeof activeNav.value) => {
 }
 
 const postToDelete = ref<PostVO | null>(null)
+const postToUnpublish = ref<PostVO | null>(null)
+const postToPublish = ref<PostVO | null>(null)
+const postToRestore = ref<PostVO | null>(null)
+const commentToDelete = ref<CommentVO | null>(null)
 
 const activeContentTab = ref<'all' | 'published' | 'draft' | 'deleted'>('all')
 const searchKeyword = ref('')
@@ -607,9 +726,9 @@ const recentPosts = computed(() => {
     .slice(0, 3)
 })
 
-// 评论管理帖子筛选下拉框选项（已发布帖子）
+// 评论管理帖子筛选下拉框选项（排除已删除帖子）
 const publishedPostOptions = computed(() => {
-  return posts.value.filter(p => p.status === 1)
+  return posts.value.filter(p => p.status !== 2)
 })
 
 // 最近互动（取前3条评论）
@@ -727,28 +846,79 @@ const editPost = async (postId: string) => {
   activeNav.value = 'publish'
 }
 
-const publishPost = async (postId: string) => {
+const publishPost = (postId: string) => {
+  postToPublish.value = posts.value.find(p => p.id === postId) || null
+  showPublishModal.value = true
+}
+
+const doPublish = async () => {
+  if (!postToPublish.value) return
   try {
-    await updatePost({ id: postId, status: 1 })
-    const post = posts.value.find(p => p.id === postId)
+    await updatePost({ id: postToPublish.value.id, status: 1 })
+    const post = posts.value.find(p => p.id === postToPublish.value?.id)
     if (post) post.status = 1
     ElMessage.success('发布成功')
+    showPublishModal.value = false
+    postToPublish.value = null
   } catch (error) {
     console.error('发布失败:', error)
     ElMessage.error('发布失败')
   }
 }
 
-const restorePost = async (postId: string) => {
+const cancelPublish = () => {
+  showPublishModal.value = false
+  postToPublish.value = null
+}
+
+const unpublishPost = (postId: string) => {
+  postToUnpublish.value = posts.value.find(p => p.id === postId) || null
+  showUnpublishModal.value = true
+}
+
+const doUnpublish = async () => {
+  if (!postToUnpublish.value) return
   try {
-    await updatePost({ id: postId, status: 0 })
-    const post = posts.value.find(p => p.id === postId)
+    await updatePost({ id: postToUnpublish.value.id, status: 0 })
+    const post = posts.value.find(p => p.id === postToUnpublish.value?.id)
     if (post) post.status = 0
-    ElMessage.success('恢复成功')
+    ElMessage.success('已转为草稿')
+    showUnpublishModal.value = false
+    postToUnpublish.value = null
+  } catch (error) {
+    console.error('转为草稿失败:', error)
+    ElMessage.error('转为草稿失败')
+  }
+}
+
+const cancelUnpublish = () => {
+  showUnpublishModal.value = false
+  postToUnpublish.value = null
+}
+
+const restorePost = (postId: string) => {
+  postToRestore.value = posts.value.find(p => p.id === postId) || null
+  showRestoreModal.value = true
+}
+
+const doRestore = async () => {
+  if (!postToRestore.value) return
+  try {
+    await updatePost({ id: postToRestore.value.id, status: 0 })
+    const post = posts.value.find(p => p.id === postToRestore.value?.id)
+    if (post) post.status = 0
+    ElMessage.success('已恢复到草稿')
+    showRestoreModal.value = false
+    postToRestore.value = null
   } catch (error) {
     console.error('恢复失败:', error)
     ElMessage.error('恢复失败')
   }
+}
+
+const cancelRestore = () => {
+  showRestoreModal.value = false
+  postToRestore.value = null
 }
 
 const confirmDelete = (post: PostVO) => {
@@ -764,16 +934,42 @@ const cancelDelete = () => {
 const doDelete = async () => {
   if (!postToDelete.value) return
   try {
-    await deletePost(postToDelete.value.id)
-    const post = posts.value.find(p => p.id === postToDelete.value?.id)
-    if (post) post.status = 2
-    showDeleteModal.value = false
-    postToDelete.value = null
-    ElMessage.success('删除成功')
+    const isPermanent = postToDelete.value.status === 2
+    if (isPermanent) {
+      showDeleteModal.value = false
+      showPermanentDeleteModal.value = true
+    } else {
+      await deletePost(postToDelete.value.id)
+      const post = posts.value.find(p => p.id === postToDelete.value?.id)
+      if (post) post.status = 2
+      ElMessage.success('已移入回收站')
+      showDeleteModal.value = false
+      postToDelete.value = null
+    }
   } catch (error) {
     console.error('删除失败:', error)
     ElMessage.error('删除失败')
   }
+}
+
+const doPermanentDelete = async () => {
+  if (!postToDelete.value) return
+  try {
+    await permanentDeletePost(postToDelete.value.id)
+    posts.value = posts.value.filter(p => p.id !== postToDelete.value?.id)
+    ElMessage.success('彻底删除成功')
+  } catch (error) {
+    console.error('彻底删除失败:', error)
+    ElMessage.error('彻底删除失败')
+  } finally {
+    showPermanentDeleteModal.value = false
+    postToDelete.value = null
+  }
+}
+
+const cancelPermanentDelete = () => {
+  showPermanentDeleteModal.value = false
+  postToDelete.value = null
 }
 
 const loadFans = async () => {
@@ -867,26 +1063,30 @@ const handleCommentPageChange = (page: number) => {
 }
 
 const confirmDeleteManagedComment = (comment: CommentVO) => {
-  ElMessageBox.confirm('确定删除这条评论吗？删除后不可恢复', '删除评论', {
-    confirmButtonText: '删除',
-    cancelButtonText: '取消',
-    type: 'warning'
-  }).then(() => {
-    handleDeleteManagedComment(comment.id)
-  }).catch(() => {})
+  commentToDelete.value = comment
+  showDeleteCommentModal.value = true
 }
 
-const handleDeleteManagedComment = async (commentId: string) => {
+const doDeleteComment = async () => {
+  if (!commentToDelete.value) return
   try {
-    const res = await deleteComment(commentId)
+    const res = await deleteComment(commentToDelete.value.id)
     if (res.data.code === 200) {
       ElMessage.success('删除成功')
-      managedCommentsList.value = managedCommentsList.value.filter(c => c.id !== commentId)
+      managedCommentsList.value = managedCommentsList.value.filter(c => c.id !== commentToDelete.value?.id)
       commentsTotal.value = Math.max(0, commentsTotal.value - 1)
     }
   } catch (error) {
     console.error('删除评论失败:', error)
+  } finally {
+    showDeleteCommentModal.value = false
+    commentToDelete.value = null
   }
+}
+
+const cancelDeleteComment = () => {
+  showDeleteCommentModal.value = false
+  commentToDelete.value = null
 }
 
 const handleFollow = async (userId: string, isFollowing: boolean) => {
@@ -1641,13 +1841,22 @@ watch(activeNav, (val) => {
 }
 
 .action-btn:hover {
-  transform: scale(1.1);
+  transform: scale(1.06);
   border-color: transparent;
 }
 
-.action-btn .action-icon {
-  width: 16px;
-  height: 16px;
+.action-btn .action-icon,
+.action-btn .action-icon-svg {
+  width: 14px;
+  height: 14px;
+}
+
+.action-btn.edit .action-icon {
+  filter: brightness(0) saturate(100%) invert(66%) sepia(41%) saturate(2417%) hue-rotate(302deg) brightness(101%) contrast(101%);
+}
+
+.action-btn.unpublish .action-icon-svg {
+  color: #8b5cf6;
 }
 
 .action-btn.edit:hover {
@@ -1731,124 +1940,6 @@ watch(activeNav, (val) => {
   color: var(--pink);
 }
 
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  animation: fadeIn 0.2s ease-out;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-.modal-content {
-  background: white;
-  border-radius: 24px;
-  padding: 36px 32px 28px;
-  max-width: 420px;
-  width: 90%;
-  text-align: center;
-  animation: slideUp 0.3s ease-out;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-}
-
-@keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
-
-.modal-icon-wrapper {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, rgba(255, 71, 87, 0.1), rgba(255, 107, 129, 0.1));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 16px;
-}
-
-.modal-warn-icon {
-  width: 28px;
-  height: 28px;
-  color: #ff4757;
-  stroke-width: 2;
-}
-
-.modal-content h3 {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 8px;
-}
-
-.modal-post-title {
-  font-size: 15px;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-  font-weight: 500;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.modal-hint {
-  font-size: 12px;
-  color: var(--text-dim);
-  margin-bottom: 28px;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-}
-
-.modal-btn {
-  padding: 10px 32px;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  transition: all 0.22s ease-out;
-}
-
-.modal-btn.cancel {
-  background: #f3f4f6;
-  color: var(--text-dim);
-}
-
-.modal-btn.cancel:hover {
-  background: #e5e7eb;
-}
-
-.modal-btn.confirm {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: linear-gradient(135deg, #ff4757, #ff6b81);
-  color: white;
-  box-shadow: 0 4px 14px rgba(255, 71, 87, 0.3);
-}
-
-.modal-btn-icon {
-  width: 16px;
-  height: 16px;
-}
-
-.modal-btn.confirm:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(255, 71, 87, 0.4);
-}
 
 @media (max-width: 1024px) {
   .sidebar {
@@ -2685,5 +2776,49 @@ watch(activeNav, (val) => {
 .comment-post-select-popper .el-select-dropdown__item:hover {
   background: rgba(255, 107, 157, 0.06);
   color: #FF6B9D;
+}
+
+.comment-post-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.comment-post-option-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.comment-post-option-status {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.comment-post-option-status.status-0 {
+  color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.12);
+}
+
+.comment-post-option-status.status-1 {
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.12);
+}
+
+.comment-post-option-status.status-2 {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
 }
 </style>

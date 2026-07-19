@@ -127,7 +127,7 @@ const getGradient = (id: string | number) => {
 
 .card-cover {
   position: relative;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 16 / 9;
   overflow: hidden;
 }
 
@@ -306,7 +306,7 @@ const getGradient = (id: string | number) => {
 
 /* ===== Small Size ===== */
 .card--small .card-cover {
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 16 / 9;
 }
 
 .card--small .card-body {
