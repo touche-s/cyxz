@@ -65,7 +65,7 @@ public class PostServiceImpl implements PostService {
     /** 合法的状态流转表：当前状态 → 允许迁入的目标状态列表 */
     private static final Map<Integer, Set<Integer>> ALLOWED_TRANSITIONS = Map.of(
             STATUS_DRAFT, Set.of(STATUS_PUBLISHED, STATUS_DELETED),
-            STATUS_PUBLISHED, Set.of(STATUS_DRAFT, STATUS_DELETED),
+            STATUS_PUBLISHED, Set.of(STATUS_DELETED),
             STATUS_DELETED, Set.of(STATUS_DRAFT)
     );
 

@@ -167,14 +167,14 @@
 
           <div class="content-list" v-if="!loading && filteredContentPosts.length > 0">
             <div class="content-item" v-for="post in filteredContentPosts" :key="post.id">
-              <div class="content-cover" @click="viewPost(post.id)">
+              <div class="content-cover" :class="{ clickable: isPublished(post.status) }" @click="isPublished(post.status) && viewPost(post.id)">
                 <img v-if="post.cover" :src="post.cover" alt="cover" />
                 <div v-else class="cover-placeholder">
                   <span>暂无封面</span>
                 </div>
               </div>
               <div class="content-info">
-                <h3 class="content-title" @click="viewPost(post.id)">{{ post.title }}</h3>
+                <h3 class="content-title" :class="{ clickable: isPublished(post.status) }" @click="isPublished(post.status) && viewPost(post.id)">{{ post.title }}</h3>
                 <div class="content-meta">
                   <span class="category-tag" v-if="post.categoryName">{{ post.categoryName }}</span>
                   <span class="content-time">{{ formatDateTime(post.createTime) }}</span>
@@ -194,17 +194,10 @@
                 <button v-if="!isDeleted(post.status)" class="action-btn edit" @click="editPost(post.id)" title="编辑">
                   <img src="@/assets/icons/edit.svg" alt="edit" class="action-icon" />
                 </button>
-                <button 
-                  v-if="isPublished(post.status)" 
-                  class="action-btn unpublish" 
-                  @click="unpublishPost(post.id)" 
-                  title="转为草稿"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="action-icon-svg">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/>
-                    <line x1="12" y1="13" x2="12" y2="19"/>
-                    <polyline points="9 16 12 19 15 16"/>
+                <button v-if="isDraft(post.status)" class="action-btn preview" @click="openPreview(post)" title="预览">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="action-icon-svg">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
                   </svg>
                 </button>
                 <button 
@@ -538,24 +531,6 @@
       </template>
     </ConfirmModal>
 
-    <ConfirmModal
-      v-model:visible="showUnpublishModal"
-      title="确认转为草稿"
-      :post-title="postToUnpublish?.title"
-      hint="转为草稿后帖子将不再公开展示，你可以随时重新发布。"
-      confirm-text="确认转为草稿"
-      @confirm="doUnpublish"
-      @cancel="cancelUnpublish"
-    >
-      <template #icon>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modal-warn-icon">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
-          <line x1="12" y1="13" x2="12" y2="19"/>
-          <polyline points="9 16 12 19 15 16"/>
-        </svg>
-      </template>
-    </ConfirmModal>
 
     <ConfirmModal
       v-model:visible="showRestoreModal"
@@ -615,6 +590,69 @@
       </template>
     </ConfirmModal>
 
+    <!-- 预览弹窗 -->
+    <Teleport to="body">
+      <Transition name="preview-fade">
+        <div v-if="showPreviewModal" class="preview-overlay" @click.self="closePreview" @keydown.escape="closePreview">
+          <div class="preview-dialog">
+            <div class="preview-dialog-header">
+              <span class="preview-status-tag" :class="'status-' + (previewPost?.status ?? 0)">
+                {{ previewPost ? statusText(previewPost.status) : '' }}
+              </span>
+              <button class="preview-close-btn" @click="closePreview">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+
+            <div class="preview-dialog-body" v-if="previewPost">
+              <div class="preview-category" v-if="previewPost.categoryName">
+                <span class="preview-category-tag">{{ previewPost.categoryName }}</span>
+              </div>
+
+              <h2 class="preview-title">{{ previewPost.title }}</h2>
+
+              <div class="preview-images" v-if="previewPost.images && previewPost.images.length > 0">
+                <div class="preview-carousel" :style="{ aspectRatio: previewCarouselRatio }">
+                  <div class="preview-carousel-track" :style="{ transform: `translateX(-${previewImageIndex * 100}%)` }">
+                    <img
+                      v-for="(img, index) in previewPost.images"
+                      :key="index"
+                      :src="img"
+                      :alt="'图片' + (index + 1)"
+                      class="preview-carousel-slide"
+                      @load="(e) => onPreviewImageLoad(index, e)"
+                    />
+                  </div>
+                  <button v-if="previewPost.images.length > 1" class="preview-carousel-arrow preview-carousel-prev" @click="previewImageIndex = Math.max(0, previewImageIndex - 1)">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                  </button>
+                  <button v-if="previewPost.images.length > 1" class="preview-carousel-arrow preview-carousel-next" @click="previewImageIndex = Math.min((previewPost.images?.length ?? 1) - 1, previewImageIndex + 1)">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+                  </button>
+                  <div class="preview-carousel-dots" v-if="previewPost.images.length > 1">
+                    <span v-for="(_, index) in previewPost.images" :key="index" class="preview-carousel-dot" :class="{ active: index === previewImageIndex }" @click="previewImageIndex = index"></span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="preview-content" v-if="previewPost.content">
+                <p v-for="(paragraph, index) in previewParagraphs" :key="index" class="preview-paragraph">
+                  {{ paragraph }}
+                </p>
+              </div>
+
+              <div class="preview-tags" v-if="previewPost.tags && previewPost.tags.length > 0">
+                <span v-for="tag in previewPost.tags" :key="tag" class="preview-tag-item">#{{ tag }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
   </div>
 </template>
 
@@ -651,11 +689,24 @@ const dataLoading = ref(false)
 const fansLoading = ref(false)
 const commentsLoading = ref(false)
 const showDeleteModal = ref(false)
-const showUnpublishModal = ref(false)
 const showPublishModal = ref(false)
 const showRestoreModal = ref(false)
 const showDeleteCommentModal = ref(false)
 const showPermanentDeleteModal = ref(false)
+const showPreviewModal = ref(false)
+const previewPost = ref<PostVO | null>(null)
+const previewImageIndex = ref(0)
+const previewImageRatios = ref<number[]>([])
+
+function onPreviewImageLoad(index: number, e: Event) {
+  const img = e.target as HTMLImageElement
+  previewImageRatios.value[index] = img.naturalWidth / img.naturalHeight
+}
+
+const previewCarouselRatio = computed(() => {
+  const ratio = previewImageRatios.value[previewImageIndex.value]
+  return ratio ? `${ratio}` : '4/3'
+})
 const activeNav = ref<'home' | 'content' | 'fans' | 'interaction' | 'magic' | 'agreement' | 'publish'>('home')
 const postCreateRef = ref<InstanceType<typeof PostCreate>>()
 
@@ -672,7 +723,6 @@ const switchNav = async (nav: typeof activeNav.value) => {
 }
 
 const postToDelete = ref<PostVO | null>(null)
-const postToUnpublish = ref<PostVO | null>(null)
 const postToPublish = ref<PostVO | null>(null)
 const postToRestore = ref<PostVO | null>(null)
 const commentToDelete = ref<CommentVO | null>(null)
@@ -854,6 +904,22 @@ const editPost = (postId: string) => {
   navigateToPublish(postId)
 }
 
+const openPreview = (post: PostVO) => {
+  previewPost.value = post
+  showPreviewModal.value = true
+}
+
+const closePreview = () => {
+  showPreviewModal.value = false
+  previewPost.value = null
+  previewImageIndex.value = 0
+  previewImageRatios.value = []
+}
+
+const previewParagraphs = computed(() => {
+  return previewPost.value?.content?.split('\n').filter(p => p.trim()) || []
+})
+
 const publishPost = (postId: string) => {
   postToPublish.value = posts.value.find(p => p.id === postId) || null
   showPublishModal.value = true
@@ -900,31 +966,6 @@ const doPublish = async () => {
 const cancelPublish = () => {
   showPublishModal.value = false
   postToPublish.value = null
-}
-
-const unpublishPost = (postId: string) => {
-  postToUnpublish.value = posts.value.find(p => p.id === postId) || null
-  showUnpublishModal.value = true
-}
-
-const doUnpublish = async () => {
-  if (!postToUnpublish.value) return
-  try {
-    await updatePost({ id: postToUnpublish.value.id, status: 0 })
-    const post = posts.value.find(p => p.id === postToUnpublish.value?.id)
-    if (post) post.status = 0
-    ElMessage.success('已转为草稿')
-    showUnpublishModal.value = false
-    postToUnpublish.value = null
-  } catch (error) {
-    console.error('转为草稿失败:', error)
-    ElMessage.error('转为草稿失败')
-  }
-}
-
-const cancelUnpublish = () => {
-  showUnpublishModal.value = false
-  postToUnpublish.value = null
 }
 
 const restorePost = (postId: string) => {
@@ -1739,7 +1780,11 @@ watch(activeNav, (val) => {
   transition: transform 0.22s ease-out;
 }
 
-.content-cover:hover img {
+.content-cover.clickable {
+  cursor: pointer;
+}
+
+.content-cover.clickable:hover img {
   transform: scale(1.05);
 }
 
@@ -1756,11 +1801,14 @@ watch(activeNav, (val) => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  cursor: pointer;
   transition: color 0.22s ease-out;
 }
 
-.content-title:hover {
+.content-title.clickable {
+  cursor: pointer;
+}
+
+.content-title.clickable:hover {
   color: var(--pink);
 }
 
@@ -1886,13 +1934,18 @@ watch(activeNav, (val) => {
   filter: brightness(0) saturate(100%) invert(66%) sepia(41%) saturate(2417%) hue-rotate(302deg) brightness(101%) contrast(101%);
 }
 
-.action-btn.unpublish .action-icon-svg {
-  color: #8b5cf6;
-}
-
 .action-btn.edit:hover {
   background: linear-gradient(135deg, rgba(255, 107, 157, 0.12), rgba(180, 132, 255, 0.12));
   border-color: rgba(255, 107, 157, 0.3);
+}
+
+.action-btn.preview .action-icon-svg {
+  color: #6366f1;
+}
+
+.action-btn.preview:hover {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+  border-color: rgba(99, 102, 241, 0.3);
 }
 
 .action-btn.publish:hover {
@@ -2851,5 +2904,248 @@ watch(activeNav, (val) => {
 .comment-post-option-status.status-2 {
   color: #ef4444;
   background: rgba(239, 68, 68, 0.12);
+}
+
+/* ===== 预览弹窗 ===== */
+.preview-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.preview-dialog {
+  background: white;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 720px;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 16px 48px rgba(120, 60, 160, 0.2);
+}
+
+.preview-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: white;
+  border-radius: 20px 20px 0 0;
+  z-index: 1;
+}
+
+.preview-status-tag {
+  font-size: 13px;
+  padding: 4px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.preview-status-tag.status-0 {
+  background: rgba(255, 152, 0, 0.12);
+  color: #f57c00;
+}
+
+.preview-status-tag.status-1 {
+  background: rgba(76, 175, 80, 0.12);
+  color: #2e7d32;
+}
+
+.preview-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s ease;
+  color: #8b7a9e;
+}
+
+.preview-close-btn:hover {
+  background: rgba(255, 107, 157, 0.12);
+  color: #ff6b9d;
+  transform: rotate(90deg);
+}
+
+.preview-close-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.preview-dialog-body {
+  padding: 24px;
+}
+
+.preview-category {
+  margin-bottom: 12px;
+}
+
+.preview-category-tag {
+  display: inline-block;
+  font-size: 13px;
+  color: var(--pink);
+  background: rgba(255, 107, 157, 0.08);
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.preview-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.preview-images {
+  margin-bottom: 20px;
+}
+
+.preview-carousel {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #f5f5f8;
+}
+
+.preview-carousel-track {
+  display: flex;
+  transition: transform 0.35s ease;
+  height: 100%;
+}
+
+.preview-carousel-slide {
+  min-width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #f5f5f8;
+}
+
+.preview-carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.35);
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.22s ease;
+  z-index: 2;
+}
+
+.preview-carousel-arrow:hover {
+  background: rgba(0, 0, 0, 0.55);
+  transform: translateY(-50%) scale(1.08);
+}
+
+.preview-carousel-prev {
+  left: 12px;
+}
+
+.preview-carousel-next {
+  right: 12px;
+}
+
+.preview-carousel-dots {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 2;
+}
+
+.preview-carousel-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: all 0.22s ease;
+}
+
+.preview-carousel-dot.active {
+  background: white;
+  transform: scale(1.3);
+}
+
+.preview-content {
+  margin-bottom: 20px;
+}
+
+.preview-paragraph {
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.preview-paragraph:last-child {
+  margin-bottom: 0;
+}
+
+.preview-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 107, 157, 0.08);
+}
+
+.preview-tag-item {
+  font-size: 13px;
+  color: var(--purple);
+  background: rgba(180, 132, 255, 0.08);
+  padding: 4px 12px;
+  border-radius: 14px;
+  font-weight: 500;
+}
+
+/* 预览弹窗过渡动画 */
+.preview-fade-enter-active {
+  transition: opacity 0.25s ease;
+}
+.preview-fade-enter-active .preview-dialog {
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+.preview-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.preview-fade-leave-active .preview-dialog {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.preview-fade-enter-from {
+  opacity: 0;
+}
+.preview-fade-enter-from .preview-dialog {
+  transform: scale(0.95) translateY(20px);
+  opacity: 0;
+}
+.preview-fade-leave-to {
+  opacity: 0;
+}
+.preview-fade-leave-to .preview-dialog {
+  transform: scale(0.95) translateY(20px);
+  opacity: 0;
 }
 </style>
