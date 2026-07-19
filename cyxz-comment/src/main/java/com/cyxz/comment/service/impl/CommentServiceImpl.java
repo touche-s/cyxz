@@ -568,4 +568,34 @@ public class CommentServiceImpl implements CommentService {
         Result<Map<Long, UserProfileVO>> result = userFeignClient.batchGetByIds(new ArrayList<>(userIds));
         return result != null && result.getData() != null ? result.getData() : Collections.emptyMap();
     }
+
+    /**
+     * 删除指定帖子下的所有评论及评论点赞（物理删除）
+     * <p>先查帖子下所有评论 ID，再批量删 comment_like 和 comment，用于帖子彻底删除时的级联清理。
+     *
+     * @param postId 帖子 ID
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteCommentsByPostId(Long postId) {
+        List<Long> commentIds = commentMapper.selectList(
+                new LambdaQueryWrapper<CommentPO>()
+                    .eq(CommentPO::getPostId, postId)
+                    .select(CommentPO::getId))
+                .stream()
+                .map(CommentPO::getId)
+                .collect(Collectors.toList());
+
+        if (!commentIds.isEmpty()) {
+            commentLikeMapper.delete(
+                    new LambdaQueryWrapper<CommentLikePO>()
+                        .in(CommentLikePO::getCommentId, commentIds));
+            log.info("删除帖子关联评论点赞: postId={}, commentCount={}", postId, commentIds.size());
+        }
+
+        commentMapper.delete(
+                new LambdaQueryWrapper<CommentPO>()
+                    .eq(CommentPO::getPostId, postId));
+        log.info("删除帖子关联评论: postId={}, count={}", postId, commentIds.size());
+    }
 }

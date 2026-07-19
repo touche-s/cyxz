@@ -72,6 +72,22 @@ public class PostController {
     }
 
     /**
+     * 彻底删除帖子（物理删除 + 级联清理）
+     * <p>仅允许删除回收站中（status=2）的帖子，
+     * 同时清理评论、评论点赞、帖子点赞、帖子收藏。
+     *
+     * @param postId 帖子 ID
+     * @param userId 当前登录用户 ID（由 Gateway 注入）
+     * @return 操作结果
+     */
+    @DeleteMapping("/{postId}/permanent")
+    public Result<Void> deletePermanent(@PathVariable("postId") Long postId,
+                                        @CurrentUser Long userId) {
+        postService.hardDeletePost(userId, postId);
+        return Result.success("彻底删除成功");
+    }
+
+    /**
      * 查询帖子详情
      *
      * @param postId        帖子 ID

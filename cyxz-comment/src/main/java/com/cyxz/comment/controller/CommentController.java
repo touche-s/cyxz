@@ -144,4 +144,17 @@ public class CommentController {
                                                  @RequestParam(value = "sortAsc", defaultValue = "false") boolean sortAsc) {
         return Result.success(commentService.listManagedComments(userId, postId, page, size, sortAsc));
     }
+
+    /**
+     * 删除帖子下的所有评论及评论点赞（内部接口）
+     * <p>供 post 服务在彻底删除帖子时调用，级联清理关联数据。
+     *
+     * @param postId 帖子 ID
+     * @return 操作结果
+     */
+    @DeleteMapping("/internal/post/{postId}")
+    public Result<Void> deleteByPostId(@PathVariable("postId") Long postId) {
+        commentService.deleteCommentsByPostId(postId);
+        return Result.success();
+    }
 }

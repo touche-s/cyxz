@@ -50,6 +50,16 @@ public interface PostService {
     void deletePost(Long userId, Long postId);
 
     /**
+     * 彻底删除帖子（物理删除 + 级联清理关联数据）
+     * <p>仅允许删除 status=2 的帖子（已在回收站中的帖子），
+     * 同时清理评论、评论点赞、帖子点赞、帖子收藏等关联数据。
+     *
+     * @param userId 当前登录用户 ID
+     * @param postId 帖子 ID
+     */
+    void hardDeletePost(Long userId, Long postId);
+
+    /**
      * 根据 ID 查询帖子详情
      * <p>已删除的帖子不可查看，草稿仅作者本人可查看。
      *

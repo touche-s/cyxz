@@ -93,4 +93,12 @@ public interface CommentService {
      * @return 分页结果（含帖子标题、回复目标用户昵称）
      */
     PageResult<CommentVO> listManagedComments(Long currentUserId, Long postId, int page, int size, boolean sortAsc);
+
+    /**
+     * 删除指定帖子下的所有评论及评论点赞（物理删除，内部接口）
+     * <p>用于帖子彻底删除时级联清理关联数据。
+     *
+     * @param postId 帖子 ID
+     */
+    void deleteCommentsByPostId(Long postId);
 }

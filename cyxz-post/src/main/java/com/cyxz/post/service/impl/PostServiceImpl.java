@@ -12,6 +12,7 @@ import com.cyxz.common.utils.IpUtil;
 import com.cyxz.post.vo.PostInfoVO;
 import com.cyxz.post.vo.PostStatsVO;
 import com.cyxz.post.vo.ReceivedLikeVO;
+import com.cyxz.comment.feign.CommentFeignClient;
 import com.cyxz.user.feign.UserFeignClient;
 import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
@@ -51,6 +52,7 @@ public class PostServiceImpl implements PostService {
     private final CategoryService categoryService;
     private final PostLikeMapper postLikeMapper;
     private final PostCollectMapper postCollectMapper;
+    private final CommentFeignClient commentFeignClient;
     private final UserFeignClient userFeignClient;
     private final StringRedisTemplate stringRedisTemplate;
 
@@ -65,6 +67,9 @@ public class PostServiceImpl implements PostService {
      */
     @Override
     public Long createPost(Long userId, CreatePostRequest request) {
+        if (request.getStatus() != null && request.getStatus() == 1 && request.getCategoryId() == null) {
+            throw new BusinessException(ErrorCode.PARAM_MISSING, "发布时分类不能为空");
+        }
         PostPO po = new PostPO();
         po.setUserId(userId);
         po.setCategoryId(request.getCategoryId());
@@ -149,6 +154,49 @@ public class PostServiceImpl implements PostService {
         po.setStatus(2);
         postMapper.updateById(po);
         log.info("软删除帖子成功: postId={}, userId={}", postId, userId);
+    }
+
+    /**
+     * 彻底删除帖子（物理删除 + 级联清理关联数据）
+     * <p>仅允许删除 status=2 的帖子（已在回收站中），
+     * 同时通过 Feign 清理评论和评论点赞，本地清理帖子点赞、帖子收藏。
+     *
+     * @param userId 当前登录用户 ID
+     * @param postId 帖子 ID
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void hardDeletePost(Long userId, Long postId) {
+        PostPO po = postMapper.selectById(postId);
+        if (po == null) {
+            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
+        }
+        if (!po.getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        if (po.getStatus() != 2) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "仅回收站中的帖子可彻底删除");
+        }
+
+        // 1. 删除帖子下的评论和评论点赞（Feign 调 comment 服务）
+        Result<Void> commentResult = commentFeignClient.deleteByPostId(postId);
+        if (commentResult == null || commentResult.getCode() != 200) {
+            log.warn("删除帖子关联评论失败: postId={}, result={}", postId, commentResult);
+        }
+
+        // 2. 删除帖子点赞
+        postLikeMapper.delete(
+                new LambdaQueryWrapper<PostLikePO>()
+                    .eq(PostLikePO::getPostId, postId));
+
+        // 3. 删除帖子收藏
+        postCollectMapper.delete(
+                new LambdaQueryWrapper<PostCollectPO>()
+                    .eq(PostCollectPO::getPostId, postId));
+
+        // 4. 删除帖子主表
+        postMapper.deleteById(postId);
+        log.info("彻底删除帖子成功: postId={}, userId={}", postId, userId);
     }
 
     /**
