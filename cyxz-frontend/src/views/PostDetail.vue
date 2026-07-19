@@ -208,7 +208,8 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getPostDetail, likePost, unlikePost, collectPost, uncollectPost, recordPostView } from '@/api/post'
-import { formatNumber, formatTime, formatDateTime } from '@/utils/format'
+import { isPublished } from '@/utils/postStatus'
+import { formatDateTime, formatNumber } from '@/utils/format'
 import {
   getCommentList,
   createComment,
@@ -341,6 +342,13 @@ const loadPost = async () => {
     const res = await getPostDetail(postId)
     if (res.data.code === 200) {
       post.value = res.data.data as PostVO
+      // 非已发布内容不进详情页
+      if (!isPublished(post.value.status)) {
+        post.value = null
+        ElMessage.warning('该内容不可查看')
+        loading.value = false
+        return
+      }
       liked.value = post.value.liked || false
       collected.value = post.value.collected || false
       // 非作者本人时查询关注状态
