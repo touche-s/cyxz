@@ -70,6 +70,7 @@ public class CommentServiceImpl implements CommentService {
         } else {
             log.warn("获取帖子作者返回为空: postId={}, resultCode={}",
                 request.getPostId(), result != null ? result.getCode() : "null");
+            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
 
         commentMapper.insert(po);

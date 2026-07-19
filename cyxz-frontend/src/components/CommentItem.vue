@@ -87,7 +87,7 @@
               :is-reply="true"
               @like="(c) => $emit('like', c)"
               @reply="(payload) => $emit('reply', payload)"
-              @deleted="(id) => $emit('deleted', id)"
+              @deleted="handleChildDeleted"
             />
           </div>
 
@@ -130,7 +130,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { likeComment, unlikeComment, deleteComment, getCommentReplies } from '@/api/comment'
 import type { CommentVO } from '@/api/comment'
 import { useUserStore } from '@/stores/user'
@@ -206,14 +206,37 @@ const isOwner = computed(() => {
 
 const handleDelete = async () => {
   try {
+    await ElMessageBox.confirm('确定要删除这条评论吗？', '删除评论', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
     const res = await deleteComment(props.comment.id)
     if (res.data.code === 200) {
       ElMessage.success('删除成功')
       emit('deleted', props.comment.id)
     }
-  } catch {
-    ElMessage.error('删除失败')
+  } catch (e: any) {
+    if (e !== 'cancel' && e !== 'close') {
+      ElMessage.error('删除失败')
+    }
   }
+}
+
+/** 子回复被删除时：清理本地缓存并通知父组件更新总数 */
+const handleChildDeleted = (childId: string) => {
+  // 从已加载的所有回复页中移除该条
+  for (let i = 0; i < replyPages.value.length; i++) {
+    if (replyPages.value[i]) {
+      replyPages.value[i] = replyPages.value[i].filter(c => c.id !== childId)
+    }
+  }
+  // 更新顶部显示的回复数
+  if (props.comment.totalReplies != null) {
+    props.comment.totalReplies = Math.max(0, props.comment.totalReplies - 1)
+  }
+  // 继续冒泡到 PostDetail 更新全局 commentTotal
+  emit('deleted', childId)
 }
 
 // ===== 子回复：分页加载 =====

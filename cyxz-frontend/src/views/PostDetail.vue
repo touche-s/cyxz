@@ -547,8 +547,11 @@ const cancelReply = () => {
 }
 
 const handleCommentDeleted = (commentId: string) => {
-  // 从列表中移除该评论
-  comments.value = comments.value.filter(c => c.id !== commentId)
+  // 从顶级列表移除（如果是顶级评论）；子回复由 CommentItem 本地清理
+  const idx = comments.value.findIndex(c => c.id === commentId)
+  if (idx !== -1) {
+    comments.value.splice(idx, 1)
+  }
   commentTotal.value = Math.max(0, commentTotal.value - 1)
 }
 
