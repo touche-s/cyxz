@@ -8,10 +8,13 @@
       <div class="profile-card">
         <div class="pc-top">
           <div class="pc-left">
-            <div class="avatar-wrapper" @click="isSelf && startEdit()">
+            <div class="avatar-wrapper" :class="{ clickable: isSelf }" @click="isSelf && router.push('/user-center?tab=avatar')">
               <div class="profile-avatar">
                 <img v-if="profile.avatar" :src="profile.avatar" alt="avatar" class="profile-avatar-img" />
                 <span v-else>{{ (profile.nickname || 'U').charAt(0) }}</span>
+                <div v-if="isSelf" class="avatar-hover-overlay">
+                  <span>更换头像</span>
+                </div>
               </div>
             </div>
             <div class="pc-info">
@@ -22,10 +25,7 @@
             </div>
           </div>
           <div class="pc-right">
-            <template v-if="isSelf">
-              <button class="pc-action-btn pc-edit-btn" @click="startEdit">编辑资料</button>
-            </template>
-            <template v-else>
+            <template v-if="!isSelf">
               <FollowButton
                 :following="following"
                 :loading="followLoading"
@@ -107,148 +107,33 @@
         <div v-else class="loading-placeholder">加载中...</div>
       </div>
     </div>
-
-    <Teleport to="body">
-      <Transition name="modal-slide">
-        <div v-if="showEdit" class="edit-overlay" @click.self="cancelEdit">
-          <div class="edit-modal">
-            <span class="modal-deco deco-tl"></span>
-            <span class="modal-deco deco-br"></span>
-
-            <button class="edit-close" @click="cancelEdit">✕</button>
-            <h3 class="edit-title">编辑资料</h3>
-            <div class="edit-divider"></div>
-
-            <div class="avatar-upload-row">
-              <div class="avatar-preview" @click="triggerUpload">
-                <img v-if="editForm.avatar" :src="editForm.avatar" alt="avatar" />
-                <span v-else class="avatar-placeholder">{{ (editForm.nickname || 'U').charAt(0) }}</span>
-                <div class="avatar-upload-mask">
-                  <svg class="avatar-upload-camera" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                    <circle cx="12" cy="13" r="4"/>
-                  </svg>
-                  <span>更换头像</span>
-                </div>
-              </div>
-              <input
-                ref="fileInput"
-                type="file"
-                accept="image/png,image/jpeg,image/gif"
-                style="display:none"
-                @change="handleAvatarChange"
-              />
-              <div class="avatar-upload-hint">支持 PNG / JPG / GIF，最大 10MB</div>
-            </div>
-
-            <div v-if="avatarHistory.length > 0" class="avatar-history">
-              <div class="history-label">历史头像</div>
-              <div class="history-list">
-                <div
-                  v-for="(url, idx) in avatarHistory"
-                  :key="idx"
-                  class="history-item"
-                  :class="{ active: url === editForm.avatar }"
-                  @click="editForm.avatar = url"
-                >
-                  <img :src="url" alt="" />
-                  <button
-                    class="history-delete"
-                    @click.stop="deleteAvatarHistory(url, idx)"
-                  >×</button>
-                </div>
-              </div>
-            </div>
-
-            <el-form :model="editForm" label-position="top">
-              <el-form-item label="昵称">
-                <el-input v-model="editForm.nickname" maxlength="20" placeholder="输入你的昵称" />
-              </el-form-item>
-              <el-form-item label="简介">
-                <el-input v-model="editForm.bio" type="textarea" :rows="3" maxlength="200" placeholder="介绍一下自己吧~" />
-              </el-form-item>
-              <el-form-item label="生日">
-                <el-date-picker
-                  v-model="editForm.birthday"
-                  type="date"
-                  placeholder="选择你的生日"
-                  class="birthday-picker"
-                />
-              </el-form-item>
-              <el-form-item label="性别" class="gender-item">
-                <el-radio-group v-model="editForm.gender" class="gender-group">
-                  <el-radio :value="0">保密</el-radio>
-                  <el-radio :value="1">男</el-radio>
-                  <el-radio :value="2">女</el-radio>
-                </el-radio-group>
-              </el-form-item>
-            </el-form>
-            <div class="edit-actions">
-              <el-button class="edit-cancel-btn" @click="cancelEdit">取消</el-button>
-              <el-button class="edit-save-btn" type="primary" @click="saveEdit" :loading="saving">保存</el-button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
-
-    <ImageCropper
-      ref="avatarCropperRef"
-      :visible="showAvatarCropper"
-      title="裁剪头像"
-      :aspect-ratio="1"
-      :circular="true"
-      @crop="onAvatarCrop"
-      @cancel="showAvatarCropper = false"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, reactive } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getUserProfile, updateUserProfile } from '@/api/user'
+import { getUserProfile } from '@/api/user'
 import type { UserInfo } from '@/api/user'
-import { uploadAvatar, getAvatarHistory, deleteUploadedFile } from '@/api/upload'
 import { getUserPostsByTarget, getUserFavorites } from '@/api/post'
 import type { PostVO } from '@/api/post'
 import { usePostStats } from '@/composables/usePostStats'
 import { useUserStore } from '@/stores/user'
-import { useAuth } from '@/composables/useAuth'
 import { useFollow } from '@/composables/useFollow'
-import { formatDate } from '@/utils/format'
 import PostCard from '@/components/PostCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import FollowButton from '@/components/FollowButton.vue'
-import ImageCropper from '@/components/ImageCropper.vue'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
-const { requireLogin } = useAuth()
 const { following, followLoading, checkFollowing, toggleFollow: doFollow } = useFollow()
 const { stats: postStats, loadUserStats: loadPostStats } = usePostStats()
 
 const profile = ref<UserInfo | null>(null)
 const loading = ref(true)
-const showEdit = ref(false)
-const saving = ref(false)
-const uploading = ref(false)
-const fileInput = ref<HTMLInputElement>()
-const avatarCropperRef = ref<InstanceType<typeof ImageCropper> | null>(null)
-const showAvatarCropper = ref(false)
-const avatarHistory = ref<string[]>([])
-const pendingAvatars = ref<string[]>([])
 const activeTab = ref('works')
-
-const editForm = reactive({
-  nickname: '',
-  bio: '',
-  gender: 0,
-  avatar: '',
-  birthday: '',
-})
 
 const posts = ref<PostVO[]>([])
 const favorites = ref<PostVO[]>([])
@@ -317,120 +202,6 @@ function onTabChange(tab: string) {
     loadPosts(userId)
   } else if (tab === 'favorites' && favorites.value.length === 0) {
     loadFavorites(userId)
-  }
-}
-
-function startEdit() {
-  if (!profile.value) return
-  editForm.nickname = profile.value.nickname
-  editForm.bio = profile.value.bio || ''
-  editForm.gender = profile.value.gender ?? 0
-  editForm.avatar = profile.value.avatar || ''
-  editForm.birthday = profile.value.birthday || ''
-  pendingAvatars.value = []
-  showEdit.value = true
-  loadAvatarHistory()
-}
-
-async function loadAvatarHistory() {
-  try {
-    const res = await getAvatarHistory()
-    const data = (res.data as any).data || res.data
-    avatarHistory.value = Array.isArray(data) ? data : []
-  } catch {
-    // 静默失败，不影响编辑
-  }
-}
-
-async function deleteAvatarHistory(url: string, idx: number) {
-  if (url === profile.value?.avatar) {
-    ElMessage.warning('不能删除当前正在使用的头像')
-    return
-  }
-  try {
-    await deleteUploadedFile(url)
-    avatarHistory.value.splice(idx, 1)
-    if (editForm.avatar === url) {
-      editForm.avatar = avatarHistory.value[0] || ''
-    }
-  } catch {
-    ElMessage.error('删除失败')
-  }
-}
-
-function triggerUpload() {
-  fileInput.value?.click()
-}
-
-async function handleAvatarChange(e: Event) {
-  const input = e.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (!file) return
-
-  if (file.size > 10 * 1024 * 1024) {
-    ElMessage.warning('图片大小不能超过 10MB')
-    return
-  }
-
-  avatarCropperRef.value?.loadImage(file)
-  showAvatarCropper.value = true
-  input.value = ''
-}
-
-async function onAvatarCrop(blob: Blob) {
-  showAvatarCropper.value = false
-  uploading.value = true
-  try {
-    const file = new File([blob], 'avatar.jpg', { type: 'image/jpeg' })
-    const res = await uploadAvatar(file)
-    const data = (res.data as any).data || res.data
-    const url = typeof data === 'string' ? data : data?.url
-    if (url) {
-      editForm.avatar = url
-      pendingAvatars.value.push(url)
-      ElMessage.success('头像上传成功')
-    }
-  } catch {
-    ElMessage.error('头像上传失败')
-  } finally {
-    uploading.value = false
-  }
-}
-
-function cancelEdit() {
-  // 清理未保存的头像文件
-  for (const url of pendingAvatars.value) {
-    deleteUploadedFile(url).catch(() => {})
-  }
-  pendingAvatars.value = []
-  showEdit.value = false
-}
-
-async function saveEdit() {
-  saving.value = true
-  try {
-    const payload = {
-      ...editForm,
-      birthday: editForm.birthday ? formatDate(editForm.birthday) : '',
-    }
-    await updateUserProfile(payload)
-    if (profile.value) {
-      profile.value.nickname = editForm.nickname
-      profile.value.bio = editForm.bio
-      profile.value.gender = editForm.gender
-      profile.value.avatar = editForm.avatar
-      profile.value.birthday = editForm.birthday
-    }
-    if (isSelf.value && userStore.userInfo) {
-      userStore.setUserInfo({ ...userStore.userInfo, nickname: editForm.nickname, avatar: editForm.avatar } as any)
-    }
-    ElMessage.success('保存成功')
-    pendingAvatars.value = []
-    showEdit.value = false
-  } catch {
-    ElMessage.error('保存失败')
-  } finally {
-    saving.value = false
   }
 }
 
@@ -564,9 +335,8 @@ function goToPost(post: PostVO) {
   flex-shrink: 0;
   align-self: flex-end;
 }
-.avatar-wrapper:hover .avatar-edit-badge {
-  transform: translate(50%, -50%) scale(1.15);
-  opacity: 1;
+.avatar-wrapper.clickable {
+  cursor: pointer;
 }
 .profile-avatar {
   width: 96px;
@@ -592,22 +362,28 @@ function goToPost(post: PostVO) {
 .avatar-wrapper:hover .profile-avatar {
   transform: scale(1.04);
 }
-.avatar-edit-badge {
+.avatar-wrapper.clickable:hover .profile-avatar-img {
+  filter: blur(4px) brightness(0.6);
+}
+.avatar-wrapper.clickable:hover .avatar-hover-overlay {
+  opacity: 1;
+}
+.avatar-hover-overlay {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  border: 2.5px solid white;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.7;
-  transform: translate(50%, -50%) scale(1);
-  transition: all 0.25s ease;
-  box-shadow: 0 2px 8px rgba(255,107,157,0.3);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.22s ease;
+  z-index: 1;
+}
+.avatar-hover-overlay span {
+  color: #FF6B9D;
+  font-size: 13px;
+  font-weight: 700;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
 }
 
 /* ===== Tab 栏 ===== */
@@ -777,339 +553,6 @@ function goToPost(post: PostVO) {
   padding: 60px 0;
   color: var(--text-dim);
   font-size: 14px;
-}
-
-/* ===== 编辑资料弹窗（保持不变） ===== */
-.avatar-upload-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-.avatar-preview {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  position: relative;
-  cursor: pointer;
-  overflow: hidden;
-  flex-shrink: 0;
-  border: 3px solid rgba(255,138,200,0.15);
-}
-.avatar-preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.avatar-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #FF8AC8, #B484FF);
-  color: white;
-  font-size: 28px;
-  font-weight: 800;
-}
-.avatar-upload-mask {
-  position: absolute;
-  inset: 0;
-  background: rgba(0,0,0,0.35);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  opacity: 0;
-  transition: opacity 0.25s ease;
-}
-.avatar-upload-mask span {
-  color: white;
-  font-size: 12px;
-  font-weight: 600;
-}
-.avatar-upload-camera {
-  width: 24px;
-  height: 24px;
-  transition: transform 0.3s ease;
-}
-.avatar-preview:hover .avatar-upload-mask { opacity: 1; }
-.avatar-preview:hover .avatar-upload-camera {
-  animation: cameraPop 0.4s ease-out;
-}
-@keyframes cameraPop {
-  0% { transform: scale(0.3); opacity: 0; }
-  60% { transform: scale(1.3); }
-  100% { transform: scale(1); opacity: 1; }
-}
-.avatar-upload-hint { font-size: 12px; color: #999; }
-
-.avatar-history {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #eee;
-}
-
-.history-label {
-  font-size: 12px;
-  color: #999;
-  margin-bottom: 8px;
-}
-
-.history-list {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.history-item {
-  position: relative;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  overflow: hidden;
-  cursor: pointer;
-  border: 2px solid transparent;
-  transition: all 0.2s ease;
-  opacity: 0.6;
-}
-
-.history-item:hover {
-  opacity: 1;
-  border-color: rgba(255, 138, 200, 0.4);
-}
-
-.history-item.active {
-  opacity: 1;
-  border-color: #FF8AC8;
-  box-shadow: 0 0 0 3px rgba(255, 138, 200, 0.15);
-}
-
-.history-delete {
-  position: absolute;
-  top: -2px;
-  right: -2px;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(0, 0, 0, 0.45);
-  color: #fff;
-  font-size: 11px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-
-.history-item:hover .history-delete {
-  opacity: 1;
-}
-
-.history-delete:hover {
-  background: #ff4d4f;
-}
-
-.history-item img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.edit-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 300;
-  background: rgba(255,138,200,0.12);
-  backdrop-filter: blur(10px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.edit-modal {
-  background: linear-gradient(180deg, #FFF9FD 0%, #ffffff 100%);
-  border-radius: 20px;
-  padding: 32px 40px 24px;
-  width: 480px;
-  max-width: 92vw;
-  box-shadow:
-    0 8px 30px rgba(255,138,200,0.18),
-    0 2px 8px rgba(255,138,200,0.08);
-  position: relative;
-  overflow: hidden;
-}
-.modal-deco {
-  position: absolute;
-  font-size: 28px;
-  opacity: 0.12;
-  pointer-events: none;
-  user-select: none;
-}
-.deco-tl { top: 12px; left: 16px; }
-.deco-tl::before { content: '✦'; }
-.deco-br { bottom: 12px; right: 16px; }
-.deco-br::before { content: '♡'; }
-
-.edit-title {
-  font-size: 22px;
-  font-weight: 800;
-  margin: 0 0 12px;
-  background: linear-gradient(135deg, #FF8AC8, #B484FF);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.edit-divider {
-  height: 2px;
-  background: linear-gradient(90deg, #FF8AC8, #B484FF, transparent);
-  border-radius: 1px;
-  margin-bottom: 20px;
-  opacity: 0.25;
-}
-.edit-close {
-  position: absolute;
-  top: 14px;
-  right: 18px;
-  background: none;
-  border: none;
-  font-size: 15px;
-  color: #bbb;
-  cursor: pointer;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.22s ease;
-}
-.edit-close:hover {
-  background: rgba(255,138,200,0.1);
-  color: #FF8AC8;
-  transform: scale(1.1);
-}
-.edit-modal :deep(.el-form-item) { margin-bottom: 20px; }
-.edit-modal :deep(.el-form-item__label) {
-  font-size: 14px;
-  font-weight: 600;
-  color: #555;
-  padding-bottom: 8px;
-}
-.edit-modal :deep(.el-input__wrapper) {
-  border-radius: 12px;
-  box-shadow: none;
-  border: 1.5px solid rgba(255,138,200,0.25);
-  padding: 4px 14px;
-  height: 44px;
-  background: white;
-  transition: all 0.22s ease;
-}
-.edit-modal :deep(.el-input__wrapper:hover) { border-color: rgba(255,138,200,0.45); }
-.edit-modal :deep(.el-input__wrapper.is-focus) {
-  border-color: #FF8AC8;
-  box-shadow: 0 0 0 3px rgba(255,138,200,0.12);
-}
-.edit-modal :deep(.el-textarea__inner) {
-  border-radius: 12px;
-  box-shadow: none;
-  border: 1.5px solid rgba(255,138,200,0.25);
-  background: white;
-  transition: all 0.22s ease;
-  min-height: 80px;
-}
-.edit-modal :deep(.el-textarea__inner:hover) { border-color: rgba(255,138,200,0.45); }
-.edit-modal :deep(.el-textarea__inner:focus) {
-  border-color: #FF8AC8;
-  box-shadow: 0 0 0 3px rgba(255,138,200,0.12);
-}
-.gender-item { margin-bottom: 24px !important; }
-.gender-group { display: flex; gap: 24px; }
-.birthday-picker { width: 100%; }
-.edit-modal :deep(.el-radio) {
-  margin-right: 0;
-  padding: 6px 20px;
-  border-radius: 10px;
-  border: 1.5px solid rgba(255,138,200,0.2);
-  transition: all 0.22s ease;
-}
-.edit-modal :deep(.el-radio:hover) {
-  border-color: rgba(255,138,200,0.4);
-  background: rgba(255,138,200,0.03);
-}
-.edit-modal :deep(.el-radio__input) { display: none; }
-.edit-modal :deep(.el-radio__label) {
-  font-size: 14px;
-  font-weight: 500;
-  color: #666;
-  padding-left: 0 !important;
-  transition: color 0.2s;
-}
-.edit-modal :deep(.el-radio.is-checked) {
-  border-color: #FF8AC8;
-  background: rgba(255,138,200,0.04);
-  box-shadow: 0 0 0 3px rgba(255,138,200,0.08);
-}
-.edit-modal :deep(.el-radio.is-checked .el-radio__label) {
-  background: linear-gradient(135deg, #FF8AC8, #B484FF);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  font-weight: 700;
-}
-.edit-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 16px;
-  margin-top: 4px;
-  padding-bottom: 4px;
-}
-.edit-cancel-btn {
-  border-radius: 12px;
-  font-weight: 600;
-  font-size: 14px;
-  padding: 10px 28px;
-  background: white;
-  border: 1.5px solid rgba(255,138,200,0.3) !important;
-  color: #FF8AC8;
-  transition: all 0.22s ease;
-}
-.edit-cancel-btn:hover {
-  background: rgba(255,138,200,0.04);
-  transform: translateY(-1px);
-}
-.edit-save-btn {
-  border-radius: 12px;
-  font-weight: 700;
-  font-size: 14px;
-  padding: 10px 36px;
-  background: linear-gradient(135deg, #FF8AC8, #B484FF);
-  border: none;
-  box-shadow:
-    0 4px 16px rgba(255,138,200,0.25),
-    inset 0 1px 0 rgba(255,255,255,0.2);
-  transition: all 0.22s ease;
-}
-.edit-save-btn:hover {
-  box-shadow:
-    0 6px 24px rgba(255,138,200,0.3),
-    inset 0 1px 0 rgba(255,255,255,0.2);
-  transform: scale(1.03);
-}
-.edit-save-btn:active { transform: scale(0.98); }
-
-.modal-slide-enter-active { transition: all 0.25s ease-out; }
-.modal-slide-leave-active { transition: all 0.2s ease-in; }
-.modal-slide-enter-from {
-  opacity: 0;
-  transform: translateY(20px) scale(0.97);
-}
-.modal-slide-leave-to {
-  opacity: 0;
-  transform: translateY(10px) scale(0.98);
 }
 
 /* 响应式 */

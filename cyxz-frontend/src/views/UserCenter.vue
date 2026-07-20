@@ -1,219 +1,200 @@
 <template>
   <div class="user-center">
-    <div class="page-header">
-      <button class="back-btn" @click="$router.back()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M15 18l-6-6 6-6"/>
-        </svg>
-        返回
-      </button>
-      <h1 class="page-title">个人中心</h1>
-      <div class="placeholder"></div>
-    </div>
+    <div class="user-center-inner">
+    <!-- 左侧导航 -->
+    <aside class="sidebar">
+      <nav class="sidebar-nav">
+        <a
+          v-for="tab in tabs"
+          :key="tab.key"
+          class="nav-item"
+          :class="{ active: activeTab === tab.key }"
+          @click="activeTab = tab.key"
+        >
+          <svg v-if="tab.key === 'home'" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <svg v-else-if="tab.key === 'avatar'" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/></svg>
+          <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          <span>{{ tab.label }}</span>
+        </a>
+      </nav>
+    </aside>
 
-    <div class="center-content">
-      <div class="settings-container">
-        <div class="settings-section profile-section">
-          <div class="profile-header">
-            <div class="avatar-wrapper" @click="startEdit()">
-              <div class="profile-avatar">
-                <img v-if="profile.avatar" :src="profile.avatar" alt="avatar" class="profile-avatar-img" />
-                <span v-else>{{ (profile.nickname || 'U').charAt(0) }}</span>
-              </div>
-              <div class="avatar-edit-badge">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="white" stroke-width="2.5">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                </svg>
-              </div>
-            </div>
-            <div class="profile-info">
-              <h2>{{ profile.nickname }}</h2>
-              <p class="profile-bio">{{ profile.bio || '点击编辑资料完善你的个人信息~' }}</p>
-            </div>
+    <!-- 右侧主内容 -->
+    <main class="main-content">
+      <!-- 首页 -->
+      <template v-if="activeTab === 'home'">
+        <!-- 个人卡片 -->
+        <div class="profile-hero">
+          <div class="hero-avatar">
+            <img v-if="profile.avatar" :src="profile.avatar" alt="" class="hero-avatar-img" />
+            <span v-else class="hero-avatar-text">{{ (profile.nickname || 'U').charAt(0) }}</span>
           </div>
-          <button class="edit-profile-btn" @click="startEdit()">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-            编辑资料
-          </button>
+          <div class="hero-info">
+            <h2>{{ profile.nickname }}</h2>
+            <p>{{ profile.bio || '还没有个性签名，去「我的信息」完善吧~' }}</p>
+          </div>
         </div>
 
-        <div class="settings-section">
-          <h3 class="settings-section-title">隐私设置</h3>
+        <!-- 隐私设置 -->
+        <div class="content-card">
+          <h3 class="section-title">隐私设置</h3>
           <div class="settings-grid">
-            <div class="setting-item">
-              <span class="setting-label">公开我的收藏</span>
-              <el-switch v-model="settings.publicFavorites" />
-            </div>
-            <div class="setting-item">
-              <span class="setting-label">公开我的生日</span>
-              <el-switch v-model="settings.publicBirthday" />
-            </div>
-            <div class="setting-item">
-              <span class="setting-label">公开我的关注列表</span>
-              <el-switch v-model="settings.publicFollowing" />
-            </div>
-            <div class="setting-item">
-              <span class="setting-label">公开我的粉丝列表</span>
-              <el-switch v-model="settings.publicFollowers" />
-            </div>
-            <div class="setting-item">
-              <span class="setting-label">允许他人@我</span>
-              <el-switch v-model="settings.allowMention" />
-            </div>
-            <div class="setting-item">
-              <span class="setting-label">允许他人私信我</span>
-              <el-switch v-model="settings.allowPrivateMessage" />
+            <div class="setting-item" v-for="item in privacySettings" :key="item.key">
+              <span class="setting-label">{{ item.label }}</span>
+              <el-switch v-model="item.value" />
             </div>
           </div>
         </div>
 
-        <div class="settings-section">
-          <h3 class="settings-section-title">通知设置</h3>
+        <!-- 通知设置 -->
+        <div class="content-card">
+          <h3 class="section-title">通知设置</h3>
           <div class="settings-grid">
-            <div class="setting-item">
-              <span class="setting-label">点赞通知</span>
-              <el-switch v-model="settings.notificationLike" />
-            </div>
-            <div class="setting-item">
-              <span class="setting-label">评论通知</span>
-              <el-switch v-model="settings.notificationComment" />
-            </div>
-            <div class="setting-item">
-              <span class="setting-label">收藏通知</span>
-              <el-switch v-model="settings.notificationFavorite" />
-            </div>
-            <div class="setting-item">
-              <span class="setting-label">关注通知</span>
-              <el-switch v-model="settings.notificationFollow" />
+            <div class="setting-item" v-for="item in notificationSettings" :key="item.key">
+              <span class="setting-label">{{ item.label }}</span>
+              <el-switch v-model="item.value" />
             </div>
           </div>
         </div>
 
-        <div class="settings-section">
-          <h3 class="settings-section-title">账号安全</h3>
+        <!-- 账号安全 -->
+        <div class="content-card">
+          <h3 class="section-title">账号安全</h3>
           <div class="settings-list">
-            <div class="setting-row">
-              <img src="@/assets/icons/shield.svg" alt="shield" class="setting-row-icon" />
-              <span class="setting-row-label">修改密码</span>
-              <span class="setting-row-arrow">›</span>
-            </div>
-            <div class="setting-row">
-              <img src="@/assets/icons/info.svg" alt="info" class="setting-row-icon" />
-              <span class="setting-row-label">绑定手机号</span>
-              <span class="setting-row-arrow">›</span>
-            </div>
-            <div class="setting-row">
-              <img src="@/assets/icons/mail.svg" alt="mail" class="setting-row-icon" />
-              <span class="setting-row-label">绑定邮箱</span>
-              <span class="setting-row-arrow">›</span>
+            <div class="setting-row" v-for="item in accountItems" :key="item.label">
+              <img :src="item.icon" alt="" class="setting-row-icon" />
+              <span class="setting-row-label">{{ item.label }}</span>
+              <span v-if="item.value" class="setting-row-value">{{ item.value }}</span>
+              <span v-else class="setting-row-arrow">›</span>
             </div>
           </div>
         </div>
+      </template>
 
-        <div class="settings-section">
-          <h3 class="settings-section-title">关于</h3>
-          <div class="settings-list">
-            <div class="setting-row">
-              <img src="@/assets/icons/info.svg" alt="info" class="setting-row-icon" />
-              <span class="setting-row-label">关于次元小站</span>
-              <span class="setting-row-value">v1.0.0</span>
+      <!-- 我的头像 -->
+      <template v-if="activeTab === 'avatar'">
+        <div class="content-card">
+          <h3 class="section-title">当前头像</h3>
+          <div class="current-avatar">
+            <div class="avatar-preview-lg">
+              <img v-if="profile.avatar" :src="profile.avatar" alt="" />
+              <span v-else class="avatar-placeholder-lg">{{ (profile.nickname || 'U').charAt(0) }}</span>
             </div>
-            <div class="setting-row">
-              <img src="@/assets/icons/info.svg" alt="info" class="setting-row-icon" />
-              <span class="setting-row-label">用户协议</span>
-              <span class="setting-row-arrow">›</span>
+            <div class="avatar-actions">
+              <button class="upload-btn" @click="triggerUpload">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                上传新头像
+              </button>
+              <p class="upload-hint">支持 PNG / JPG / GIF，最大 10MB</p>
             </div>
-            <div class="setting-row">
-              <img src="@/assets/icons/shield.svg" alt="shield" class="setting-row-icon" />
-              <span class="setting-row-label">隐私政策</span>
-              <span class="setting-row-arrow">›</span>
+            <input ref="fileInput" type="file" accept="image/png,image/jpeg,image/gif" style="display:none" @change="handleAvatarChange" />
+          </div>
+        </div>
+
+        <div v-if="avatarHistory.length > 0" class="content-card">
+          <h3 class="section-title">历史头像</h3>
+          <div class="history-grid">
+            <div
+              v-for="(url, idx) in avatarHistory"
+              :key="idx"
+              class="history-avatar"
+              :class="{ current: url === profile.avatar }"
+              @click="setAvatar(url)"
+            >
+              <img :src="url" alt="" />
+              <button class="history-delete" v-if="url !== profile.avatar" @click.stop="deleteHistory(url, idx)">×</button>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+        <div v-else class="content-card">
+          <p class="empty-hint">还没有历史头像，上传第一张吧~</p>
+        </div>
+      </template>
 
-    <Teleport to="body">
-      <Transition name="modal-slide">
-        <div v-if="showEdit" class="edit-overlay" @click.self="cancelEdit">
-          <div class="edit-modal">
-            <span class="modal-deco deco-tl"></span>
-            <span class="modal-deco deco-br"></span>
-
-            <button class="edit-close" @click="cancelEdit">✕</button>
-            <h3 class="edit-title">编辑资料</h3>
-            <div class="edit-divider"></div>
-
-            <div class="avatar-upload-row">
-              <div class="avatar-preview" @click="triggerUpload">
-                <img v-if="editForm.avatar" :src="editForm.avatar" alt="avatar" />
-                <span v-else class="avatar-placeholder">{{ (editForm.nickname || 'U').charAt(0) }}</span>
-                <div class="avatar-upload-mask">
-                  <svg class="avatar-upload-camera" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="white" stroke-width="2">
-                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                    <circle cx="12" cy="13" r="4"/>
-                  </svg>
-                  <span>更换头像</span>
-                </div>
+      <!-- 我的信息 -->
+      <template v-if="activeTab === 'info'">
+        <div class="content-card">
+          <h3 class="section-title">基础信息</h3>
+          <div class="info-form">
+            <div class="form-item">
+              <label class="form-label">昵称</label>
+              <div class="input-with-count">
+                <input v-model="infoForm.nickname" type="text" class="form-input" maxlength="7" placeholder="输入你的昵称" />
+                <span class="char-count">{{ infoForm.nickname.length }}/7</span>
               </div>
-              <input
-                ref="fileInput"
-                type="file"
-                accept="image/png,image/jpeg,image/gif"
-                style="display:none"
-                @change="handleAvatarChange"
-              />
-              <div class="avatar-upload-hint">支持 PNG / JPG / GIF，最大 10MB</div>
             </div>
-
-            <el-form :model="editForm" label-position="top">
-              <el-form-item label="昵称">
-                <el-input v-model="editForm.nickname" maxlength="20" placeholder="输入你的昵称" />
-              </el-form-item>
-              <el-form-item label="简介">
-                <el-input v-model="editForm.bio" type="textarea" :rows="3" maxlength="200" placeholder="介绍一下自己吧~" />
-              </el-form-item>
-              <el-form-item label="生日">
-                <el-date-picker
-                  v-model="editForm.birthday"
-                  type="date"
-                  placeholder="选择你的生日"
-                  class="birthday-picker"
-                />
-              </el-form-item>
-              <el-form-item label="性别" class="gender-item">
-                <el-radio-group v-model="editForm.gender" class="gender-group">
+            <div class="form-item">
+              <label class="form-label">个性签名</label>
+              <div class="input-with-count">
+                <textarea v-model="infoForm.bio" class="form-textarea" maxlength="50" rows="3" placeholder="介绍一下自己吧~"></textarea>
+                <span class="char-count">{{ infoForm.bio.length }}/50</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-item form-item-half">
+                <label class="form-label">生日</label>
+                <el-date-picker v-model="infoForm.birthday" type="date" placeholder="选择生日" class="birthday-picker" />
+              </div>
+              <div class="form-item form-item-half">
+                <label class="form-label">性别</label>
+                <el-radio-group v-model="infoForm.gender" class="gender-group">
                   <el-radio :value="0">保密</el-radio>
                   <el-radio :value="1">男</el-radio>
                   <el-radio :value="2">女</el-radio>
                 </el-radio-group>
-              </el-form-item>
-            </el-form>
-            <div class="edit-actions">
-              <el-button class="edit-cancel-btn" @click="cancelEdit">取消</el-button>
-              <el-button class="edit-save-btn" type="primary" @click="saveEdit" :loading="saving">保存</el-button>
+              </div>
+            </div>
+            <div class="form-actions">
+              <el-button class="save-btn" type="primary" @click="saveInfo" :loading="saving">保存修改</el-button>
             </div>
           </div>
         </div>
-      </Transition>
-    </Teleport>
+      </template>
+    </main>
+    </div>
+
+    <ImageCropper
+      ref="avatarCropperRef"
+      :visible="showAvatarCropper"
+      title="裁剪头像"
+      :aspect-ratio="1"
+      :circular="true"
+      @crop="onAvatarCrop"
+      @cancel="showAvatarCropper = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getMyProfile, updateUserProfile } from '@/api/user'
 import type { UserInfo } from '@/api/user'
-import { uploadAvatar } from '@/api/upload'
+import { uploadAvatar, getAvatarHistory, deleteUploadedFile } from '@/api/upload'
 import { useUserStore } from '@/stores/user'
 import { formatDate } from '@/utils/format'
+import ImageCropper from '@/components/ImageCropper.vue'
+
+import shieldIcon from '@/assets/icons/shield.svg'
+import infoIcon from '@/assets/icons/info.svg'
+import mailIcon from '@/assets/icons/mail.svg'
 
 const userStore = useUserStore()
+const route = useRoute()
+const saving = ref(false)
+const fileInput = ref<HTMLInputElement>()
+const avatarCropperRef = ref<InstanceType<typeof ImageCropper> | null>(null)
+const showAvatarCropper = ref(false)
+const avatarHistory = ref<string[]>([])
+
+const activeTab = ref('home')
+
+const tabs = [
+  { key: 'home', label: '首页' },
+  { key: 'avatar', label: '我的头像' },
+  { key: 'info', label: '我的信息' },
+]
 
 const profile = reactive<UserInfo>({
   userId: 0,
@@ -224,52 +205,68 @@ const profile = reactive<UserInfo>({
   birthday: '',
 })
 
-const showEdit = ref(false)
-const saving = ref(false)
-const fileInput = ref<HTMLInputElement>()
-
-const editForm = reactive({
+const infoForm = reactive({
   nickname: '',
   bio: '',
   gender: 0,
-  avatar: '',
   birthday: '',
 })
 
-const settings = reactive({
-  publicFavorites: false,
-  publicBirthday: true,
-  publicFollowing: true,
-  publicFollowers: true,
-  allowMention: true,
-  allowPrivateMessage: true,
-  notificationLike: true,
-  notificationComment: true,
-  notificationFavorite: true,
-  notificationFollow: true,
-})
+const privacySettings = reactive([
+  { key: 'publicFavorites', label: '公开我的收藏', value: false },
+  { key: 'publicBirthday', label: '公开我的生日', value: true },
+  { key: 'publicFollowing', label: '公开我的关注列表', value: true },
+  { key: 'publicFollowers', label: '公开我的粉丝列表', value: true },
+  { key: 'allowMention', label: '允许他人@我', value: true },
+  { key: 'allowPrivateMessage', label: '允许他人私信我', value: true },
+])
+
+const notificationSettings = reactive([
+  { key: 'notificationLike', label: '点赞通知', value: true },
+  { key: 'notificationComment', label: '评论通知', value: true },
+  { key: 'notificationFavorite', label: '收藏通知', value: true },
+  { key: 'notificationFollow', label: '关注通知', value: true },
+])
+
+const accountItems = [
+  { icon: shieldIcon, label: '修改密码' },
+  { icon: infoIcon, label: '绑定手机号' },
+  { icon: mailIcon, label: '绑定邮箱' },
+  { icon: infoIcon, label: '关于次元小站', value: 'v1.0.0' },
+]
 
 onMounted(async () => {
+  const tab = route.query.tab as string
+  if (tab && tabs.some(t => t.key === tab)) {
+    activeTab.value = tab
+  }
+
   const userId = userStore.userInfo?.id
   if (!userId) return
   try {
     const res = await getMyProfile()
     const data = (res.data as any).data || res.data
     Object.assign(profile, data)
+    syncInfoForm()
   } catch {
     ElMessage.error('加载用户信息失败')
   }
 })
 
-function startEdit() {
-  editForm.nickname = profile.nickname
-  editForm.bio = profile.bio || ''
-  editForm.gender = profile.gender ?? 0
-  editForm.avatar = profile.avatar || ''
-  editForm.birthday = profile.birthday || ''
-  showEdit.value = true
+watch(activeTab, (tab) => {
+  if (tab === 'avatar' && avatarHistory.value.length === 0) {
+    loadHistory()
+  }
+})
+
+function syncInfoForm() {
+  infoForm.nickname = profile.nickname
+  infoForm.bio = profile.bio || ''
+  infoForm.gender = profile.gender ?? 0
+  infoForm.birthday = profile.birthday || ''
 }
 
+// ========== 我的头像 ==========
 function triggerUpload() {
   fileInput.value?.click()
 }
@@ -278,51 +275,85 @@ async function handleAvatarChange(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) return
-
   if (file.size > 10 * 1024 * 1024) {
     ElMessage.warning('图片大小不能超过 10MB')
     return
   }
+  avatarCropperRef.value?.loadImage(file)
+  showAvatarCropper.value = true
+  input.value = ''
+}
 
+async function onAvatarCrop(blob: Blob) {
+  showAvatarCropper.value = false
   try {
+    const file = new File([blob], 'avatar.jpg', { type: 'image/jpeg' })
     const res = await uploadAvatar(file)
     const data = (res.data as any).data || res.data
     const url = typeof data === 'string' ? data : data?.url
     if (url) {
-      editForm.avatar = url
-      ElMessage.success('头像上传成功')
+      profile.avatar = url
+      if (userStore.userInfo) {
+        userStore.setUserInfo({ ...userStore.userInfo, avatar: url } as any)
+      }
+      ElMessage.success('头像更换成功')
+      loadHistory()
     }
   } catch {
     ElMessage.error('头像上传失败')
-  } finally {
-    input.value = ''
   }
 }
 
-function cancelEdit() {
-  showEdit.value = false
+function setAvatar(url: string) {
+  if (url === profile.avatar) return
+  profile.avatar = url
+  updateUserProfile({ avatar: url }).then(() => {
+    if (userStore.userInfo) {
+      userStore.setUserInfo({ ...userStore.userInfo, avatar: url } as any)
+    }
+    ElMessage.success('头像已更换')
+    loadHistory()
+  }).catch(() => {
+    ElMessage.error('更换失败')
+  })
 }
 
-async function saveEdit() {
+async function loadHistory() {
+  try {
+    const res = await getAvatarHistory()
+    const data = (res.data as any).data || res.data
+    avatarHistory.value = Array.isArray(data) ? [...data].reverse() : []
+  } catch { /* 静默失败 */ }
+}
+
+async function deleteHistory(url: string, idx: number) {
+  try {
+    await deleteUploadedFile(url)
+    avatarHistory.value.splice(idx, 1)
+  } catch {
+    ElMessage.error('删除失败')
+  }
+}
+
+// ========== 我的信息 ==========
+async function saveInfo() {
   saving.value = true
   try {
     const payload = {
-      ...editForm,
-      birthday: editForm.birthday ? formatDate(editForm.birthday) : '',
+      ...infoForm,
+      birthday: infoForm.birthday ? formatDate(infoForm.birthday) : '',
     }
     await updateUserProfile(payload)
     Object.assign(profile, {
-      nickname: editForm.nickname,
-      bio: editForm.bio,
-      gender: editForm.gender,
-      avatar: editForm.avatar,
-      birthday: editForm.birthday,
+      nickname: infoForm.nickname,
+      bio: infoForm.bio,
+      gender: infoForm.gender,
+      birthday: infoForm.birthday,
     })
     if (userStore.userInfo) {
-      userStore.setUserInfo({ ...userStore.userInfo, nickname: editForm.nickname, avatar: editForm.avatar } as any)
+      userStore.setUserInfo({ ...userStore.userInfo, nickname: infoForm.nickname, avatar: profile.avatar } as any)
     }
     ElMessage.success('保存成功')
-    showEdit.value = false
   } catch {
     ElMessage.error('保存失败')
   } finally {
@@ -333,559 +364,531 @@ async function saveEdit() {
 
 <style scoped>
 .user-center {
-  padding: 120px 0 60px;
+  display: flex;
+  justify-content: center;
   min-height: 100vh;
   background: linear-gradient(180deg, #fff5f9 0%, #f8f9ff 100%);
 }
 
-.page-header {
+.user-center-inner {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  max-width: 700px;
-  margin: 0 auto;
-  padding: 0 24px;
-  margin-bottom: 24px;
+  width: 100%;
+  max-width: 1220px;
+  padding-top: 90px;
 }
 
-.back-btn {
+/* ===== 左侧导航 ===== */
+.sidebar {
+  width: 200px;
+  background: white;
+  border-right: 1.5px solid var(--border);
+  padding: 20px 0;
+  flex-shrink: 0;
+  border-radius: 16px 0 0 16px;
+  overflow-y: auto;
+}
+
+.sidebar-nav {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nav-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 10px 16px;
-  border-radius: 12px;
-  background: rgba(255, 107, 157, 0.1);
-  color: var(--pink);
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
   font-size: 14px;
   font-weight: 500;
-  border: none;
+  color: var(--text-secondary);
   cursor: pointer;
+  text-decoration: none;
   transition: all 0.22s ease-out;
-  width: 80px;
 }
 
-.back-btn svg {
-  width: 16px;
-  height: 16px;
+.nav-item:hover {
+  background: rgba(255, 107, 157, 0.05);
+  color: var(--pink);
 }
 
-.back-btn:hover {
-  background: rgba(255, 107, 157, 0.2);
+.nav-item.active {
+  background: linear-gradient(135deg, rgba(255, 107, 157, 0.1), rgba(180, 132, 255, 0.1));
+  color: var(--pink);
+  font-weight: 600;
 }
 
-.page-title {
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--text);
+.nav-item svg {
+  flex-shrink: 0;
+  color: #FF6B9D;
+  opacity: 0.7;
 }
 
-.placeholder {
-  width: 80px;
+.nav-item.active svg {
+  opacity: 1;
 }
 
-.center-content {
-  max-width: 700px;
-  margin: 0 auto;
-  padding: 0 24px;
-}
-
-.settings-container {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.settings-section {
+/* ===== 主内容区 ===== */
+.main-content {
+  flex: 1;
+  min-width: 0;
   background: white;
-  border-radius: 16px;
-  padding: 20px 24px;
+  padding: 28px 32px 40px;
+  border-radius: 0 16px 16px 0;
   border: 1.5px solid var(--border);
-  box-shadow: 0 2px 12px rgba(180, 132, 255, 0.05);
+  border-left: none;
 }
 
-.profile-section {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.profile-header {
+/* ===== 个人卡片 Hero ===== */
+.profile-hero {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 24px;
+  margin-bottom: 28px;
+  padding: 32px;
+  background: white;
+  border-radius: 16px;
+  border: 1.5px solid var(--border);
+  box-shadow: 0 2px 16px rgba(180, 132, 255, 0.06);
 }
 
-.avatar-wrapper {
-  position: relative;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.profile-avatar {
-  width: 72px;
-  height: 72px;
+.hero-avatar {
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--pink), var(--purple));
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-size: 28px;
-  font-weight: 800;
-  border: 3px solid white;
-  box-shadow: 0 4px 16px rgba(255,107,157,0.3);
   overflow: hidden;
+  flex-shrink: 0;
+  border: 4px solid white;
+  box-shadow: 0 4px 20px rgba(255, 107, 157, 0.25);
 }
 
-.profile-avatar-img {
+.hero-avatar-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.avatar-edit-badge {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  border: 2px solid white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 8px rgba(255,107,157,0.3);
+.hero-avatar-text {
+  color: white;
+  font-size: 32px;
+  font-weight: 800;
 }
 
-.profile-info {
-  flex: 1;
-}
-
-.profile-info h2 {
-  font-size: 18px;
+.hero-info h2 {
+  font-size: 22px;
   font-weight: 700;
   color: var(--text);
   margin: 0;
 }
 
-.profile-bio {
-  font-size: 13px;
+.hero-info p {
+  font-size: 14px;
   color: var(--text-dim);
-  margin: 4px 0 0;
+  margin: 6px 0 0;
 }
 
-.edit-profile-btn {
-  align-self: flex-end;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 12px;
-  background: rgba(255, 107, 157, 0.08);
-  color: var(--pink);
-  font-size: 13px;
-  font-weight: 600;
-  border: 1.5px solid rgba(255, 107, 157, 0.2);
-  cursor: pointer;
-  transition: all 0.22s ease-out;
+/* ===== 内容卡片 ===== */
+.content-card {
+  background: white;
+  border-radius: 16px;
+  padding: 28px 32px;
+  border: 1.5px solid var(--border);
+  box-shadow: 0 2px 12px rgba(180, 132, 255, 0.05);
+  margin-bottom: 20px;
 }
 
-.edit-profile-btn:hover {
-  background: rgba(255, 107, 157, 0.15);
-}
-
-.settings-section-title {
-  font-size: 15px;
+.section-title {
+  font-size: 18px;
   font-weight: 700;
   color: var(--text);
-  margin: 0 0 16px;
-  padding-bottom: 12px;
+  margin: 0 0 20px;
+  padding-bottom: 14px;
   border-bottom: 1.5px solid var(--border);
 }
 
+/* ===== 设置网格 ===== */
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  gap: 20px 32px;
 }
 
 .setting-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 4px 0;
 }
 
 .setting-label {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-secondary);
 }
 
 .settings-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
 }
 
 .setting-row {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
+  padding: 14px 16px;
   cursor: pointer;
   transition: background-color 0.2s;
-  border-radius: 8px;
+  border-radius: 10px;
 }
 
-.setting-row:hover {
-  background: rgba(255, 107, 157, 0.05);
-}
+.setting-row:hover { background: rgba(255, 107, 157, 0.04); }
 
 .setting-row-icon {
-  font-size: 16px;
-  width: 16px;
-  height: 16px;
-  margin-right: 12px;
+  width: 20px;
+  height: 20px;
+  margin-right: 14px;
+  opacity: 0.5;
 }
 
 .setting-row-label {
   flex: 1;
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-secondary);
 }
 
 .setting-row-arrow {
-  font-size: 18px;
+  font-size: 20px;
   color: var(--text-dim);
 }
 
 .setting-row-value {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-dim);
 }
 
-.avatar-upload-row {
+/* ===== 我的头像 ===== */
+.current-avatar {
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-bottom: 20px;
+  gap: 28px;
 }
 
-.avatar-preview {
-  width: 72px;
-  height: 72px;
+.avatar-preview-lg {
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
-  position: relative;
-  cursor: pointer;
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
   flex-shrink: 0;
-  border: 3px solid rgba(255,138,200,0.15);
+  border: 4px solid white;
+  box-shadow: 0 4px 24px rgba(255, 107, 157, 0.25);
 }
 
-.avatar-preview img {
+.avatar-preview-lg img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.avatar-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #FF8AC8, #B484FF);
+.avatar-placeholder-lg {
   color: white;
-  font-size: 28px;
+  font-size: 48px;
   font-weight: 800;
 }
 
-.avatar-upload-mask {
-  position: absolute;
-  inset: 0;
-  background: rgba(0,0,0,0.35);
+.avatar-actions {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  opacity: 0;
-  transition: opacity 0.25s ease;
+  gap: 10px;
 }
 
-.avatar-upload-mask span {
+.upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--pink), var(--purple));
   color: white;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
-}
-
-.avatar-preview:hover .avatar-upload-mask {
-  opacity: 1;
-}
-
-.avatar-upload-hint {
-  font-size: 12px;
-  color: #999;
-}
-
-.edit-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 300;
-  background: rgba(180, 132, 255, 0.15);
-  backdrop-filter: blur(10px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.edit-modal {
-  background: linear-gradient(180deg, #FFF9FD 0%, #ffffff 100%);
-  border-radius: 20px;
-  padding: 32px 40px 24px;
-  width: 480px;
-  max-width: 92vw;
-  box-shadow:
-    0 8px 30px rgba(180, 132, 255, 0.18),
-    0 2px 8px rgba(255, 138, 200, 0.08);
-  position: relative;
-  overflow: hidden;
-}
-
-.modal-deco {
-  position: absolute;
-  font-size: 28px;
-  opacity: 0.12;
-  pointer-events: none;
-}
-
-.deco-tl {
-  top: 12px;
-  left: 16px;
-}
-
-.deco-tl::before {
-  content: '✦';
-}
-
-.deco-br {
-  bottom: 12px;
-  right: 16px;
-}
-
-.deco-br::before {
-  content: '♡';
-}
-
-.edit-title {
-  font-size: 22px;
-  font-weight: 800;
-  margin: 0 0 12px;
-  background: linear-gradient(135deg, #FF8AC8, #B484FF);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.edit-divider {
-  height: 2px;
-  background: linear-gradient(90deg, #FF8AC8, #B484FF, transparent);
-  border-radius: 1px;
-  margin-bottom: 20px;
-  opacity: 0.25;
-}
-
-.edit-close {
-  position: absolute;
-  top: 14px;
-  right: 18px;
-  background: none;
   border: none;
-  font-size: 15px;
-  color: #bbb;
   cursor: pointer;
-  width: 34px;
-  height: 34px;
+  transition: all 0.22s ease;
+  box-shadow: 0 4px 16px rgba(255, 107, 157, 0.25);
+  width: fit-content;
+}
+
+.upload-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(255, 107, 157, 0.35);
+}
+
+.upload-hint {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+/* ===== 历史头像 ===== */
+.history-grid {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.history-avatar {
+  position: relative;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
+  cursor: pointer;
+  border: 3px solid transparent;
+  transition: all 0.2s;
+  opacity: 0.65;
+}
+
+.history-avatar:hover { opacity: 1; border-color: rgba(255, 107, 157, 0.35); }
+
+.history-avatar.current {
+  opacity: 1;
+  border-color: #FF6B9D;
+  box-shadow: 0 0 0 4px rgba(255, 107, 157, 0.18);
+}
+
+.history-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.history-delete {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid white;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.22s ease;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  z-index: 2;
 }
 
-.edit-close:hover {
-  background: rgba(255,138,200,0.1);
-  color: #FF8AC8;
-  transform: scale(1.1);
+.history-avatar:hover .history-delete { opacity: 1; }
+.history-delete:hover { background: #ff4d4f; }
+
+.empty-hint {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 14px;
+  padding: 24px 0;
+  margin: 0;
 }
 
-.edit-modal :deep(.el-form-item) {
-  margin-bottom: 20px;
+/* ===== 我的信息 ===== */
+.info-form {
+  display: flex;
+  flex-direction: column;
 }
 
-.edit-modal :deep(.el-form-item__label) {
+.form-item {
+  margin-bottom: 24px;
+}
+
+.form-label {
+  display: block;
   font-size: 14px;
   font-weight: 600;
   color: #555;
-  padding-bottom: 8px;
+  margin-bottom: 8px;
 }
 
-.edit-modal :deep(.el-input__wrapper) {
+.input-with-count {
+  position: relative;
+}
+
+.form-input {
+  width: 100%;
+  padding: 12px 16px;
   border-radius: 12px;
-  box-shadow: none;
-  border: 1.5px solid rgba(255,138,200,0.25);
-  padding: 4px 14px;
-  height: 44px;
+  border: 1.5px solid rgba(255, 138, 200, 0.25);
+  font-size: 15px;
+  color: var(--text);
+  outline: none;
   background: white;
   transition: all 0.22s ease;
+  box-sizing: border-box;
 }
 
-.edit-modal :deep(.el-input__wrapper:hover) {
-  border-color: rgba(255,138,200,0.45);
+.form-input:focus {
+  border-color: var(--pink);
+  box-shadow: 0 0 0 3px rgba(255, 107, 157, 0.1);
 }
 
-.edit-modal :deep(.el-input__wrapper.is-focus) {
-  border-color: #B484FF;
-  box-shadow: 0 0 0 3px rgba(180,132,255,0.12);
-}
-
-.edit-modal :deep(.el-textarea__inner) {
+.form-textarea {
+  width: 100%;
+  padding: 12px 16px;
   border-radius: 12px;
-  box-shadow: none;
-  border: 1.5px solid rgba(255,138,200,0.25);
+  border: 1.5px solid rgba(255, 138, 200, 0.25);
+  font-size: 15px;
+  color: var(--text);
+  outline: none;
   background: white;
+  resize: vertical;
+  min-height: 90px;
+  font-family: inherit;
   transition: all 0.22s ease;
-  min-height: 80px;
+  box-sizing: border-box;
 }
 
-.gender-item {
-  margin-bottom: 24px !important;
+.form-textarea:focus {
+  border-color: var(--pink);
+  box-shadow: 0 0 0 3px rgba(255, 107, 157, 0.1);
 }
 
-.gender-group {
+.char-count {
+  position: absolute;
+  right: 4px;
+  bottom: -20px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.form-row {
   display: flex;
-  gap: 24px;
+  gap: 32px;
+}
+
+.form-item-half {
+  flex: 1;
+  min-width: 0;
 }
 
 .birthday-picker {
   width: 100%;
 }
 
-.edit-modal :deep(.el-radio) {
-  margin-right: 0;
-  padding: 6px 20px;
-  border-radius: 10px;
-  border: 1.5px solid rgba(255,138,200,0.2);
+.gender-group {
+  display: flex;
+  gap: 20px;
+  padding-top: 4px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+  border-top: 1.5px solid var(--border);
+  margin-top: 4px;
+}
+
+.save-btn {
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 15px;
+  padding: 12px 40px;
+  background: linear-gradient(135deg, #FF8AC8, #B484FF) !important;
+  border: none !important;
+  box-shadow: 0 4px 16px rgba(255, 138, 200, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   transition: all 0.22s ease;
 }
 
-.edit-modal :deep(.el-radio:hover) {
-  border-color: rgba(255,138,200,0.4);
-  background: rgba(255,138,200,0.03);
+.save-btn:hover {
+  box-shadow: 0 6px 24px rgba(180, 132, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transform: scale(1.03);
 }
 
-.edit-modal :deep(.el-radio__input) {
-  display: none;
+/* ===== Element Plus 覆盖 ===== */
+:deep(.el-radio) {
+  margin-right: 0;
+  padding: 8px 24px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(255, 138, 200, 0.2);
+  transition: all 0.22s ease;
+  height: auto;
 }
 
-.edit-modal :deep(.el-radio__label) {
+:deep(.el-radio:hover) {
+  border-color: rgba(255, 138, 200, 0.4);
+  background: rgba(255, 138, 200, 0.03);
+}
+
+:deep(.el-radio__input) { display: none; }
+
+:deep(.el-radio__label) {
   font-size: 14px;
   font-weight: 500;
   color: #666;
   padding-left: 0 !important;
 }
 
-.edit-modal :deep(.el-radio.is-checked) {
-  border-color: #B484FF;
-  background: rgba(180,132,255,0.04);
-  box-shadow: 0 0 0 3px rgba(180,132,255,0.08);
+:deep(.el-radio.is-checked) {
+  border-color: var(--pink);
+  background: rgba(255, 107, 157, 0.04);
+  box-shadow: 0 0 0 3px rgba(255, 107, 157, 0.08);
 }
 
-.edit-modal :deep(.el-radio.is-checked .el-radio__label) {
+:deep(.el-radio.is-checked .el-radio__label) {
   background: linear-gradient(135deg, #FF8AC8, #B484FF);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  background-clip: text;
   font-weight: 700;
 }
 
-.edit-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 16px;
-  margin-top: 4px;
-}
+/* ===== 响应式 ===== */
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 60px;
+  }
 
-.edit-cancel-btn {
-  border-radius: 12px;
-  font-weight: 600;
-  font-size: 14px;
-  padding: 10px 28px;
-  background: white;
-  border: 1.5px solid rgba(180,132,255,0.3) !important;
-  color: #B484FF;
-  transition: all 0.22s ease;
-}
+  .sidebar-nav { padding: 10px 8px; }
 
-.edit-cancel-btn:hover {
-  background: rgba(180,132,255,0.04);
-}
+  .nav-item {
+    justify-content: center;
+    padding: 10px;
+  }
 
-.edit-save-btn {
-  border-radius: 12px;
-  font-weight: 700;
-  font-size: 14px;
-  padding: 10px 36px;
-  background: linear-gradient(135deg, #FF8AC8, #B484FF);
-  border: none;
-  box-shadow:
-    0 4px 16px rgba(255,138,200,0.25),
-    inset 0 1px 0 rgba(255,255,255,0.2);
-  transition: all 0.22s ease;
-}
+  .nav-item span { display: none; }
 
-.edit-save-btn:hover {
-  box-shadow:
-    0 6px 24px rgba(180,132,255,0.3),
-    inset 0 1px 0 rgba(255,255,255,0.2);
-  transform: scale(1.03);
-}
+  .settings-grid { grid-template-columns: 1fr; }
 
-.modal-slide-enter-active {
-  transition: all 0.25s ease-out;
-}
-
-.modal-slide-leave-active {
-  transition: all 0.2s ease-in;
-}
-
-.modal-slide-enter-from {
-  opacity: 0;
-  transform: translateY(20px) scale(0.97);
-}
-
-.modal-slide-leave-to {
-  opacity: 0;
-  transform: translateY(10px) scale(0.98);
+  .form-row { flex-direction: column; gap: 0; }
 }
 
 @media (max-width: 768px) {
-  .center-content {
-    padding: 0 16px;
+  .sidebar { display: none; }
+
+  .main-content {
+    border-radius: 16px;
+    border-left: 1.5px solid var(--border);
   }
 
-  .page-header {
-    padding: 0 16px;
-  }
-
-  .profile-header {
+  .profile-hero {
     flex-direction: column;
     text-align: center;
+    padding: 24px;
   }
 
-  .edit-profile-btn {
-    align-self: center;
-  }
+  .settings-grid { grid-template-columns: 1fr; }
 
-  .settings-grid {
-    grid-template-columns: 1fr;
-  }
+  .form-row { flex-direction: column; gap: 0; }
 }
 </style>
