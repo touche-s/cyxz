@@ -136,16 +136,20 @@ public class PostController {
     /**
      * 查询当前用户的帖子列表（含草稿和已删除）
      *
-     * @param userId 当前登录用户 ID（由 Gateway 注入）
-     * @param page   页码（从 1 开始，默认 1）
-     * @param size   每页条数（默认 10）
+     * @param userId    当前登录用户 ID（由 Gateway 注入）
+     * @param page      页码（从 1 开始，默认 1）
+     * @param size      每页条数（默认 10）
+     * @param sortField 排序字段（createTime/views/likes/collections），默认 createTime
+     * @param sortOrder 排序方向（asc/desc），默认 desc
      * @return 帖子列表
      */
     @GetMapping("/user")
     public Result<PageResult<PostVO>> listByUser(@CurrentUser Long userId,
                                            @RequestParam(value = "page", defaultValue = "1") int page,
-                                           @RequestParam(value = "size", defaultValue = "10") int size) {
-        return Result.success(postService.listByUserId(userId, page, size));
+                                           @RequestParam(value = "size", defaultValue = "10") int size,
+                                           @RequestParam(value = "sortField", defaultValue = "create_time") String sortField,
+                                           @RequestParam(value = "sortOrder", defaultValue = "desc") String sortOrder) {
+        return Result.success(postService.listByUserId(userId, page, size, sortField, sortOrder));
     }
 
     /**
@@ -338,5 +342,22 @@ public class PostController {
                                                                 @RequestParam(value = "page", defaultValue = "1") int page,
                                                                 @RequestParam(value = "size", defaultValue = "20") int size) {
         return Result.success(postService.getReceivedLikes(userId, page, size));
+    }
+
+    /**
+     * 搜索帖子（仅已发布，标题+正文模糊匹配）
+     *
+     * @param keyword       搜索关键词
+     * @param page          页码（从 1 开始，默认 1）
+     * @param size          每页条数（默认 10）
+     * @param currentUserId 当前登录用户 ID（由 Gateway 注入，游客为 null）
+     * @return 搜索结果
+     */
+    @GetMapping("/search")
+    public Result<PageResult<PostVO>> search(@RequestParam("keyword") String keyword,
+                                       @RequestParam(value = "page", defaultValue = "1") int page,
+                                       @RequestParam(value = "size", defaultValue = "10") int size,
+                                       @CurrentUser(required = false) Long currentUserId) {
+        return Result.success(postService.searchPosts(keyword, page, size, currentUserId));
     }
 }

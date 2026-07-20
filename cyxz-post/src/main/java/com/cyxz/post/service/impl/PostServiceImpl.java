@@ -69,6 +69,8 @@ public class PostServiceImpl implements PostService {
             STATUS_DELETED, Set.of(STATUS_DRAFT)
     );
 
+    private static final Set<String> ALLOWED_SORT_FIELDS = Set.of("create_time", "views", "likes", "collections");
+
     private static final Map<Integer, String> STATUS_LABEL = Map.of(
             STATUS_DRAFT, "草稿",
             STATUS_PUBLISHED, "已发布",
@@ -317,16 +319,20 @@ public class PostServiceImpl implements PostService {
      * <p>包含草稿、已发布和已删除，按创建时间倒序。
      *
      * @param userId 用户 ID
-     * @param page   页码（从 1 开始）
-     * @param size   每页条数
+     * @param sortField 排序字段（createTime/views/likes/collections），默认 createTime
+     * @param sortOrder 排序方向（asc/desc），默认 desc
      * @return 帖子视图列表
      */
     @Override
-    public PageResult<PostVO> listByUserId(Long userId, int page, int size) {
+    public PageResult<PostVO> listByUserId(Long userId, int page, int size, String sortField, String sortOrder) {
         Page<PostPO> pageParam = new Page<>(page, size);
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostPO::getUserId, userId);
-        wrapper.orderByDesc(PostPO::getCreateTime);
+
+        String field = (sortField != null && ALLOWED_SORT_FIELDS.contains(sortField)) ? sortField : "createTime";
+        boolean asc = "asc".equalsIgnoreCase(sortOrder);
+        wrapper.last("ORDER BY " + field + (asc ? " ASC" : " DESC"));
+
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
 
         Map<Long, UserProfileVO> userMap = batchGetUsers(result.getRecords().stream().map(PostPO::getUserId).collect(Collectors.toSet()));
@@ -895,6 +901,21 @@ public class PostServiceImpl implements PostService {
         });
 
         return PageResult.of(records, total, page, size);
+    }
+
+    @Override
+    public PageResult<PostVO> searchPosts(String keyword, int page, int size, Long currentUserId) {
+        if (keyword == null || keyword.isBlank()) {
+            return PageResult.empty(page, size);
+        }
+        String likeKeyword = "%" + keyword.trim() + "%";
+        Page<PostPO> pageParam = new Page<>(page, size);
+        LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PostPO::getStatus, 1)
+                .and(w -> w.like(PostPO::getTitle, likeKeyword).or().like(PostPO::getContent, likeKeyword));
+        wrapper.orderByDesc(PostPO::getCreateTime);
+        Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
+        return PageResult.of(fillPostVOList(result.getRecords(), currentUserId), result.getTotal(), page, size);
     }
 
     /**
