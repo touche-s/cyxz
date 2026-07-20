@@ -176,20 +176,6 @@
       </div>
     </div>
 
-    <div v-if="showAgreement" class="agreement-modal" @click.self="showAgreement = false">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3><img src="@/assets/icons/info.svg" alt="info" class="title-icon" />社区公约</h3>
-          <button class="modal-close" @click="showAgreement = false">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-    </div>
-
     <ImageCropper
       ref="imageCropperRef"
       :visible="showImageCropper"
@@ -230,7 +216,6 @@ const isEditingPublished = computed(() => isEditMode.value && isPublished(curren
 
 const categories = ref<CategoryVO[]>([])
 const loading = ref(false)
-const showAgreement = ref(false)
 
 const form = ref({
   title: '',

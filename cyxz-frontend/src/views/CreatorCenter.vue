@@ -141,21 +141,35 @@
           </header>
 
           <div class="filter-bar">
-            <div class="filter-group">
-              <button 
-                v-for="tab in contentTabs" 
-                :key="tab.value"
-                class="filter-btn"
-                :class="{ active: activeContentTab === tab.value }"
-                @click="activeContentTab = tab.value"
-              >
-                {{ tab.label }}
-                <span class="filter-count">{{ tab.count }}</span>
+            <div class="filter-left">
+              <div class="filter-group">
+                <button 
+                  v-for="tab in contentTabs" 
+                  :key="tab.value"
+                  class="filter-btn"
+                  :class="{ active: activeContentTab === tab.value }"
+                  @click="activeContentTab = tab.value"
+                >
+                  {{ tab.label }}
+                  <span class="filter-count">{{ tab.count }}</span>
+                </button>
+              </div>
+              <button class="refresh-btn" :class="{ spinning: loading }" @click="refreshPosts" title="刷新列表">
+                <img src="@/assets/icons/refresh.svg" alt="refresh" class="refresh-icon" />
               </button>
             </div>
-            <button class="refresh-btn" :class="{ spinning: loading }" @click="refreshPosts" title="刷新列表">
-              <img src="@/assets/icons/refresh.svg" alt="refresh" class="refresh-icon" />
-            </button>
+            <div class="sort-group">
+              <button
+                v-for="opt in sortOptions"
+                :key="opt.value"
+                class="sort-btn"
+                :class="{ active: contentSortField === opt.value }"
+                @click="handleContentSort(opt.value)"
+              >
+                {{ opt.label }}
+                <span v-if="contentSortField === opt.value" class="sort-arrow">{{ contentSortOrder === 'asc' ? '↑' : '↓' }}</span>
+              </button>
+            </div>
           </div>
 
           <div class="search-bar">
@@ -251,8 +265,15 @@
             </button>
           </div>
 
+          <div class="search-bar">
+            <div class="search-box">
+              <img src="@/assets/icons/search.svg" alt="search" class="search-icon" />
+              <input type="text" placeholder="搜索粉丝昵称..." class="search-input" v-model="fansSearchKeyword" />
+            </div>
+          </div>
+
           <div class="fans-list" v-if="!fansLoading">
-            <div class="fan-item" v-for="fan in fansList" :key="fan.userId">
+            <div class="fan-item" v-for="fan in filteredFansList" :key="fan.userId">
               <div class="fan-avatar clickable" @click="goToUser(fan.userId)">
                 <img v-if="fan.avatar" :src="fan.avatar" alt="" />
                 <div v-else class="avatar-placeholder">👤</div>
@@ -270,7 +291,7 @@
 
           <LoadingSpinner v-else text="加载中..." />
 
-          <EmptyState v-if="!fansLoading && fansList.length === 0" :icon="iconEmpty" :title="activeFansTab === 'followers' ? '还没有粉丝' : '还没有关注的人'" :hint="activeFansTab === 'followers' ? '发布更多优质内容，吸引粉丝关注' : '去发现有趣的内容和人吧'" />
+          <EmptyState v-if="!fansLoading && filteredFansList.length === 0" :icon="iconEmpty" :title="fansSearchKeyword ? '没有匹配的粉丝' : (activeFansTab === 'followers' ? '还没有粉丝' : '还没有关注的人')" :hint="fansSearchKeyword ? '' : (activeFansTab === 'followers' ? '发布更多优质内容，吸引粉丝关注' : '去发现有趣的内容和人吧')" />
 
           <Pagination :current="fansPage" :total="fansTotal" :page-size="fansPageSize" @change="handleFansPageChange" />
         </div>
@@ -324,8 +345,15 @@
             </div>
           </div>
 
-          <div class="comment-list" v-if="!commentsLoading && managedCommentsList.length > 0">
-            <div class="comment-manage-item" v-for="comment in managedCommentsList" :key="comment.id">
+          <div class="search-bar">
+            <div class="search-box">
+              <img src="@/assets/icons/search.svg" alt="search" class="search-icon" />
+              <input type="text" placeholder="搜索评论内容或用户名..." class="search-input" v-model="commentSearchKeyword" />
+            </div>
+          </div>
+
+          <div class="comment-list" v-if="!commentsLoading && filteredManagedComments.length > 0">
+            <div class="comment-manage-item" v-for="comment in filteredManagedComments" :key="comment.id">
               <div class="comment-avatar clickable" @click="goToUser(comment.userId)">
                 <img v-if="comment.userAvatar" :src="comment.userAvatar" alt="" />
                 <div v-else class="avatar-placeholder"></div>
@@ -356,7 +384,7 @@
 
           <LoadingSpinner v-else-if="commentsLoading" text="加载中..." />
 
-          <EmptyState v-else :icon="iconEmpty" :title="selectedCommentPostId ? '当前帖子还没有评论' : '当前还没有人给你的作品留言'" />
+          <EmptyState v-else :icon="iconEmpty" :title="commentSearchKeyword ? '没有匹配的评论' : (selectedCommentPostId ? '当前帖子还没有评论' : '当前还没有人给你的作品留言')" />
 
           <Pagination :current="commentPage" :total="commentsTotal" :page-size="commentPageSize" @change="handleCommentPageChange" />
         </div>
@@ -807,11 +835,15 @@ const fansList = ref<FollowUserVO[]>([])
 const fansTotal = ref(0)
 const fansPage = ref(1)
 const fansPageSize = 10
+const fansSearchKeyword = ref('')
 
 const managedCommentsList = ref<CommentVO[]>([])
 const commentsTotal = ref(0)
 const selectedCommentPostId = ref('')
 const commentSortAsc = ref(false)
+const commentSearchKeyword = ref('')
+const contentSortField = ref('create_time')
+const contentSortOrder = ref('desc')
 const commentPage = ref(1)
 const commentPageSize = 20
 
@@ -842,7 +874,7 @@ const loadPosts = async () => {
   if (!userStore.userInfo?.id) return
   loading.value = true
   try {
-    const res = await getUserPosts({ page: 1, size: 100 })
+    const res = await getUserPosts({ page: 1, size: 100, sortField: contentSortField.value, sortOrder: contentSortOrder.value })
     if (res.data.code === 200) {
       posts.value = res.data.data.records || []
     }
@@ -859,6 +891,38 @@ const refreshPosts = () => {
     loadPosts()
   }
 }
+
+const sortOptions = [
+  { label: '创建时间', value: 'create_time' },
+  { label: '浏览量', value: 'views' },
+  { label: '点赞数', value: 'likes' },
+  { label: '收藏数', value: 'collections' },
+]
+
+const handleContentSort = (field: string) => {
+  if (contentSortField.value === field) {
+    contentSortOrder.value = contentSortOrder.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    contentSortField.value = field
+    contentSortOrder.value = 'desc'
+  }
+  loadPosts()
+}
+
+const filteredFansList = computed(() => {
+  const kw = fansSearchKeyword.value.trim().toLowerCase()
+  if (!kw) return fansList.value
+  return fansList.value.filter(f => (f.nickname || '').toLowerCase().includes(kw))
+})
+
+const filteredManagedComments = computed(() => {
+  const kw = commentSearchKeyword.value.trim().toLowerCase()
+  if (!kw) return managedCommentsList.value
+  return managedCommentsList.value.filter(c =>
+    c.content?.toLowerCase().includes(kw) ||
+    (c.userName || '').toLowerCase().includes(kw)
+  )
+})
 
 const navigateToContent = async (tab: 'all' | 'draft' = 'all') => {
   await router.replace('/creator')
@@ -1064,6 +1128,7 @@ const loadFans = async () => {
 const switchFansTab = (tab: 'followers' | 'following') => {
   activeFansTab.value = tab
   fansPage.value = 1
+  fansSearchKeyword.value = ''
   loadFans()
 }
 
@@ -1120,6 +1185,7 @@ const loadManagedComments = async () => {
 
 const handleCommentPostFilterChange = () => {
   commentPage.value = 1
+  commentSearchKeyword.value = ''
   loadManagedComments()
 }
 
@@ -1610,6 +1676,12 @@ watch(activeNav, (val) => {
   gap: 16px;
 }
 
+.filter-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .filter-group {
   display: flex;
   gap: 6px;
@@ -1733,6 +1805,7 @@ watch(activeNav, (val) => {
 }
 
 .search-bar {
+  margin-top: 16px;
   margin-bottom: 20px;
 }
 
@@ -2560,6 +2633,9 @@ watch(activeNav, (val) => {
   font-size: 13px;
   cursor: pointer;
   transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
 }
 
 .sort-btn:hover:not(.active) {
@@ -2571,6 +2647,11 @@ watch(activeNav, (val) => {
   color: var(--pink);
   font-weight: 500;
   box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.sort-arrow {
+  font-size: 11px;
+  line-height: 1;
 }
 
 .magic-page {

@@ -55,6 +55,11 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/search',
+    name: 'Search',
+    component: () => import('@/views/SearchPage.vue'),
+  },
+  {
     path: '/messages',
     name: 'MessageCenter',
     component: () => import('@/views/MessageCenter.vue'),

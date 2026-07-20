@@ -8,10 +8,10 @@
         <span class="logo-text">次元小站</span>
       </div>
     </div>
-    <div class="header-center">
+    <div class="header-center" :class="{ 'header-center--hidden': $route.path === '/search' }">
       <div class="search-wrap">
         <el-icon><Search /></el-icon>
-        <input type="text" placeholder="搜索感兴趣的内容..." />
+        <input v-model="searchText" type="text" placeholder="搜索感兴趣的内容..." @keyup.enter="goToSearch" />
       </div>
     </div>
     <nav class="nav">
@@ -74,17 +74,13 @@
         <span>登录</span>
       </div>
       <div class="header-icons">
-        <button class="header-action">
+        <button class="header-action" @click="goFavorites">
           <el-icon><Star /></el-icon>
           <span class="action-label">收藏</span>
         </button>
         <button class="header-action" @click="goMessages">
           <el-icon><Bell /></el-icon>
           <span class="action-label">消息</span>
-        </button>
-        <button class="header-action">
-          <el-icon><Clock /></el-icon>
-          <span class="action-label">历史</span>
         </button>
       </div>
       <button class="btn-create" @click="goPublish">
@@ -97,7 +93,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { Search, Plus, Bell, ChatLineSquare, Star, Clock } from '@element-plus/icons-vue'
+import { Search, Plus, Bell, ChatLineSquare, Star } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useAuth } from '@/composables/useAuth'
 import { useRouter } from 'vue-router'
@@ -111,11 +107,29 @@ const router = useRouter()
 
 const dropdownOpen = ref(false)
 const followStats = ref({ following: 0, followers: 0 })
+const searchText = ref('')
 
 function goCreator() {
   if (!requireLogin()) return
   dropdownOpen.value = false
   router.push('/creator')
+}
+
+function goToSearch() {
+  const kw = searchText.value.trim()
+  if (!kw) return
+  const url = router.resolve({ path: '/search', query: { q: kw } }).href
+  window.open(url, '_blank')
+  searchText.value = ''
+}
+
+function goFavorites() {
+  if (!requireLogin()) return
+  const uid = userStore.userInfo?.id
+  if (uid) {
+    const url = router.resolve({ path: `/user/${uid}`, query: { tab: 'favorites' } }).href
+    window.open(url, '_blank')
+  }
 }
 
 function goMessages() {
@@ -206,6 +220,14 @@ onMounted(() => {
 .header-center {
   display: flex;
   align-items: center;
+}
+
+.header-center--hidden {
+  visibility: hidden;
+}
+
+.header-center--hidden .search-wrap {
+  pointer-events: none;
 }
 
 .header-right {

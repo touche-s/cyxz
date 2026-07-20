@@ -100,7 +100,7 @@ export const permanentDeletePost = (postId: string) => {
 }
 
 /** 查询当前用户的帖子列表（含草稿和已删除，内容管理用） */
-export const getUserPosts = (params: { page?: number; size?: number }) => {
+export const getUserPosts = (params: { page?: number; size?: number; sortField?: string; sortOrder?: string }) => {
   return request.get('/post/user', { params })
 }
 
@@ -181,4 +181,9 @@ export interface ReceivedLikeVO {
 /** 查询用户收到的点赞列表 */
 export const getReceivedLikes = (params: { page?: number; size?: number }) => {
   return request.get('/post/received-likes', { params })
+}
+
+/** 搜索帖子（标题+正文模糊匹配） */
+export const searchPosts = (params: { keyword: string; page?: number; size?: number }) => {
+  return request.get('/post/search', { params })
 }

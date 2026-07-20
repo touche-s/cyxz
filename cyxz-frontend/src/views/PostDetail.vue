@@ -425,8 +425,13 @@ function toggleFollow() {
   doFollow(String(post.value.userId))
 }
 
-const handleShare = () => {
-  ElMessage.success('分享链接已复制')
+const handleShare = async () => {
+  try {
+    await navigator.clipboard.writeText(window.location.href)
+    ElMessage.success('链接已复制到剪贴板')
+  } catch {
+    ElMessage.error('复制失败，请手动复制')
+  }
 }
 
 const scrollToComment = () => {

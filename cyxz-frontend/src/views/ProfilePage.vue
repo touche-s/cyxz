@@ -63,15 +63,15 @@
       <div class="content-tools">
         <div class="tab-search">
           <img src="@/assets/icons/search.svg" alt="search" class="search-icon" />
-          <input :placeholder="activeTab === 'works' ? '搜索作品...' : '搜索收藏...'"></input>
+          <input v-model="searchKeyword" :placeholder="activeTab === 'works' ? '搜索作品...' : '搜索收藏...'"></input>
         </div>
       </div>
 
       <!-- 作品 tab -->
       <div v-if="activeTab === 'works'">
-        <div class="content-grid" v-if="posts.length">
+        <div class="content-grid" v-if="filteredPosts.length">
           <PostCard
-            v-for="item in posts"
+            v-for="item in filteredPosts"
             :key="item.id"
             :post="item"
             size="small"
@@ -80,7 +80,7 @@
             @click="goToPost"
           />
         </div>
-        <EmptyState v-else-if="!postLoading" title="还没有发布任何作品" :hint="isSelf ? '快去发布你的第一篇帖子吧~' : ''">
+        <EmptyState v-else-if="!postLoading" :title="searchKeyword ? '没有匹配的作品' : '还没有发布任何作品'" :hint="isSelf ? '快去发布你的第一篇帖子吧~' : ''">
           <template v-if="isSelf" #actions>
             <button class="guide-btn guide-btn-primary" @click="goToCreatePost">
               <img src="@/assets/icons/edit.svg" alt="edit" class="btn-icon" />发布帖子
@@ -92,9 +92,9 @@
 
       <!-- 收藏 tab -->
       <div v-if="activeTab === 'favorites'">
-        <div class="content-grid" v-if="favorites.length">
+        <div class="content-grid" v-if="filteredFavorites.length">
           <PostCard
-            v-for="item in favorites"
+            v-for="item in filteredFavorites"
             :key="item.id"
             :post="item"
             size="small"
@@ -103,7 +103,7 @@
             @click="goToPost"
           />
         </div>
-        <EmptyState v-else-if="!favoriteLoading" title="还没有收藏任何内容" hint="发现喜欢的帖子就收藏起来吧~" />
+        <EmptyState v-else-if="!favoriteLoading" :title="searchKeyword ? '没有匹配的收藏' : '还没有收藏任何内容'" hint="发现喜欢的帖子就收藏起来吧~" />
         <div v-else class="loading-placeholder">加载中...</div>
       </div>
     </div>
@@ -139,6 +139,18 @@ const posts = ref<PostVO[]>([])
 const favorites = ref<PostVO[]>([])
 const postLoading = ref(false)
 const favoriteLoading = ref(false)
+const searchKeyword = ref('')
+
+const filteredPosts = computed(() => {
+  const kw = searchKeyword.value.trim().toLowerCase()
+  if (!kw) return posts.value
+  return posts.value.filter(p => p.title?.toLowerCase().includes(kw))
+})
+const filteredFavorites = computed(() => {
+  const kw = searchKeyword.value.trim().toLowerCase()
+  if (!kw) return favorites.value
+  return favorites.value.filter(p => p.title?.toLowerCase().includes(kw))
+})
 
 const isSelf = computed(() => {
   return String(profile.value?.userId) === String(userStore.userInfo?.id)
@@ -147,6 +159,10 @@ const isSelf = computed(() => {
 onMounted(async () => {
   const userId = String(route.params.id)
   if (!userId) { loading.value = false; return }
+  // 支持 ?tab=favorites 参数
+  if (route.query.tab === 'favorites') {
+    activeTab.value = 'favorites'
+  }
   try {
     const res = await getUserProfile(userId)
     const data = (res.data as any).data || res.data
@@ -197,6 +213,7 @@ async function loadFavorites(userId: string) {
 // tab 切换时加载对应数据
 function onTabChange(tab: string) {
   activeTab.value = tab
+  searchKeyword.value = ''
   const userId = String(route.params.id)
   if (tab === 'works' && posts.value.length === 0) {
     loadPosts(userId)
