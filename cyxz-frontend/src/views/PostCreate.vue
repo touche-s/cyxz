@@ -591,11 +591,11 @@ defineExpose({ dirty, confirmLeave })
 }
 
 .post-card {
-  background: white;
+  background: var(--card);
   border-radius: 16px;
   padding: 28px;
   border: 1px solid var(--border);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow);
 }
 
 .form-section {
@@ -636,13 +636,13 @@ defineExpose({ dirty, confirmLeave })
   font-size: 14px;
   color: var(--text);
   transition: all 0.22s ease-out;
-  background: white;
+  background: var(--card);
 }
 
 .form-input:focus {
   outline: none;
   border-color: var(--pink);
-  box-shadow: 0 0 0 3px rgba(255, 107, 157, 0.08);
+  box-shadow: 0 0 0 3px var(--pink-bg);
 }
 
 .form-input::placeholder {
@@ -670,7 +670,7 @@ defineExpose({ dirty, confirmLeave })
   font-size: 13px;
   font-weight: 500;
   border: 1px solid var(--border);
-  background: white;
+  background: var(--card);
   color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.22s ease-out;
@@ -682,7 +682,7 @@ defineExpose({ dirty, confirmLeave })
 }
 
 .category-btn.active {
-  background: rgba(255, 107, 157, 0.08);
+  background: var(--pink-bg-hover);
   border-color: var(--pink);
   color: var(--pink);
 }
@@ -703,7 +703,7 @@ defineExpose({ dirty, confirmLeave })
   font-size: 14px;
   color: var(--text);
   transition: all 0.22s ease-out;
-  background: white;
+  background: var(--card);
   resize: vertical;
   font-family: inherit;
   line-height: 1.7;
@@ -713,7 +713,7 @@ defineExpose({ dirty, confirmLeave })
 .form-textarea:focus {
   outline: none;
   border-color: var(--pink);
-  box-shadow: 0 0 0 3px rgba(255, 107, 157, 0.08);
+  box-shadow: 0 0 0 3px var(--pink-bg);
 }
 
 .form-textarea::placeholder {
@@ -796,7 +796,7 @@ defineExpose({ dirty, confirmLeave })
   aspect-ratio: 1;
   border-radius: 10px;
   border: 1px dashed var(--border);
-  background: rgba(255, 107, 157, 0.02);
+  background: var(--pink-bg);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -818,7 +818,7 @@ defineExpose({ dirty, confirmLeave })
 
 .add-image-btn:hover {
   border-color: var(--pink);
-  background: rgba(255, 107, 157, 0.05);
+  background: var(--pink-bg);
   color: var(--pink);
 }
 
@@ -832,7 +832,7 @@ defineExpose({ dirty, confirmLeave })
 .upload-spinner {
   width: 20px;
   height: 20px;
-  border: 2px solid rgba(255, 107, 157, 0.15);
+  border: 2px solid var(--border);
   border-top-color: var(--pink);
   border-radius: 50%;
   animation: uploadSpin 0.6s linear infinite;
@@ -857,7 +857,7 @@ defineExpose({ dirty, confirmLeave })
   border: 1px solid var(--border);
   border-radius: 10px;
   min-height: 48px;
-  background: rgba(255, 107, 157, 0.02);
+  background: var(--pink-bg);
 }
 
 .tag-chip {
@@ -880,7 +880,7 @@ defineExpose({ dirty, confirmLeave })
 }
 
 .tag-remove {
-  background: rgba(255, 107, 157, 0.15);
+  background: var(--border);
   border: none;
   color: var(--pink);
   cursor: pointer;
@@ -981,18 +981,18 @@ defineExpose({ dirty, confirmLeave })
 }
 
 .draft-btn:hover {
-  background: rgba(180, 132, 255, 0.08);
+  background: var(--purple-bg);
 }
 
 .publish-btn {
   background: linear-gradient(135deg, var(--pink), var(--purple));
   color: white;
-  box-shadow: 0 4px 20px rgba(255, 107, 157, 0.35);
+  box-shadow: 0 4px 20px var(--shadow-lg);
 }
 
 .publish-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 24px rgba(255, 107, 157, 0.45);
+  box-shadow: 0 6px 24px var(--shadow-lg);
 }
 
 .publish-btn:disabled {
@@ -1047,7 +1047,7 @@ defineExpose({ dirty, confirmLeave })
 .leave-confirm-dialog {
   border-radius: 16px;
   padding-bottom: 8px;
-  box-shadow: 0 12px 48px rgba(120, 60, 160, 0.18);
+  box-shadow: 0 12px 48px var(--shadow-lg);
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(12px);
 }
@@ -1059,16 +1059,16 @@ defineExpose({ dirty, confirmLeave })
 .leave-confirm-dialog .el-message-box__title {
   font-size: 17px;
   font-weight: 600;
-  color: #3d2c4a;
+  color: var(--text);
 }
 
 .leave-confirm-dialog .el-message-box__close {
-  color: #b8a0cc;
+  color: var(--text-dim);
   transition: color 0.2s, transform 0.25s;
 }
 
 .leave-confirm-dialog .el-message-box__close:hover {
-  color: #ff6b9d;
+  color: var(--pink);
   transform: rotate(90deg);
 }
 
@@ -1077,7 +1077,7 @@ defineExpose({ dirty, confirmLeave })
 }
 
 .leave-confirm-dialog .el-message-box__message {
-  color: #6b5b7a;
+  color: var(--text-dim);
   font-size: 14px;
   line-height: 1.6;
 }
@@ -1098,14 +1098,14 @@ defineExpose({ dirty, confirmLeave })
 }
 
 .leave-confirm-dialog .el-button--primary {
-  background: linear-gradient(135deg, #ff6b9d, #c47ef0);
+  background: linear-gradient(135deg, var(--pink), var(--purple));
   border: none;
-  box-shadow: 0 4px 14px rgba(255, 107, 157, 0.3);
+  box-shadow: 0 4px 14px var(--shadow-lg);
 }
 
 .leave-confirm-dialog .el-button--primary:hover {
   background: linear-gradient(135deg, #ff7db0, #d190f5);
-  box-shadow: 0 6px 20px rgba(255, 107, 157, 0.4);
+  box-shadow: 0 6px 20px var(--shadow-lg);
   transform: translateY(-1px);
 }
 
@@ -1115,13 +1115,13 @@ defineExpose({ dirty, confirmLeave })
 
 .leave-confirm-dialog .el-button:not(.el-button--primary) {
   background: transparent;
-  border: 1.5px solid #e0d4ee;
-  color: #8b7a9e;
+  border: 1.5px solid var(--border);
+  color: var(--text-dim);
 }
 
 .leave-confirm-dialog .el-button:not(.el-button--primary):hover {
-  border-color: #c47ef0;
-  color: #6b4f8a;
-  background: rgba(196, 126, 240, 0.06);
+  border-color: var(--purple);
+  color: var(--text-dim);
+  background: var(--purple-bg);
 }
 </style>

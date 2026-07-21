@@ -345,17 +345,17 @@ function goTarget(msg: MessageItem) {
 
 /* ===== 左侧导航 ===== */
 .mc-sidebar {
-  background: white;
+  background: var(--card);
   border-radius: 16px;
-  border: 1.5px solid rgba(255, 107, 157, 0.1);
-  box-shadow: 0 4px 20px rgba(180, 132, 255, 0.06);
+  border: 1.5px solid var(--border-light);
+  box-shadow: var(--shadow);
   height: fit-content;
   overflow: hidden;
 }
 
 .sidebar-header {
   padding: 20px 20px 16px;
-  border-bottom: 1px solid rgba(255, 107, 157, 0.08);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .sidebar-header h2 {
@@ -383,7 +383,7 @@ function goTarget(msg: MessageItem) {
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
-  color: #6b5b7a;
+  color: var(--text-dim);
   transition: all 0.18s ease;
   width: 100%;
   text-align: left;
@@ -392,13 +392,13 @@ function goTarget(msg: MessageItem) {
 
 .nav-item:hover {
   color: var(--pink);
-  background: rgba(255, 107, 157, 0.04);
+  background: var(--pink-bg);
 }
 
 .nav-item.active {
   color: var(--pink);
   font-weight: 700;
-  background: rgba(255, 107, 157, 0.06);
+  background: var(--pink-bg);
 }
 
 .nav-item.active::before {
@@ -435,10 +435,10 @@ function goTarget(msg: MessageItem) {
 .mc-main {
   width: 680px;
   max-width: 100%;
-  background: white;
+  background: var(--card);
   border-radius: 16px;
-  border: 1.5px solid rgba(255, 107, 157, 0.1);
-  box-shadow: 0 4px 20px rgba(180, 132, 255, 0.06);
+  border: 1.5px solid var(--border-light);
+  box-shadow: var(--shadow);
   overflow: hidden;
   margin: 0 auto;
 }
@@ -448,7 +448,7 @@ function goTarget(msg: MessageItem) {
   align-items: center;
   justify-content: space-between;
   padding: 20px 28px;
-  border-bottom: 1px solid rgba(255, 107, 157, 0.08);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .main-header h3 {
@@ -461,8 +461,8 @@ function goTarget(msg: MessageItem) {
 .mark-all-btn {
   padding: 6px 16px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 107, 157, 0.25);
-  background: white;
+  border: 1px solid var(--border);
+  background: var(--card);
   color: var(--pink);
   font-size: 13px;
   font-weight: 600;
@@ -471,7 +471,7 @@ function goTarget(msg: MessageItem) {
 }
 
 .mark-all-btn:hover {
-  background: rgba(255, 107, 157, 0.06);
+  background: var(--pink-bg);
   border-color: var(--pink);
 }
 
@@ -515,7 +515,7 @@ function goTarget(msg: MessageItem) {
 .msg-avatar.system {
   cursor: default;
   border-color: rgba(180, 132, 255, 0.15);
-  background: rgba(180, 132, 255, 0.08);
+  background: var(--purple-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -586,7 +586,7 @@ function goTarget(msg: MessageItem) {
 
 .msg-action {
   font-size: 13px;
-  color: #6b5b7a;
+  color: var(--text-dim);
   white-space: nowrap;
 }
 
@@ -617,14 +617,14 @@ function goTarget(msg: MessageItem) {
 .msg-quote {
   margin-top: 8px;
   padding: 10px 14px;
-  background: rgba(255, 107, 157, 0.04);
+  background: var(--pink-bg);
   border-radius: 8px;
-  border-left: 3px solid rgba(255, 107, 157, 0.2);
+  border-left: 3px solid var(--border);
 }
 
 .quote-text {
   font-size: 13px;
-  color: #6b5b7a;
+  color: var(--text-dim);
   line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -635,7 +635,7 @@ function goTarget(msg: MessageItem) {
 .msg-time {
   margin-top: 6px;
   font-size: 12px;
-  color: #b8a8c4;
+  color: var(--text-dim);
 }
 
 /* ===== 空状态 ===== */
@@ -652,11 +652,11 @@ function goTarget(msg: MessageItem) {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: rgba(255, 107, 157, 0.06);
+  background: var(--pink-bg);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #c4a8d4;
+  color: var(--text-dim);
 }
 
 .empty-icon svg {
@@ -666,7 +666,7 @@ function goTarget(msg: MessageItem) {
 
 .empty-text {
   font-size: 14px;
-  color: #b8a8c4;
+  color: var(--text-dim);
   margin: 0;
 }
 
@@ -703,7 +703,7 @@ function goTarget(msg: MessageItem) {
   }
 
   .nav-item.active {
-    background: rgba(255, 107, 157, 0.1);
+    background: var(--pink-bg-hover);
     border-radius: 8px;
   }
 

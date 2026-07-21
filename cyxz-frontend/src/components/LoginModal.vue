@@ -309,7 +309,7 @@ async function handleSubmit() {
   max-width: 95vw;
   height: 520px;
   max-height: 90vh;
-  background: white;
+  background: var(--card);
   border-radius: 20px;
   display: flex;
   overflow: hidden;
@@ -478,7 +478,7 @@ async function handleSubmit() {
   background: none;
   border: none;
   font-size: 18px;
-  color: #999;
+  color: var(--text-dim);
   cursor: pointer;
   width: 32px;
   height: 32px;

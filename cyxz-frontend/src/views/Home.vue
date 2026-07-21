@@ -372,11 +372,11 @@ onUnmounted(() => {
   padding: 48px 44px;
   margin-bottom: 28px;
   overflow: hidden;
-  border: 1.5px solid rgba(255, 182, 215, 0.25);
+  border: 1.5px solid var(--border);
   display: flex;
   align-items: center;
   gap: 40px;
-  box-shadow: 0 8px 32px rgba(180, 132, 255, 0.1);
+  box-shadow: var(--shadow-lg);
 }
 
 /* Floating decorations */
@@ -418,7 +418,7 @@ onUnmounted(() => {
   padding: 6px 16px;
   border-radius: 20px;
   background: rgba(255, 138, 200, 0.12);
-  border: 1.5px solid rgba(255, 138, 200, 0.25);
+  border: 1.5px solid var(--border);
   font-size: 11px;
   font-weight: 700;
   color: var(--pink);
@@ -489,7 +489,7 @@ onUnmounted(() => {
   background: rgba(255, 138, 200, 0.06);
 }
 .hero-stat + .hero-stat {
-  border-left: 1.5px solid rgba(180, 132, 255, 0.15);
+  border-left: 1.5px solid var(--border);
 }
 
 .hero-stat b {
@@ -564,8 +564,8 @@ onUnmounted(() => {
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  border: 1.5px solid rgba(255, 138, 200, 0.2);
-  background: white;
+  border: 1.5px solid var(--border);
+  background: var(--card);
   color: var(--text-dim);
   transition: all 0.22s ease-out;
   flex-shrink: 0;
@@ -573,15 +573,15 @@ onUnmounted(() => {
 
 .cat-pill.active {
   background: transparent;
-  color: #FF6B9D;
-  border-color: rgba(255, 107, 157, 0.4);
+  color: var(--pink);
+  border-color: var(--border);
   box-shadow: none;
   font-weight: 700;
 }
 
 .cat-pill:hover:not(.active) {
   border-color: rgba(255, 138, 200, 0.4);
-  color: #B484FF;
+  color: var(--purple);
   background: rgba(180, 132, 255, 0.04);
   transform: translateY(-1px);
 }
@@ -618,7 +618,7 @@ onUnmounted(() => {
   transition: all 0.22s ease-out;
 }
 .section-label a:hover {
-  color: #B484FF;
+  color: var(--purple);
 }
 .section-label a:hover .arrow-icon {
   transform: translateX(4px);
@@ -637,11 +637,11 @@ onUnmounted(() => {
 }
 
 .card {
-  background: white;
+  background: var(--card);
   border-radius: 16px;
   overflow: hidden;
   border: 1.5px solid var(--border);
-  box-shadow: 0 4px 12px rgba(180, 132, 255, 0.08);
+  box-shadow: var(--shadow);
   transition: all 0.22s ease-out;
   cursor: pointer;
 }
@@ -820,7 +820,7 @@ onUnmounted(() => {
 
 .footer-links a:hover { color: var(--pink); }
 
-.footer-copy { font-size: 11px; color: #c4a0b8; }
+.footer-copy { font-size: 11px; color: var(--text-dim); }
 
 /* ===== Responsive ===== */
 @media (max-width: 1200px) {

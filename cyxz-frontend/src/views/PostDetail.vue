@@ -622,7 +622,7 @@ onMounted(async () => {
   backdrop-filter: blur(10px);
   border-radius: 20px;
   padding: 24px;
-  box-shadow: 0 4px 30px rgba(255, 107, 157, 0.1);
+  box-shadow: var(--shadow);
   border: 1px solid rgba(255, 255, 255, 0.6);
 }
 
@@ -631,7 +631,7 @@ onMounted(async () => {
   align-items: center;
   margin-bottom: 24px;
   padding-bottom: 16px;
-  border-bottom: 1px solid rgba(255, 107, 157, 0.1);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .author-info {
@@ -646,7 +646,7 @@ onMounted(async () => {
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid white;
-  box-shadow: 0 2px 12px rgba(180, 132, 255, 0.25);
+  box-shadow: var(--shadow-lg);
 }
 
 .author-avatar-placeholder {
@@ -655,7 +655,7 @@ onMounted(async () => {
   border-radius: 50%;
   background: linear-gradient(135deg, var(--pink), var(--purple));
   border: 2px solid white;
-  box-shadow: 0 2px 10px rgba(180, 132, 255, 0.2);
+  box-shadow: var(--shadow);
 }
 
 .author-meta {
@@ -709,7 +709,7 @@ onMounted(async () => {
   width: 100%;
   max-height: 60vh;
   overflow: hidden;
-  background: #fff;
+  background: var(--card);
   transition: height 0.35s ease, aspect-ratio 0.35s ease;
 }
 
@@ -778,7 +778,7 @@ onMounted(async () => {
 }
 
 .carousel-dot.active {
-  background: white;
+  background: var(--card);
 }
 
 .post-content {
@@ -805,7 +805,7 @@ onMounted(async () => {
 .tag-item {
   padding: 6px 14px;
   border-radius: 16px;
-  background: rgba(180, 132, 255, 0.1);
+  background: var(--purple-bg);
   color: var(--purple);
   font-size: 13px;
   font-weight: 500;
@@ -818,7 +818,7 @@ onMounted(async () => {
   backdrop-filter: blur(10px);
   border-radius: 16px;
   padding: 10px 20px;
-  box-shadow: 0 4px 30px rgba(255, 107, 157, 0.1);
+  box-shadow: var(--shadow);
   border: 1px solid rgba(255, 255, 255, 0.6);
 }
 
@@ -836,7 +836,7 @@ onMounted(async () => {
 }
 
 .action-btn:hover {
-  background: rgba(255, 107, 157, 0.08);
+  background: var(--pink-bg-hover);
 }
 
 .action-btn img {
@@ -864,7 +864,7 @@ onMounted(async () => {
   backdrop-filter: blur(10px);
   border-radius: 16px;
   padding: 14px 20px;
-  box-shadow: 0 4px 30px rgba(255, 107, 157, 0.1);
+  box-shadow: var(--shadow);
   border: 1px solid rgba(255, 255, 255, 0.6);
 }
 
@@ -893,9 +893,9 @@ onMounted(async () => {
   margin-left: 68px;
   margin-bottom: 16px;
   padding: 12px;
-  background: rgba(180, 132, 255, 0.05);
+  background: var(--purple-bg);
   border-radius: 12px;
-  border: 1px solid rgba(180, 132, 255, 0.15);
+  border: 1px solid var(--border);
 }
 
 .input-row {
@@ -909,7 +909,7 @@ onMounted(async () => {
   justify-content: space-between;
   padding: 6px 12px;
   margin-bottom: 8px;
-  background: rgba(180, 132, 255, 0.08);
+  background: var(--purple-bg);
   border-radius: 8px;
   font-size: 13px;
   color: var(--purple);
@@ -948,7 +948,7 @@ onMounted(async () => {
 
 .comment-input:focus {
   border-color: var(--pink);
-  background: white;
+  background: var(--card);
 }
 
 .comment-input::placeholder {
@@ -969,7 +969,7 @@ onMounted(async () => {
 }
 
 .send-btn:hover:not(:disabled) {
-  box-shadow: 0 4px 16px rgba(255, 107, 157, 0.35);
+  box-shadow: var(--shadow-lg);
 }
 
 .send-btn:disabled {
@@ -1047,7 +1047,7 @@ onMounted(async () => {
 }
 
 .back-btn:hover {
-  box-shadow: 0 4px 16px rgba(255, 107, 157, 0.35);
+  box-shadow: var(--shadow-lg);
 }
 
 /* ===== 图片放大预览 Lightbox ===== */

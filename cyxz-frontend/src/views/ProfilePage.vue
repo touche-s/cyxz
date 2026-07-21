@@ -367,7 +367,7 @@ function goToPost(post: PostVO) {
   font-size: 36px;
   font-weight: 800;
   border: 4px solid var(--bg);
-  box-shadow: 0 4px 16px rgba(255,107,157,0.25);
+  box-shadow: var(--shadow);
   transition: transform 0.2s;
   overflow: hidden;
 }
@@ -397,7 +397,7 @@ function goToPost(post: PostVO) {
   z-index: 1;
 }
 .avatar-hover-overlay span {
-  color: #FF6B9D;
+  color: var(--pink);
   font-size: 13px;
   font-weight: 700;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
@@ -428,7 +428,7 @@ function goToPost(post: PostVO) {
   margin: 0 auto;
   padding: 6px;
   background: rgba(255,244,250,0.96);
-  border: 1px solid rgba(255,107,157,0.1);
+  border: 1px solid var(--border-light);
   border-radius: 999px;
   box-shadow: 0 4px 14px rgba(255,107,157,0.06);
 }
@@ -447,12 +447,12 @@ function goToPost(post: PostVO) {
 }
 .tab-nav a:hover {
   color: var(--pink);
-  background: rgba(255,107,157,0.06);
+  background: var(--pink-bg);
 }
 .tab-nav a.active {
-  color: #ff5f9a;
+  color: var(--pink);
   font-weight: 700;
-  background: white;
+  background: var(--card);
   box-shadow:
     0 4px 12px rgba(255,107,157,0.1),
     inset 0 0 0 1px rgba(255,107,157,0.16);
@@ -464,15 +464,15 @@ function goToPost(post: PostVO) {
   align-items: center;
   gap: 8px;
   background: rgba(255,248,252,0.95);
-  border: 1px solid rgba(255,107,157,0.18);
+  border: 1px solid var(--border);
   border-radius: 999px;
   padding: 8px 16px;
   box-shadow: inset 0 1px 3px rgba(255,107,157,0.06);
   transition: background 0.2s, box-shadow 0.2s, border-color 0.2s;
 }
 .tab-search:focus-within {
-  background: white;
-  border-color: rgba(255,107,157,0.32);
+  background: var(--card);
+  border-color: var(--border);
   box-shadow:
     inset 0 1px 3px rgba(255,107,157,0.06),
     0 0 0 2px rgba(255,107,157,0.12);
@@ -485,7 +485,7 @@ function goToPost(post: PostVO) {
   width: 150px;
   color: var(--text);
 }
-.tab-search input::placeholder { color: #bbb; }
+.tab-search input::placeholder { color: var(--text-dim); }
 .tab-search .search-icon { width: 14px; height: 14px; opacity: 0.4; }
 
 /* ===== 内容区 ===== */
@@ -514,7 +514,7 @@ function goToPost(post: PostVO) {
   font-size: 12px;
   font-weight: 500;
   color: var(--text-dim);
-  background: rgba(180,132,255,0.08);
+  background: var(--purple-bg);
   padding: 2px 8px;
   border-radius: 10px;
 }
@@ -529,14 +529,14 @@ function goToPost(post: PostVO) {
 .content-grid :deep(.card) {
   width: 270px;
   border-radius: 14px;
-  border: 1px solid rgba(255,107,157,0.08);
-  box-shadow: 0 2px 12px rgba(180,132,255,0.07);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow);
   transition: all 0.25s ease;
 }
 .content-grid :deep(.card:hover) {
   transform: translateY(-3px);
-  box-shadow: 0 8px 28px rgba(255,107,157,0.14);
-  border-color: rgba(255,107,157,0.18);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--border);
 }
 .content-grid :deep(.card-cover) {
   /* 使用 PostCard 默认的 4:3 比例，不做覆盖 */
@@ -558,11 +558,11 @@ function goToPost(post: PostVO) {
 .guide-btn-primary {
   background: linear-gradient(135deg, var(--pink), var(--purple));
   color: white;
-  box-shadow: 0 4px 20px rgba(255,107,157,0.3);
+  box-shadow: var(--shadow);
 }
 .guide-btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 28px rgba(255,107,157,0.4);
+  box-shadow: var(--shadow-lg);
 }
 .btn-icon { width: 16px; height: 16px; margin-right: 6px; filter: brightness(0) invert(1); }
 .loading-placeholder {

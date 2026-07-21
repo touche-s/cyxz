@@ -136,7 +136,7 @@
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: rgba(254, 246, 255, 0.6);
+  background: var(--bg);
   border-radius: var(--radius-sm);
   font-size: 13px;
   color: var(--text-dim);
@@ -144,7 +144,7 @@
 }
 
 .feature-item:hover {
-  background: rgba(255, 107, 157, 0.06);
+  background: var(--pink-bg);
   color: var(--text);
   transform: translateX(4px);
 }

@@ -32,7 +32,7 @@ withDefaults(defineProps<{
 .loading-spinner {
   width: 32px;
   height: 32px;
-  border: 3px solid rgba(255, 107, 157, 0.15);
+  border: 3px solid var(--border);
   border-top-color: var(--pink, #ff6b9d);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -44,7 +44,7 @@ withDefaults(defineProps<{
 }
 .loading-container p {
   font-size: 13px;
-  color: #999;
+  color: var(--text-dim);
   margin: 0;
 }
 @keyframes spin {

@@ -488,7 +488,7 @@ watch(() => props.comment.totalReplies, async (newVal, oldVal) => {
 }
 
 .comment-action-btn:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--pink-bg);
   color: var(--text);
 }
 
@@ -548,7 +548,7 @@ watch(() => props.comment.totalReplies, async (newVal, oldVal) => {
 }
 
 .pagination-btn:hover {
-  background: rgba(180, 132, 255, 0.1);
+  background: var(--purple-bg);
 }
 
 .pagination-btn.active {

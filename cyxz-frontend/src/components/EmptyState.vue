@@ -34,12 +34,12 @@ defineProps<{
 }
 .empty-text {
   font-size: 14px;
-  color: #999;
+  color: var(--text-dim);
   margin: 0;
 }
 .empty-hint {
   font-size: 13px;
-  color: #bbb;
+  color: var(--text-dim);
   margin-top: 6px;
 }
 .empty-actions {

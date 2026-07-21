@@ -1269,12 +1269,12 @@ watch(activeNav, (val) => {
 .creator-container {
   display: flex;
   min-height: 100vh;
-  background: linear-gradient(180deg, #fff5f9 0%, #f8f9ff 100%);
+  background: var(--bg);
 }
 
 .sidebar {
   width: 200px;
-  background: white;
+  background: var(--card);
   border-right: 1.5px solid var(--border);
   padding: 20px 0;
   flex-shrink: 0;
@@ -1343,7 +1343,7 @@ watch(activeNav, (val) => {
 }
 
 .nav-item:hover {
-  background: rgba(255, 107, 157, 0.05);
+  background: var(--pink-bg);
   color: var(--pink);
 }
 
@@ -1360,7 +1360,7 @@ watch(activeNav, (val) => {
 }
 
 .nav-item-primary:hover {
-  background: linear-gradient(135deg, #ff7ba1, #c084fc);
+  background: linear-gradient(135deg, var(--pink), var(--purple));
   color: white;
 }
 
@@ -1440,7 +1440,7 @@ watch(activeNav, (val) => {
   align-items: center;
   margin-bottom: 32px;
   padding: 32px;
-  background: linear-gradient(135deg, #ff85a2 0%, #b484ff 100%);
+  background: linear-gradient(135deg, var(--pink) 0%, var(--purple) 100%);
   border-radius: 16px;
   color: white;
   position: relative;
@@ -1493,7 +1493,7 @@ watch(activeNav, (val) => {
   gap: 8px;
   padding: 12px 28px;
   border-radius: 12px;
-  background: white;
+  background: var(--card);
   color: var(--pink);
   font-size: 14px;
   font-weight: 600;
@@ -1592,7 +1592,7 @@ watch(activeNav, (val) => {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: white;
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: 12px;
   cursor: pointer;
@@ -1600,7 +1600,7 @@ watch(activeNav, (val) => {
 }
 
 .recent-post-item:hover {
-  border-color: rgba(255, 107, 157, 0.3);
+  border-color: var(--border);
   box-shadow: 0 2px 8px rgba(180, 132, 255, 0.1);
 }
 
@@ -1648,7 +1648,7 @@ watch(activeNav, (val) => {
 
 /* 内容管理页面样式 */
 .page-container {
-  background: white;
+  background: var(--card);
   border-radius: 20px;
   padding: 28px;
   border: 1.5px solid var(--border);
@@ -1685,7 +1685,7 @@ watch(activeNav, (val) => {
 .filter-group {
   display: flex;
   gap: 6px;
-  background: rgba(255, 107, 157, 0.04);
+  background: var(--pink-bg);
   border-radius: 12px;
   padding: 4px;
 }
@@ -1707,7 +1707,7 @@ watch(activeNav, (val) => {
 }
 
 .filter-btn:hover:not(.active) {
-  background: rgba(255, 107, 157, 0.08);
+  background: var(--pink-bg-hover);
   color: var(--pink);
 }
 
@@ -1735,7 +1735,7 @@ watch(activeNav, (val) => {
 .search-box {
   display: flex;
   align-items: center;
-  background: #f8f9fc;
+  background: var(--bg);
   border-radius: 12px;
   padding: 0 14px;
   border: 1.5px solid var(--border);
@@ -1744,8 +1744,8 @@ watch(activeNav, (val) => {
 }
 
 .search-box:focus-within {
-  border-color: rgba(255, 107, 157, 0.4);
-  background: white;
+  border-color: var(--border);
+  background: var(--card);
   box-shadow: 0 0 0 3px rgba(255, 107, 157, 0.08);
 }
 
@@ -1775,7 +1775,7 @@ watch(activeNav, (val) => {
   height: 36px;
   border-radius: 10px;
   border: 1.5px solid var(--border);
-  background: white;
+  background: var(--card);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1786,7 +1786,7 @@ watch(activeNav, (val) => {
 
 .refresh-btn:hover {
   border-color: var(--pink);
-  background: rgba(255, 107, 157, 0.05);
+  background: var(--pink-bg);
 }
 
 .refresh-btn.spinning .refresh-icon {
@@ -1825,14 +1825,14 @@ watch(activeNav, (val) => {
   gap: 16px;
   padding: 16px;
   border-radius: 12px;
-  background: white;
+  background: var(--card);
   border: 1.5px solid var(--border);
   box-shadow: 0 2px 8px rgba(180, 132, 255, 0.04);
   transition: all 0.22s ease-out;
 }
 
 .content-item:hover {
-  border-color: rgba(255, 107, 157, 0.3);
+  border-color: var(--border);
   box-shadow: 0 4px 16px rgba(180, 132, 255, 0.1);
   transform: translateY(-2px);
 }
@@ -1989,7 +1989,7 @@ watch(activeNav, (val) => {
   align-items: center;
   justify-content: center;
   transition: all 0.22s ease-out;
-  background: white;
+  background: var(--card);
 }
 
 .action-btn:hover {
@@ -2009,7 +2009,7 @@ watch(activeNav, (val) => {
 
 .action-btn.edit:hover {
   background: linear-gradient(135deg, rgba(255, 107, 157, 0.12), rgba(180, 132, 255, 0.12));
-  border-color: rgba(255, 107, 157, 0.3);
+  border-color: var(--border);
 }
 
 .action-btn.preview .action-icon-svg {
@@ -2070,7 +2070,7 @@ watch(activeNav, (val) => {
   display: flex;
   gap: 8px;
   padding: 4px;
-  background: rgba(255, 107, 157, 0.05);
+  background: var(--pink-bg);
   border-radius: 12px;
 }
 
@@ -2093,7 +2093,7 @@ watch(activeNav, (val) => {
 }
 
 .status-tab-btn:hover:not(.active) {
-  background: rgba(255, 107, 157, 0.08);
+  background: var(--pink-bg-hover);
   color: var(--pink);
 }
 
@@ -2211,14 +2211,14 @@ watch(activeNav, (val) => {
   gap: 12px;
   padding: 16px;
   border-radius: 12px;
-  background: rgba(255, 107, 157, 0.03);
+  background: var(--pink-bg);
   border: 1.5px solid transparent;
   transition: all 0.22s ease-out;
   cursor: pointer;
 }
 
 .ranking-item:hover {
-  border-color: rgba(180, 132, 255, 0.3);
+  border-color: var(--border);
 }
 
 .rank-num {
@@ -2305,7 +2305,7 @@ watch(activeNav, (val) => {
 .fans-tabs {
   display: flex;
   gap: 6px;
-  background: rgba(255, 107, 157, 0.04);
+  background: var(--pink-bg);
   border-radius: 12px;
   padding: 4px;
   margin-top: 24px;
@@ -2329,7 +2329,7 @@ watch(activeNav, (val) => {
 }
 
 .fans-tab-btn:hover:not(.active) {
-  background: rgba(255, 107, 157, 0.08);
+  background: var(--pink-bg-hover);
   color: var(--pink);
 }
 
@@ -2348,14 +2348,14 @@ watch(activeNav, (val) => {
   gap: 16px;
   padding: 16px;
   border-radius: 12px;
-  background: rgba(255, 107, 157, 0.03);
+  background: var(--pink-bg);
   border: 1.5px solid transparent;
   transition: all 0.22s ease-out;
   margin-bottom: 12px;
 }
 
 .fan-item:hover {
-  border-color: rgba(180, 132, 255, 0.3);
+  border-color: var(--border);
 }
 
 .fan-avatar {
@@ -2424,7 +2424,7 @@ watch(activeNav, (val) => {
   font-size: 11px;
   padding: 3px 10px;
   border-radius: 12px;
-  background: rgba(255, 107, 157, 0.1);
+  background: var(--pink-bg-hover);
   color: var(--pink);
 }
 
@@ -2453,14 +2453,14 @@ watch(activeNav, (val) => {
 .comment-post-select :deep(.el-input__wrapper) {
   border-radius: 20px;
   border-color: #FFB6CC;
-  background: #FFF7FA;
+  background: var(--bg);
   box-shadow: none;
   transition: all 0.22s ease-out;
 }
 
 .comment-post-select :deep(.el-input__wrapper:hover) {
   border-color: #FF6B9D;
-  background: #FFF0F5;
+  background: var(--bg);
 }
 
 .comment-post-select :deep(.el-input__wrapper.is-focus),
@@ -2468,7 +2468,7 @@ watch(activeNav, (val) => {
 .comment-post-select :deep(.el-input.is-focus .el-input__wrapper) {
   border-color: #FF6B9D !important;
   box-shadow: 0 0 0 3px rgba(255, 107, 157, 0.15) !important;
-  background: white;
+  background: var(--card);
 }
 
 .comment-post-select :deep(.el-select__caret) {
@@ -2476,7 +2476,7 @@ watch(activeNav, (val) => {
 }
 
 .comment-post-select :deep(.el-select__placeholder) {
-  color: #C4A0B4;
+  color: var(--text-dim);
 }
 
 
@@ -2532,7 +2532,7 @@ watch(activeNav, (val) => {
 
 .comment-time {
   font-size: 12px;
-  color: #999;
+  color: var(--text-dim);
 }
 
 .comment-main-row {
@@ -2545,7 +2545,7 @@ watch(activeNav, (val) => {
 
 .comment-context {
   font-size: 13px;
-  color: #999;
+  color: var(--text-dim);
   white-space: nowrap;
   margin-right: 6px;
 }
@@ -2566,7 +2566,7 @@ watch(activeNav, (val) => {
 
 .comment-content {
   font-size: 14px;
-  color: #222;
+  color: var(--text);
   word-break: break-word;
 }
 
@@ -2619,7 +2619,7 @@ watch(activeNav, (val) => {
 .sort-group {
   display: flex;
   gap: 2px;
-  background: rgba(255, 107, 157, 0.04);
+  background: var(--pink-bg);
   border-radius: 8px;
   padding: 3px;
 }
@@ -2643,7 +2643,7 @@ watch(activeNav, (val) => {
 }
 
 .sort-btn.active {
-  background: white;
+  background: var(--card);
   color: var(--pink);
   font-weight: 500;
   box-shadow: 0 1px 3px rgba(0,0,0,0.06);
@@ -2659,7 +2659,7 @@ watch(activeNav, (val) => {
 }
 
 .magic-banner {
-  background: linear-gradient(135deg, #ff85a2 0%, #b484ff 100%);
+  background: linear-gradient(135deg, var(--pink) 0%, var(--purple) 100%);
   border-radius: 20px;
   padding: 40px;
   color: white;
@@ -2686,7 +2686,7 @@ watch(activeNav, (val) => {
 }
 
 .magic-card {
-  background: rgba(255, 107, 157, 0.05);
+  background: var(--pink-bg);
   border-radius: 16px;
   padding: 24px;
   text-align: center;
@@ -2695,7 +2695,7 @@ watch(activeNav, (val) => {
 }
 
 .magic-card:hover {
-  border-color: rgba(255, 107, 157, 0.3);
+  border-color: var(--border);
   transform: translateY(-2px);
 }
 
@@ -2767,7 +2767,7 @@ watch(activeNav, (val) => {
 }
 
 .agreement-container {
-  background: white;
+  background: var(--card);
   border-radius: 20px;
   padding: 32px;
   border: 1.5px solid var(--border);
@@ -2798,7 +2798,7 @@ watch(activeNav, (val) => {
   border-radius: 12px;
   padding: 20px 24px;
   margin-bottom: 28px;
-  border: 1px solid rgba(255, 107, 157, 0.15);
+  border: 1px solid var(--border);
 }
 
 .agreement-intro p {
@@ -2820,7 +2820,7 @@ watch(activeNav, (val) => {
 }
 
 .principle-card {
-  background: white;
+  background: var(--card);
   border-radius: 16px;
   padding: 20px;
   text-align: center;
@@ -2832,7 +2832,7 @@ watch(activeNav, (val) => {
 .principle-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(180, 132, 255, 0.12);
-  border-color: rgba(255, 107, 157, 0.2);
+  border-color: var(--border);
 }
 
 .principle-icon {
@@ -2932,15 +2932,15 @@ watch(activeNav, (val) => {
 <style>
 /* el-select 下拉弹出层——非 scoped（popper 挂载到 body） */
 .comment-post-select-popper .el-select-dropdown__item.is-selected {
-  color: #FF6B9D;
+  color: var(--pink);
   background: transparent;
   font-weight: 600;
 }
 
 .comment-post-select-popper .el-select-dropdown__item.hover,
 .comment-post-select-popper .el-select-dropdown__item:hover {
-  background: rgba(255, 107, 157, 0.06);
-  color: #FF6B9D;
+  background: var(--pink-bg);
+  color: var(--pink);
 }
 
 .comment-post-option {
@@ -2991,7 +2991,7 @@ watch(activeNav, (val) => {
 .preview-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--overlay);
   backdrop-filter: blur(4px);
   z-index: 2000;
   display: flex;
@@ -3001,7 +3001,7 @@ watch(activeNav, (val) => {
 }
 
 .preview-dialog {
-  background: white;
+  background: var(--card);
   border-radius: 20px;
   width: 100%;
   max-width: 720px;
@@ -3018,7 +3018,7 @@ watch(activeNav, (val) => {
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
-  background: white;
+  background: var(--card);
   border-radius: 20px 20px 0 0;
   z-index: 1;
 }
@@ -3051,12 +3051,12 @@ watch(activeNav, (val) => {
   align-items: center;
   justify-content: center;
   transition: all 0.25s ease;
-  color: #8b7a9e;
+  color: var(--text-dim);
 }
 
 .preview-close-btn:hover {
-  background: rgba(255, 107, 157, 0.12);
-  color: #ff6b9d;
+  background: var(--pink-bg-hover);
+  color: var(--pink);
   transform: rotate(90deg);
 }
 
@@ -3077,7 +3077,7 @@ watch(activeNav, (val) => {
   display: inline-block;
   font-size: 13px;
   color: var(--pink);
-  background: rgba(255, 107, 157, 0.08);
+  background: var(--pink-bg-hover);
   padding: 3px 10px;
   border-radius: 8px;
   font-weight: 500;
@@ -3099,7 +3099,7 @@ watch(activeNav, (val) => {
   position: relative;
   border-radius: 14px;
   overflow: hidden;
-  background: #f5f5f8;
+  background: var(--bg);
 }
 
 .preview-carousel-track {
@@ -3112,7 +3112,7 @@ watch(activeNav, (val) => {
   min-width: 100%;
   height: 100%;
   object-fit: contain;
-  background: #f5f5f8;
+  background: var(--bg);
 }
 
 .preview-carousel-arrow {
@@ -3190,13 +3190,13 @@ watch(activeNav, (val) => {
   flex-wrap: wrap;
   gap: 8px;
   padding-top: 16px;
-  border-top: 1px solid rgba(255, 107, 157, 0.08);
+  border-top: 1px solid var(--border-light);
 }
 
 .preview-tag-item {
   font-size: 13px;
   color: var(--purple);
-  background: rgba(180, 132, 255, 0.08);
+  background: var(--purple-bg);
   padding: 4px 12px;
   border-radius: 14px;
   font-weight: 500;

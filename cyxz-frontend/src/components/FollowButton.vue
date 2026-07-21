@@ -46,14 +46,14 @@ defineEmits<{ toggle: [] }>()
   font-weight: 600;
   background: linear-gradient(135deg, var(--pink), var(--purple));
   color: white;
-  box-shadow: 0 2px 8px rgba(255, 107, 157, 0.25);
+  box-shadow: 0 2px 8px var(--shadow);
 }
 .variant-profile:hover:not(:disabled) {
   transform: scale(1.05);
-  box-shadow: 0 4px 16px rgba(180, 132, 255, 0.35);
+  box-shadow: 0 4px 16px var(--shadow-lg);
 }
 .variant-profile.followed {
-  background: white;
+  background: var(--card);
   color: var(--text-dim);
   border: 1px solid var(--border);
   box-shadow: none;
@@ -71,16 +71,16 @@ defineEmits<{ toggle: [] }>()
   font-size: 12px;
   font-weight: 600;
   line-height: 1.5;
-  background: #F8DDF8;
-  color: #B14FCF;
+  background: var(--purple-bg);
+  color: var(--purple);
 }
 .variant-author:hover:not(:disabled) {
-  background: #F3C8F3;
-  color: #9A3FB0;
+  background: var(--purple-bg);
+  color: var(--purple);
   transform: translateY(-1px);
 }
 .variant-author.followed {
-  background: white;
+  background: var(--card);
   color: var(--text-dim);
   border: 1px solid var(--border);
 }
@@ -96,20 +96,20 @@ defineEmits<{ toggle: [] }>()
   border-radius: 20px;
   font-size: 13px;
   font-weight: 500;
-  border: 1.5px solid #FFB6CC;
-  background: #FFF7FA;
-  color: #FF6B9D;
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  color: var(--pink);
 }
 .variant-list:hover:not(:disabled) {
-  background: #FFE8F0;
+  background: var(--pink-bg-hover);
 }
 .variant-list.followed {
   border-color: transparent;
-  background: #F8DDF8;
-  color: #B14FCF;
+  background: var(--purple-bg);
+  color: var(--purple);
   cursor: default;
 }
 .variant-list.followed:hover:not(:disabled) {
-  background: #F8DDF8;
+  background: var(--purple-bg);
 }
 </style>

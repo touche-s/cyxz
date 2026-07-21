@@ -133,7 +133,7 @@ defineExpose({ loadImage, setImageUrl })
   position: fixed;
   inset: 0;
   z-index: 400;
-  background: rgba(18, 12, 27, 0.52);
+  background: var(--overlay);
   backdrop-filter: blur(16px) saturate(140%);
   display: flex;
   align-items: center;
@@ -223,9 +223,9 @@ defineExpose({ loadImage, setImageUrl })
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.12em;
-  color: #ff6fae;
-  background: rgba(255, 138, 200, 0.12);
-  border: 1px solid rgba(255, 138, 200, 0.18);
+  color: var(--pink);
+  background: var(--border-light);
+  border: 1px solid var(--border);
 }
 
 .crop-title {
@@ -233,14 +233,14 @@ defineExpose({ loadImage, setImageUrl })
   font-size: 24px;
   font-weight: 800;
   line-height: 1.15;
-  color: #2f2538;
+  color: var(--text);
 }
 
 .crop-subtitle {
   margin: 0;
   font-size: 13px;
   line-height: 1.6;
-  color: #8a7c94;
+  color: var(--text-dim);
 }
 
 .crop-close {
@@ -249,7 +249,7 @@ defineExpose({ loadImage, setImageUrl })
   border: none;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.72);
-  color: #8c8095;
+  color: var(--text-dim);
   font-size: 18px;
   cursor: pointer;
   box-shadow: 0 8px 24px rgba(73, 52, 92, 0.08);
@@ -257,7 +257,7 @@ defineExpose({ loadImage, setImageUrl })
 }
 
 .crop-close:hover {
-  color: #ff6fae;
+  color: var(--pink);
   transform: rotate(90deg) scale(1.05);
   box-shadow: 0 10px 28px rgba(255, 138, 200, 0.18);
 }
@@ -302,15 +302,15 @@ defineExpose({ loadImage, setImageUrl })
 
 .crop-cancel {
   background: rgba(255, 255, 255, 0.78);
-  color: #7f7488;
-  border-color: rgba(225, 216, 234, 0.82);
+  color: var(--text-dim);
+  border-color: var(--border);
   box-shadow: 0 6px 18px rgba(58, 42, 76, 0.05);
 }
 
 .crop-cancel:hover {
   transform: translateY(-1px);
   background: rgba(255, 255, 255, 0.96);
-  border-color: rgba(255, 138, 200, 0.2);
+  border-color: var(--border);
 }
 
 .crop-confirm {
@@ -348,23 +348,23 @@ defineExpose({ loadImage, setImageUrl })
   border-radius: 10px;
   font-size: 12px;
   font-weight: 600;
-  border: 1px solid rgba(225, 216, 234, 0.82);
+  border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.6);
-  color: #7f7488;
+  color: var(--text-dim);
   cursor: pointer;
   transition: all 0.22s ease;
 }
 
 .ratio-btn:hover {
-  border-color: rgba(255, 138, 200, 0.35);
-  color: #ff6fae;
-  background: rgba(255, 138, 200, 0.06);
+  border-color: var(--border);
+  color: var(--pink);
+  background: var(--pink-bg);
 }
 
 .ratio-btn.active {
-  background: rgba(255, 107, 157, 0.1);
-  border-color: rgba(255, 107, 157, 0.3);
-  color: #ff6b9d;
+  background: var(--pink-bg-hover);
+  border-color: var(--border);
+  color: var(--pink);
   font-weight: 700;
 }
 

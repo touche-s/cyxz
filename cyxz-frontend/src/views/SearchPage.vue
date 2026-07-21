@@ -102,7 +102,7 @@ onMounted(async () => {
 <style scoped>
 .search-page {
   min-height: calc(100vh - 60px);
-  background: #f5f0f8;
+  background: var(--bg-alt);
   padding-bottom: 60px;
 }
 

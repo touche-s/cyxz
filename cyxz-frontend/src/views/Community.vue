@@ -179,7 +179,7 @@ const tags = ['二次元', '绘画', 'Cosplay', '手办', '动画', '漫画', '�
   gap: 14px;
   padding: 14px 16px;
   border-radius: var(--radius-sm);
-  background: rgba(254, 246, 255, 0.4);
+  background: var(--bg);
 }
 
 .coming-soon-badge {
@@ -194,8 +194,8 @@ const tags = ['二次元', '绘画', 'Cosplay', '手办', '动画', '漫画', '�
   font-size: 14px;
   font-weight: 700;
   color: var(--pink);
-  border: 1.5px solid rgba(255, 107, 157, 0.2);
-  box-shadow: 0 4px 20px rgba(255, 107, 157, 0.12);
+  border: 1.5px solid var(--border);
+  box-shadow: var(--shadow);
 }
 
 .creator-grid {
@@ -208,7 +208,7 @@ const tags = ['二次元', '绘画', 'Cosplay', '手办', '动画', '漫画', '�
   text-align: center;
   padding: 24px 16px;
   border-radius: var(--radius-sm);
-  background: rgba(254, 246, 255, 0.4);
+  background: var(--bg);
 }
 
 .tag-cloud {
@@ -222,7 +222,7 @@ const tags = ['二次元', '绘画', 'Cosplay', '手办', '动画', '漫画', '�
   border-radius: 20px;
   font-size: 13px;
   font-weight: 500;
-  background: rgba(254, 246, 255, 0.6);
+  background: var(--bg);
   color: var(--text);
   border: 1px solid var(--border);
   transition: all 0.22s ease-out;
@@ -231,7 +231,7 @@ const tags = ['二次元', '绘画', 'Cosplay', '手办', '动画', '漫画', '�
 .tag:hover {
   background: linear-gradient(135deg, rgba(255, 107, 157, 0.1), rgba(192, 132, 252, 0.1));
   color: var(--pink);
-  border-color: rgba(255, 107, 157, 0.25);
+  border-color: var(--border);
 }
 
 .skeleton {

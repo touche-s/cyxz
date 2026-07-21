@@ -18,6 +18,8 @@
       <router-link to="/" :class="{ active: $route.path === '/' }">发现</router-link>
       <router-link to="/following" :class="{ active: $route.path === '/following' }">关注</router-link>
       <router-link to="/community" :class="{ active: $route.path === '/community' }">社区</router-link>
+      <a href="javascript:;" class="nav-disabled">热门</a>
+      <a href="javascript:;" class="nav-disabled">商城</a>
       <a href="javascript:;" :class="{ active: $route.path === '/creator' }" @click="goCreator">创作中心</a>
     </nav>
     <div class="header-right">
@@ -74,13 +76,21 @@
         <span>登录</span>
       </div>
       <div class="header-icons">
+        <button class="header-action" @click="goPrivateMessages">
+          <el-icon><ChatLineSquare /></el-icon>
+          <span class="action-label">私信</span>
+        </button>
+        <button class="header-action" @click="goMessages">
+          <el-icon><Bell /></el-icon>
+          <span class="action-label">通知</span>
+        </button>
         <button class="header-action" @click="goFavorites">
           <el-icon><Star /></el-icon>
           <span class="action-label">收藏</span>
         </button>
-        <button class="header-action" @click="goMessages">
-          <el-icon><Bell /></el-icon>
-          <span class="action-label">消息</span>
+        <button class="header-action" @click="toggleDarkMode">
+          <el-icon v-if="!isDark"><Moon /></el-icon>
+          <el-icon v-else><Sunny /></el-icon>
         </button>
       </div>
       <button class="btn-create" @click="goPublish">
@@ -93,7 +103,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { Search, Plus, Bell, ChatLineSquare, Star } from '@element-plus/icons-vue'
+import { Search, Plus, Bell, ChatLineSquare, Star, Moon, Sunny } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useAuth } from '@/composables/useAuth'
 import { useRouter } from 'vue-router'
@@ -108,6 +118,13 @@ const router = useRouter()
 const dropdownOpen = ref(false)
 const followStats = ref({ following: 0, followers: 0 })
 const searchText = ref('')
+const isDark = ref(false)
+
+function toggleDarkMode() {
+  isDark.value = !isDark.value
+  document.documentElement.classList.toggle('dark', isDark.value)
+  localStorage.setItem('darkMode', isDark.value ? '1' : '0')
+}
 
 function goCreator() {
   if (!requireLogin()) return
@@ -133,6 +150,11 @@ function goFavorites() {
 }
 
 function goMessages() {
+  if (!requireLogin()) return
+  router.push('/messages')
+}
+
+function goPrivateMessages() {
   if (!requireLogin()) return
   router.push('/messages')
 }
@@ -190,6 +212,8 @@ async function loadFollowStats() {
 }
 
 onMounted(() => {
+  isDark.value = localStorage.getItem('darkMode') === '1'
+  document.documentElement.classList.toggle('dark', isDark.value)
   loadFollowStats()
 })
 </script>
@@ -201,7 +225,7 @@ onMounted(() => {
   left: 0;
   right: 0;
   z-index: 100;
-  background: rgba(254, 246, 255, 0.85);
+  background: var(--header-bg);
   backdrop-filter: blur(24px) saturate(1.4);
   border-bottom: 1px solid var(--border);
   padding: 0 44px;
@@ -277,21 +301,21 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(255, 240, 247, 0.7);
-  border: 1.5px solid rgba(255, 138, 200, 0.2);
+  background: var(--search-bg);
+  border: 1.5px solid var(--border);
   border-radius: 12px;
   padding: 9px 16px;
   transition: all 0.22s ease-out;
 }
 
 .search-wrap:focus-within {
-  border-color: #B484FF;
-  background: white;
+  border-color: var(--purple);
+  background: var(--input-focus-bg);
   box-shadow: 0 0 0 3px rgba(180, 132, 255, 0.1);
 }
 
 .search-wrap .el-icon {
-  color: #B484FF;
+  color: var(--purple);
   transition: color 0.22s ease-out;
 }
 
@@ -305,7 +329,7 @@ onMounted(() => {
 }
 
 .search-wrap input::placeholder {
-  color: #c4a0b8;
+  color: var(--text-dim);
 }
 
 .nav {
@@ -326,7 +350,7 @@ onMounted(() => {
 }
 
 .nav a:hover {
-  color: #B484FF;
+  color: var(--purple);
 }
 
 .nav a.active {
@@ -345,6 +369,15 @@ onMounted(() => {
   height: 3px;
   border-radius: 2px;
   background: linear-gradient(90deg, var(--pink), var(--purple));
+}
+
+.nav a.nav-disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.nav a.nav-disabled:hover {
+  color: var(--text-dim);
 }
 
 .btn-create {
@@ -377,7 +410,7 @@ onMounted(() => {
    border-radius: 50%;
    cursor: pointer;
    border: 2px solid rgba(255, 107, 157, 0.35);
-   background: white;
+   background: var(--card);
    display: flex;
    align-items: center;
    justify-content: center;
@@ -423,13 +456,12 @@ onMounted(() => {
   border: none;
   background: transparent;
   cursor: pointer;
-  border-radius: 10px;
+  border-radius: 14px;
   padding: 0;
   transition: background 0.2s ease;
 }
 
 .header-action:hover {
-  background: rgba(0, 0, 0, 0.04);
 }
 
 .header-action .el-icon {
@@ -447,7 +479,7 @@ onMounted(() => {
 .action-label {
   font-size: 11px;
   line-height: 1;
-  color: #9f8ca9;
+  color: var(--text-dim);
   transition: color 0.2s ease;
   white-space: nowrap;
 }
@@ -500,9 +532,9 @@ onMounted(() => {
   left: 50%;
   transform: translateX(-50%);
   width: 260px;
-  background: #fff;
+  background: var(--card);
   border-radius: 18px;
-  border: 1.5px solid rgba(255, 107, 157, 0.12);
+  border: 1.5px solid var(--border-light);
   box-shadow: 0 18px 48px rgba(255, 107, 157, 0.10), 0 2px 10px rgba(255, 107, 157, 0.06);
   z-index: 200;
   overflow: visible;
@@ -548,15 +580,15 @@ onMounted(() => {
 
 .panel-uid {
   font-size: 11px;
-  color: #9c8ba6;
+  color: var(--text-dim);
 }
 
 .panel-stats {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   padding: 12px 12px 10px;
-  border-top: 1px solid rgba(255, 107, 157, 0.15);
-  border-bottom: 1px solid rgba(255, 107, 157, 0.15);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
 }
 
 .stat-item {
@@ -577,13 +609,13 @@ onMounted(() => {
   font-size: 17px;
   line-height: 1;
   font-weight: 700;
-  color: #2f1b46;
+  color: var(--text);
   transition: color 0.2s;
 }
 
 .stat-label {
   font-size: 12px;
-  color: #a18faa;
+  color: var(--text-dim);
   transition: color 0.2s;
 }
 
@@ -598,7 +630,7 @@ onMounted(() => {
   padding: 12px 16px;
   cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease;
-  color: #4a3b57;
+  color: var(--text);
   font-size: 14px;
   line-height: 1;
 }
@@ -617,7 +649,7 @@ onMounted(() => {
   width: 21px;
   height: 21px;
   flex-shrink: 0;
-  stroke: #7e6f8f;
+  stroke: var(--text-dim);
   transition: stroke 0.2s;
 }
 
@@ -625,7 +657,7 @@ onMounted(() => {
   width: 16px;
   height: 16px;
   margin-left: auto;
-  stroke: #c4b8ca;
+  stroke: var(--text-dim);
   flex-shrink: 0;
   transition: stroke 0.2s;
 }

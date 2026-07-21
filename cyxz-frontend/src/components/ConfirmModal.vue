@@ -82,7 +82,7 @@ onUnmounted(() => {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(24, 18, 38, 0.34);
+  background: var(--overlay);
   backdrop-filter: blur(8px) saturate(120%);
   display: flex;
   align-items: center;
@@ -151,7 +151,7 @@ onUnmounted(() => {
 .modal-warn-icon {
   width: 22px;
   height: 22px;
-  color: #8b5cf6;
+  color: var(--purple);
   stroke-width: 2;
 }
 
@@ -176,7 +176,7 @@ onUnmounted(() => {
 .modal-content h3 {
   font-size: 18px;
   font-weight: 800;
-  color: #3b2a56;
+  color: var(--text);
   margin-bottom: 8px;
 }
 
@@ -186,7 +186,7 @@ onUnmounted(() => {
 
 .modal-post-title {
   font-size: 15px;
-  color: #6b5b7e;
+  color: var(--text-dim);
   margin-bottom: 8px;
   font-weight: 600;
   max-width: 100%;
@@ -198,7 +198,7 @@ onUnmounted(() => {
 .modal-hint {
   font-size: 13px;
   line-height: 1.7;
-  color: #8a789c;
+  color: var(--text-dim);
   margin-bottom: 18px;
 }
 
@@ -250,7 +250,7 @@ onUnmounted(() => {
 
 .modal-btn.cancel {
   background: rgba(243, 244, 246, 0.78);
-  color: #7b7285;
+  color: var(--text-dim);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
 }
 

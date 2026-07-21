@@ -380,7 +380,7 @@ async function saveInfo() {
 /* ===== 左侧导航 ===== */
 .sidebar {
   width: 200px;
-  background: white;
+  background: var(--card);
   border-right: 1.5px solid var(--border);
   padding: 20px 0;
   flex-shrink: 0;
@@ -410,7 +410,7 @@ async function saveInfo() {
 }
 
 .nav-item:hover {
-  background: rgba(255, 107, 157, 0.05);
+  background: var(--pink-bg);
   color: var(--pink);
 }
 
@@ -422,7 +422,7 @@ async function saveInfo() {
 
 .nav-item svg {
   flex-shrink: 0;
-  color: #FF6B9D;
+  color: var(--pink);
   opacity: 0.7;
 }
 
@@ -434,7 +434,7 @@ async function saveInfo() {
 .main-content {
   flex: 1;
   min-width: 0;
-  background: white;
+  background: var(--card);
   padding: 28px 32px 40px;
   border-radius: 0 16px 16px 0;
   border: 1.5px solid var(--border);
@@ -448,10 +448,10 @@ async function saveInfo() {
   gap: 24px;
   margin-bottom: 28px;
   padding: 32px;
-  background: white;
+  background: var(--card);
   border-radius: 16px;
   border: 1.5px solid var(--border);
-  box-shadow: 0 2px 16px rgba(180, 132, 255, 0.06);
+  box-shadow: var(--shadow);
 }
 
 .hero-avatar {
@@ -464,8 +464,8 @@ async function saveInfo() {
   justify-content: center;
   overflow: hidden;
   flex-shrink: 0;
-  border: 4px solid white;
-  box-shadow: 0 4px 20px rgba(255, 107, 157, 0.25);
+  border: 4px solid var(--card);
+  box-shadow: var(--shadow);
 }
 
 .hero-avatar-img {
@@ -495,7 +495,7 @@ async function saveInfo() {
 
 /* ===== 内容卡片 ===== */
 .content-card {
-  background: white;
+  background: var(--card);
   border-radius: 16px;
   padding: 28px 32px;
   border: 1.5px solid var(--border);
@@ -545,7 +545,7 @@ async function saveInfo() {
   border-radius: 10px;
 }
 
-.setting-row:hover { background: rgba(255, 107, 157, 0.04); }
+.setting-row:hover { background: var(--pink-bg); }
 
 .setting-row-icon {
   width: 20px;
@@ -587,8 +587,8 @@ async function saveInfo() {
   justify-content: center;
   overflow: hidden;
   flex-shrink: 0;
-  border: 4px solid white;
-  box-shadow: 0 4px 24px rgba(255, 107, 157, 0.25);
+  border: 4px solid var(--card);
+  box-shadow: var(--shadow);
 }
 
 .avatar-preview-lg img {
@@ -622,13 +622,13 @@ async function saveInfo() {
   border: none;
   cursor: pointer;
   transition: all 0.22s ease;
-  box-shadow: 0 4px 16px rgba(255, 107, 157, 0.25);
+  box-shadow: var(--shadow);
   width: fit-content;
 }
 
 .upload-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 24px rgba(255, 107, 157, 0.35);
+  box-shadow: var(--shadow-lg);
 }
 
 .upload-hint {
@@ -659,7 +659,7 @@ async function saveInfo() {
 
 .history-avatar.current {
   opacity: 1;
-  border-color: #FF6B9D;
+  border-color: var(--pink);
   box-shadow: 0 0 0 4px rgba(255, 107, 157, 0.18);
 }
 
@@ -678,7 +678,7 @@ async function saveInfo() {
   height: 22px;
   border-radius: 50%;
   border: 2px solid white;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--overlay);
   color: #fff;
   font-size: 12px;
   line-height: 1;
@@ -716,7 +716,7 @@ async function saveInfo() {
   display: block;
   font-size: 14px;
   font-weight: 600;
-  color: #555;
+  color: var(--text-dim);
   margin-bottom: 8px;
 }
 
@@ -728,11 +728,11 @@ async function saveInfo() {
   width: 100%;
   padding: 12px 16px;
   border-radius: 12px;
-  border: 1.5px solid rgba(255, 138, 200, 0.25);
+  border: 1.5px solid var(--border);
   font-size: 15px;
   color: var(--text);
   outline: none;
-  background: white;
+  background: var(--card);
   transition: all 0.22s ease;
   box-sizing: border-box;
 }
@@ -746,11 +746,11 @@ async function saveInfo() {
   width: 100%;
   padding: 12px 16px;
   border-radius: 12px;
-  border: 1.5px solid rgba(255, 138, 200, 0.25);
+  border: 1.5px solid var(--border);
   font-size: 15px;
   color: var(--text);
   outline: none;
-  background: white;
+  background: var(--card);
   resize: vertical;
   min-height: 90px;
   font-family: inherit;
@@ -820,14 +820,14 @@ async function saveInfo() {
   margin-right: 0;
   padding: 8px 24px;
   border-radius: 10px;
-  border: 1.5px solid rgba(255, 138, 200, 0.2);
+  border: 1.5px solid var(--border);
   transition: all 0.22s ease;
   height: auto;
 }
 
 :deep(.el-radio:hover) {
-  border-color: rgba(255, 138, 200, 0.4);
-  background: rgba(255, 138, 200, 0.03);
+  border-color: var(--border);
+  background: var(--pink-bg);
 }
 
 :deep(.el-radio__input) { display: none; }
@@ -835,13 +835,13 @@ async function saveInfo() {
 :deep(.el-radio__label) {
   font-size: 14px;
   font-weight: 500;
-  color: #666;
+  color: var(--text-dim);
   padding-left: 0 !important;
 }
 
 :deep(.el-radio.is-checked) {
   border-color: var(--pink);
-  background: rgba(255, 107, 157, 0.04);
+  background: var(--pink-bg);
   box-shadow: 0 0 0 3px rgba(255, 107, 157, 0.08);
 }
 

@@ -110,19 +110,19 @@ const getGradient = (id: string | number) => {
 
 <style scoped>
 .card {
-  background: white;
+  background: var(--card);
   border-radius: 16px;
   overflow: hidden;
   border: 1.5px solid var(--border);
-  box-shadow: 0 4px 12px rgba(180, 132, 255, 0.08);
+  box-shadow: 0 4px 12px var(--shadow);
   transition: all 0.22s ease-out;
   cursor: pointer;
 }
 
 .card:hover {
   transform: translateY(-4px) scale(1.03);
-  border-color: rgba(180, 132, 255, 0.3);
-  box-shadow: 0 12px 36px rgba(180, 132, 255, 0.15);
+  border-color: var(--border);
+  box-shadow: 0 12px 36px var(--shadow-lg);
 }
 
 .card-cover {
@@ -180,9 +180,9 @@ const getGradient = (id: string | number) => {
 }
 
 .card-save:hover {
-  background: white;
+  background: var(--card);
   transform: scale(1.15);
-  box-shadow: 0 2px 12px rgba(180, 132, 255, 0.2);
+  box-shadow: 0 2px 12px var(--shadow);
 }
 
 .card-body { padding: 14px 16px; }
@@ -212,8 +212,8 @@ const getGradient = (id: string | number) => {
   font-size: 10px;
   font-weight: 500;
   color: var(--pink);
-  background: rgba(255, 107, 157, 0.08);
-  border: 1px solid rgba(255, 107, 157, 0.15);
+  background: var(--pink-bg-hover);
+  border: 1px solid var(--border);
   white-space: nowrap;
 }
 
@@ -231,7 +231,7 @@ const getGradient = (id: string | number) => {
   border-radius: 50%;
   background: linear-gradient(135deg, var(--pink), var(--purple));
   border: 2px solid white;
-  box-shadow: 0 1px 4px rgba(180, 132, 255, 0.15);
+  box-shadow: 0 1px 4px var(--shadow);
 }
 
 .card-author-name {
