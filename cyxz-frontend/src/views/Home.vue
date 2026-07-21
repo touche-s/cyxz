@@ -1,40 +1,6 @@
 <template>
   <main class="main-content">
       <div class="page-inner">
-    <div class="hero-carousel">
-      <div class="carousel-track" :style="{ transform: `translateX(-${currentBanner * 100}%)` }">
-        <div class="hero-banner" v-for="(banner, index) in banners" :key="index">
-          <div class="hero-text">
-            <div class="hero-eyebrow">
-              <span class="pulse-dot"></span>
-              {{ banner.tag }}
-            </div>
-            <h1 v-html="banner.title"></h1>
-            <p>{{ banner.desc }}</p>
-            <div class="hero-stats">
-              <div class="hero-stat" v-for="(stat, i) in banner.stats" :key="i"><b>{{ stat.value }}</b>{{ stat.label }}</div>
-            </div>
-          </div>
-          <div class="hero-illust">
-            <div class="circle c1"></div>
-            <div class="circle c2"></div>
-            <div class="circle c3"></div>
-            <div class="char-emoji"></div>
-          </div>
-        </div>
-      </div>
-      <button class="carousel-prev" @click="prevBanner">&lt;</button>
-      <button class="carousel-next" @click="nextBanner">&gt;</button>
-      <div class="carousel-dots">
-        <span 
-          v-for="(_, index) in banners" 
-          :key="index" 
-          class="dot" 
-          :class="{ active: currentBanner === index }"
-          @click="currentBanner = index"
-        ></span>
-      </div>
-    </div>
 
     <div class="cat-row">
       <span 
@@ -42,6 +8,7 @@
         :class="{ active: selectedCategoryId === null }"
         @click="selectCategory(null)"
       >
+        <Icon icon="ph:shooting-star" class="cat-icon" />
         推荐
       </span>
       <span 
@@ -52,6 +19,7 @@
         :class="{ active: selectedCategoryId === cat.id }"
         @click="selectCategory(cat.id)"
       >
+        <Icon :icon="getCategoryIcon(cat.name)" class="cat-icon" />
         {{ cat.name }}
       </span>
     </div>
@@ -92,85 +60,44 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted } from 'vue'
+import { Icon } from '@iconify/vue'
 import { getPostList, getCategoryList, likePost, unlikePost, collectPost, uncollectPost } from '@/api/post'
 import type { PostVO, CategoryVO } from '@/api/post'
 import { useNavigate } from '@/composables/useNavigate'
-import { useUserStore } from '@/stores/user'
 import { useAuth } from '@/composables/useAuth'
 import PostCard from '@/components/PostCard.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import EmptyState from '@/components/EmptyState.vue'
 
 const { open } = useNavigate()
-const userStore = useUserStore()
 const { requireLogin } = useAuth()
+
+const iconMap: Record<string, string> = {
+  '推荐': 'ph:shooting-star',
+  '动漫': 'ph:television',
+  '游戏': 'ph:game-controller',
+  '绘画': 'ph:palette', '插画': 'ph:palette', '画': 'ph:palette',
+  'cos': 'ph:t-shirt',
+  '漫展': 'ph:ticket',
+  '同人': 'ph:book-open', '文': 'ph:book-open', '小说': 'ph:book-open',
+  '周边': 'ph:shopping-bag',
+  '闲聊': 'ph:chat-circle',
+  '资源': 'ph:folder',
+}
+
+function getCategoryIcon(name: string): string {
+  const n = name.toLowerCase()
+  for (const [key, icon] of Object.entries(iconMap)) {
+    if (n.includes(key.toLowerCase())) return icon
+  }
+  return 'ph:folder'
+}
 
 const posts = ref<PostVO[]>([])
 const categories = ref<CategoryVO[]>([])
 const selectedCategoryId = ref<number | null>(null)
 const loading = ref(false)
-
-const banners = ref([
-  {
-    tag: '今日推荐',
-    title: '在<em>这里</em>发现<br />属于你的世界',
-    desc: '每一次分享都是一场奇遇，每一个灵感都值得被看见',
-    stats: [
-      { value: '128K+', label: '创作者' },
-      { value: '2.4M+', label: '作品' },
-      { value: '580+', label: '今日上新' },
-    ],
-  },
-  {
-    tag: '热门话题',
-    title: '一起<em>探索</em>无限可能<br />发现更多精彩',
-    desc: '加入创作者社区，分享你的故事与灵感',
-    stats: [
-      { value: '50K+', label: '活跃用户' },
-      { value: '10M+', label: '浏览量' },
-      { value: '10K+', label: '日发帖' },
-    ],
-  },
-  {
-    tag: '创作激励',
-    title: '你的<em>创意</em>值得被看见<br />开启创作之旅',
-    desc: '优质内容获得更多曝光，与千万用户分享',
-    stats: [
-      { value: '100%', label: '流量扶持' },
-      { value: '50万', label: '奖金池' },
-      { value: '专属', label: '认证标识' },
-    ],
-  },
-])
-
-const currentBanner = ref(0)
-let autoPlayTimer: number | null = null
-
-const startAutoPlay = () => {
-  autoPlayTimer = window.setInterval(() => {
-    currentBanner.value = (currentBanner.value + 1) % banners.value.length
-  }, 5000)
-}
-
-const stopAutoPlay = () => {
-  if (autoPlayTimer) {
-    clearInterval(autoPlayTimer)
-    autoPlayTimer = null
-  }
-}
-
-const prevBanner = () => {
-  currentBanner.value = (currentBanner.value - 1 + banners.value.length) % banners.value.length
-  stopAutoPlay()
-  startAutoPlay()
-}
-
-const nextBanner = () => {
-  currentBanner.value = (currentBanner.value + 1) % banners.value.length
-  stopAutoPlay()
-  startAutoPlay()
-}
 
 const loadCategories = async () => {
   try {
@@ -251,11 +178,6 @@ const handlePostLike = async (post: PostVO) => {
 onMounted(() => {
   loadCategories()
   loadPosts()
-  startAutoPlay()
-})
-
-onUnmounted(() => {
-  stopAutoPlay()
 })
 </script>
 
@@ -265,329 +187,62 @@ onUnmounted(() => {
 }
 
 .page-inner {
-  max-width: 1500px;
+  width: min(1368px, calc(100vw - 48px));
   margin: 0 auto;
-  padding: 0 32px;
-}
-
-/* ===== Hero Carousel ===== */
-.hero-carousel {
-  position: relative;
-  overflow: hidden;
-  border-radius: 20px;
-  margin-bottom: 28px;
-}
-
-.carousel-track {
-  display: flex;
-  transition: transform 0.4s ease-out;
-}
-
-.carousel-track > .hero-banner {
-  flex: 0 0 100%;
-  margin-bottom: 0;
-  border-radius: 0;
-  border: none;
-}
-
-.carousel-prev,
-.carousel-next {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  background: transparent;
-  border: none;
-  font-size: 28px;
-  color: var(--purple);
-  cursor: pointer;
-  transition: all 0.22s ease-out;
-  z-index: 10;
-  opacity: 0;
-  padding: 4px;
-}
-
-.hero-carousel:hover .carousel-prev,
-.hero-carousel:hover .carousel-next {
-  opacity: 1;
-}
-
-.carousel-prev {
-  left: 12px;
-}
-
-.carousel-next {
-  right: 12px;
-}
-
-.carousel-prev:hover,
-.carousel-next:hover {
-  color: var(--pink);
-  transform: translateY(-50%) scale(1.2);
-}
-
-.carousel-dots {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 8px;
-  z-index: 10;
-}
-
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.5);
-  cursor: pointer;
-  transition: all 0.22s ease-out;
-}
-
-.dot:hover {
-  background: rgba(255, 255, 255, 0.8);
-}
-
-.dot.active {
-  width: 28px;
-  border-radius: 5px;
-  background: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-/* ===== Hero Banner ===== */
-.hero-banner {
-  position: relative;
-  background:
-    radial-gradient(circle at 10% 20%, #FFD6E8 0%, transparent 60%),
-    radial-gradient(circle at 90% 80%, #E2D9FF 0%, transparent 60%),
-    linear-gradient(135deg, #FFD6E8, #E2D9FF);
-  border-radius: 20px;
-  padding: 48px 44px;
-  margin-bottom: 28px;
-  overflow: hidden;
-  border: 1.5px solid var(--border);
-  display: flex;
-  align-items: center;
-  gap: 40px;
-  box-shadow: var(--shadow-lg);
-}
-
-/* Floating decorations */
-.hero-banner::before {
-  content: '';
-  position: absolute;
-  top: 20px;
-  right: 10%;
-  width: 100px;
-  height: 100px;
-  background: radial-gradient(circle, rgba(255, 138, 200, 0.12), transparent 70%);
-  border-radius: 50%;
-  animation: decoFloat 5s ease-in-out infinite;
-}
-
-.hero-banner::after {
-  content: '';
-  position: absolute;
-  bottom: 30px;
-  left: 60%;
-  width: 60px;
-  height: 60px;
-  background: radial-gradient(circle, rgba(180, 132, 255, 0.1), transparent 70%);
-  border-radius: 50%;
-  animation: decoFloat 4s ease-in-out infinite 1s;
-}
-
-@keyframes decoFloat {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-10px) scale(1.1); }
-}
-
-.hero-text { flex: 1; z-index: 1; }
-
-.hero-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 16px;
-  border-radius: 20px;
-  background: rgba(255, 138, 200, 0.12);
-  border: 1.5px solid var(--border);
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--pink);
-  margin-bottom: 18px;
-  letter-spacing: 2px;
-  transition: all 0.22s ease-out;
-}
-.hero-eyebrow:hover {
-  transform: translateY(-2px);
-  background: rgba(255, 138, 200, 0.18);
-}
-
-.pulse-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  animation: pulse 2s ease-in-out infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 157, 0.4); }
-  50% { box-shadow: 0 0 0 8px rgba(255, 107, 157, 0); }
-}
-
-.hero-text h1 {
-  font-size: 40px;
-  font-weight: 900;
-  line-height: 1.25;
-  margin-bottom: 14px;
-  color: var(--text);
-  text-shadow: 0 2px 12px rgba(255, 107, 157, 0.08);
-}
-
-.hero-text h1 em {
-  font-style: normal;
-  background: linear-gradient(135deg, #FF8AC8, #B484FF);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  font-weight: 900;
-}
-
-.hero-text p {
-  font-size: 14px;
-  color: var(--text-dim);
-  line-height: 1.7;
-  max-width: 400px;
-  opacity: 0.85;
-}
-
-/* Stats with dividers */
-.hero-stats {
-  display: flex;
-  gap: 0;
-  margin-top: 24px;
-  align-items: center;
-}
-
-.hero-stat {
-  font-size: 12px;
-  color: var(--text-dim);
-  padding: 8px 24px;
-  border-radius: 12px;
-  transition: all 0.22s ease-out;
-  cursor: default;
-}
-.hero-stat:hover {
-  background: rgba(255, 138, 200, 0.06);
-}
-.hero-stat + .hero-stat {
-  border-left: 1.5px solid var(--border);
-}
-
-.hero-stat b {
-  display: block;
-  font-size: 22px;
-  font-weight: 900;
-  background: linear-gradient(135deg, #FF8AC8, #B484FF);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 2px;
-}
-
-.hero-illust {
-  flex-shrink: 0;
-  z-index: 1;
-  width: 280px;
-  height: 200px;
-  position: relative;
-}
-
-.circle {
-  position: absolute;
-  width: 140px;
-  height: 140px;
-  border-radius: 50%;
-  opacity: 0.15;
-  animation: circleFloat 4s ease-in-out infinite;
-}
-
-.c1 { background: var(--pink); top: 10px; left: 40px; }
-.c2 { background: var(--purple); bottom: 0; right: 30px; animation-delay: 1s; }
-.c3 { background: var(--blue); top: 60px; right: 0; width: 80px; height: 80px; animation-delay: 2s; }
-
-.char-emoji {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 80px;
-  animation: charBounce 3s ease-in-out infinite;
-  filter: drop-shadow(0 4px 12px rgba(255, 107, 157, 0.3));
-}
-
-.char-emoji::before { content: ''; }
-
-@keyframes circleFloat {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-12px) scale(1.05); }
-}
-
-@keyframes charBounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
+  padding: 0;
 }
 
 /* ===== Category Tabs ===== */
 .cat-row {
-  display: flex;
-  gap: 8px;
+  display: inline-flex;
+  max-width: 100%;
+  gap: 6px;
   margin-bottom: 28px;
   overflow-x: auto;
-  padding: 4px 4px;
+  padding: 5px;
+  background: rgba(255, 244, 250, 0.96);
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(255, 107, 157, 0.06);
 }
 
 .cat-row::-webkit-scrollbar { display: none; }
 
 .cat-pill {
-  padding: 9px 20px;
-  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  padding: 8px 18px;
+  border-radius: 999px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  border: 1.5px solid var(--border);
-  background: var(--card);
+  border: none;
+  background: transparent;
   color: var(--text-dim);
   transition: all 0.22s ease-out;
   flex-shrink: 0;
 }
 
 .cat-pill.active {
-  background: transparent;
+  background: var(--card);
   color: var(--pink);
-  border-color: var(--border);
-  box-shadow: none;
   font-weight: 700;
+  box-shadow:
+    0 4px 12px rgba(255, 107, 157, 0.1),
+    inset 0 0 0 1px rgba(255, 107, 157, 0.16);
 }
 
 .cat-pill:hover:not(.active) {
-  border-color: rgba(255, 138, 200, 0.4);
-  color: var(--purple);
-  background: rgba(180, 132, 255, 0.04);
-  transform: translateY(-1px);
+  color: var(--pink);
+  background: var(--pink-bg);
 }
 
 .cat-icon {
-  width: 14px;
-  height: 14px;
-  margin-right: 4px;
-}
-
-.cat-pill.active .cat-icon {
-  filter: brightness(0) invert(1);
+  width: 15px;
+  height: 15px;
+  margin-right: 6px;
+  flex-shrink: 0;
 }
 
 /* ===== Section Label ===== */
@@ -696,6 +351,7 @@ onUnmounted(() => {
   width: 16px;
   height: 16px;
   display: block;
+  color: var(--pink);
 }
 
 .card-save:hover {
@@ -826,12 +482,7 @@ onUnmounted(() => {
 }
 
 @media (max-width: 768px) {
-  .hero-banner { flex-direction: column; padding: 32px 24px; gap: 24px; }
-  .hero-illust { width: 200px; height: 160px; }
-  .hero-text h1 { font-size: 28px; }
   .main-content { padding: 90px 0 60px; }
   .content-grid { grid-template-columns: 1fr; }
-  .hero-stats { flex-wrap: wrap; }
-  .hero-stat + .hero-stat { border-left: none; }
 }
 </style>
