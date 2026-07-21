@@ -37,7 +37,7 @@
           >
             <div class="msg-avatar" :class="{ system: msg.type === 'system' }" @click="msg.type !== 'system' && goUser(msg.userId)">
               <template v-if="msg.type === 'system'">
-                <el-icon><Bell /></el-icon>
+                <i-ph-bell class="msg-type-icon pink-icon" />
               </template>
               <template v-else>
                 <img v-if="msg.userAvatar" :src="msg.userAvatar" alt="" />
@@ -61,10 +61,7 @@
 
         <div class="empty-state" v-else>
           <div class="empty-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-            </svg>
+            <Icon icon="ph:bell" class="empty-iconify pink-icon" />
           </div>
           <p class="empty-text">暂无{{ currentTabLabel }}消息</p>
         </div>
@@ -76,8 +73,8 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { Icon } from '@iconify/vue'
 import { useNavigate } from '@/composables/useNavigate'
-import { Bell } from '@element-plus/icons-vue'
 
 const { open } = useNavigate()
 
@@ -518,7 +515,10 @@ function goTarget(msg: MessageItem) {
   align-items: center;
   justify-content: center;
   color: var(--purple);
-  font-size: 18px;
+}
+.msg-type-icon {
+  width: 20px;
+  height: 20px;
 }
 
 .msg-avatar.system:hover {
@@ -654,7 +654,7 @@ function goTarget(msg: MessageItem) {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-dim);
+  opacity: 0.75;
 }
 
 .empty-icon svg {

@@ -9,9 +9,7 @@
       <div class="placeholder-section">
         <div class="placeholder-card">
           <div class="placeholder-icon">
-            <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-            </svg>
+            <Icon icon="ph:heart" class="placeholder-iconify" />
           </div>
           <h3>关注动态即将上线</h3>
           <p>在这里你可以看到你关注的创作者的动态内容流。发现有趣的灵魂，建立你的次元圈~</p>
@@ -46,6 +44,7 @@
 </template>
 
 <script setup lang="ts">
+import { Icon } from '@iconify/vue'
 </script>
 
 <style scoped>
@@ -106,6 +105,11 @@
   align-items: center;
   justify-content: center;
   margin: 0 auto 24px;
+  color: var(--pink);
+}
+.placeholder-iconify {
+  width: 48px;
+  height: 48px;
   color: var(--pink);
 }
 

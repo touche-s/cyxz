@@ -4,7 +4,7 @@
       <form class="post-form" @submit.prevent="handleSubmit">
           <div class="form-section">
             <label class="form-label">
-              <img src="@/assets/icons/heading.svg" alt="heading" class="label-icon" />
+              <Icon icon="ph:text-t" class="label-icon pink-icon" />
               <span>标题</span>
               <span class="label-required">*</span>
             </label>
@@ -23,7 +23,7 @@
 
           <div class="form-section">
             <label class="form-label">
-              <img src="@/assets/icons/image.svg" alt="image" class="label-icon" />
+              <Icon icon="ph:image" class="label-icon pink-icon" />
               <span>图片</span>
               <span class="label-required">*</span>
             </label>
@@ -35,18 +35,10 @@
               >
                 <img :src="img" class="image-preview" />
                 <button type="button" class="image-crop-btn" @click.stop="openImageCropper(img, index)" title="裁剪图片">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="6" cy="6" r="2"/>
-                    <circle cx="6" cy="18" r="2"/>
-                    <line x1="7.5" y1="7" x2="20" y2="14"/>
-                    <line x1="7.5" y1="17" x2="20" y2="10"/>
-                  </svg>
+                  <Icon icon="ph:crop" class="image-crop-icon" />
                 </button>
                 <button type="button" class="image-remove" @click="removeImage(index)">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                    <line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
+                  <Icon icon="ph:x" />
                 </button>
               </div>
               <div
@@ -62,9 +54,7 @@
                   <span>上传中...</span>
                 </template>
                 <template v-else>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M12 5v14M5 12h14"/>
-                  </svg>
+                  <Icon icon="ph:plus" />
                   <span>添加图片</span>
                 </template>
               </div>
@@ -75,7 +65,7 @@
 
           <div class="form-section">
             <label class="form-label">
-              <img src="@/assets/icons/edit.svg" alt="edit" class="label-icon" />
+              <Icon icon="ph:pencil-simple" class="label-icon pink-icon" />
               <span>正文内容</span>
               <span class="label-required">*</span>
             </label>
@@ -92,7 +82,7 @@
 
           <div class="form-section">
             <label class="form-label">
-              <img src="@/assets/icons/category.svg" alt="category" class="label-icon" />
+              <Icon icon="ph:folder" class="label-icon pink-icon" />
               <span>分类</span>
               <span class="label-required">*</span>
             </label>
@@ -118,17 +108,14 @@
 
           <div class="form-section">
             <label class="form-label">
-              <img src="@/assets/icons/tag.svg" alt="tag" class="label-icon" />
+              <Icon icon="ph:tag" class="label-icon pink-icon" />
               <span>标签</span>
             </label>
             <div class="tags-container">
               <div v-for="(tag, index) in form.tags" :key="index" class="tag-chip">
                 <span class="tag-text">{{ tag }}</span>
                 <button type="button" class="tag-remove" @click="removeTag(index)">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                    <line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
+                  <Icon icon="ph:x" />
                 </button>
               </div>
               <div v-if="form.tags.length < 5" class="add-tag-wrapper">
@@ -152,11 +139,7 @@
               class="action-btn draft-btn"
               @click="saveDraft"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                <polyline points="17 21 17 13 7 13 7 21"/>
-                <polyline points="7 3 7 8 15 8"/>
-              </svg>
+              <Icon icon="ph:floppy-disk" />
               <span>{{ isEditMode ? '保存草稿' : '保存为草稿' }}</span>
             </button>
             <button
@@ -165,10 +148,7 @@
               :disabled="loading"
             >
               <LoadingSpinner v-if="loading" inline text="" />
-              <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="19" x2="12" y2="5"/>
-                <polyline points="5 12 12 5 19 12"/>
-              </svg>
+              <Icon v-else icon="ph:paper-plane-right" />
               <span>{{ loading ? '发布中...' : (isEditingPublished ? '更新发布' : '发布帖子') }}</span>
             </button>
           </div>
@@ -192,6 +172,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, onBeforeRouteLeave } from 'vue-router'
+import { Icon } from '@iconify/vue'
 import { useNavigate } from '@/composables/useNavigate'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { createPost, saveDraftPost, updatePost, getPostDetail, getCategoryList } from '@/api/post'
@@ -872,7 +853,6 @@ defineExpose({ dirty, confirmLeave })
 .tag-remove {
   background: var(--border);
   border: none;
-  color: var(--pink);
   cursor: pointer;
   display: flex;
   align-items: center;

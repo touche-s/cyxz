@@ -4,11 +4,11 @@
       <nav class="sidebar-nav">
         <div class="nav-section">
         <button class="nav-item nav-item-primary" :class="{ active: activeNav === 'publish' }" @click="switchNav('publish')">
-          <img src="@/assets/icons/edit.svg" class="nav-icon" />
+          <Icon icon="ph:pencil-simple" class="nav-icon pink-icon" />
           <span class="nav-text">发布</span>
         </button>
         <button class="nav-item" :class="{ active: activeNav === 'home' }" @click="switchNav('home')">
-          <img src="@/assets/icons/home-nav.svg" class="nav-icon" />
+          <Icon icon="ph:house" class="nav-icon pink-icon" />
           <span class="nav-text">创作首页</span>
         </button>
       </div>
@@ -17,7 +17,7 @@
 
         <div class="nav-section">
           <button class="nav-item" :class="{ active: activeNav === 'content' }" @click="switchNav('content')">
-            <img src="@/assets/icons/content-nav.svg" class="nav-icon" />
+            <Icon icon="ph:files" class="nav-icon pink-icon" />
             <span class="nav-text">内容管理</span>
           </button>
         </div>
@@ -26,11 +26,11 @@
 
         <div class="nav-section">
           <button class="nav-item" :class="{ active: activeNav === 'fans' }" @click="switchNav('fans')">
-            <img src="@/assets/icons/fans-nav.svg" class="nav-icon" />
+            <Icon icon="ph:users" class="nav-icon pink-icon" />
             <span class="nav-text">粉丝管理</span>
           </button>
           <button class="nav-item" :class="{ active: activeNav === 'interaction' }" @click="switchNav('interaction')">
-            <img src="@/assets/icons/interaction-nav.svg" class="nav-icon" />
+            <Icon icon="ph:chat-circle-dots" class="nav-icon pink-icon" />
             <span class="nav-text">评论管理</span>
           </button>
         </div>
@@ -39,7 +39,7 @@
 
         <div class="nav-section">
           <button class="nav-item" :class="{ active: activeNav === 'magic' }" @click="switchNav('magic')">
-            <img src="@/assets/icons/magic-nav.svg" class="nav-icon" />
+            <Icon icon="ph:magic-wand" class="nav-icon pink-icon" />
             <span class="nav-text">妙笔</span>
           </button>
         </div>
@@ -48,7 +48,7 @@
 
         <div class="nav-section">
           <button class="nav-item" :class="{ active: activeNav === 'agreement' }" @click="switchNav('agreement')">
-            <img src="@/assets/icons/community-agreement-nav.svg" class="nav-icon" />
+            <Icon icon="ph:shield-check" class="nav-icon pink-icon" />
             <span class="nav-text">社区公约</span>
           </button>
         </div>
@@ -64,7 +64,7 @@
             <p>记录你的灵感瞬间，发布图文作品，和同好一起交流</p>
           </div>
           <button class="hero-publish-btn" @click="goCreate">
-            <img src="@/assets/icons/edit.svg" alt="edit" class="btn-icon" />
+            <Icon icon="ph:pencil-simple" class="btn-icon pink-icon" />
             <span>发布新作品</span>
           </button>
         </div>
@@ -94,9 +94,9 @@
                 <span class="recent-post-time">{{ formatTime(post.createTime) }}</span>
               </div>
               <div class="recent-post-stats">
-                <span class="stat-item"><img src="@/assets/icons/eye.svg" alt="eye" class="stat-mini-icon" />{{ post.views }}</span>
-                <span class="stat-item"><img src="@/assets/icons/like.svg" alt="like" class="stat-mini-icon" />{{ post.likes }}</span>
-                <span class="stat-item"><img src="@/assets/icons/favorite.svg" alt="favorite" class="stat-mini-icon" />{{ post.collections }}</span>
+                <span class="stat-item"><Icon icon="ph:eye" class="stat-mini-icon pink-icon" />{{ post.views }}</span>
+                <span class="stat-item"><Icon icon="ph:heart" class="stat-mini-icon pink-icon" />{{ post.likes }}</span>
+                <span class="stat-item"><Icon icon="ph:star" class="stat-mini-icon pink-icon" />{{ post.collections }}</span>
               </div>
             </div>
           </div>
@@ -115,9 +115,9 @@
                 <h4>{{ item.title }}</h4>
                 <span class="rank-time">{{ formatDateTime(item.createTime) }}</span>
                 <div class="rank-stats">
-                  <span class="stat-item"><img src="@/assets/icons/eye.svg" alt="eye" class="stat-mini-icon" />{{ item.views }}</span>
-                  <span class="stat-item"><img src="@/assets/icons/like.svg" alt="like" class="stat-mini-icon" />{{ item.likes }}</span>
-                  <span class="stat-item"><img src="@/assets/icons/favorite.svg" alt="favorite" class="stat-mini-icon" />{{ item.collections }}</span>
+                  <span class="stat-item"><Icon icon="ph:eye" class="stat-mini-icon pink-icon" />{{ item.views }}</span>
+                  <span class="stat-item"><Icon icon="ph:heart" class="stat-mini-icon pink-icon" />{{ item.likes }}</span>
+                  <span class="stat-item"><Icon icon="ph:star" class="stat-mini-icon pink-icon" />{{ item.collections }}</span>
                 </div>
               </div>
             </div>
@@ -135,7 +135,7 @@
               <p>管理你的所有作品</p>
             </div>
             <button class="publish-btn" @click="goCreate">
-              <img src="@/assets/icons/edit.svg" alt="edit" class="btn-icon" />
+              <Icon icon="ph:pencil-simple" class="btn-icon" />
               <span>发布新作品</span>
             </button>
           </header>
@@ -155,7 +155,7 @@
                 </button>
               </div>
               <button class="refresh-btn" :class="{ spinning: loading }" @click="refreshPosts" title="刷新列表">
-                <img src="@/assets/icons/refresh.svg" alt="refresh" class="refresh-icon" />
+                <Icon icon="ph:arrow-counter-clockwise" class="refresh-icon" />
               </button>
             </div>
             <div class="sort-group">
@@ -174,7 +174,7 @@
 
           <div class="search-bar">
             <div class="search-box">
-              <img src="@/assets/icons/search.svg" alt="search" class="search-icon" />
+              <Icon icon="ph:magnifying-glass" class="search-icon" />
               <input type="text" placeholder="搜索当前分类下的作品标题..." class="search-input" v-model="searchKeyword" />
             </div>
           </div>
@@ -194,9 +194,9 @@
                   <span class="content-time">{{ formatDateTime(post.createTime) }}</span>
                 </div>
                 <div class="content-stats">
-                  <span class="stat-item"><img src="@/assets/icons/eye.svg" alt="eye" class="stat-mini-icon" />{{ post.views }}</span>
-                  <span class="stat-item"><img src="@/assets/icons/like.svg" alt="like" class="stat-mini-icon" />{{ post.likes }}</span>
-                  <span class="stat-item"><img src="@/assets/icons/favorite.svg" alt="favorite" class="stat-mini-icon" />{{ post.collections }}</span>
+                  <span class="stat-item"><Icon icon="ph:eye" class="stat-mini-icon pink-icon" />{{ post.views }}</span>
+                  <span class="stat-item"><Icon icon="ph:heart" class="stat-mini-icon pink-icon" />{{ post.likes }}</span>
+                  <span class="stat-item"><Icon icon="ph:star" class="stat-mini-icon pink-icon" />{{ post.collections }}</span>
                 </div>
               </div>
               <div class="content-status">
@@ -206,13 +206,10 @@
               </div>
               <div class="content-actions">
                 <button v-if="!isDeleted(post.status)" class="action-btn edit" @click="editPost(post.id)" title="编辑">
-                  <img src="@/assets/icons/edit.svg" alt="edit" class="action-icon" />
+                  <Icon icon="ph:pencil-simple" class="action-icon pink-icon" />
                 </button>
                 <button v-if="isDraft(post.status)" class="action-btn preview" @click="openPreview(post)" title="预览">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="action-icon-svg">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
+                  <Icon icon="ph:stack" class="action-icon-svg" />
                 </button>
                 <button 
                   v-if="isDraft(post.status)" 
@@ -220,7 +217,7 @@
                   @click="publishPost(post.id)" 
                   title="发布"
                 >
-                  <img src="@/assets/icons/rocket.svg" alt="rocket" class="action-icon" />
+                  <Icon icon="ph:rocket-launch" class="action-icon" />
                 </button>
                 <button 
                   v-if="isDeleted(post.status)" 
@@ -228,10 +225,10 @@
                   @click="restorePost(post.id)" 
                   title="恢复"
                 >
-                  <img src="@/assets/icons/refresh.svg" alt="refresh" class="action-icon" />
+                  <Icon icon="ph:arrow-counter-clockwise" class="action-icon" />
                 </button>
                 <button class="action-btn delete" @click="confirmDelete(post)" :title="isDeleted(post.status) ? '彻底删除' : '删除'">
-                  <img src="@/assets/icons/trash.svg" alt="trash" class="action-icon" />
+                  <Icon icon="ph:trash" class="action-icon" />
                 </button>
               </div>
             </div>
@@ -267,7 +264,7 @@
 
           <div class="search-bar">
             <div class="search-box">
-              <img src="@/assets/icons/search.svg" alt="search" class="search-icon" />
+              <Icon icon="ph:magnifying-glass" class="search-icon" />
               <input type="text" placeholder="搜索粉丝昵称..." class="search-input" v-model="fansSearchKeyword" />
             </div>
           </div>
@@ -347,7 +344,7 @@
 
           <div class="search-bar">
             <div class="search-box">
-              <img src="@/assets/icons/search.svg" alt="search" class="search-icon" />
+              <Icon icon="ph:magnifying-glass" class="search-icon" />
               <input type="text" placeholder="搜索评论内容或用户名..." class="search-input" v-model="commentSearchKeyword" />
             </div>
           </div>
@@ -377,7 +374,7 @@
                 </div>
               </div>
               <button class="comment-delete-btn" @click="confirmDeleteManagedComment(comment)" title="删除评论">
-                <img src="@/assets/icons/trash.svg" alt="delete" class="delete-icon" />
+                <Icon icon="ph:trash" class="delete-icon" />
               </button>
             </div>
           </div>
@@ -394,7 +391,7 @@
         <div class="page-container magic-page">
           <header class="page-header">
             <div class="header-left">
-              <h1><img src="@/assets/icons/sparkle.svg" alt="sparkle" class="title-icon" />妙笔</h1>
+              <h1><Icon icon="ph:magic-wand" class="title-icon" />妙笔</h1>
               <p>AI辅助创作工具</p>
             </div>
           </header>
@@ -408,7 +405,7 @@
 
           <div class="magic-features">
             <div class="magic-card" v-for="feature in magicFeatures" :key="feature.title">
-              <img :src="feature.icon" :alt="feature.title" class="magic-icon" />
+              <Icon :icon="feature.icon" class="magic-icon" />
               <h3>{{ feature.title }}</h3>
               <p>{{ feature.desc }}</p>
               <button class="magic-btn">{{ feature.btnText }}</button>
@@ -417,7 +414,7 @@
 
           <div class="magic-tips">
             <div class="tips-header">
-              <h3><img src="@/assets/icons/lightbulb.svg" alt="lightbulb" class="title-icon" />使用提示</h3>
+              <h3><Icon icon="ph:lightbulb" class="title-icon" />使用提示</h3>
             </div>
             <ul class="tips-list">
               <li>输入关键词或主题，AI会帮你生成相关选题</li>
@@ -433,7 +430,7 @@
         <div class="agreement-page">
           <div class="agreement-container">
             <header class="agreement-page-header">
-              <h1><img src="@/assets/icons/info.svg" alt="info" class="title-icon" />社区公约</h1>
+              <h1><Icon icon="ph:info" class="title-icon" />社区公约</h1>
               <p>共同维护健康的社区环境</p>
             </header>
 
@@ -443,17 +440,17 @@
 
             <div class="agreement-principles">
               <div class="principle-card">
-                <img src="@/assets/icons/edit.svg" alt="edit" class="principle-icon" />
+                <Icon icon="ph:pencil-simple" class="principle-icon pink-icon" />
                 <h3>认真创作</h3>
                 <p>我们鼓励大家创作真实的内容，分享自己的见解和作品。尊重原创，不抄袭、不搬运，对自己发布的内容负责。</p>
               </div>
               <div class="principle-card">
-                <img src="@/assets/icons/handshake.svg" alt="handshake" class="principle-icon" />
+                <Icon icon="ph:handshake" class="principle-icon pink-icon" />
                 <h3>友善交流</h3>
                 <p>尊重不同观点，理性讨论。避免人身攻击和恶意言论，营造和谐友好的交流氛围。</p>
               </div>
               <div class="principle-card">
-                <img src="@/assets/icons/shield.svg" alt="shield" class="principle-icon" />
+                <Icon icon="ph:shield" class="principle-icon pink-icon" />
                 <h3>拥抱创新</h3>
                 <p>鼓励探索新的表达方式和创作形式，支持创意和灵感的碰撞，让社区充满活力。</p>
               </div>
@@ -531,17 +528,7 @@
       :warning-text="isDeleted(postToDelete?.status) ? '确认后还需再次确认一次，请谨慎操作' : undefined"
       @confirm="doDelete"
       @cancel="cancelDelete"
-    >
-      <template #icon>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modal-warn-icon">
-          <polyline points="3 6 5 6 21 6"/>
-          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
-          <line x1="10" y1="11" x2="10" y2="17"/>
-          <line x1="14" y1="11" x2="14" y2="17"/>
-        </svg>
-      </template>
-    </ConfirmModal>
+    />
 
     <ConfirmModal
       v-model:visible="showPublishModal"
@@ -551,13 +538,7 @@
       confirm-text="确认发布"
       @confirm="doPublish"
       @cancel="cancelPublish"
-    >
-      <template #icon>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modal-warn-icon">
-          <path d="M15.59 14.37a6 6 0 0 1-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 0 0 6.16-12.12A14.98 14.98 0 0 0 9.631 8.41m5.96 5.96a14.926 14.926 0 0 1-5.841 2.58m-.119-8.54a6 6 0 0 0-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 0 0-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 0 1-2.448-2.448 14.9 14.9 0 0 1 .06-.312m-2.24 2.39a4.493 4.493 0 0 0-1.757 4.306 4.493 4.493 0 0 1 4.306-1.758M16.5 9a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z"/>
-        </svg>
-      </template>
-    </ConfirmModal>
+    />
 
 
     <ConfirmModal
@@ -568,14 +549,7 @@
       confirm-text="确认恢复"
       @confirm="doRestore"
       @cancel="cancelRestore"
-    >
-      <template #icon>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modal-warn-icon">
-          <polyline points="1 4 1 10 7 10"/>
-          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
-        </svg>
-      </template>
-    </ConfirmModal>
+    />
 
     <ConfirmModal
       v-model:visible="showDeleteCommentModal"
@@ -585,17 +559,7 @@
       danger
       @confirm="doDeleteComment"
       @cancel="cancelDeleteComment"
-    >
-      <template #icon>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modal-warn-icon">
-          <polyline points="3 6 5 6 21 6"/>
-          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
-          <line x1="10" y1="11" x2="10" y2="17"/>
-          <line x1="14" y1="11" x2="14" y2="17"/>
-        </svg>
-      </template>
-    </ConfirmModal>
+    />
 
     <ConfirmModal
       v-model:visible="showPermanentDeleteModal"
@@ -608,15 +572,7 @@
       warning-text="确认后将永久删除，请谨慎操作"
       @confirm="doPermanentDelete"
       @cancel="cancelPermanentDelete"
-    >
-      <template #icon>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modal-warn-icon">
-          <circle cx="12" cy="12" r="10"/>
-          <line x1="12" y1="8" x2="12" y2="12"/>
-          <line x1="12" y1="16" x2="12.01" y2="16"/>
-        </svg>
-      </template>
-    </ConfirmModal>
+    />
 
     <!-- 预览弹窗 -->
     <Teleport to="body">
@@ -628,10 +584,7 @@
                 {{ previewPost ? statusText(previewPost.status) : '' }}
               </span>
               <button class="preview-close-btn" @click="closePreview">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="18" y1="6" x2="6" y2="18"/>
-                  <line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
+                <Icon icon="ph:x" />
               </button>
             </div>
 
@@ -655,10 +608,10 @@
                     />
                   </div>
                   <button v-if="previewPost.images.length > 1" class="preview-carousel-arrow preview-carousel-prev" @click="previewImageIndex = Math.max(0, previewImageIndex - 1)">
-                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                    <Icon icon="ph:caret-left" class="carousel-arrow-icon" />
                   </button>
                   <button v-if="previewPost.images.length > 1" class="preview-carousel-arrow preview-carousel-next" @click="previewImageIndex = Math.min((previewPost.images?.length ?? 1) - 1, previewImageIndex + 1)">
-                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+                    <Icon icon="ph:caret-right" class="carousel-arrow-icon" />
                   </button>
                   <div class="preview-carousel-dots" v-if="previewPost.images.length > 1">
                     <span v-for="(_, index) in previewPost.images" :key="index" class="preview-carousel-dot" :class="{ active: index === previewImageIndex }" @click="previewImageIndex = index"></span>
@@ -688,6 +641,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useNavigate } from '@/composables/useNavigate'
+import { Icon } from '@iconify/vue'
 import { ElMessage } from 'element-plus'
 
 import { getUserPosts, deletePost, permanentDeletePost, updatePost, getTopPosts } from '@/api/post'
@@ -848,18 +802,16 @@ const contentSortOrder = ref('desc')
 const commentPage = ref(1)
 const commentPageSize = 20
 
-import {
-  lightbulb as iconLightbulb,
-  edit as iconEdit,
-  eye as iconEye,
-  like as iconLike,
-  favorite as iconFavorite,
-  fansNav as iconFans,
-  comment as iconComment,
-  image as iconImage,
-  chart as iconChart,
-  empty as iconEmpty,
-} from '@/assets/icons'
+const iconEdit = 'ph:pencil-simple'
+const iconEye = 'ph:eye'
+const iconLike = 'ph:heart'
+const iconFavorite = 'ph:star'
+const iconFans = 'ph:users'
+const iconComment = 'ph:chat-circle-text'
+const iconEmpty = 'ph:tray'
+const iconLightbulb = 'ph:lightbulb'
+const iconImage = 'ph:image'
+const iconChart = 'ph:chart-bar'
 
 const magicFeatures = ref([
   { icon: iconLightbulb, title: '智能选题', desc: '输入关键词，AI帮你生成热门选题', btnText: '开始选题' },
@@ -1358,7 +1310,7 @@ watch(activeNav, (val) => {
 }
 
 .nav-item-primary .nav-icon {
-  filter: brightness(0) invert(1);
+  color: white;
 }
 
 .nav-icon {
@@ -1418,7 +1370,7 @@ watch(activeNav, (val) => {
 .publish-btn .btn-icon {
   width: 16px;
   height: 16px;
-  filter: brightness(0) invert(1);
+  color: white;
 }
 
 /* 创作首页 Hero 区域 */
@@ -1499,7 +1451,6 @@ watch(activeNav, (val) => {
 .hero-publish-btn .btn-icon {
   width: 20px;
   height: 20px;
-  filter: brightness(0) saturate(100%) invert(32%) sepia(95%) saturate(1500%) hue-rotate(320deg) brightness(104%) contrast(96%);
 }
 
 .stats-section {
@@ -1511,11 +1462,6 @@ watch(activeNav, (val) => {
   grid-template-columns: repeat(auto-fit, minmax(180px, 220px));
   gap: 14px;
   justify-content: start;
-}
-
-.action-icon {
-  width: 16px;
-  height: 16px;
 }
 
 .title-icon {
@@ -1530,14 +1476,10 @@ watch(activeNav, (val) => {
   margin-right: 12px;
 }
 
-.magic-icon {
-  width: 40px;
-  height: 40px;
-}
-
 .overview-icon {
   width: 24px;
   height: 24px;
+  color: var(--pink);
 }
 
 .stat-info {
@@ -1742,6 +1684,7 @@ watch(activeNav, (val) => {
   height: 16px;
   opacity: 0.4;
   flex-shrink: 0;
+  color: var(--text-dim);
 }
 
 .search-input {
@@ -1785,11 +1728,13 @@ watch(activeNav, (val) => {
   width: 16px;
   height: 16px;
   opacity: 0.5;
+  color: var(--text-dim);
   transition: opacity 0.22s ease-out;
 }
 
 .refresh-btn:hover .refresh-icon {
   opacity: 0.8;
+  color: var(--pink);
 }
 
 .search-bar {
@@ -1810,8 +1755,8 @@ watch(activeNav, (val) => {
 .content-item {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 16px;
+  gap: 12px;
+  padding: 12px 14px;
   border-radius: 12px;
   background: var(--card);
   border: 1.5px solid var(--border);
@@ -1991,10 +1936,6 @@ watch(activeNav, (val) => {
   height: 14px;
 }
 
-.action-btn.edit .action-icon {
-  filter: brightness(0) saturate(100%) invert(66%) sepia(41%) saturate(2417%) hue-rotate(302deg) brightness(101%) contrast(101%);
-}
-
 .action-btn.edit:hover {
   background: linear-gradient(135deg, rgba(255, 107, 157, 0.12), rgba(180, 132, 255, 0.12));
   border-color: var(--border);
@@ -2015,7 +1956,7 @@ watch(activeNav, (val) => {
 }
 
 .action-btn.publish .action-icon {
-  filter: brightness(0) saturate(100%) invert(42%) sepia(60%) saturate(500%) hue-rotate(80deg) brightness(95%) contrast(90%);
+  color: #4caf50;
 }
 
 .action-btn.restore:hover {
@@ -2024,7 +1965,7 @@ watch(activeNav, (val) => {
 }
 
 .action-btn.restore .action-icon {
-  filter: brightness(0) saturate(100%) invert(45%) sepia(70%) saturate(400%) hue-rotate(170deg) brightness(95%) contrast(90%);
+  color: #2196f3;
 }
 
 .action-btn.delete:hover {
@@ -2033,7 +1974,7 @@ watch(activeNav, (val) => {
 }
 
 .action-btn.delete .action-icon {
-  filter: brightness(0) saturate(100%) invert(35%) sepia(80%) saturate(500%) hue-rotate(340deg) brightness(95%) contrast(90%);
+  color: #f44336;
 }
 
 .create-btn {
@@ -2197,16 +2138,17 @@ watch(activeNav, (val) => {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px;
+  padding: 12px 16px;
   border-radius: 12px;
-  background: var(--pink-bg);
-  border: 1.5px solid transparent;
-  transition: all 0.22s ease-out;
+  background: var(--card);
+  border: 1px solid var(--border);
   cursor: pointer;
+  transition: all 0.2s;
 }
 
 .ranking-item:hover {
   border-color: var(--border);
+  box-shadow: 0 2px 8px rgba(180, 132, 255, 0.1);
 }
 
 .rank-num {
@@ -2578,11 +2520,13 @@ watch(activeNav, (val) => {
   width: 15px;
   height: 15px;
   opacity: 0.35;
-  transition: opacity 0.15s;
+  color: var(--text-dim);
+  transition: opacity 0.15s, color 0.15s;
 }
 
 .comment-delete-btn:hover .delete-icon {
   opacity: 0.7;
+  color: #f44336;
 }
 
 /* 整行 hover 时才让删除按钮显现 */
@@ -2593,6 +2537,7 @@ watch(activeNav, (val) => {
 
 .comment-manage-item:hover .delete-icon {
   opacity: 0.6;
+  color: #f44336;
 }
 
 /* 总数 */
@@ -2688,8 +2633,10 @@ watch(activeNav, (val) => {
 }
 
 .magic-icon {
-  font-size: 36px;
+  width: 36px;
+  height: 36px;
   margin-bottom: 12px;
+  color: var(--purple);
 }
 
 .magic-card h3 {
@@ -2826,6 +2773,7 @@ watch(activeNav, (val) => {
 .principle-icon {
   font-size: 32px;
   margin-bottom: 12px;
+  color: var(--pink);
 }
 
 .principle-card h3 {

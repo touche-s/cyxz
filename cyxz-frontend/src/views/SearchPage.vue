@@ -3,7 +3,7 @@
     <div class="search-header">
       <div class="search-header-inner">
         <div class="search-input-wrap">
-          <img src="@/assets/icons/search.svg" alt="search" class="search-icon" />
+          <Icon icon="ph:magnifying-glass" class="search-icon" />
           <input
             ref="searchInputRef"
             v-model="keyword"
@@ -31,6 +31,7 @@
           v-for="item in results"
           :key="item.id"
           :post="item"
+          :show-like="true"
           @click="goToPost"
         />
       </div>
@@ -44,6 +45,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue'
+import { Icon } from '@iconify/vue'
 import { useRoute } from 'vue-router'
 import { useNavigate } from '@/composables/useNavigate'
 import { searchPosts } from '@/api/post'

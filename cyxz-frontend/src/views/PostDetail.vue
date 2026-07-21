@@ -44,10 +44,10 @@
 
                 <!-- 左右箭头 -->
                 <button v-if="post.images.length > 1" class="carousel-arrow carousel-prev" @click="prevImage">
-                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                  <Icon icon="ph:caret-left" class="carousel-arrow-icon" />
                 </button>
                 <button v-if="post.images.length > 1" class="carousel-arrow carousel-next" @click="nextImage">
-                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+                  <Icon icon="ph:caret-right" class="carousel-arrow-icon" />
                 </button>
 
                 <!-- 底部指示点 -->
@@ -70,19 +70,21 @@
 
           <div class="post-action-bar">
             <button class="action-btn" :class="{ active: liked, popping: likePopping }" @click="handlePostLike">
-              <img :src="liked ? likeIcon : likeOutlineIcon" alt="like" class="action-icon" />
+              <Icon icon="ph:heart" class="action-icon pink-icon" v-show="!liked" />
+              <Icon icon="ph:heart-fill" class="action-icon pink-icon" v-show="liked" />
               <span class="action-count">{{ formatNumber(post.likes) }}</span>
             </button>
             <button class="action-btn" :class="{ active: collected, popping: collectPopping }" @click="handleCollect">
-              <img :src="collected ? favoriteIcon : favoriteOutlineIcon" alt="favorite" class="action-icon" />
+              <Icon icon="ph:star" class="action-icon pink-icon" v-show="!collected" />
+              <Icon icon="ph:star-fill" class="action-icon pink-icon" v-show="collected" />
               <span class="action-count">{{ formatNumber(post.collections) }}</span>
             </button>
             <button class="action-btn" @click="handleShare">
-              <img :src="shareIcon" alt="share" class="action-icon" />
+              <Icon icon="ph:share-fat" class="action-icon pink-icon" />
               <span class="action-count">分享</span>
             </button>
             <button class="action-btn" @click="scrollToComment">
-              <img :src="commentIcon" alt="comment" class="action-icon" />
+              <Icon icon="ph:chat-circle-text" class="action-icon pink-icon" />
               <span class="action-count">{{ commentTotal }}</span>
             </button>
           </div>
@@ -181,18 +183,15 @@
           </div>
 
           <button class="lightbox-close" @click="closeLightbox">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
+            <Icon icon="ph:x" class="lightbox-close-icon" />
           </button>
 
           <template v-if="lightboxImages.length > 1">
             <button class="lightbox-arrow lightbox-prev" @click.stop="lightboxPrev">
-              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              <Icon icon="ph:caret-left" class="lightbox-arrow-icon" />
             </button>
             <button class="lightbox-arrow lightbox-next" @click.stop="lightboxNext">
-              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+              <Icon icon="ph:caret-right" class="lightbox-arrow-icon" />
             </button>
           </template>
 
@@ -224,14 +223,7 @@ import CommentItem from '@/components/CommentItem.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import FollowButton from '@/components/FollowButton.vue'
-import {
-  like as likeIcon,
-  likeOutline as likeOutlineIcon,
-  favorite as favoriteIcon,
-  favoriteOutline as favoriteOutlineIcon,
-  share as shareIcon,
-  comment as commentIcon,
-} from '@/assets/icons'
+import { Icon } from '@iconify/vue'
 
 const route = useRoute()
 const { open, to } = useNavigate()
@@ -831,13 +823,15 @@ onMounted(async () => {
   background: var(--pink-bg-hover);
 }
 
-.action-btn img {
+.action-btn img,
+.action-btn .action-icon {
   width: 24px;
   height: 24px;
   transition: transform 0.22s ease-out;
 }
 
-.action-btn:hover img {
+.action-btn:hover img,
+.action-btn:hover .action-icon {
   transform: scale(1.1);
 }
 
@@ -1096,7 +1090,7 @@ onMounted(async () => {
   transform: rotate(90deg) scale(1.05);
 }
 
-.lightbox-close svg {
+.lightbox-close-icon {
   width: 18px;
   height: 18px;
 }
@@ -1124,6 +1118,11 @@ onMounted(async () => {
   background: rgba(255, 107, 157, 0.45);
   border-color: rgba(255, 107, 157, 0.4);
   transform: translateY(-50%) scale(1.08);
+}
+
+.lightbox-arrow-icon {
+  width: 28px;
+  height: 28px;
 }
 
 .lightbox-prev { left: 28px; }

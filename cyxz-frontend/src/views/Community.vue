@@ -10,9 +10,7 @@
         <div class="community-section">
           <div class="section-header">
             <div class="section-icon">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-              </svg>
+              <Icon icon="ph:chat-centered-text" class="section-iconify pink-icon" />
             </div>
             <h3>热门话题</h3>
           </div>
@@ -31,12 +29,7 @@
         <div class="community-section">
           <div class="section-header">
             <div class="section-icon icon-pink">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-              </svg>
+              <Icon icon="ph:users" class="section-iconify" />
             </div>
             <h3>活跃创作者</h3>
           </div>
@@ -52,11 +45,7 @@
         <div class="community-section">
           <div class="section-header">
             <div class="section-icon icon-purple">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="4 7 4 4 20 4 20 7"/>
-                <line x1="9" y1="20" x2="15" y2="20"/>
-                <line x1="12" y1="4" x2="12" y2="20"/>
-              </svg>
+              <Icon icon="ph:tag" class="section-iconify" />
             </div>
             <h3>标签墙</h3>
           </div>
@@ -80,6 +69,8 @@
 </template>
 
 <script setup lang="ts">
+import { Icon } from '@iconify/vue'
+
 const tags = ['二次元', '绘画', 'Cosplay', '手办', '动画', '漫画', '轻小说', '游戏', '同人', '声优', '漫展', '宅舞']
 </script>
 
@@ -153,7 +144,6 @@ const tags = ['二次元', '绘画', 'Cosplay', '手办', '动画', '漫画', '�
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--pink);
 }
 
 .section-icon.icon-pink {
@@ -164,6 +154,10 @@ const tags = ['二次元', '绘画', 'Cosplay', '手办', '动画', '漫画', '�
 .section-icon.icon-purple {
   background: linear-gradient(135deg, rgba(192, 132, 252, 0.12), rgba(212, 168, 255, 0.08));
   color: var(--purple);
+}
+.section-iconify {
+  width: 20px;
+  height: 20px;
 }
 
 .placeholder-list {

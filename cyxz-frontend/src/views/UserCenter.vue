@@ -11,9 +11,9 @@
           :class="{ active: activeTab === tab.key }"
           @click="activeTab = tab.key"
         >
-          <svg v-if="tab.key === 'home'" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-          <svg v-else-if="tab.key === 'avatar'" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/></svg>
-          <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          <Icon v-if="tab.key === 'home'" icon="ph:house" class="nav-icon pink-icon" />
+          <Icon v-else-if="tab.key === 'avatar'" icon="ph:camera" class="nav-icon pink-icon" />
+          <Icon v-else icon="ph:pencil-simple-line" class="nav-icon pink-icon" />
           <span>{{ tab.label }}</span>
         </a>
       </nav>
@@ -62,7 +62,7 @@
           <h3 class="section-title">账号安全</h3>
           <div class="settings-list">
             <div class="setting-row" v-for="item in accountItems" :key="item.label">
-              <img :src="item.icon" alt="" class="setting-row-icon" />
+              <Icon :icon="item.icon" class="setting-row-icon pink-icon" />
               <span class="setting-row-label">{{ item.label }}</span>
               <span v-if="item.value" class="setting-row-value">{{ item.value }}</span>
               <span v-else class="setting-row-arrow">›</span>
@@ -82,7 +82,7 @@
             </div>
             <div class="avatar-actions">
               <button class="upload-btn" @click="triggerUpload">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <Icon icon="ph:upload-simple" class="upload-icon" />
                 上传新头像
               </button>
               <p class="upload-hint">支持 PNG / JPG / GIF，最大 10MB</p>
@@ -168,6 +168,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { Icon } from '@iconify/vue'
 import { ElMessage } from 'element-plus'
 import { getMyProfile, updateUserProfile } from '@/api/user'
 import type { UserInfo } from '@/api/user'
@@ -175,8 +176,6 @@ import { uploadAvatar, getAvatarHistory, deleteUploadedFile } from '@/api/upload
 import { useUserStore } from '@/stores/user'
 import { formatDate } from '@/utils/format'
 import ImageCropper from '@/components/ImageCropper.vue'
-
-import { shield as shieldIcon, info as infoIcon, mail as mailIcon } from '@/assets/icons'
 
 const userStore = useUserStore()
 const route = useRoute()
@@ -227,10 +226,10 @@ const notificationSettings = reactive([
 ])
 
 const accountItems = [
-  { icon: shieldIcon, label: '修改密码' },
-  { icon: infoIcon, label: '绑定手机号' },
-  { icon: mailIcon, label: '绑定邮箱' },
-  { icon: infoIcon, label: '关于次元小站', value: 'v1.0.0' },
+  { icon: 'ph:lock-key', label: '修改密码' },
+  { icon: 'ph:device-mobile', label: '绑定手机号' },
+  { icon: 'ph:envelope', label: '绑定邮箱' },
+  { icon: 'ph:info', label: '关于次元小站', value: 'v1.0.0' },
 ]
 
 onMounted(async () => {
@@ -417,7 +416,6 @@ async function saveInfo() {
 
 .nav-item svg {
   flex-shrink: 0;
-  color: var(--pink);
   opacity: 0.7;
 }
 
@@ -546,7 +544,7 @@ async function saveInfo() {
   width: 20px;
   height: 20px;
   margin-right: 14px;
-  opacity: 0.5;
+  opacity: 0.7;
 }
 
 .setting-row-label {
@@ -619,6 +617,12 @@ async function saveInfo() {
   transition: all 0.22s ease;
   box-shadow: var(--shadow);
   width: fit-content;
+}
+
+.upload-icon {
+  width: 18px;
+  height: 18px;
+  color: white;
 }
 
 .upload-btn:hover {

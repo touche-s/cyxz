@@ -49,10 +49,10 @@
       <div class="info-bar-inner">
         <div class="tab-nav">
           <a href="#" :class="{ active: activeTab === 'works' }" @click.prevent="onTabChange('works')">
-            <img src="@/assets/icons/post.svg" alt="post" class="tab-icon" />作品
+            <Icon icon="ph:article" class="tab-icon pink-icon" />作品
           </a>
           <a href="#" :class="{ active: activeTab === 'favorites' }" @click.prevent="onTabChange('favorites')">
-            <img src="@/assets/icons/favorite.svg" alt="favorite" class="tab-icon" />收藏
+            <Icon icon="ph:star" class="tab-icon pink-icon" />收藏
           </a>
         </div>
       </div>
@@ -62,7 +62,7 @@
     <div class="content-area">
       <div class="content-tools">
         <div class="tab-search">
-          <img src="@/assets/icons/search.svg" alt="search" class="search-icon" />
+          <Icon icon="ph:magnifying-glass" class="search-icon" />
           <input v-model="searchKeyword" :placeholder="activeTab === 'works' ? '搜索作品...' : '搜索收藏...'"></input>
         </div>
       </div>
@@ -76,14 +76,14 @@
             :post="item"
             size="small"
             :show-collect="false"
-            :show-like="false"
+            :show-like="true"
             @click="goToPost"
           />
         </div>
         <EmptyState v-else-if="!postLoading" :title="searchKeyword ? '没有匹配的作品' : '还没有发布任何作品'" :hint="isSelf ? '快去发布你的第一篇帖子吧~' : ''">
           <template v-if="isSelf" #actions>
             <button class="guide-btn guide-btn-primary" @click="goToCreatePost">
-              <img src="@/assets/icons/edit.svg" alt="edit" class="btn-icon" />发布帖子
+              <Icon icon="ph:pencil-simple" class="btn-icon" />发布帖子
             </button>
           </template>
         </EmptyState>
@@ -99,7 +99,7 @@
             :post="item"
             size="small"
             :show-collect="false"
-            :show-like="false"
+            :show-like="true"
             @click="goToPost"
           />
         </div>
@@ -113,6 +113,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { Icon } from '@iconify/vue'
 import { useNavigate } from '@/composables/useNavigate'
 import { ElMessage } from 'element-plus'
 import { getUserProfile } from '@/api/user'
@@ -560,7 +561,7 @@ function goToPost(post: PostVO) {
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
 }
-.btn-icon { width: 16px; height: 16px; margin-right: 6px; filter: brightness(0) invert(1); }
+.btn-icon { width: 16px; height: 16px; margin-right: 6px; color: white; }
 .loading-placeholder {
   text-align: center;
   padding: 60px 0;
