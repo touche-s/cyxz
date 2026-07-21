@@ -6,11 +6,7 @@
         <div class="modal-icon-wrapper" :class="{ 'is-danger': danger }">
           <slot name="icon">
             <slot name="confirmIcon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="modal-warn-icon">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
+              <Icon icon="ph:warning-circle" class="modal-warn-icon" />
             </slot>
           </slot>
         </div>
@@ -35,6 +31,7 @@
 
 <script setup lang="ts">
 import { watch, onMounted, onUnmounted } from 'vue'
+import { Icon } from '@iconify/vue'
 
 const props = defineProps<{
   visible: boolean

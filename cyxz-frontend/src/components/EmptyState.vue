@@ -1,6 +1,6 @@
 <template>
   <div class="empty-state">
-    <img v-if="icon" :src="icon" alt="empty" class="empty-icon" />
+    <Icon v-if="icon" :icon="icon" class="empty-icon" />
     <p class="empty-text">{{ title }}</p>
     <p v-if="hint" class="empty-hint">{{ hint }}</p>
     <div v-if="$slots.actions" class="empty-actions">
@@ -10,6 +10,8 @@
 </template>
 
 <script setup lang="ts">
+import { Icon } from '@iconify/vue'
+
 defineProps<{
   icon?: string
   title: string
@@ -29,8 +31,9 @@ defineProps<{
 .empty-icon {
   width: 64px;
   height: 64px;
-  opacity: 0.4;
+  opacity: 0.5;
   margin-bottom: 12px;
+  color: var(--pink);
 }
 .empty-text {
   font-size: 14px;

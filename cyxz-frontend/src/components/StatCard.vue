@@ -1,7 +1,7 @@
 <template>
   <div ref="cardRef" class="stat-card">
     <div class="stat-icon-wrapper" :class="iconClass">
-      <img :src="icon" :alt="label" class="stat-icon" />
+      <Icon :icon="icon" class="stat-icon" />
     </div>
     <div class="stat-info">
       <span class="stat-value">{{ formattedValue }}</span>
@@ -12,6 +12,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { Icon } from '@iconify/vue'
 import { useCountUp } from '@/composables/useCountUp'
 import { formatNumber } from '@/utils/format'
 
@@ -105,6 +106,7 @@ function startIfReady() {
   font-size: 24px;
   width: 24px;
   height: 24px;
+  color: var(--pink);
 }
 
 .stat-info {

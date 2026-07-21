@@ -15,21 +15,21 @@
               </div>
               <div class="features">
                 <div class="feature-item">
-                  <img src="@/assets/icons/edit.svg" alt="edit" class="feature-icon" />
+                  <Icon icon="ph:pencil-simple" class="feature-icon" />
                   <div>
                     <h3>创作分享</h3>
                     <p>发布绘画、摄影、Cosplay，展示你的创意世界</p>
                   </div>
                 </div>
                 <div class="feature-item">
-                  <img src="@/assets/icons/handshake.svg" alt="handshake" class="feature-icon" />
+                  <Icon icon="ph:handshake" class="feature-icon" />
                   <div>
                     <h3>同好社区</h3>
                     <p>找到志同道合的伙伴，一起追番聊番</p>
                   </div>
                 </div>
                 <div class="feature-item">
-                  <img src="@/assets/icons/sparkle.svg" alt="sparkle" class="feature-icon" />
+                  <Icon icon="ph:sparkle" class="feature-icon" />
                   <div>
                     <h3>发现灵感</h3>
                     <p>探索海量优质内容，每一次浏览都是惊喜</p>
@@ -110,12 +110,15 @@
                     size="large"
                     prefix-icon="Key"
                   />
-                  <img
-                    :src="captchaImage"
-                    @click="loadCaptcha"
-                    class="captcha-img"
-                    alt="验证码"
-                  />
+                  <div class="captcha-img" @click="loadCaptcha">
+                    <img
+                      v-if="captchaImage"
+                      :src="captchaImage"
+                      class="captcha-img-inner"
+                      alt="验证码"
+                    />
+                    <span v-else class="captcha-placeholder">加载中...</span>
+                  </div>
                 </div>
               </el-form-item>
 
@@ -149,6 +152,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, watch } from 'vue'
+import { Icon } from '@iconify/vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { login, register, getCaptcha } from '@/api/auth'
 import type { LoginRequest, RegisterRequest } from '@/api/auth'
@@ -403,6 +407,7 @@ async function handleSubmit() {
   height: 24px;
   flex-shrink: 0;
   margin-top: 2px;
+  color: var(--pink);
 }
 .feature-item h3 {
   color: white;
@@ -530,9 +535,23 @@ async function handleSubmit() {
   border: 1.5px solid var(--border);
   flex-shrink: 0;
   transition: border-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 .captcha-img:hover {
   border-color: var(--pink);
+}
+.captcha-img-inner {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.captcha-placeholder {
+  font-size: 12px;
+  color: var(--text-dim);
 }
 
 .submit-btn {

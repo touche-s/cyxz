@@ -10,7 +10,7 @@
         :class="{ active: post.collected, popping: collectPopping[post.id] }"
         @click.stop="handleCollect(post)"
       >
-        <img :src="post.collected ? favorite : favoriteOutline" alt="collect" class="collect-icon" />
+        <Icon :icon="post.collected ? 'ph:star-fill' : 'ph:star'" class="collect-icon" />
       </button>
     </div>
     <div class="card-body">
@@ -31,10 +31,11 @@
             :class="{ active: post.liked, popping: likePopping[post.id] }"
             @click.stop="handleLike(post)"
           >
-            <img :src="post.liked ? like : likeOutline" alt="like" class="stat-icon" />
+            <Icon icon="ph:heart" class="stat-icon pink-icon" v-show="!post.liked" />
+            <Icon icon="ph:heart-fill" class="stat-icon pink-icon" v-show="post.liked" />
             {{ formatNumber(post.likes) }}
           </button>
-          <span><img src="@/assets/icons/eye.svg" alt="eye" class="stat-icon" /> {{ formatNumber(post.views) }}</span>
+          <span><Icon icon="ph:eye" class="stat-icon pink-icon" /> {{ formatNumber(post.views) }}</span>
         </div>
       </div>
     </div>
@@ -43,8 +44,8 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
+import { Icon } from '@iconify/vue'
 import type { PostVO } from '@/api/post'
-import { like, likeOutline, favorite, favoriteOutline } from '@/assets/icons'
 import { formatNumber } from '@/utils/format'
 import { useNavigate } from '@/composables/useNavigate'
 
@@ -173,6 +174,7 @@ const getGradient = (id: string | number) => {
   width: 16px;
   height: 16px;
   display: block;
+  color: var(--pink);
 }
 
 .card-save:hover {
@@ -267,7 +269,7 @@ const getGradient = (id: string | number) => {
 }
 
 .card-stats span:hover {
-  color: var(--text);
+  color: var(--pink);
 }
 
 .card-stats .stat-icon {
@@ -283,12 +285,12 @@ const getGradient = (id: string | number) => {
   gap: 3px;
   background: transparent;
   border: none;
+  color: var(--text-dim);
   cursor: pointer;
   font-size: 12px;
-  color: var(--text-dim);
   padding: 0;
   transition: color 0.22s ease-out;
-  line-height: 1;
+  line-height: 14px;
   font-family: inherit;
 }
 

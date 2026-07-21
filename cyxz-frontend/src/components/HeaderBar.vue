@@ -10,7 +10,7 @@
     </div>
     <div class="header-center" :class="{ 'header-center--hidden': $route.path === '/search' }">
       <div class="search-wrap">
-        <el-icon><Search /></el-icon>
+        <i-ph-magnifying-glass class="search-iconify" />
         <input v-model="searchText" type="text" placeholder="搜索感兴趣的内容..." @keyup.enter="goToSearch" />
       </div>
     </div>
@@ -23,7 +23,7 @@
       <a href="javascript:;" :class="{ active: $route.path === '/creator' }" @click="goCreator">创作中心</a>
     </nav>
     <div class="header-right">
-      <template v-if="userStore.isLoggedIn">
+      <div v-if="userStore.isLoggedIn">
         <div class="user-dropdown" :class="{ open: dropdownOpen }">
           <div class="avatar-trigger" @click.stop="goToProfile" @mouseenter="dropdownOpen = true" @mouseleave="dropdownOpen = false">
             <img v-if="userStore.userInfo?.avatar" :src="userStore.userInfo.avatar" alt="avatar" class="avatar-img" />
@@ -49,52 +49,43 @@
               </div>
               <div class="panel-menu">
                 <div class="menu-item" @click="handleCommand('user-center')">
-                  <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                    <path d="M12 20h9"/>
-                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-                  </svg>
+                  <Icon icon="ph:user" class="menu-icon" />
                   <span>个人中心</span>
-                  <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="9 18 15 12 9 6"/>
-                  </svg>
+                  <Icon icon="ph:caret-right" class="menu-arrow" />
                 </div>
                 <div class="menu-divider"></div>
                 <div class="menu-item logout" @click="handleCommand('logout')">
-                  <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                    <polyline points="16 17 21 12 16 7"/>
-                    <line x1="21" y1="12" x2="9" y2="12"/>
-                  </svg>
+                  <Icon icon="ph:sign-out" class="menu-icon" />
                   <span>退出登录</span>
                 </div>
               </div>
             </div>
           </Transition>
         </div>
-      </template>
+      </div>
       <div v-else class="login-circle" @click="userStore.openLoginModal()">
         <span>登录</span>
       </div>
       <div class="header-icons">
         <button class="header-action" @click="goPrivateMessages">
-          <el-icon><ChatLineSquare /></el-icon>
+          <i-ph-chat-circle-text class="action-iconify" />
           <span class="action-label">私信</span>
         </button>
         <button class="header-action" @click="goMessages">
-          <el-icon><Bell /></el-icon>
+          <i-ph-bell class="action-iconify" />
           <span class="action-label">通知</span>
         </button>
         <button class="header-action" @click="goFavorites">
-          <el-icon><Star /></el-icon>
+          <i-ph-star class="action-iconify" />
           <span class="action-label">收藏</span>
         </button>
         <button class="header-action" @click="toggleDarkMode">
-          <el-icon v-if="!isDark"><Moon /></el-icon>
-          <el-icon v-else><Sunny /></el-icon>
+          <i-ph-moon v-if="!isDark" class="action-iconify" />
+          <i-ph-sun v-else class="action-iconify" />
         </button>
       </div>
       <button class="btn-create" @click="goPublish">
-        <el-icon><Plus /></el-icon>
+        <i-ph-pencil-simple class="btn-iconify" />
         发布
       </button>
     </div>
@@ -103,7 +94,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { Search, Plus, Bell, ChatLineSquare, Star, Moon, Sunny } from '@element-plus/icons-vue'
+import { Icon } from '@iconify/vue'
 import { useUserStore } from '@/stores/user'
 import { useAuth } from '@/composables/useAuth'
 import { useNavigate } from '@/composables/useNavigate'
@@ -307,7 +298,9 @@ onMounted(() => {
   box-shadow: 0 0 0 3px rgba(180, 132, 255, 0.1);
 }
 
-.search-wrap .el-icon {
+.search-iconify {
+  width: 18px;
+  height: 18px;
   color: var(--purple);
   transition: color 0.22s ease-out;
 }
@@ -396,6 +389,11 @@ onMounted(() => {
 .btn-create:active {
   transform: scale(0.97);
 }
+.btn-iconify {
+  width: 16px;
+  height: 16px;
+  color: white;
+}
 
 .login-circle {
    width: 40px;
@@ -457,14 +455,15 @@ onMounted(() => {
 .header-action:hover {
 }
 
-.header-action .el-icon {
+.action-iconify {
+  width: 19px;
+  height: 19px;
   color: var(--text-dim);
-  font-size: 19px;
   line-height: 1;
   transition: color 0.2s ease, transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.header-action:hover .el-icon {
+.header-action:hover .action-iconify {
   color: var(--pink);
   transform: translateY(-2px);
 }
@@ -666,7 +665,7 @@ onMounted(() => {
 }
 
 .menu-item.logout .menu-icon {
-  stroke: #e85b7d;
+  color: #e85b7d;
 }
 
 .menu-item.logout:hover {

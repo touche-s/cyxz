@@ -44,11 +44,8 @@
           :class="{ active: comment.liked }"
           @click="handleToggleLike"
         >
-          <img
-            :src="comment.liked ? like : likeOutline"
-            alt="like"
-            class="action-icon"
-          />
+          <Icon icon="ph:heart" class="action-icon pink-icon" v-show="!comment.liked" />
+          <Icon icon="ph:heart-fill" class="action-icon pink-icon" v-show="comment.liked" />
           <span>{{ comment.likes }}</span>
         </button>
         <button class="comment-action-btn" @click="handleReply">
@@ -135,7 +132,7 @@ import type { CommentVO } from '@/api/comment'
 import { useUserStore } from '@/stores/user'
 import { useAuth } from '@/composables/useAuth'
 import { useNavigate } from '@/composables/useNavigate'
-import { like, likeOutline } from '@/assets/icons'
+import { Icon } from '@iconify/vue'
 import { formatDateTime } from '@/utils/format'
 
 const { open } = useNavigate()
