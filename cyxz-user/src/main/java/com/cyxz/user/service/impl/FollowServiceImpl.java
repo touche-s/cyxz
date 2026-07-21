@@ -1,10 +1,11 @@
 package com.cyxz.user.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.cyxz.common.base.BusinessException;
+import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
+import com.cyxz.common.utils.StatusUpdateHelper;
 import com.cyxz.user.entity.UserFollowPO;
 import com.cyxz.user.mapper.UserFollowMapper;
 import com.cyxz.user.service.FollowService;
@@ -58,7 +59,7 @@ public class FollowServiceImpl implements FollowService {
                 UserFollowPO newFollow = new UserFollowPO();
                 newFollow.setUserId(userId);
                 newFollow.setFollowUserId(targetUserId);
-                newFollow.setStatus(1);
+                newFollow.setStatus(CommonStatus.ACTIVE);
                 followMapper.insert(newFollow);
                 log.info("关注用户: userId={}, followUserId={}", userId, targetUserId);
             } catch (DuplicateKeyException e) {
@@ -67,7 +68,7 @@ public class FollowServiceImpl implements FollowService {
                 if (conflict.getStatus() == 1) {
                     return; // 已被置为已关注
                 }
-                boolean updated = updateFollowStatus(conflict.getId(), 0, 1);
+                boolean updated = StatusUpdateHelper.updateStatus(followMapper, conflict.getId(), 0, 1);
                 if (updated) {
                     log.info("关注用户(并发恢复): userId={}, followUserId={}", userId, targetUserId);
                 }
@@ -76,7 +77,7 @@ public class FollowServiceImpl implements FollowService {
         }
 
         if (exist.getStatus() == 0) {
-            boolean updated = updateFollowStatus(exist.getId(), 0, 1);
+            boolean updated = StatusUpdateHelper.updateStatus(followMapper, exist.getId(), 0, 1);
             if (updated) {
                 log.info("恢复关注: userId={}, followUserId={}", userId, targetUserId);
             }
@@ -101,7 +102,7 @@ public class FollowServiceImpl implements FollowService {
             return;
         }
 
-        boolean updated = updateFollowStatus(exist.getId(), 1, 0);
+        boolean updated = StatusUpdateHelper.updateStatus(followMapper, exist.getId(), 1, 0);
         if (updated) {
             log.info("取消关注: userId={}, followUserId={}", userId, targetUserId);
         }
@@ -112,13 +113,6 @@ public class FollowServiceImpl implements FollowService {
         wrapper.eq(UserFollowPO::getUserId, userId)
                 .eq(UserFollowPO::getFollowUserId, targetUserId);
         return followMapper.selectOne(wrapper);
-    }
-
-    private boolean updateFollowStatus(Long id, int oldStatus, int newStatus) {
-        UpdateWrapper<UserFollowPO> updateWrapper = new UpdateWrapper<>();
-        updateWrapper.eq("id", id).eq("status", oldStatus)
-                .set("status", newStatus);
-        return followMapper.update(null, updateWrapper) > 0;
     }
 
     /**
@@ -133,7 +127,7 @@ public class FollowServiceImpl implements FollowService {
         LambdaQueryWrapper<UserFollowPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserFollowPO::getUserId, userId)
                 .eq(UserFollowPO::getFollowUserId, targetUserId)
-                .eq(UserFollowPO::getStatus, 1);
+                .eq(UserFollowPO::getStatus, CommonStatus.ACTIVE);
         return followMapper.selectCount(wrapper) > 0;
     }
 

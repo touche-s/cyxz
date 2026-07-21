@@ -2,6 +2,7 @@ package com.cyxz.post.controller;
 
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
+import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.web.CurrentUser;
 import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
@@ -127,8 +128,8 @@ public class PostController {
      */
     @GetMapping("/list")
     public Result<PageResult<PostVO>> list(@RequestParam(value = "categoryId", required = false) Long categoryId,
-                                     @RequestParam(value = "page", defaultValue = "1") int page,
-                                     @RequestParam(value = "size", defaultValue = "10") int size,
+                                     @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
+                                     @RequestParam(value = "size", defaultValue = PageConstants.DEFAULT_SIZE_STR) int size,
                                      @CurrentUser(required = false) Long currentUserId) {
         return Result.success(postService.listPosts(categoryId, page, size, currentUserId));
     }
@@ -145,8 +146,8 @@ public class PostController {
      */
     @GetMapping("/user")
     public Result<PageResult<PostVO>> listByUser(@CurrentUser Long userId,
-                                           @RequestParam(value = "page", defaultValue = "1") int page,
-                                           @RequestParam(value = "size", defaultValue = "10") int size,
+                                           @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
+                                           @RequestParam(value = "size", defaultValue = PageConstants.DEFAULT_SIZE_STR) int size,
                                            @RequestParam(value = "sortField", defaultValue = "create_time") String sortField,
                                            @RequestParam(value = "sortOrder", defaultValue = "desc") String sortOrder) {
         return Result.success(postService.listByUserId(userId, page, size, sortField, sortOrder));
@@ -163,8 +164,8 @@ public class PostController {
      */
     @GetMapping("/user/{targetUserId}/posts")
     public Result<PageResult<PostVO>> listByTargetUser(@PathVariable("targetUserId") Long targetUserId,
-                                                 @RequestParam(value = "page", defaultValue = "1") int page,
-                                                 @RequestParam(value = "size", defaultValue = "10") int size,
+                                                 @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
+                                                 @RequestParam(value = "size", defaultValue = PageConstants.DEFAULT_SIZE_STR) int size,
                                                  @CurrentUser(required = false) Long currentUserId) {
         return Result.success(postService.listByTargetUserId(targetUserId, currentUserId, page, size));
     }
@@ -180,8 +181,8 @@ public class PostController {
      */
     @GetMapping("/user/{targetUserId}/favorites")
     public Result<PageResult<PostVO>> listUserFavorites(@PathVariable("targetUserId") Long targetUserId,
-                                                  @RequestParam(value = "page", defaultValue = "1") int page,
-                                                  @RequestParam(value = "size", defaultValue = "10") int size,
+                                                  @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
+                                                  @RequestParam(value = "size", defaultValue = PageConstants.DEFAULT_SIZE_STR) int size,
                                                   @CurrentUser(required = false) Long currentUserId) {
         return Result.success(postService.listFavorites(targetUserId, currentUserId, page, size));
     }
@@ -292,7 +293,7 @@ public class PostController {
      */
     @GetMapping("/top")
     public Result<List<PostVO>> getTopPosts(@CurrentUser Long userId,
-                                            @RequestParam(value = "limit", defaultValue = "5") int limit) {
+                                            @RequestParam(value = "limit", defaultValue = PageConstants.SIZE_5_STR) int limit) {
         return Result.success(postService.getTopPosts(userId, limit));
     }
 
@@ -339,8 +340,8 @@ public class PostController {
      */
     @GetMapping("/received-likes")
     public Result<PageResult<ReceivedLikeVO>> getReceivedLikes(@CurrentUser Long userId,
-                                                                @RequestParam(value = "page", defaultValue = "1") int page,
-                                                                @RequestParam(value = "size", defaultValue = "20") int size) {
+                                                                @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
+                                                                @RequestParam(value = "size", defaultValue = PageConstants.SIZE_20_STR) int size) {
         return Result.success(postService.getReceivedLikes(userId, page, size));
     }
 
@@ -355,8 +356,8 @@ public class PostController {
      */
     @GetMapping("/search")
     public Result<PageResult<PostVO>> search(@RequestParam("keyword") String keyword,
-                                       @RequestParam(value = "page", defaultValue = "1") int page,
-                                       @RequestParam(value = "size", defaultValue = "10") int size,
+                                       @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
+                                       @RequestParam(value = "size", defaultValue = PageConstants.DEFAULT_SIZE_STR) int size,
                                        @CurrentUser(required = false) Long currentUserId) {
         return Result.success(postService.searchPosts(keyword, page, size, currentUserId));
     }

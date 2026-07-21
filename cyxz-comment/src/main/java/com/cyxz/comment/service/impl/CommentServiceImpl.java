@@ -1,7 +1,6 @@
 package com.cyxz.comment.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cyxz.comment.dto.CreateCommentRequest;
 import com.cyxz.comment.entity.CommentLikePO;
@@ -11,10 +10,13 @@ import com.cyxz.comment.mapper.CommentMapper;
 import com.cyxz.comment.service.CommentService;
 import com.cyxz.comment.vo.CommentVO;
 import com.cyxz.common.base.BusinessException;
+import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.post.feign.PostFeignClient;
+import com.cyxz.common.utils.StatusUpdateHelper;
+import com.cyxz.user.utils.UserFeignHelper;
 import com.cyxz.post.vo.PostInfoVO;
 import com.cyxz.user.feign.UserFeignClient;
 import com.cyxz.user.vo.UserProfileVO;
@@ -61,7 +63,7 @@ public class CommentServiceImpl implements CommentService {
         po.setParentId(request.getParentIdAsLong());
         po.setReplyToUserId(request.getReplyToUserIdAsLong());
         po.setLikes(0);
-        po.setStatus(1);
+        po.setStatus(CommonStatus.ACTIVE);
 
         Result<Long> result = postFeignClient.getPostAuthor(request.getPostIdAsLong());
         if (result != null && result.getData() != null) {
@@ -82,7 +84,7 @@ public class CommentServiceImpl implements CommentService {
         if (po.getReplyToUserId() != null) {
             userIds.add(po.getReplyToUserId());
         }
-        Map<Long, UserProfileVO> userMap = batchGetUsers(userIds);
+        Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, userIds);
         return toVO(po, userMap, Collections.emptySet()); // 刚创建，当前用户不可能已点赞
     }
 
@@ -106,7 +108,7 @@ public class CommentServiceImpl implements CommentService {
         if (!isCommentAuthor && !isPostAuthor) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
-        po.setStatus(0);
+        po.setStatus(CommonStatus.DELETED);
         commentMapper.updateById(po);
         log.info("删除评论成功: commentId={}, userId={}", commentId, userId);
     }
@@ -129,7 +131,7 @@ public class CommentServiceImpl implements CommentService {
         // Step 1: SQL 分页查顶级评论
         LambdaQueryWrapper<CommentPO> topWrapper = new LambdaQueryWrapper<>();
         topWrapper.eq(CommentPO::getPostId, postId)
-                .eq(CommentPO::getStatus, 1)
+                .eq(CommentPO::getStatus, CommonStatus.ACTIVE)
                 .isNull(CommentPO::getParentId)
                 .orderByAsc(CommentPO::getCreateTime);
         Page<CommentPO> topPage = commentMapper.selectPage(
@@ -151,7 +153,7 @@ public class CommentServiceImpl implements CommentService {
                 .collect(Collectors.toSet());
 
         // Step 4: 批量查用户信息 + 点赞状态
-        Map<Long, UserProfileVO> userMap = batchGetUsers(userIds);
+        Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, userIds);
         Set<Long> topCommentIds = topComments.stream()
                 .map(CommentPO::getId)
                 .collect(Collectors.toSet());
@@ -169,7 +171,7 @@ public class CommentServiceImpl implements CommentService {
 
         // Step 6: total 返回该帖子全部评论数（顶级 + 子回复），用于详情页展示
         LambdaQueryWrapper<CommentPO> countWrapper = new LambdaQueryWrapper<>();
-        countWrapper.eq(CommentPO::getPostId, postId).eq(CommentPO::getStatus, 1);
+        countWrapper.eq(CommentPO::getPostId, postId).eq(CommentPO::getStatus, CommonStatus.ACTIVE);
         Long totalComments = commentMapper.selectCount(countWrapper);
 
         return PageResult.of(result, totalComments, page, size);
@@ -184,7 +186,7 @@ public class CommentServiceImpl implements CommentService {
         }
         LambdaQueryWrapper<CommentPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(CommentPO::getParentId, parentIds)
-                .eq(CommentPO::getStatus, 1)
+                .eq(CommentPO::getStatus, CommonStatus.ACTIVE)
                 .select(CommentPO::getParentId, CommentPO::getId);
         List<CommentPO> replies = commentMapper.selectList(wrapper);
         return replies.stream()
@@ -207,7 +209,7 @@ public class CommentServiceImpl implements CommentService {
     public PageResult<CommentVO> listReplies(Long parentId, int page, int size, Long currentUserId) {
         LambdaQueryWrapper<CommentPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CommentPO::getParentId, parentId)
-                .eq(CommentPO::getStatus, 1)
+                .eq(CommentPO::getStatus, CommonStatus.ACTIVE)
                 .orderByAsc(CommentPO::getCreateTime);
         Page<CommentPO> replyPage = commentMapper.selectPage(
                 new Page<>(page, size), wrapper);
@@ -220,7 +222,7 @@ public class CommentServiceImpl implements CommentService {
         // 收集 userId
         Set<Long> userIds = collectUserIds(replies);
 
-        Map<Long, UserProfileVO> userMap = batchGetUsers(userIds);
+        Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, userIds);
         Set<Long> replyCommentIds = replies.stream()
                 .map(CommentPO::getId)
                 .collect(Collectors.toSet());
@@ -258,7 +260,7 @@ public class CommentServiceImpl implements CommentService {
                 CommentLikePO newLike = new CommentLikePO();
                 newLike.setCommentId(commentId);
                 newLike.setUserId(userId);
-                newLike.setStatus(1);
+                newLike.setStatus(CommonStatus.ACTIVE);
                 commentLikeMapper.insert(newLike);
                 commentMapper.updateLikes(commentId, 1);
                 log.info("点赞评论: commentId={}, userId={}", commentId, userId);
@@ -267,7 +269,7 @@ public class CommentServiceImpl implements CommentService {
                 if (conflict.getStatus() == 1) {
                     return;
                 }
-                boolean updated = updateCommentLikeStatus(conflict.getId(), 0, 1);
+                boolean updated = StatusUpdateHelper.updateStatus(commentLikeMapper, conflict.getId(), 0, 1);
                 if (updated) {
                     commentMapper.updateLikes(commentId, 1);
                     log.info("点赞评论(并发恢复): commentId={}, userId={}", commentId, userId);
@@ -277,7 +279,7 @@ public class CommentServiceImpl implements CommentService {
         }
 
         if (exist.getStatus() == 0) {
-            boolean updated = updateCommentLikeStatus(exist.getId(), 0, 1);
+            boolean updated = StatusUpdateHelper.updateStatus(commentLikeMapper, exist.getId(), 0, 1);
             if (updated) {
                 commentMapper.updateLikes(commentId, 1);
                 log.info("点赞评论(恢复): commentId={}, userId={}", commentId, userId);
@@ -308,7 +310,7 @@ public class CommentServiceImpl implements CommentService {
             return;
         }
 
-        boolean updated = updateCommentLikeStatus(exist.getId(), 1, 0);
+        boolean updated = StatusUpdateHelper.updateStatus(commentLikeMapper, exist.getId(), 1, 0);
         if (updated) {
             commentMapper.updateLikes(commentId, -1);
             log.info("取消点赞评论: commentId={}, userId={}", commentId, userId);
@@ -320,13 +322,6 @@ public class CommentServiceImpl implements CommentService {
         wrapper.eq(CommentLikePO::getUserId, userId)
                 .eq(CommentLikePO::getCommentId, commentId);
         return commentLikeMapper.selectOne(wrapper);
-    }
-
-    private boolean updateCommentLikeStatus(Long id, int oldStatus, int newStatus) {
-        UpdateWrapper<CommentLikePO> updateWrapper = new UpdateWrapper<>();
-        updateWrapper.eq("id", id).eq("status", oldStatus)
-                .set("status", newStatus);
-        return commentLikeMapper.update(null, updateWrapper) > 0;
     }
 
     /**
@@ -343,7 +338,7 @@ public class CommentServiceImpl implements CommentService {
         }
         LambdaQueryWrapper<CommentLikePO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CommentLikePO::getUserId, userId)
-                .eq(CommentLikePO::getStatus, 1)
+                .eq(CommentLikePO::getStatus, CommonStatus.ACTIVE)
                 .in(CommentLikePO::getCommentId, commentIds)
                 .select(CommentLikePO::getCommentId);
         List<CommentLikePO> list = commentLikeMapper.selectList(wrapper);
@@ -378,7 +373,7 @@ public class CommentServiceImpl implements CommentService {
      * @return 评论 VO 列表
      */
     private List<CommentVO> fillCommentVOListWithPost(List<CommentPO> comments, Long currentUserId) {
-        Map<Long, UserProfileVO> userMap = batchGetUsers(collectUserIds(comments));
+        Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, collectUserIds(comments));
         Set<Long> commentIds = comments.stream()
                 .map(CommentPO::getId)
                 .collect(Collectors.toSet());
@@ -449,7 +444,7 @@ public class CommentServiceImpl implements CommentService {
     public PageResult<CommentVO> listReceivedComments(Long userId, Long currentUserId, int page, int size) {
         // 查"评论我的帖子"或"回复我的评论"，排除自己
         LambdaQueryWrapper<CommentPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(CommentPO::getStatus, 1)
+        wrapper.eq(CommentPO::getStatus, CommonStatus.ACTIVE)
                 .ne(CommentPO::getUserId, userId)
                 .and(w -> w
                         .eq(CommentPO::getPostAuthorId, userId)
@@ -474,7 +469,7 @@ public class CommentServiceImpl implements CommentService {
                 userIds.add(comment.getReplyToUserId());
             }
         }
-        Map<Long, UserProfileVO> userMap = batchGetUsers(userIds);
+        Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, userIds);
 
         // 查当前用户在本页评论中已点赞的评论 ID
         Set<Long> commentIds = comments.stream()
@@ -534,7 +529,7 @@ public class CommentServiceImpl implements CommentService {
     @Override
     public PageResult<CommentVO> listManagedComments(Long currentUserId, Long postId, int page, int size, boolean sortAsc) {
         LambdaQueryWrapper<CommentPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(CommentPO::getStatus, 1)
+        wrapper.eq(CommentPO::getStatus, CommonStatus.ACTIVE)
                 .eq(CommentPO::getPostAuthorId, currentUserId);
         if (postId != null) {
             wrapper.eq(CommentPO::getPostId, postId);
@@ -554,20 +549,6 @@ public class CommentServiceImpl implements CommentService {
         }
 
         return PageResult.of(fillCommentVOListWithPost(comments, currentUserId), pageResult.getTotal(), page, size);
-    }
-
-    /**
-     * 批量查询用户资料（封装 Feign 调用结果处理）
-     *
-     * @param userIds 用户ID集合
-     * @return userId → UserProfileVO映射，降级时返回空Map
-     */
-    private Map<Long, UserProfileVO> batchGetUsers(Collection<Long> userIds) {
-        if (userIds == null || userIds.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        Result<Map<Long, UserProfileVO>> result = userFeignClient.batchGetByIds(new ArrayList<>(userIds));
-        return result != null && result.getData() != null ? result.getData() : Collections.emptyMap();
     }
 
     /**

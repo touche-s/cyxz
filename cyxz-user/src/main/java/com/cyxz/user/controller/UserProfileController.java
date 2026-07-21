@@ -2,6 +2,7 @@ package com.cyxz.user.controller;
 
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
+import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.web.CurrentUser;
 import com.cyxz.user.dto.UpdateProfileRequest;
 import com.cyxz.user.service.FollowService;
@@ -139,8 +140,8 @@ public class UserProfileController {
      */
     @GetMapping("/following")
     public Result<PageResult<FollowUserVO>> listFollowing(@CurrentUser Long userId,
-                                                     @RequestParam(value = "page", defaultValue = "1") int page,
-                                                     @RequestParam(value = "size", defaultValue = "20") int size) {
+                                                     @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
+                                                     @RequestParam(value = "size", defaultValue = PageConstants.SIZE_20_STR) int size) {
         return Result.success(followService.listFollowing(userId, page, size));
     }
 
@@ -154,8 +155,8 @@ public class UserProfileController {
      */
     @GetMapping("/followers")
     public Result<PageResult<FollowUserVO>> listFollowers(@CurrentUser Long userId,
-                                                     @RequestParam(value = "page", defaultValue = "1") int page,
-                                                     @RequestParam(value = "size", defaultValue = "20") int size) {
+                                                     @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
+                                                     @RequestParam(value = "size", defaultValue = PageConstants.SIZE_20_STR) int size) {
         return Result.success(followService.listFollowers(userId, page, size));
     }
 

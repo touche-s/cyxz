@@ -1,5 +1,6 @@
 package com.cyxz.comment.feign;
 
+import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -20,7 +21,7 @@ public class CommentFeignClientFallbackFactory implements FallbackFactory<Commen
         log.warn("评论服务调用降级: {}", cause.getMessage());
         return postId -> {
             log.error("评论服务降级，删除帖子关联评论失败: postId={}", postId);
-            return Result.fail(500, "评论服务不可用，请稍后重试");
+            return Result.fail(ErrorCode.FAIL.getCode(), "评论服务不可用，请稍后重试");
         };
     }
 }

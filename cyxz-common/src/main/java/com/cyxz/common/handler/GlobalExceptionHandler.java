@@ -1,10 +1,16 @@
 package com.cyxz.common.handler;
 
 import com.cyxz.common.base.BusinessException;
+import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.validation.BindException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.util.stream.Collectors;
 
 /**
  * 全局异常处理器
@@ -27,6 +33,30 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 处理 @Valid @RequestBody 校验失败
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public Result<Void> handleValidation(MethodArgumentNotValidException e) {
+        String msg = e.getBindingResult().getFieldErrors().stream()
+                .map(f -> f.getField() + ": " + f.getDefaultMessage())
+                .collect(Collectors.joining(", "));
+        log.warn("参数校验失败: {}", msg);
+        return Result.fail(ErrorCode.PARAM_ERROR.getCode(), msg);
+    }
+
+    /**
+     * 处理 @Valid 表单参数校验失败
+     */
+    @ExceptionHandler(BindException.class)
+    public Result<Void> handleBind(BindException e) {
+        String msg = e.getFieldErrors().stream()
+                .map(f -> f.getField() + ": " + f.getDefaultMessage())
+                .collect(Collectors.joining(", "));
+        log.warn("参数绑定失败: {}", msg);
+        return Result.fail(ErrorCode.PARAM_ERROR.getCode(), msg);
+    }
+
+    /**
      * 兜底处理所有未捕获异常
      *
      * @param e 异常
@@ -35,6 +65,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public Result<Void> handleException(Exception e) {
         log.error("系统异常", e);
-        return Result.fail(500, "系统异常，请稍后重试");
+        return Result.fail(ErrorCode.SYSTEM_ERROR.getCode(), ErrorCode.SYSTEM_ERROR.getMsg());
     }
 }

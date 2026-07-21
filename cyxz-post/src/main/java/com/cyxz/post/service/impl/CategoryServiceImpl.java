@@ -1,6 +1,7 @@
 package com.cyxz.post.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.post.entity.CategoryPO;
 import com.cyxz.post.mapper.CategoryMapper;
 import com.cyxz.post.service.CategoryService;
@@ -33,7 +34,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     public List<CategoryVO> listAll() {
         LambdaQueryWrapper<CategoryPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(CategoryPO::getStatus, 1);
+        wrapper.eq(CategoryPO::getStatus, CommonStatus.ACTIVE);
         wrapper.orderByAsc(CategoryPO::getSortOrder);
         List<CategoryPO> categories = categoryMapper.selectList(wrapper);
         return categories.stream()

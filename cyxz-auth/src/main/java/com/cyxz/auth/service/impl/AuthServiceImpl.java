@@ -105,7 +105,7 @@ public class AuthServiceImpl implements AuthService {
 
         // 初始化默认资料，失败不阻塞注册流程（降级由 FallbackFactory 处理）
         Result<Void> initResult = userFeignClient.initDefaultProfile(user.getId(), user.getUsername());
-        if (initResult == null || initResult.getCode() != 200) {
+        if (initResult == null || !initResult.isSuccess()) {
             log.error("初始化用户资料失败，需人工补偿: userId={}, username={}", user.getId(), user.getUsername());
         }
     }

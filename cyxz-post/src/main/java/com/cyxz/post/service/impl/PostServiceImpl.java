@@ -1,19 +1,21 @@
 package com.cyxz.post.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.CacheKeyConstants;
+import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.utils.IpUtil;
+import com.cyxz.common.utils.StatusUpdateHelper;
 import com.cyxz.post.vo.PostInfoVO;
 import com.cyxz.post.vo.PostStatsVO;
 import com.cyxz.post.vo.ReceivedLikeVO;
 import com.cyxz.comment.feign.CommentFeignClient;
 import com.cyxz.user.feign.UserFeignClient;
+import com.cyxz.user.utils.UserFeignHelper;
 import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
 import com.cyxz.post.entity.CategoryPO;
@@ -246,7 +248,7 @@ public class PostServiceImpl implements PostService {
 
         // 1. 删除帖子下的评论和评论点赞（Feign 调 comment 服务）
         Result<Void> commentResult = commentFeignClient.deleteByPostId(postId);
-        if (commentResult == null || commentResult.getCode() != 200) {
+        if (commentResult == null || !commentResult.isSuccess()) {
             log.warn("删除帖子关联评论失败: postId={}, result={}", postId, commentResult);
         }
 
@@ -283,7 +285,7 @@ public class PostServiceImpl implements PostService {
         if (isAuthorOnly(po) && !po.getUserId().equals(currentUserId)) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
-        Map<Long, UserProfileVO> userMap = batchGetUsers(Set.of(po.getUserId()));
+        Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, Set.of(po.getUserId()));
         Map<Long, CategoryPO> categoryMap = categoryService.getByIds(extractCategoryIds(List.of(po)));
         Set<Long> likedPostIds = getLikedPostIds(currentUserId);
         Set<Long> collectedPostIds = getCollectedPostIds(currentUserId);
@@ -304,7 +306,7 @@ public class PostServiceImpl implements PostService {
     public PageResult<PostVO> listPosts(Long categoryId, int page, int size, Long currentUserId) {
         Page<PostPO> pageParam = new Page<>(page, size);
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PostPO::getStatus, 1);
+        wrapper.eq(PostPO::getStatus, CommonStatus.ACTIVE);
         if (categoryId != null) {
             wrapper.eq(PostPO::getCategoryId, categoryId);
         }
@@ -335,7 +337,7 @@ public class PostServiceImpl implements PostService {
 
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
 
-        Map<Long, UserProfileVO> userMap = batchGetUsers(result.getRecords().stream().map(PostPO::getUserId).collect(Collectors.toSet()));
+        Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, result.getRecords().stream().map(PostPO::getUserId).collect(Collectors.toSet()));
         Map<Long, CategoryPO> categoryMap = categoryService.getByIds(extractCategoryIds(result.getRecords()));
         Set<Long> likedPostIds = getLikedPostIds(userId);
         Set<Long> collectedPostIds = getCollectedPostIds(userId);
@@ -361,7 +363,7 @@ public class PostServiceImpl implements PostService {
         Page<PostPO> pageParam = new Page<>(page, size);
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostPO::getUserId, targetUserId);
-        wrapper.eq(PostPO::getStatus, 1);
+        wrapper.eq(PostPO::getStatus, CommonStatus.ACTIVE);
         wrapper.orderByDesc(PostPO::getCreateTime);
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
 
@@ -383,7 +385,7 @@ public class PostServiceImpl implements PostService {
         // 从 post_collect 表获取目标用户收藏的帖子 ID（仅 status=1）
         LambdaQueryWrapper<PostCollectPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostCollectPO::getUserId, targetUserId)
-                .eq(PostCollectPO::getStatus, 1)
+                .eq(PostCollectPO::getStatus, CommonStatus.ACTIVE)
                 .orderByDesc(PostCollectPO::getCreateTime);
         Page<PostCollectPO> pageParam = new Page<>(page, size);
         Page<PostCollectPO> collectPage = postCollectMapper.selectPage(pageParam, wrapper);
@@ -414,7 +416,7 @@ public class PostServiceImpl implements PostService {
      * @return 帖子 VO 列表
      */
     private List<PostVO> fillPostVOList(List<PostPO> posts, Long currentUserId) {
-        Map<Long, UserProfileVO> userMap = batchGetUsers(
+        Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient,
                 posts.stream().map(PostPO::getUserId).collect(Collectors.toSet()));
         Map<Long, CategoryPO> categoryMap = categoryService.getByIds(extractCategoryIds(posts));
         Set<Long> likedPostIds = getLikedPostIds(currentUserId);
@@ -519,7 +521,7 @@ public class PostServiceImpl implements PostService {
                 PostLikePO newLike = new PostLikePO();
                 newLike.setPostId(postId);
                 newLike.setUserId(userId);
-                newLike.setStatus(1);
+                newLike.setStatus(CommonStatus.ACTIVE);
                 postLikeMapper.insert(newLike);
                 postMapper.updateLikes(postId, 1);
                 log.info("点赞帖子: postId={}, userId={}", postId, userId);
@@ -530,7 +532,7 @@ public class PostServiceImpl implements PostService {
                     return; // 已被置为已点赞，幂等返回
                 }
                 // status=0 → 条件更新为 1
-                boolean updated = updatePostLikeStatus(conflict.getId(), 0, 1);
+                boolean updated = StatusUpdateHelper.updateStatus(postLikeMapper, conflict.getId(), 0, 1);
                 if (updated) {
                     postMapper.updateLikes(postId, 1);
                     log.info("点赞帖子(并发恢复): postId={}, userId={}", postId, userId);
@@ -540,7 +542,7 @@ public class PostServiceImpl implements PostService {
         }
 
         if (exist.getStatus() == 0) {
-            boolean updated = updatePostLikeStatus(exist.getId(), 0, 1);
+            boolean updated = StatusUpdateHelper.updateStatus(postLikeMapper, exist.getId(), 0, 1);
             if (updated) {
                 postMapper.updateLikes(postId, 1);
                 log.info("点赞帖子(恢复): postId={}, userId={}", postId, userId);
@@ -571,7 +573,7 @@ public class PostServiceImpl implements PostService {
             return; // 不存在或已取消，幂等返回
         }
 
-        boolean updated = updatePostLikeStatus(exist.getId(), 1, 0);
+        boolean updated = StatusUpdateHelper.updateStatus(postLikeMapper, exist.getId(), 1, 0);
         if (updated) {
             postMapper.updateLikes(postId, -1);
             log.info("取消点赞帖子: postId={}, userId={}", postId, userId);
@@ -583,21 +585,6 @@ public class PostServiceImpl implements PostService {
         wrapper.eq(PostLikePO::getUserId, userId)
                 .eq(PostLikePO::getPostId, postId);
         return postLikeMapper.selectOne(wrapper);
-    }
-
-    /**
-     * 条件更新点赞状态（仅 oldStatus 匹配时才更新）
-     *
-     * @param id        记录主键
-     * @param oldStatus 期望的旧状态
-     * @param newStatus 目标新状态
-     * @return true=更新成功（确实发生了状态变化）
-     */
-    private boolean updatePostLikeStatus(Long id, int oldStatus, int newStatus) {
-        UpdateWrapper<PostLikePO> updateWrapper = new UpdateWrapper<>();
-        updateWrapper.eq("id", id).eq("status", oldStatus)
-                .set("status", newStatus);
-        return postLikeMapper.update(null, updateWrapper) > 0;
     }
 
     /**
@@ -615,7 +602,7 @@ public class PostServiceImpl implements PostService {
         }
         LambdaQueryWrapper<PostLikePO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostLikePO::getUserId, userId)
-                .eq(PostLikePO::getStatus, 1)
+                .eq(PostLikePO::getStatus, CommonStatus.ACTIVE)
                 .select(PostLikePO::getPostId);
         List<PostLikePO> list = postLikeMapper.selectList(wrapper);
         return list.stream()
@@ -636,7 +623,7 @@ public class PostServiceImpl implements PostService {
         }
         LambdaQueryWrapper<PostCollectPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostCollectPO::getUserId, userId)
-                .eq(PostCollectPO::getStatus, 1)
+                .eq(PostCollectPO::getStatus, CommonStatus.ACTIVE)
                 .select(PostCollectPO::getPostId);
         List<PostCollectPO> list = postCollectMapper.selectList(wrapper);
         return list.stream()
@@ -666,7 +653,7 @@ public class PostServiceImpl implements PostService {
                 PostCollectPO newCollect = new PostCollectPO();
                 newCollect.setPostId(postId);
                 newCollect.setUserId(userId);
-                newCollect.setStatus(1);
+                newCollect.setStatus(CommonStatus.ACTIVE);
                 postCollectMapper.insert(newCollect);
                 postMapper.updateCollections(postId, 1);
                 log.info("收藏帖子: postId={}, userId={}", postId, userId);
@@ -675,7 +662,7 @@ public class PostServiceImpl implements PostService {
                 if (conflict.getStatus() == 1) {
                     return;
                 }
-                boolean updated = updatePostCollectStatus(conflict.getId(), 0, 1);
+                boolean updated = StatusUpdateHelper.updateStatus(postCollectMapper, conflict.getId(), 0, 1);
                 if (updated) {
                     postMapper.updateCollections(postId, 1);
                     log.info("收藏帖子(并发恢复): postId={}, userId={}", postId, userId);
@@ -685,7 +672,7 @@ public class PostServiceImpl implements PostService {
         }
 
         if (exist.getStatus() == 0) {
-            boolean updated = updatePostCollectStatus(exist.getId(), 0, 1);
+            boolean updated = StatusUpdateHelper.updateStatus(postCollectMapper, exist.getId(), 0, 1);
             if (updated) {
                 postMapper.updateCollections(postId, 1);
                 log.info("收藏帖子(恢复): postId={}, userId={}", postId, userId);
@@ -716,7 +703,7 @@ public class PostServiceImpl implements PostService {
             return;
         }
 
-        boolean updated = updatePostCollectStatus(exist.getId(), 1, 0);
+        boolean updated = StatusUpdateHelper.updateStatus(postCollectMapper, exist.getId(), 1, 0);
         if (updated) {
             postMapper.updateCollections(postId, -1);
             log.info("取消收藏帖子: postId={}, userId={}", postId, userId);
@@ -728,13 +715,6 @@ public class PostServiceImpl implements PostService {
         wrapper.eq(PostCollectPO::getUserId, userId)
                 .eq(PostCollectPO::getPostId, postId);
         return postCollectMapper.selectOne(wrapper);
-    }
-
-    private boolean updatePostCollectStatus(Long id, int oldStatus, int newStatus) {
-        UpdateWrapper<PostCollectPO> updateWrapper = new UpdateWrapper<>();
-        updateWrapper.eq("id", id).eq("status", oldStatus)
-                .set("status", newStatus);
-        return postCollectMapper.update(null, updateWrapper) > 0;
     }
 
     /**
@@ -802,7 +782,7 @@ public class PostServiceImpl implements PostService {
         if (topPosts.isEmpty()) {
             return Collections.emptyList();
         }
-        Map<Long, UserProfileVO> userMap = batchGetUsers(topPosts.stream().map(PostPO::getUserId).collect(Collectors.toSet()));
+        Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, topPosts.stream().map(PostPO::getUserId).collect(Collectors.toSet()));
         return topPosts.stream()
                 .map(po -> convertToVO(po, userMap, Collections.emptyMap(), Collections.emptySet(), Collections.emptySet()))
                 .collect(Collectors.toList());
@@ -891,7 +871,7 @@ public class PostServiceImpl implements PostService {
         Set<Long> userIds = records.stream()
                 .map(ReceivedLikeVO::getUserId)
                 .collect(Collectors.toSet());
-        Map<Long, UserProfileVO> userMap = batchGetUsers(userIds);
+        Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, userIds);
         records.forEach(vo -> {
             UserProfileVO user = userMap.get(vo.getUserId());
             if (user != null) {
@@ -911,7 +891,7 @@ public class PostServiceImpl implements PostService {
         String likeKeyword = "%" + keyword.trim() + "%";
         Page<PostPO> pageParam = new Page<>(page, size);
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PostPO::getStatus, 1)
+        wrapper.eq(PostPO::getStatus, CommonStatus.ACTIVE)
                 .and(w -> w.like(PostPO::getTitle, likeKeyword).or().like(PostPO::getContent, likeKeyword));
         wrapper.orderByDesc(PostPO::getCreateTime);
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
@@ -949,17 +929,4 @@ public class PostServiceImpl implements PostService {
         }
     }
 
-    /**
-     * 批量查询用户资料（封装 Feign 调用结果处理）
-     *
-     * @param userIds 用户ID集合
-     * @return userId → UserProfileVO映射，降级时返回空Map
-     */
-    private Map<Long, UserProfileVO> batchGetUsers(Collection<Long> userIds) {
-        if (userIds == null || userIds.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        Result<Map<Long, UserProfileVO>> result = userFeignClient.batchGetByIds(new ArrayList<>(userIds));
-        return result != null && result.getData() != null ? result.getData() : Collections.emptyMap();
-    }
 }

@@ -67,7 +67,7 @@ public class Result<T> implements Serializable {
      * @param message 提示信息
      */
     public static <T> Result<T> success(String message) {
-        return new Result<>(200, message, null);
+        return new Result<>(ErrorCode.SUCCESS.getCode(), message, null);
     }
 
     /**
@@ -84,7 +84,7 @@ public class Result<T> implements Serializable {
      * 失败（默认 500）
      */
     public static <T> Result<T> fail() {
-        return new Result<>(500, "操作失败", null);
+        return new Result<>(ErrorCode.FAIL.getCode(), ErrorCode.FAIL.getMsg(), null);
     }
 
     /**
@@ -93,7 +93,7 @@ public class Result<T> implements Serializable {
      * @param message 错误信息
      */
     public static <T> Result<T> fail(String message) {
-        return new Result<>(500, message, null);
+        return new Result<>(ErrorCode.FAIL.getCode(), message, null);
     }
 
     /**
@@ -115,6 +115,13 @@ public class Result<T> implements Serializable {
      */
     public static <T> Result<T> fail(Integer code, String message, T data) {
         return new Result<>(code, message, data);
+    }
+
+    /**
+     * 判断是否成功
+     */
+    public boolean isSuccess() {
+        return this.code != null && this.code == ErrorCode.SUCCESS.getCode();
     }
 
 }

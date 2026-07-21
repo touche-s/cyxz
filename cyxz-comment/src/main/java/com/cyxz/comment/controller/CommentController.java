@@ -2,6 +2,7 @@ package com.cyxz.comment.controller;
 
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
+import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.web.CurrentUser;
 import com.cyxz.comment.dto.CreateCommentRequest;
 import com.cyxz.comment.service.CommentService;
@@ -59,8 +60,8 @@ public class CommentController {
      */
     @GetMapping("/list")
     public Result<PageResult<CommentVO>> list(@RequestParam("postId") Long postId,
-                                        @RequestParam(value = "page", defaultValue = "1") int page,
-                                        @RequestParam(value = "size", defaultValue = "20") int size,
+                                        @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
+                                        @RequestParam(value = "size", defaultValue = PageConstants.SIZE_20_STR) int size,
                                         @CurrentUser(required = false) Long currentUserId) {
         return Result.success(commentService.listComments(postId, page, size, currentUserId));
     }
@@ -76,8 +77,8 @@ public class CommentController {
      */
     @GetMapping("/replies")
     public Result<PageResult<CommentVO>> replies(@RequestParam("parentId") Long parentId,
-                                           @RequestParam(value = "page", defaultValue = "1") int page,
-                                           @RequestParam(value = "size", defaultValue = "5") int size,
+                                           @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
+                                           @RequestParam(value = "size", defaultValue = PageConstants.SIZE_5_STR) int size,
                                            @CurrentUser(required = false) Long currentUserId) {
         return Result.success(commentService.listReplies(parentId, page, size, currentUserId));
     }
@@ -121,8 +122,8 @@ public class CommentController {
      */
     @GetMapping("/received")
     public Result<PageResult<CommentVO>> received(@CurrentUser Long userId,
-                                                  @RequestParam(value = "page", defaultValue = "1") int page,
-                                                  @RequestParam(value = "size", defaultValue = "20") int size) {
+                                                  @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
+                                                  @RequestParam(value = "size", defaultValue = PageConstants.SIZE_20_STR) int size) {
         return Result.success(commentService.listReceivedComments(userId, userId, page, size));
     }
 
@@ -139,8 +140,8 @@ public class CommentController {
     @GetMapping("/manage")
     public Result<PageResult<CommentVO>> manage(@CurrentUser Long userId,
                                                  @RequestParam(value = "postId", required = false) Long postId,
-                                                 @RequestParam(value = "page", defaultValue = "1") int page,
-                                                 @RequestParam(value = "size", defaultValue = "20") int size,
+                                                 @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
+                                                 @RequestParam(value = "size", defaultValue = PageConstants.SIZE_20_STR) int size,
                                                  @RequestParam(value = "sortAsc", defaultValue = "false") boolean sortAsc) {
         return Result.success(commentService.listManagedComments(userId, postId, page, size, sortAsc));
     }
