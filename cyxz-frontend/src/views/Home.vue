@@ -93,16 +93,16 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { getPostList, getCategoryList, likePost, unlikePost, collectPost, uncollectPost } from '@/api/post'
 import type { PostVO, CategoryVO } from '@/api/post'
+import { useNavigate } from '@/composables/useNavigate'
 import { useUserStore } from '@/stores/user'
 import { useAuth } from '@/composables/useAuth'
 import PostCard from '@/components/PostCard.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import EmptyState from '@/components/EmptyState.vue'
 
-const router = useRouter()
+const { open } = useNavigate()
 const userStore = useUserStore()
 const { requireLogin } = useAuth()
 
@@ -174,10 +174,7 @@ const nextBanner = () => {
 
 const loadCategories = async () => {
   try {
-    const res = await getCategoryList()
-    if (res.data.code === 200) {
-      categories.value = res.data.data
-    }
+    categories.value = await getCategoryList()
   } catch (error) {
     console.error('加载分类失败:', error)
   }
@@ -190,10 +187,8 @@ const loadPosts = async () => {
     if (selectedCategoryId.value !== null) {
       params.categoryId = selectedCategoryId.value
     }
-    const res = await getPostList(params)
-    if (res.data.code === 200) {
-      posts.value = res.data.data.records || []
-    }
+    const data = await getPostList(params)
+    posts.value = data.records || []
   } catch (error) {
     console.error('加载帖子失败:', error)
   } finally {
@@ -208,8 +203,7 @@ const selectCategory = (categoryId: number | null) => {
 
 const viewPost = (post: PostVO) => {
   if (!requireLogin()) return
-  const url = router.resolve(`/post/${post.id}`).href
-  window.open(url, '_blank')
+  open(`/post/${post.id}`)
 }
 
 const toggleSave = async (post: PostVO) => {

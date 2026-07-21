@@ -191,7 +191,8 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
-import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router'
+import { useRoute, onBeforeRouteLeave } from 'vue-router'
+import { useNavigate } from '@/composables/useNavigate'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { createPost, saveDraftPost, updatePost, getPostDetail, getCategoryList } from '@/api/post'
 import { uploadPostImage, deleteUploadedFile } from '@/api/upload'
@@ -200,7 +201,7 @@ import { isDraft, isPublished, isDeleted } from '@/utils/postStatus'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import ImageCropper from '@/components/ImageCropper.vue'
 
-const router = useRouter()
+const { to, router } = useNavigate()
 const route = useRoute()
 
 const emit = defineEmits<{ goBack: [wasEditingDraft?: boolean]; publishSuccess: [] }>()
@@ -247,10 +248,7 @@ const cropperRatioOptions = [
 
 const loadCategories = async () => {
   try {
-    const res = await getCategoryList()
-    if (res.data.code === 200) {
-      categories.value = res.data.data
-    }
+    categories.value = await getCategoryList()
   } catch (error) {
     console.error('加载分类失败:', error)
   }
@@ -259,29 +257,26 @@ const loadCategories = async () => {
 const loadPostDetail = async () => {
   if (!isEditMode.value) return
   try {
-    const res = await getPostDetail(postId.value)
-    if (res.data.code === 200) {
-      const post = res.data.data as PostVO
-      form.value = {
-        title: post.title,
-        categoryId: String(post.categoryId),
-        content: post.content,
-        cover: post.cover,
-        images: post.images || [],
-        tags: post.tags || [],
-      }
-      currentPostStatus.value = post.status
-      // 已删除帖子不可编辑
-      if (isDeleted(currentPostStatus.value)) {
-        ElMessage.warning('已删除内容不可编辑，请先恢复')
-        router.push('/creator')
-        return
-      }
+    const post = await getPostDetail(postId.value) as PostVO
+    form.value = {
+      title: post.title,
+      categoryId: String(post.categoryId),
+      content: post.content,
+      cover: post.cover,
+      images: post.images || [],
+      tags: post.tags || [],
+    }
+    currentPostStatus.value = post.status
+    // 已删除帖子不可编辑
+    if (isDeleted(currentPostStatus.value)) {
+      ElMessage.warning('已删除内容不可编辑，请先恢复')
+      to('/creator')
+      return
     }
   } catch (error) {
     console.error('加载帖子详情失败:', error)
     ElMessage.error('帖子不存在或已删除')
-    router.push('/creator')
+    to('/creator')
   }
 }
 
@@ -343,17 +338,14 @@ async function uploadAndReplace(index: number, file: File) {
   const oldUrl = form.value.images[index]
   imageUploading.value = true
   try {
-    const res = await uploadPostImage(file)
-    if (res.data.code === 200) {
-      const newUrl = res.data.data
-      form.value.images[index] = newUrl
-      if (form.value.cover === oldUrl) {
-        form.value.cover = newUrl
-      }
-      dirty.value = true
-      deleteUploadedFile(oldUrl).catch(() => {})
-      ElMessage.success('裁剪完成')
+    const newUrl = await uploadPostImage(file)
+    form.value.images[index] = newUrl
+    if (form.value.cover === oldUrl) {
+      form.value.cover = newUrl
     }
+    dirty.value = true
+    deleteUploadedFile(oldUrl).catch(() => {})
+    ElMessage.success('裁剪完成')
   } catch (error) {
     ElMessage.error('图片上传失败')
     console.error('裁剪上传失败:', error)
@@ -365,13 +357,11 @@ async function uploadAndReplace(index: number, file: File) {
 const uploadImage = async (file: File) => {
   imageUploading.value = true
   try {
-    const res = await uploadPostImage(file)
-    if (res.data.code === 200) {
-      form.value.images.push(res.data.data)
-      dirty.value = true
-      if (form.value.images.length === 1 && !form.value.cover) {
-        form.value.cover = res.data.data
-      }
+    const url = await uploadPostImage(file)
+    form.value.images.push(url)
+    dirty.value = true
+    if (form.value.images.length === 1 && !form.value.cover) {
+      form.value.cover = url
     }
   } catch (error) {
     ElMessage.error('图片上传失败')
@@ -453,7 +443,7 @@ const handleSubmit = async () => {
     if (isInCreatorCenter.value) {
       emit('publishSuccess')
     } else {
-      router.push('/creator')
+      to('/creator')
     }
   } catch (error) {
     ElMessage.error(isEditingPublished.value ? '更新失败' : '发布失败')
@@ -510,7 +500,7 @@ const saveDraft = async () => {
   if (isInCreatorCenter.value) {
     emit('goBack', true)
   } else {
-    router.push('/creator')
+    to('/creator')
   }
 }
 

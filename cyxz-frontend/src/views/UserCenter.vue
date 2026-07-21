@@ -176,9 +176,7 @@ import { useUserStore } from '@/stores/user'
 import { formatDate } from '@/utils/format'
 import ImageCropper from '@/components/ImageCropper.vue'
 
-import shieldIcon from '@/assets/icons/shield.svg'
-import infoIcon from '@/assets/icons/info.svg'
-import mailIcon from '@/assets/icons/mail.svg'
+import { shield as shieldIcon, info as infoIcon, mail as mailIcon } from '@/assets/icons'
 
 const userStore = useUserStore()
 const route = useRoute()
@@ -244,8 +242,7 @@ onMounted(async () => {
   const userId = userStore.userInfo?.id
   if (!userId) return
   try {
-    const res = await getMyProfile()
-    const data = (res.data as any).data || res.data
+    const data = await getMyProfile()
     Object.assign(profile, data)
     syncInfoForm()
   } catch {
@@ -288,8 +285,7 @@ async function onAvatarCrop(blob: Blob) {
   showAvatarCropper.value = false
   try {
     const file = new File([blob], 'avatar.jpg', { type: 'image/jpeg' })
-    const res = await uploadAvatar(file)
-    const data = (res.data as any).data || res.data
+    const data = await uploadAvatar(file)
     const url = typeof data === 'string' ? data : data?.url
     if (url) {
       profile.avatar = url
@@ -320,8 +316,7 @@ function setAvatar(url: string) {
 
 async function loadHistory() {
   try {
-    const res = await getAvatarHistory()
-    const data = (res.data as any).data || res.data
+    const data = await getAvatarHistory()
     avatarHistory.value = Array.isArray(data) ? [...data].reverse() : []
   } catch { /* 静默失败 */ }
 }

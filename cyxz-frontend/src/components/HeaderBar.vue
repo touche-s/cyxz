@@ -106,14 +106,14 @@ import { ref, onMounted } from 'vue'
 import { Search, Plus, Bell, ChatLineSquare, Star, Moon, Sunny } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useAuth } from '@/composables/useAuth'
-import { useRouter } from 'vue-router'
+import { useNavigate } from '@/composables/useNavigate'
 import { logout } from '@/api/auth'
 import { getFollowStats } from '@/api/user'
 import { ElMessage } from 'element-plus'
 
 const userStore = useUserStore()
 const { requireLogin } = useAuth()
-const router = useRouter()
+const { open, openWithQuery, to } = useNavigate()
 
 const dropdownOpen = ref(false)
 const followStats = ref({ following: 0, followers: 0 })
@@ -129,14 +129,13 @@ function toggleDarkMode() {
 function goCreator() {
   if (!requireLogin()) return
   dropdownOpen.value = false
-  router.push('/creator')
+  to('/creator')
 }
 
 function goToSearch() {
   const kw = searchText.value.trim()
   if (!kw) return
-  const url = router.resolve({ path: '/search', query: { q: kw } }).href
-  window.open(url, '_blank')
+  openWithQuery('/search', { q: kw })
   searchText.value = ''
 }
 
@@ -144,25 +143,24 @@ function goFavorites() {
   if (!requireLogin()) return
   const uid = userStore.userInfo?.id
   if (uid) {
-    const url = router.resolve({ path: `/user/${uid}`, query: { tab: 'favorites' } }).href
-    window.open(url, '_blank')
+    openWithQuery(`/user/${uid}`, { tab: 'favorites' })
   }
 }
 
 function goMessages() {
   if (!requireLogin()) return
-  router.push('/messages')
+  to('/messages')
 }
 
 function goPrivateMessages() {
   if (!requireLogin()) return
-  router.push('/messages')
+  to('/messages')
 }
 
 function goPublish() {
   if (!requireLogin()) return
   userStore.creatorActiveNav = 'publish'
-  router.push('/creator')
+  to('/creator')
 }
 
 /** 进入粉丝管理页面对应 tab */
@@ -171,15 +169,14 @@ function goFans(tab: 'followers' | 'following') {
   if (!requireLogin()) return
   userStore.creatorActiveNav = 'fans'
   userStore.creatorFansTab = tab
-  router.push('/creator')
+  to('/creator')
 }
 
 /** 点击头像进入个人空间（新标签页） */
 function goToProfile() {
   const uid = userStore.userInfo?.id
   if (uid) {
-    const url = router.resolve(`/user/${uid}`).href
-    window.open(url, '_blank')
+    open(`/user/${uid}`)
   }
   dropdownOpen.value = false
 }
@@ -187,12 +184,11 @@ function goToProfile() {
 async function handleCommand(cmd: string) {
   dropdownOpen.value = false
   if (cmd === 'user-center') {
-    const url = router.resolve('/user-center').href
-    window.open(url, '_blank')
+    open('/user-center')
   } else if (cmd === 'logout') {
     try { await logout() } catch { /* ignore */ }
     userStore.clearAuth()
-    router.push('/')
+    to('/')
     ElMessage.success('已退出登录')
   }
 }
@@ -200,13 +196,10 @@ async function handleCommand(cmd: string) {
 async function loadFollowStats() {
   if (!userStore.userInfo?.id) return
   try {
-    const res = await getFollowStats()
-    if (res.data.code === 200) {
-      const d = res.data.data
-      followStats.value = {
-        following: d?.followingCount ?? 0,
-        followers: d?.followerCount ?? 0,
-      }
+    const d = await getFollowStats()
+    followStats.value = {
+      following: d?.followingCount ?? 0,
+      followers: d?.followerCount ?? 0,
     }
   } catch { /* ignore */ }
 }

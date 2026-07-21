@@ -2,6 +2,15 @@ import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import router from '@/router'
 
+export class ApiError extends Error {
+  code: number
+  constructor(code: number, message: string) {
+    super(message)
+    this.code = code
+    this.name = 'ApiError'
+  }
+}
+
 let handlingUnauthorized = false
 
 const request = axios.create({
@@ -18,8 +27,17 @@ request.interceptors.request.use((config) => {
 })
 
 request.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    const body = res.data
+    if (body && body.code === 200) {
+      return body.data
+    }
+    return Promise.reject(new ApiError(body?.code ?? -1, body?.message ?? '请求失败'))
+  },
   async (err) => {
+    if (err instanceof ApiError) {
+      return Promise.reject(err)
+    }
     if (err.response?.status === 401) {
       if (handlingUnauthorized) {
         return Promise.reject(err)

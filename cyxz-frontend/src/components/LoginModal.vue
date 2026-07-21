@@ -154,13 +154,13 @@ import { login, register, getCaptcha } from '@/api/auth'
 import type { LoginRequest, RegisterRequest } from '@/api/auth'
 import { getMyProfile } from '@/api/user'
 import { useUserStore } from '@/stores/user'
-import { useRouter } from 'vue-router'
+import { useNavigate } from '@/composables/useNavigate'
 
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ 'update:visible': [val: boolean] }>()
 
 const userStore = useUserStore()
-const router = useRouter()
+const { to } = useNavigate()
 
 const tab = ref<'login' | 'register'>('login')
 const captchaImage = ref('')
@@ -216,10 +216,9 @@ watch(() => props.visible, (val) => {
 
 async function loadCaptcha() {
   try {
-    const res = await getCaptcha()
-    const data = res.data as any
-    captchaImage.value = data.data?.image || data.image
-    form.captchaUuid = data.data?.uuid || data.uuid
+    const data = await getCaptcha()
+    captchaImage.value = data.image
+    form.captchaUuid = data.uuid
   } catch {
     ElMessage.error('获取验证码失败')
   }
@@ -243,44 +242,33 @@ async function handleSubmit() {
   submitting.value = true
   try {
     if (tab.value === 'login') {
-      const res = await login({
+      const data = await login({
         username: form.username,
         password: form.password,
         captcha: form.captcha,
         captchaUuid: form.captchaUuid,
       })
-      const data = res.data as any
-      if (data.code === 200) {
-        userStore.setToken(data.data.accessToken)
-        ElMessage.success('登录成功')
-        try {
-          const profileRes = await getMyProfile()
-          const pdata = (profileRes.data as any).data || profileRes.data
-          userStore.setUserInfo({ userId: data.data.userId, ...pdata })
-        } catch {
-          userStore.setUserInfo({ userId: data.data.userId, nickname: form.username } as any)
-        }
-        emit('update:visible', false)
-        router.push(`/user/${data.data.userId}`)
-      } else {
-        handleBusinessError(data)
+      userStore.setToken(data.accessToken)
+      ElMessage.success('登录成功')
+      try {
+        const pdata = await getMyProfile()
+        userStore.setUserInfo({ userId: data.userId, ...pdata })
+      } catch {
+        userStore.setUserInfo({ userId: data.userId, nickname: form.username } as any)
       }
+      emit('update:visible', false)
+      to(`/user/${data.userId}`)
     } else {
-      const res = await register({
+      await register({
         username: form.username,
         password: form.password,
         confirmPassword: form.confirmPassword,
         captcha: form.captcha,
         captchaUuid: form.captchaUuid,
       })
-      const data = res.data as any
-      if (data.code === 200) {
-        ElMessage.success('注册成功，请登录')
-        tab.value = 'login'
-        loadCaptcha()
-      } else {
-        handleBusinessError(data)
-      }
+      ElMessage.success('注册成功，请登录')
+      tab.value = 'login'
+      loadCaptcha()
     }
   } catch (err: any) {
     handleBusinessError(err?.response?.data || {})

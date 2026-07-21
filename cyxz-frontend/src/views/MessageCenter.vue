@@ -76,10 +76,10 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useNavigate } from '@/composables/useNavigate'
 import { Bell } from '@element-plus/icons-vue'
 
-const router = useRouter()
+const { open } = useNavigate()
 
 interface MessageItem {
   id: number
@@ -308,14 +308,12 @@ function markAllRead() {
 }
 
 function goToUser(userId: number) {
-  const url = router.resolve(`/user/${userId}`).href
-  window.open(url, '_blank')
+  open(`/user/${userId}`)
 }
 
 function goTarget(msg: MessageItem) {
   if (msg.targetType === 'post' && msg.targetId) {
-    const url = router.resolve(`/post/${msg.targetId}`).href
-    window.open(url, '_blank')
+    open(`/post/${msg.targetId}`)
   }
 }
 </script>

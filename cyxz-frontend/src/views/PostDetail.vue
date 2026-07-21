@@ -205,7 +205,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
+import { useNavigate } from '@/composables/useNavigate'
 import { ElMessage } from 'element-plus'
 import { getPostDetail, likePost, unlikePost, collectPost, uncollectPost, recordPostView } from '@/api/post'
 import { isPublished } from '@/utils/postStatus'
@@ -223,15 +224,17 @@ import CommentItem from '@/components/CommentItem.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import FollowButton from '@/components/FollowButton.vue'
-import likeIcon from '@/assets/icons/like.svg'
-import likeOutlineIcon from '@/assets/icons/like-outline.svg'
-import favoriteIcon from '@/assets/icons/favorite.svg'
-import favoriteOutlineIcon from '@/assets/icons/favorite-outline.svg'
-import shareIcon from '@/assets/icons/share.svg'
-import commentIcon from '@/assets/icons/comment.svg'
+import {
+  like as likeIcon,
+  likeOutline as likeOutlineIcon,
+  favorite as favoriteIcon,
+  favoriteOutline as favoriteOutlineIcon,
+  share as shareIcon,
+  comment as commentIcon,
+} from '@/assets/icons'
 
 const route = useRoute()
-const router = useRouter()
+const { open, to } = useNavigate()
 const userStore = useUserStore()
 const { requireLogin } = useAuth()
 const { following, followLoading, checkFollowing, toggleFollow: doFollow } = useFollow()
@@ -283,8 +286,7 @@ const contentParagraphs = computed(() => {
 
 function goToAuthor() {
   if (post.value?.userId) {
-    const url = router.resolve(`/user/${post.value.userId}`).href
-    window.open(url, '_blank')
+    open(`/user/${post.value.userId}`)
   }
 }
 
@@ -339,22 +341,20 @@ const loadPost = async () => {
   const postId = String(route.params.id)
   loading.value = true
   try {
-    const res = await getPostDetail(postId)
-    if (res.data.code === 200) {
-      post.value = res.data.data as PostVO
-      // 非已发布内容不进详情页
-      if (!isPublished(post.value.status)) {
-        post.value = null
-        ElMessage.warning('该内容不可查看')
-        loading.value = false
-        return
-      }
-      liked.value = post.value.liked || false
-      collected.value = post.value.collected || false
-      // 非作者本人时查询关注状态
-      if (post.value.userId && String(post.value.userId) !== String(currentUserId.value)) {
-        await checkFollowing(String(post.value.userId))
-      }
+    const data = await getPostDetail(postId)
+    post.value = data as PostVO
+    // 非已发布内容不进详情页
+    if (!isPublished(post.value.status)) {
+      post.value = null
+      ElMessage.warning('该内容不可查看')
+      loading.value = false
+      return
+    }
+    liked.value = post.value.liked || false
+    collected.value = post.value.collected || false
+    // 非作者本人时查询关注状态
+    if (post.value.userId && String(post.value.userId) !== String(currentUserId.value)) {
+      await checkFollowing(String(post.value.userId))
     }
   } catch {
     ElMessage.error('加载失败')
@@ -453,23 +453,20 @@ const loadComments = async (reset = false) => {
 
   commentLoading.value = true
   try {
-    const res = await getCommentList({
+    const pageResult = await getCommentList({
       postId: String(post.value.id),
       page: commentPage.value,
       size: commentSize,
     })
-    const pageResult = res.data?.data
-    if (pageResult) {
-      const records = pageResult.records || []
-      if (reset) {
-        comments.value = records
-      } else {
-        comments.value.push(...records)
-      }
-      commentTotal.value = pageResult.total || 0
-      if (comments.value.length >= commentTotal.value) {
-        commentFinished.value = true
-      }
+    const records = pageResult.records || []
+    if (reset) {
+      comments.value = records
+    } else {
+      comments.value.push(...records)
+    }
+    commentTotal.value = pageResult.total || 0
+    if (comments.value.length >= commentTotal.value) {
+      commentFinished.value = true
     }
   } catch {
     ElMessage.error('加载评论失败')
@@ -494,14 +491,12 @@ const submitTopComment = async () => {
       postId: String(post.value.id),
       content: commentInput.value.trim(),
     }
-    const res = await createComment(data)
-    if (res.data.code === 200) {
-      ElMessage.success('评论成功')
-      commentInput.value = ''
-      // 后端返回完整 CommentVO，直接插入列表第一条展示
-      comments.value.unshift(res.data.data)
-      commentTotal.value++
-    }
+    const newComment = await createComment(data)
+    ElMessage.success('评论成功')
+    commentInput.value = ''
+    // 后端返回完整 CommentVO，直接插入列表第一条展示
+    comments.value.unshift(newComment)
+    commentTotal.value++
   } catch {
     ElMessage.error('评论失败')
   }
@@ -519,27 +514,24 @@ const submitComment = async () => {
       parentId: replyTarget.value.parentId,
       replyToUserId: replyTarget.value.comment.userId,
     }
-    const res = await createComment(data)
-    if (res.data.code === 200) {
-      ElMessage.success('回复成功')
-      commentInput.value = ''
-      const replyParentId = replyTarget.value.parentId
-      replyTarget.value = null
-      activeReplyId.value = null
-      // 局部更新：回复数 +1，同时把新回复插入当前展开的 children 列表
-      const idx = comments.value.findIndex(c => c.id === replyParentId)
-      if (idx !== -1) {
-        const updated = {
-          ...comments.value[idx],
-          totalReplies: (comments.value[idx].totalReplies || 0) + 1,
-        }
-        // 如果当前父评论的 children 已展开，把新回复追加到末尾
-        if (updated.children && updated.children.length > 0) {
-          const newReply = res.data.data
-          updated.children = [...updated.children, newReply]
-        }
-        comments.value[idx] = updated
+    const newComment = await createComment(data)
+    ElMessage.success('回复成功')
+    commentInput.value = ''
+    const replyParentId = replyTarget.value.parentId
+    replyTarget.value = null
+    activeReplyId.value = null
+    // 局部更新：回复数 +1，同时把新回复插入当前展开的 children 列表
+    const idx = comments.value.findIndex(c => c.id === replyParentId)
+    if (idx !== -1) {
+      const updated = {
+        ...comments.value[idx],
+        totalReplies: (comments.value[idx].totalReplies || 0) + 1,
       }
+      // 如果当前父评论的 children 已展开，把新回复追加到末尾
+      if (updated.children && updated.children.length > 0) {
+        updated.children = [...updated.children, newComment]
+      }
+      comments.value[idx] = updated
     }
   } catch {
     ElMessage.error('回复失败')
@@ -569,7 +561,7 @@ const handleCommentDeleted = (commentId: string) => {
 }
 
 const goHome = () => {
-  router.push('/')
+  to('/')
 }
 
 onMounted(async () => {

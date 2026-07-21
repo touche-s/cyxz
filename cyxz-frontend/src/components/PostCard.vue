@@ -10,7 +10,7 @@
         :class="{ active: post.collected, popping: collectPopping[post.id] }"
         @click.stop="handleCollect(post)"
       >
-        <img :src="post.collected ? favoriteIconSrc : favoriteOutlineIconSrc" alt="collect" class="collect-icon" />
+        <img :src="post.collected ? favorite : favoriteOutline" alt="collect" class="collect-icon" />
       </button>
     </div>
     <div class="card-body">
@@ -31,7 +31,7 @@
             :class="{ active: post.liked, popping: likePopping[post.id] }"
             @click.stop="handleLike(post)"
           >
-            <img :src="post.liked ? likeIconSrc : likeOutlineIconSrc" alt="like" class="stat-icon" />
+            <img :src="post.liked ? like : likeOutline" alt="like" class="stat-icon" />
             {{ formatNumber(post.likes) }}
           </button>
           <span><img src="@/assets/icons/eye.svg" alt="eye" class="stat-icon" /> {{ formatNumber(post.views) }}</span>
@@ -43,13 +43,10 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
 import type { PostVO } from '@/api/post'
-import likeIconSrc from '@/assets/icons/like.svg'
-import likeOutlineIconSrc from '@/assets/icons/like-outline.svg'
-import favoriteIconSrc from '@/assets/icons/favorite.svg'
-import favoriteOutlineIconSrc from '@/assets/icons/favorite-outline.svg'
+import { like, likeOutline, favorite, favoriteOutline } from '@/assets/icons'
 import { formatNumber } from '@/utils/format'
+import { useNavigate } from '@/composables/useNavigate'
 
 const props = defineProps<{
   post: PostVO
@@ -58,12 +55,11 @@ const props = defineProps<{
   size?: 'normal' | 'small'
 }>()
 
-const router = useRouter()
+const { open } = useNavigate()
 
 function goToAuthor() {
   if (props.post.userId) {
-    const url = router.resolve(`/user/${props.post.userId}`).href
-    window.open(url, '_blank')
+    open(`/user/${props.post.userId}`)
   }
 }
 

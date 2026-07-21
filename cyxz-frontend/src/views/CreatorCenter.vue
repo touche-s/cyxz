@@ -686,7 +686,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
+import { useNavigate } from '@/composables/useNavigate'
 import { ElMessage } from 'element-plus'
 
 import { getUserPosts, deletePost, permanentDeletePost, updatePost, getTopPosts } from '@/api/post'
@@ -707,7 +708,7 @@ import StatCard from '@/components/StatCard.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import { isDraft, isPublished, isDeleted, statusText, canPublish } from '@/utils/postStatus'
 
-const router = useRouter()
+const { open, router } = useNavigate()
 const route = useRoute()
 const userStore = useUserStore()
 
@@ -847,16 +848,18 @@ const contentSortOrder = ref('desc')
 const commentPage = ref(1)
 const commentPageSize = 20
 
-import iconLightbulb from '@/assets/icons/lightbulb.svg'
-import iconEdit from '@/assets/icons/edit.svg'
-import iconEye from '@/assets/icons/eye.svg'
-import iconLike from '@/assets/icons/like.svg'
-import iconFavorite from '@/assets/icons/favorite.svg'
-import iconFans from '@/assets/icons/fans-nav.svg'
-import iconComment from '@/assets/icons/comment.svg'
-import iconImage from '@/assets/icons/image.svg'
-import iconChart from '@/assets/icons/chart.svg'
-import iconEmpty from '@/assets/icons/empty.svg'
+import {
+  lightbulb as iconLightbulb,
+  edit as iconEdit,
+  eye as iconEye,
+  like as iconLike,
+  favorite as iconFavorite,
+  fansNav as iconFans,
+  comment as iconComment,
+  image as iconImage,
+  chart as iconChart,
+  empty as iconEmpty,
+} from '@/assets/icons'
 
 const magicFeatures = ref([
   { icon: iconLightbulb, title: '智能选题', desc: '输入关键词，AI帮你生成热门选题', btnText: '开始选题' },
@@ -874,10 +877,8 @@ const loadPosts = async () => {
   if (!userStore.userInfo?.id) return
   loading.value = true
   try {
-    const res = await getUserPosts({ page: 1, size: 100, sortField: contentSortField.value, sortOrder: contentSortOrder.value })
-    if (res.data.code === 200) {
-      posts.value = res.data.data.records || []
-    }
+    const data = await getUserPosts({ page: 1, size: 100, sortField: contentSortField.value, sortOrder: contentSortOrder.value })
+    posts.value = data.records || []
   } catch (error) {
     console.error('加载帖子失败:', error)
     ElMessage.error('加载失败')
@@ -951,8 +952,7 @@ const handlePublishSuccess = () => {
 }
 
 const goToUser = (userId: string | number) => {
-  const url = router.resolve(`/user/${userId}`).href
-  window.open(url, '_blank')
+  open(`/user/${userId}`)
 }
 
 const goCreate = () => {
@@ -960,8 +960,7 @@ const goCreate = () => {
 }
 
 const viewPost = (postId: string) => {
-  const url = router.resolve(`/post/${postId}`).href
-  window.open(url, '_blank')
+  open(`/post/${postId}`)
 }
 
 const editPost = (postId: string) => {
@@ -1111,13 +1110,11 @@ const cancelPermanentDelete = () => {
 const loadFans = async () => {
   fansLoading.value = true
   try {
-    const res = activeFansTab.value === 'followers'
+    const data = activeFansTab.value === 'followers'
       ? await getFollowerList({ page: fansPage.value, size: fansPageSize })
       : await getFollowingList({ page: fansPage.value, size: fansPageSize })
-    if (res.data.code === 200) {
-      fansList.value = res.data.data.records || []
-      fansTotal.value = res.data.data.total || 0
-    }
+    fansList.value = data.records || []
+    fansTotal.value = data.total || 0
   } catch (error) {
     console.error('加载粉丝列表失败:', error)
   } finally {
@@ -1139,10 +1136,7 @@ const handleFansPageChange = (page: number) => {
 
 const loadRanking = async () => {
   try {
-    const res = await getTopPosts(5)
-    if (res.data.code === 200) {
-      rankingList.value = res.data.data || []
-    }
+    rankingList.value = await getTopPosts(5) || []
   } catch (error) {
     console.error('加载排行榜失败:', error)
   }
@@ -1150,11 +1144,9 @@ const loadRanking = async () => {
 
 const loadFollowStats = async () => {
   try {
-    const res = await getFollowStats()
-    if (res.data.code === 200) {
-      followerCount.value = res.data.data.followerCount || 0
-      followingCount.value = res.data.data.followingCount || 0
-    }
+    const stats = await getFollowStats()
+    followerCount.value = stats.followerCount || 0
+    followingCount.value = stats.followingCount || 0
   } catch (error) {
     console.error('加载关注统计失败:', error)
   }
@@ -1171,11 +1163,9 @@ const loadManagedComments = async () => {
     if (selectedCommentPostId.value) {
       params.postId = selectedCommentPostId.value
     }
-    const res = await getManagedComments(params)
-    if (res.data.code === 200) {
-      managedCommentsList.value = res.data.data.records || []
-      commentsTotal.value = res.data.data.total || 0
-    }
+    const data = await getManagedComments(params)
+    managedCommentsList.value = data.records || []
+    commentsTotal.value = data.total || 0
   } catch (error) {
     console.error('加载评论失败:', error)
   } finally {
@@ -1208,12 +1198,10 @@ const confirmDeleteManagedComment = (comment: CommentVO) => {
 const doDeleteComment = async () => {
   if (!commentToDelete.value) return
   try {
-    const res = await deleteComment(commentToDelete.value.id)
-    if (res.data.code === 200) {
-      ElMessage.success('删除成功')
-      managedCommentsList.value = managedCommentsList.value.filter(c => c.id !== commentToDelete.value?.id)
-      commentsTotal.value = Math.max(0, commentsTotal.value - 1)
-    }
+    await deleteComment(commentToDelete.value.id)
+    ElMessage.success('删除成功')
+    managedCommentsList.value = managedCommentsList.value.filter(c => c.id !== commentToDelete.value?.id)
+    commentsTotal.value = Math.max(0, commentsTotal.value - 1)
   } catch (error) {
     console.error('删除评论失败:', error)
   } finally {

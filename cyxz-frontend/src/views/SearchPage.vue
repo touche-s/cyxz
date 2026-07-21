@@ -44,7 +44,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
+import { useNavigate } from '@/composables/useNavigate'
 import { searchPosts } from '@/api/post'
 import type { PostVO } from '@/api/post'
 import PostCard from '@/components/PostCard.vue'
@@ -52,7 +53,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 
 const route = useRoute()
-const router = useRouter()
+const { open, router } = useNavigate()
 
 const searchInputRef = ref<HTMLInputElement>()
 const keyword = ref('')
@@ -70,12 +71,9 @@ async function doSearch() {
   loading.value = true
   searched.value = true
   try {
-    const res = await searchPosts({ keyword: kw, page: 1, size: 30 })
-    if (res.data.code === 200) {
-      const data = res.data.data
-      results.value = data.records || []
-      total.value = data.total || 0
-    }
+    const data = await searchPosts({ keyword: kw, page: 1, size: 30 })
+    results.value = data.records || []
+    total.value = data.total || 0
   } catch {
     results.value = []
     total.value = 0
@@ -85,8 +83,7 @@ async function doSearch() {
 }
 
 function goToPost(post: PostVO) {
-  const url = router.resolve(`/post/${post.id}`).href
-  window.open(url, '_blank')
+  open(`/post/${post.id}`)
 }
 
 onMounted(async () => {

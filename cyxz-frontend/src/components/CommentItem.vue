@@ -45,7 +45,7 @@
           @click="handleToggleLike"
         >
           <img
-            :src="comment.liked ? likeIcon : likeOutlineIcon"
+            :src="comment.liked ? like : likeOutline"
             alt="like"
             class="action-icon"
           />
@@ -129,17 +129,16 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { likeComment, unlikeComment, deleteComment, getCommentReplies } from '@/api/comment'
 import type { CommentVO } from '@/api/comment'
 import { useUserStore } from '@/stores/user'
 import { useAuth } from '@/composables/useAuth'
-import likeIcon from '@/assets/icons/like.svg'
-import likeOutlineIcon from '@/assets/icons/like-outline.svg'
+import { useNavigate } from '@/composables/useNavigate'
+import { like, likeOutline } from '@/assets/icons'
 import { formatDateTime } from '@/utils/format'
 
-const router = useRouter()
+const { open } = useNavigate()
 
 const props = defineProps<{
   comment: CommentVO
@@ -162,8 +161,7 @@ const handleReply = () => {
 
 function goToUser() {
   if (props.comment.userId) {
-    const url = router.resolve(`/user/${props.comment.userId}`).href
-    window.open(url, '_blank')
+    open(`/user/${props.comment.userId}`)
   }
 }
 
@@ -211,11 +209,9 @@ const handleDelete = async () => {
       cancelButtonText: '取消',
       type: 'warning',
     })
-    const res = await deleteComment(props.comment.id)
-    if (res.data.code === 200) {
-      ElMessage.success('删除成功')
-      emit('deleted', props.comment.id)
-    }
+    await deleteComment(props.comment.id)
+    ElMessage.success('删除成功')
+    emit('deleted', props.comment.id)
   } catch (e: any) {
     if (e !== 'cancel' && e !== 'close') {
       ElMessage.error('删除失败')
@@ -278,7 +274,7 @@ const loadReplies = async () => {
       page: 1,
       size: replyPageSize,
     })
-    const pageResult = res.data?.data
+    const pageResult = res
     if (pageResult?.records?.length > 0) {
       replyPages.value[0] = pageResult.records
       replyLoaded.value = true
@@ -310,7 +306,7 @@ const goToReplyPage = async (page: number) => {
       page,
       size: replyPageSize,
     })
-    const pageResult = res.data?.data
+    const pageResult = res
     if (pageResult?.records) {
       replyPages.value[page - 1] = pageResult.records
       currentPage.value = page
@@ -338,7 +334,7 @@ watch(() => props.comment.totalReplies, async (newVal, oldVal) => {
         page: currentPage.value,
         size: replyPageSize,
       })
-      const pageResult = res.data?.data
+      const pageResult = res
       if (pageResult?.records) {
         replyPages.value[currentPage.value - 1] = pageResult.records
       }

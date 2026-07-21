@@ -8,7 +8,7 @@
       <div class="profile-card">
         <div class="pc-top">
           <div class="pc-left">
-            <div class="avatar-wrapper" :class="{ clickable: isSelf }" @click="isSelf && router.push('/user-center?tab=avatar')">
+            <div class="avatar-wrapper" :class="{ clickable: isSelf }" @click="isSelf && to('/user-center?tab=avatar')">
               <div class="profile-avatar">
                 <img v-if="profile.avatar" :src="profile.avatar" alt="avatar" class="profile-avatar-img" />
                 <span v-else>{{ (profile.nickname || 'U').charAt(0) }}</span>
@@ -112,7 +112,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
+import { useNavigate } from '@/composables/useNavigate'
 import { ElMessage } from 'element-plus'
 import { getUserProfile } from '@/api/user'
 import type { UserInfo } from '@/api/user'
@@ -126,7 +127,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import FollowButton from '@/components/FollowButton.vue'
 
 const route = useRoute()
-const router = useRouter()
+const { to, open } = useNavigate()
 const userStore = useUserStore()
 const { following, followLoading, checkFollowing, toggleFollow: doFollow } = useFollow()
 const { stats: postStats, loadUserStats: loadPostStats } = usePostStats()
@@ -164,9 +165,7 @@ onMounted(async () => {
     activeTab.value = 'favorites'
   }
   try {
-    const res = await getUserProfile(userId)
-    const data = (res.data as any).data || res.data
-    profile.value = data
+    profile.value = await getUserProfile(userId)
     // 加载作品列表
     await loadPosts(userId)
     // 加载收藏列表（主页 tab 也需要展示）
@@ -187,8 +186,7 @@ onMounted(async () => {
 async function loadPosts(userId: string) {
   postLoading.value = true
   try {
-    const res = await getUserPostsByTarget(userId, { page: 1, size: 20 })
-    const data = (res.data as any).data || res.data
+    const data = await getUserPostsByTarget(userId, { page: 1, size: 20 })
     posts.value = data?.records || []
   } catch {
     posts.value = []
@@ -200,8 +198,7 @@ async function loadPosts(userId: string) {
 async function loadFavorites(userId: string) {
   favoriteLoading.value = true
   try {
-    const res = await getUserFavorites(userId, { page: 1, size: 20 })
-    const data = (res.data as any).data || res.data
+    const data = await getUserFavorites(userId, { page: 1, size: 20 })
     favorites.value = data?.records || []
   } catch {
     favorites.value = []
@@ -233,12 +230,11 @@ function toggleFollow() {
 }
 
 function goToCreatePost() {
-  router.push('/creator')
+  to('/creator')
 }
 
 function goToPost(post: PostVO) {
-  const url = router.resolve(`/post/${post.id}`).href
-  window.open(url, '_blank')
+  open(`/post/${post.id}`)
 }
 </script>
 

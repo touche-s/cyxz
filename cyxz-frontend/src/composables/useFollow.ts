@@ -10,8 +10,7 @@ export function useFollow() {
 
   async function checkFollowing(targetUserId: string) {
     try {
-      const res = await isFollowing(targetUserId)
-      following.value = ((res.data as any).data) === true
+      following.value = await isFollowing(targetUserId) === true
     } catch {
       // 忽略关注状态查询失败
     }
