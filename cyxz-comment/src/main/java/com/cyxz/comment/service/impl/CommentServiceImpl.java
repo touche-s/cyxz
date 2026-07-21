@@ -11,6 +11,7 @@ import com.cyxz.comment.service.CommentService;
 import com.cyxz.comment.vo.CommentVO;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.constant.CommonStatus;
+import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
@@ -135,7 +136,7 @@ public class CommentServiceImpl implements CommentService {
                 .isNull(CommentPO::getParentId)
                 .orderByAsc(CommentPO::getCreateTime);
         Page<CommentPO> topPage = commentMapper.selectPage(
-                new Page<>(page, size), topWrapper);
+                PageConstants.pageOf(page, size), topWrapper);
 
         List<CommentPO> topComments = topPage.getRecords();
         if (topComments.isEmpty()) {
@@ -212,7 +213,7 @@ public class CommentServiceImpl implements CommentService {
                 .eq(CommentPO::getStatus, CommonStatus.ACTIVE)
                 .orderByAsc(CommentPO::getCreateTime);
         Page<CommentPO> replyPage = commentMapper.selectPage(
-                new Page<>(page, size), wrapper);
+                PageConstants.pageOf(page, size), wrapper);
 
         List<CommentPO> replies = replyPage.getRecords();
         if (replies.isEmpty()) {
@@ -454,7 +455,7 @@ public class CommentServiceImpl implements CommentService {
                 .orderByDesc(CommentPO::getCreateTime);
 
         Page<CommentPO> pageResult = commentMapper.selectPage(
-                new Page<>(page, size), wrapper);
+                PageConstants.pageOf(page, size), wrapper);
 
         List<CommentPO> comments = pageResult.getRecords();
         if (comments.isEmpty()) {
@@ -541,7 +542,7 @@ public class CommentServiceImpl implements CommentService {
         }
 
         Page<CommentPO> pageResult = commentMapper.selectPage(
-                new Page<>(page, size), wrapper);
+                PageConstants.pageOf(page, size), wrapper);
 
         List<CommentPO> comments = pageResult.getRecords();
         if (comments.isEmpty()) {

@@ -4,7 +4,7 @@ import com.cyxz.auth.dto.AuthResponse;
 import com.cyxz.auth.dto.LoginRequest;
 import com.cyxz.auth.dto.RegisterRequest;
 import com.cyxz.auth.service.AuthService;
-import com.cyxz.auth.util.TokenUtil;
+import com.cyxz.common.utils.TokenUtil;
 import com.cyxz.common.base.Result;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

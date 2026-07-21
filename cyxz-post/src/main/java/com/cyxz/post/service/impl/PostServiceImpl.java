@@ -7,6 +7,7 @@ import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.CacheKeyConstants;
+import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.utils.IpUtil;
 import com.cyxz.common.utils.StatusUpdateHelper;
@@ -304,7 +305,7 @@ public class PostServiceImpl implements PostService {
      */
     @Override
     public PageResult<PostVO> listPosts(Long categoryId, int page, int size, Long currentUserId) {
-        Page<PostPO> pageParam = new Page<>(page, size);
+        Page<PostPO> pageParam = PageConstants.pageOf(page, size);
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostPO::getStatus, CommonStatus.ACTIVE);
         if (categoryId != null) {
@@ -327,7 +328,7 @@ public class PostServiceImpl implements PostService {
      */
     @Override
     public PageResult<PostVO> listByUserId(Long userId, int page, int size, String sortField, String sortOrder) {
-        Page<PostPO> pageParam = new Page<>(page, size);
+        Page<PostPO> pageParam = PageConstants.pageOf(page, size);
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostPO::getUserId, userId);
 
@@ -360,7 +361,7 @@ public class PostServiceImpl implements PostService {
      */
     @Override
     public PageResult<PostVO> listByTargetUserId(Long targetUserId, Long currentUserId, int page, int size) {
-        Page<PostPO> pageParam = new Page<>(page, size);
+        Page<PostPO> pageParam = PageConstants.pageOf(page, size);
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostPO::getUserId, targetUserId);
         wrapper.eq(PostPO::getStatus, CommonStatus.ACTIVE);
@@ -387,7 +388,7 @@ public class PostServiceImpl implements PostService {
         wrapper.eq(PostCollectPO::getUserId, targetUserId)
                 .eq(PostCollectPO::getStatus, CommonStatus.ACTIVE)
                 .orderByDesc(PostCollectPO::getCreateTime);
-        Page<PostCollectPO> pageParam = new Page<>(page, size);
+        Page<PostCollectPO> pageParam = PageConstants.pageOf(page, size);
         Page<PostCollectPO> collectPage = postCollectMapper.selectPage(pageParam, wrapper);
 
         List<PostCollectPO> records = collectPage.getRecords();
@@ -889,7 +890,7 @@ public class PostServiceImpl implements PostService {
             return PageResult.empty(page, size);
         }
         String likeKeyword = "%" + keyword.trim() + "%";
-        Page<PostPO> pageParam = new Page<>(page, size);
+        Page<PostPO> pageParam = PageConstants.pageOf(page, size);
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostPO::getStatus, CommonStatus.ACTIVE)
                 .and(w -> w.like(PostPO::getTitle, likeKeyword).or().like(PostPO::getContent, likeKeyword));

@@ -2,6 +2,7 @@ package com.cyxz.gateway.filter;
 
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
+import com.cyxz.common.utils.TokenUtil;
 import com.cyxz.auth.util.JwtUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -70,7 +71,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
         if (isWhitelisted(path)) {
             // 白名单路径：有 Token 就解析注入 X-User-Id，无 Token 直接放行
-            String token = extractToken(request);
+            String token = TokenUtil.extractBearerToken(request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION));
             if (token != null && jwtUtil.validateToken(token)) {
                 Long userId = jwtUtil.getUserId(token);
                 ServerHttpRequest mutatedRequest = request.mutate()
@@ -88,7 +89,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
 
-        String token = extractToken(request);
+        String token = TokenUtil.extractBearerToken(request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION));
         if (token == null) {
             return unauthorized(response, ErrorCode.TOKEN_MISSING, "缺少Token");
         }
@@ -125,14 +126,6 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             }
         }
         return false;
-    }
-
-    private String extractToken(ServerHttpRequest request) {
-        String header = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        if (header != null && header.startsWith("Bearer ")) {
-            return header.substring(7);
-        }
-        return null;
     }
 
     private Mono<Void> unauthorized(ServerHttpResponse response, ErrorCode errorCode, String message) {

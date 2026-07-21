@@ -1,4 +1,4 @@
-package com.cyxz.auth.util;
+package com.cyxz.common.utils;
 
 import org.springframework.util.StringUtils;
 

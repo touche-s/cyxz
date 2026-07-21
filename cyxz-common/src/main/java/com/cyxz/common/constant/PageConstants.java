@@ -1,5 +1,7 @@
 package com.cyxz.common.constant;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+
 /**
  * 分页常量
  */
@@ -24,4 +26,11 @@ public final class PageConstants {
     public static final String DEFAULT_SIZE_STR = "10";
     public static final String SIZE_20_STR = "20";
     public static final String SIZE_5_STR = "5";
+
+    /**
+     * 创建 MyBatis-Plus 分页对象
+     */
+    public static <T> Page<T> pageOf(int page, int size) {
+        return new Page<>(page, size);
+    }
 }
