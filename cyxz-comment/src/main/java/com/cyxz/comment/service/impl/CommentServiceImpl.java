@@ -496,4 +496,9 @@ public class CommentServiceImpl implements CommentService {
                     .eq(CommentPO::getPostId, postId));
         log.info("删除帖子关联评论: postId={}, count={}", postId, commentIds.size());
     }
+
+    @Override
+    public int countTodayComments(Long postAuthorId) {
+        return commentMapper.countTodayComments(postAuthorId);
+    }
 }

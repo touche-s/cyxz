@@ -223,3 +223,15 @@ export interface DashboardVO {
 export const getDashboard = () => {
   return request.get('/post/dashboard')
 }
+
+/** 今日统计 */
+export interface TodayStats {
+  todayLikes: number
+  todayCollections: number
+  todayComments: number
+}
+
+/** 获取今日新增互动统计 */
+export const getTodayStats = () => {
+  return request.get('/post/today')
+}

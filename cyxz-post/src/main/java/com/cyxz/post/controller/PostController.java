@@ -8,6 +8,7 @@ import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
 import com.cyxz.post.service.PostInteractionService;
 import com.cyxz.post.service.PostService;
+import com.cyxz.post.vo.TodayStatsVO;
 import com.cyxz.post.vo.PostInfoVO;
 import com.cyxz.post.vo.PostStatsVO;
 import com.cyxz.post.vo.PostVO;
@@ -297,6 +298,18 @@ public class PostController {
     @GetMapping("/dashboard")
     public Result<DashboardVO> getDashboard(@CurrentUser Long userId) {
         return Result.success(postService.getDashboard(userId));
+    }
+
+    /**
+     * 获取今日新增互动统计
+     * <p>用于创作首页工作台展示今日新增的点赞、收藏、评论数。
+     *
+     * @param userId 当前登录用户 ID（由 Gateway 注入）
+     * @return 今日统计
+     */
+    @GetMapping("/today")
+    public Result<TodayStatsVO> getTodayStats(@CurrentUser Long userId) {
+        return Result.success(postService.getTodayStats(userId));
     }
 
     /**

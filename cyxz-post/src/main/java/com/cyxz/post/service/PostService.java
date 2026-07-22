@@ -8,6 +8,7 @@ import com.cyxz.post.vo.PostStatsVO;
 import com.cyxz.post.vo.PostVO;
 import com.cyxz.post.vo.ReceivedLikeVO;
 import com.cyxz.post.vo.DashboardVO;
+import com.cyxz.post.vo.TodayStatsVO;
 
 import java.util.List;
 import java.util.Map;
@@ -191,4 +192,13 @@ public interface PostService {
      * @return 仪表盘 VO
      */
     DashboardVO getDashboard(Long userId);
+
+    /**
+     * 获取今日新增互动统计
+     * <p>用于创作首页工作台展示今日新增的点赞、收藏、评论数。
+     *
+     * @param userId 当前用户 ID
+     * @return 今日统计 VO
+     */
+    TodayStatsVO getTodayStats(Long userId);
 }

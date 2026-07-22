@@ -82,4 +82,12 @@ public interface CommentService {
      * @param postId 帖子 ID
      */
     void deleteCommentsByPostId(Long postId);
+
+    /**
+     * 统计今日某用户帖子收到的新评论数
+     *
+     * @param postAuthorId 帖子作者 ID
+     * @return 今日新增评论数
+     */
+    int countTodayComments(Long postAuthorId);
 }

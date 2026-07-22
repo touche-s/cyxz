@@ -160,4 +160,15 @@ public class CommentController {
         commentService.deleteCommentsByPostId(postId);
         return Result.success();
     }
+
+    /**
+     * 查询今日新增评论数（内部接口）
+     *
+     * @param postAuthorId 帖子作者 ID
+     * @return 今日新增评论数
+     */
+    @GetMapping("/internal/today")
+    public Result<Integer> todayComments(@RequestParam("postAuthorId") Long postAuthorId) {
+        return Result.success(commentService.countTodayComments(postAuthorId));
+    }
 }

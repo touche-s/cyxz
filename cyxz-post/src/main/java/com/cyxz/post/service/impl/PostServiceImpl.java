@@ -8,10 +8,7 @@ import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.constant.PageConstants;
-import com.cyxz.post.vo.DashboardVO;
-import com.cyxz.post.vo.PostInfoVO;
-import com.cyxz.post.vo.PostStatsVO;
-import com.cyxz.post.vo.ReceivedLikeVO;
+import com.cyxz.post.vo.*;
 import com.cyxz.comment.feign.CommentFeignClient;
 import com.cyxz.user.feign.UserFeignClient;
 import com.cyxz.user.utils.UserFeignHelper;
@@ -26,7 +23,6 @@ import com.cyxz.post.mapper.PostLikeMapper;
 import com.cyxz.post.mapper.PostMapper;
 import com.cyxz.post.service.CategoryService;
 import com.cyxz.post.service.PostService;
-import com.cyxz.post.vo.PostVO;
 import com.cyxz.user.vo.UserProfileVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -567,6 +563,30 @@ public class PostServiceImpl implements PostService {
         return topPosts.stream()
                 .map(po -> convertToVO(po, userMap, Collections.emptyMap(), Collections.emptySet(), Collections.emptySet()))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 获取今日新增互动统计
+     * <p>一条 SQL 查询今日该用户帖子收到的新点赞、新收藏、新评论数。
+     *
+     * @param userId 当前用户 ID
+     * @return 今日统计 VO
+     */
+    @Override
+    public TodayStatsVO getTodayStats(Long userId) {
+        TodayStatsVO stats = postMapper.selectTodayStats(userId);
+        if (stats == null) {
+            stats = new TodayStatsVO(0, 0, 0);
+        }
+        try {
+            Result<Integer> result = commentFeignClient.countTodayComments(userId);
+            if (result != null && result.getData() != null) {
+                stats.setTodayComments(result.getData());
+            }
+        } catch (Exception e) {
+            log.warn("获取今日评论数失败: userId={}", userId, e);
+        }
+        return stats;
     }
 
     /**

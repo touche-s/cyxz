@@ -19,9 +19,18 @@ public class CommentFeignClientFallbackFactory implements FallbackFactory<Commen
     @Override
     public CommentFeignClient create(Throwable cause) {
         log.warn("评论服务调用降级: {}", cause.getMessage());
-        return postId -> {
-            log.error("评论服务降级，删除帖子关联评论失败: postId={}", postId);
-            return Result.fail(ErrorCode.FAIL.getCode(), "评论服务不可用，请稍后重试");
+        return new CommentFeignClient() {
+            @Override
+            public Result<Void> deleteByPostId(Long postId) {
+                log.error("评论服务降级，删除帖子关联评论失败: postId={}", postId);
+                return Result.fail(ErrorCode.FAIL.getCode(), "评论服务不可用，请稍后重试");
+            }
+
+            @Override
+            public Result<Integer> countTodayComments(Long postAuthorId) {
+                log.warn("评论服务降级，获取今日评论数失败: postAuthorId={}", postAuthorId);
+                return Result.success(0);
+            }
         };
     }
 }

@@ -5,6 +5,7 @@ import com.cyxz.post.entity.PostPO;
 import com.cyxz.post.vo.DashboardVO;
 import com.cyxz.post.vo.PostStatsVO;
 import com.cyxz.post.vo.PostVO;
+import com.cyxz.post.vo.TodayStatsVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -126,4 +127,19 @@ public interface PostMapper extends BaseMapper<PostPO> {
             "GROUP BY c.id, c.name " +
             "ORDER BY count DESC")
     List<DashboardVO.CategoryDistributionVO> selectCategoryDistribution(@Param("userId") Long userId);
+
+    /**
+     * 查询今日新增互动统计
+     * <p>一条 SQL 通过子查询统计今天该用户帖子收到的新点赞、新收藏数。
+     *
+     * @param userId 用户 ID
+     * @return 今日统计 VO（todayComments 为 0，由 Service 层调用评论服务获取）
+     */
+    @Select("SELECT " +
+            "COALESCE((SELECT COUNT(*) FROM post_like pl INNER JOIN post p ON pl.post_id = p.id " +
+            "WHERE p.user_id = #{userId} AND pl.status = 1 AND pl.create_time >= CURDATE()), 0) AS todayLikes, " +
+            "COALESCE((SELECT COUNT(*) FROM post_collect pc INNER JOIN post p ON pc.post_id = p.id " +
+            "WHERE p.user_id = #{userId} AND pc.status = 1 AND pc.create_time >= CURDATE()), 0) AS todayCollections, " +
+            "0 AS todayComments")
+    TodayStatsVO selectTodayStats(@Param("userId") Long userId);
 }
