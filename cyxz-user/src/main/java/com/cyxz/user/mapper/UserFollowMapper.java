@@ -49,4 +49,13 @@ public interface UserFollowMapper extends BaseMapper<UserFollowPO> {
      */
     @Select("SELECT follow_user_id FROM user_follow WHERE user_id = #{userId} AND status = 1")
     List<Long> selectFollowingIds(@Param("userId") Long userId);
+
+    /**
+     * 统计今日新增粉丝数（关注时间在今天及之后）
+     *
+     * @param userId 用户 ID
+     * @return 今日新增粉丝数
+     */
+    @Select("SELECT COUNT(*) FROM user_follow WHERE follow_user_id = #{userId} AND status = 1 AND create_time >= CURDATE()")
+    int countNewFollowers(@Param("userId") Long userId);
 }

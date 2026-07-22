@@ -71,4 +71,12 @@ public interface FollowService {
      * @return 粉丝用户列表（含 following 回关状态）
      */
     PageResult<FollowUserVO> listFollowers(Long userId, int page, int size);
+
+    /**
+     * 统计今日新增粉丝数
+     *
+     * @param userId 用户 ID
+     * @return 今日新增粉丝数
+     */
+    int countNewFollowers(Long userId);
 }

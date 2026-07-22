@@ -35,6 +35,7 @@ export interface FollowUserVO {
 export interface FollowStats {
   followingCount: number
   followerCount: number
+  newFollowerCount: number
 }
 
 /** 查询用户资料 */

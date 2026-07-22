@@ -170,7 +170,8 @@ public class UserProfileController {
     public Result<Map<String, Integer>> getFollowStats(@CurrentUser Long userId) {
         return Result.success(Map.of(
                 "followingCount", followService.countFollowing(userId),
-                "followerCount", followService.countFollowers(userId)
+                "followerCount", followService.countFollowers(userId),
+                "newFollowerCount", followService.countNewFollowers(userId)
         ));
     }
 }

@@ -200,4 +200,9 @@ public class FollowServiceImpl implements FollowService {
 
         return PageResult.of(records, total, page, size);
     }
+
+    @Override
+    public int countNewFollowers(Long userId) {
+        return followMapper.countNewFollowers(userId);
+    }
 }
