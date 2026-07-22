@@ -20,6 +20,10 @@
             <Icon icon="ph:files" class="nav-icon pink-icon" />
             <span class="nav-text">内容管理</span>
           </button>
+          <button class="nav-item" :class="{ active: activeNav === 'data' }" @click="switchNav('data')">
+            <Icon icon="ph:chart-bar" class="nav-icon pink-icon" />
+            <span class="nav-text">数据中心</span>
+          </button>
         </div>
 
         <div class="nav-divider"></div>
@@ -59,6 +63,7 @@
       <PostCreate ref="postCreateRef" v-if="activeNav === 'publish'" @go-back="goHome" @publish-success="handlePublishSuccess" />
       <CreatorHome v-else-if="activeNav === 'home'" @go-create="goCreate" />
       <CreatorContent ref="contentRef" v-else-if="activeNav === 'content'" @edit="editPost" @view="viewPost" @create-post="goCreate" @publish="publishPost" @restore="restorePost" @delete="handleDeletePost" @preview="openPreview" />
+      <CreatorData v-else-if="activeNav === 'data'" />
       <CreatorFans v-else-if="activeNav === 'fans'" />
       <CreatorInteraction v-else-if="activeNav === 'interaction'" @delete-comment="handleDeleteComment" />
       <CreatorMagic v-if="activeNav === 'magic'" />
@@ -198,6 +203,7 @@ import PostCreate from '@/views/PostCreate.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import CreatorHome from '@/components/creator/CreatorHome.vue'
 import CreatorContent from '@/components/creator/CreatorContent.vue'
+import CreatorData from '@/components/creator/CreatorData.vue'
 import CreatorFans from '@/components/creator/CreatorFans.vue'
 import CreatorInteraction from '@/components/creator/CreatorInteraction.vue'
 import CreatorMagic from '@/components/creator/CreatorMagic.vue'
@@ -208,7 +214,7 @@ const { open, router } = useNavigate()
 const route = useRoute()
 const userStore = useUserStore()
 
-const activeNav = ref<'home' | 'content' | 'fans' | 'interaction' | 'magic' | 'agreement' | 'publish'>('home')
+const activeNav = ref<'home' | 'content' | 'data' | 'fans' | 'interaction' | 'magic' | 'agreement' | 'publish'>('home')
 const postCreateRef = ref<InstanceType<typeof PostCreate>>()
 const contentRef = ref<InstanceType<typeof CreatorContent>>()
 

@@ -12,6 +12,7 @@ import com.cyxz.post.vo.PostInfoVO;
 import com.cyxz.post.vo.PostStatsVO;
 import com.cyxz.post.vo.PostVO;
 import com.cyxz.post.vo.ReceivedLikeVO;
+import com.cyxz.post.vo.DashboardVO;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -284,6 +285,18 @@ public class PostController {
     @GetMapping("/user/{targetUserId}/stats")
     public Result<PostStatsVO> getStatsByUserId(@PathVariable("targetUserId") Long targetUserId) {
         return Result.success(postService.getPostStats(targetUserId));
+    }
+
+    /**
+     * 获取数据中心仪表盘数据
+     * <p>包含概览统计、月度趋势、分类分布和 Top 作品排行。
+     *
+     * @param userId 当前登录用户 ID（由 Gateway 注入）
+     * @return 仪表盘数据
+     */
+    @GetMapping("/dashboard")
+    public Result<DashboardVO> getDashboard(@CurrentUser Long userId) {
+        return Result.success(postService.getDashboard(userId));
     }
 
     /**

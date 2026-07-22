@@ -8,6 +8,7 @@ import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.constant.PageConstants;
+import com.cyxz.post.vo.DashboardVO;
 import com.cyxz.post.vo.PostInfoVO;
 import com.cyxz.post.vo.PostStatsVO;
 import com.cyxz.post.vo.ReceivedLikeVO;
@@ -566,6 +567,43 @@ public class PostServiceImpl implements PostService {
         return topPosts.stream()
                 .map(po -> convertToVO(po, userMap, Collections.emptyMap(), Collections.emptySet(), Collections.emptySet()))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * 获取数据中心仪表盘数据
+     * <p>并行查询概览统计、月度趋势、分类分布和 Top 5 作品，
+     * 组装为 DashboardVO 返回。
+     *
+     * @param userId 当前用户 ID
+     * @return 仪表盘 VO
+     */
+    @Override
+    public DashboardVO getDashboard(Long userId) {
+        PostStatsVO summary = postMapper.selectStatsByUserId(userId);
+        if (summary == null) {
+            summary = new PostStatsVO();
+        }
+        List<DashboardVO.MonthlyTrendVO> trends = postMapper.selectMonthlyTrends(userId);
+        if (trends == null) {
+            trends = Collections.emptyList();
+        }
+        List<DashboardVO.DailyTrendVO> dailyTrends = postMapper.selectDailyTrends(userId);
+        if (dailyTrends == null) {
+            dailyTrends = Collections.emptyList();
+        }
+        List<DashboardVO.CategoryDistributionVO> distribution = postMapper.selectCategoryDistribution(userId);
+        if (distribution == null) {
+            distribution = Collections.emptyList();
+        }
+        List<PostVO> topPosts = getTopPosts(userId, 5);
+
+        DashboardVO dashboard = new DashboardVO();
+        dashboard.setSummary(summary);
+        dashboard.setMonthlyTrends(trends);
+        dashboard.setDailyTrends(dailyTrends);
+        dashboard.setCategoryDistribution(distribution);
+        dashboard.setTopPosts(topPosts);
+        return dashboard;
     }
 
     /**

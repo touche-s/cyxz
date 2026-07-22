@@ -187,3 +187,39 @@ export const getReceivedLikes = (params: { page?: number; size?: number }) => {
 export const searchPosts = (params: { keyword: string; page?: number; size?: number }) => {
   return request.get('/post/search', { params })
 }
+
+/** 数据中心月度趋势 */
+export interface MonthlyTrendVO {
+  month: string
+  posts: number
+  views: number
+  likes: number
+}
+
+/** 数据中心每日趋势 */
+export interface DailyTrendVO {
+  date: string
+  posts: number
+  views: number
+  likes: number
+}
+
+/** 数据中心分类分布 */
+export interface CategoryDistributionVO {
+  name: string
+  count: number
+}
+
+/** 数据中心仪表盘 */
+export interface DashboardVO {
+  summary: PostStatsVO
+  monthlyTrends: MonthlyTrendVO[]
+  dailyTrends: DailyTrendVO[]
+  categoryDistribution: CategoryDistributionVO[]
+  topPosts: PostVO[]
+}
+
+/** 获取数据中心仪表盘数据 */
+export const getDashboard = () => {
+  return request.get('/post/dashboard')
+}

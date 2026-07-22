@@ -35,7 +35,7 @@
             <Icon icon="ph:heart-fill" class="stat-icon pink-icon" v-show="post.liked" />
             {{ formatNumber(post.likes) }}
           </button>
-          <span><Icon icon="ph:eye" class="stat-icon pink-icon" /> {{ formatNumber(post.views) }}</span>
+          <span><Icon icon="ph:eye" class="stat-icon pink-icon" />{{ formatNumber(post.views) }}</span>
         </div>
       </div>
     </div>
@@ -263,7 +263,8 @@ const getGradient = (id: string | number) => {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  line-height: 1;
+  font-size: 12px;
+  line-height: 14px;
   transition: color 0.22s ease-out;
 }
 

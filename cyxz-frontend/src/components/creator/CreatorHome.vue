@@ -344,7 +344,10 @@ onMounted(() => {
 .stat-mini-icon {
   width: 14px;
   height: 14px;
-  vertical-align: middle;
+  display: block;
+  flex-shrink: 0;
+  position: relative;
+  top: 1px;
 }
 
 /* 排行榜 */

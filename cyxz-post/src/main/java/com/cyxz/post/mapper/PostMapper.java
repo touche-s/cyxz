@@ -2,6 +2,7 @@ package com.cyxz.post.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.cyxz.post.entity.PostPO;
+import com.cyxz.post.vo.DashboardVO;
 import com.cyxz.post.vo.PostStatsVO;
 import com.cyxz.post.vo.PostVO;
 import org.apache.ibatis.annotations.Mapper;
@@ -78,4 +79,51 @@ public interface PostMapper extends BaseMapper<PostPO> {
     @Select("SELECT * FROM post WHERE user_id = #{userId} AND status = 1 " +
             "ORDER BY views DESC LIMIT #{limit}")
     List<PostPO> selectTopPostsByViews(@Param("userId") Long userId, @Param("limit") int limit);
+
+    /**
+     * 按月聚合用户已发布作品数据
+     * <p>按 create_time 的 %Y-%m 分组，统计每月新增作品数、总浏览、总点赞。
+     *
+     * @param userId 用户 ID
+     * @return 月度趋势列表
+     */
+    @Select("SELECT DATE_FORMAT(create_time, '%Y-%m') AS month, " +
+            "COUNT(*) AS posts, " +
+            "COALESCE(SUM(views), 0) AS views, " +
+            "COALESCE(SUM(likes), 0) AS likes " +
+            "FROM post WHERE user_id = #{userId} AND status = 1 " +
+            "GROUP BY DATE_FORMAT(create_time, '%Y-%m') " +
+            "ORDER BY month ASC")
+    List<DashboardVO.MonthlyTrendVO> selectMonthlyTrends(@Param("userId") Long userId);
+
+    /**
+     * 按日聚合用户已发布作品数据（近 30 天）
+     * <p>按 create_time 的 %m-%d 分组，统计每日新增作品数、总浏览、总点赞。
+     *
+     * @param userId 用户 ID
+     * @return 每日趋势列表
+     */
+    @Select("SELECT DATE_FORMAT(create_time, '%m-%d') AS date, " +
+            "COUNT(*) AS posts, " +
+            "COALESCE(SUM(views), 0) AS views, " +
+            "COALESCE(SUM(likes), 0) AS likes " +
+            "FROM post WHERE user_id = #{userId} AND status = 1 " +
+            "AND create_time >= DATE_SUB(NOW(), INTERVAL 30 DAY) " +
+            "GROUP BY DATE_FORMAT(create_time, '%m-%d') " +
+            "ORDER BY date ASC")
+    List<DashboardVO.DailyTrendVO> selectDailyTrends(@Param("userId") Long userId);
+
+    /**
+     * 按分类聚合用户已发布作品数量
+     * <p>JOIN category 表获取分类名，按作品数降序。
+     *
+     * @param userId 用户 ID
+     * @return 分类分布列表
+     */
+    @Select("SELECT c.name, COUNT(*) AS count " +
+            "FROM post p JOIN category c ON p.category_id = c.id " +
+            "WHERE p.user_id = #{userId} AND p.status = 1 " +
+            "GROUP BY c.id, c.name " +
+            "ORDER BY count DESC")
+    List<DashboardVO.CategoryDistributionVO> selectCategoryDistribution(@Param("userId") Long userId);
 }

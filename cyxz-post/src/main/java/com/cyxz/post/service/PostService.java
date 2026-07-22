@@ -7,6 +7,7 @@ import com.cyxz.post.vo.PostInfoVO;
 import com.cyxz.post.vo.PostStatsVO;
 import com.cyxz.post.vo.PostVO;
 import com.cyxz.post.vo.ReceivedLikeVO;
+import com.cyxz.post.vo.DashboardVO;
 
 import java.util.List;
 import java.util.Map;
@@ -181,4 +182,13 @@ public interface PostService {
      * @return 分页结果（含总条数）
      */
     PageResult<PostVO> searchPosts(String keyword, int page, int size, Long currentUserId);
+
+    /**
+     * 获取数据中心仪表盘数据
+     * <p>包含概览统计、月度趋势、分类分布和 Top 5 作品排行。
+     *
+     * @param userId 当前用户 ID
+     * @return 仪表盘 VO
+     */
+    DashboardVO getDashboard(Long userId);
 }
