@@ -61,9 +61,9 @@
 
     <main class="main-content">
       <PostCreate ref="postCreateRef" v-if="activeNav === 'publish'" @go-back="goHome" @publish-success="handlePublishSuccess" />
-      <CreatorHome v-else-if="activeNav === 'home'" @go-create="goCreate" />
+      <CreatorHome v-else-if="activeNav === 'home'" @go-create="goCreate" @go-data="switchNav('data')" @go-content="goContent" @go-interaction="switchNav('interaction')" @go-fans="switchNav('fans')" @edit-post="editPost" />
       <CreatorContent ref="contentRef" v-else-if="activeNav === 'content'" @edit="editPost" @view="viewPost" @create-post="goCreate" @publish="publishPost" @restore="restorePost" @delete="handleDeletePost" @preview="openPreview" />
-      <CreatorData v-else-if="activeNav === 'data'" />
+      <CreatorData v-else-if="activeNav === 'data'" @go-post="viewPost" />
       <CreatorFans v-else-if="activeNav === 'fans'" />
       <CreatorInteraction v-else-if="activeNav === 'interaction'" @delete-comment="handleDeleteComment" />
       <CreatorMagic v-if="activeNav === 'magic'" />
@@ -284,6 +284,10 @@ const navigateToContent = async (tab: 'all' | 'draft' = 'all') => {
   activeNav.value = 'content'
   void tab
   contentRef.value?.refreshPosts()
+}
+
+const goContent = (tab: 'all' | 'draft' = 'all') => {
+  navigateToContent(tab)
 }
 
 const navigateToPublish = async (postId?: string) => {

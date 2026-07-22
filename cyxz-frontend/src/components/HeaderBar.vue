@@ -3,9 +3,9 @@
     <div class="header-left">
       <div class="logo-wrap">
         <div class="logo-icon">
-          <img src="/favicon.svg" alt="logo" class="logo-img" />
+          <img src="/favicon.svg" alt="logo" class="logo-icon-img" />
         </div>
-        <span class="logo-text">次元小站</span>
+        <img src="/logo-text.svg?v=1" alt="次元小站" class="logo-text-img" />
       </div>
     </div>
     <div class="header-center" :class="{ 'header-center--hidden': $route.path === '/search' }">
@@ -256,24 +256,26 @@ onMounted(() => {
   box-shadow: 0 4px 16px rgba(255, 107, 157, 0.3);
   transition: all 0.22s ease-out;
 }
-.logo-img {
+
+.logo-icon-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
+
+.logo-text-img {
+  height: 56px;
+  width: auto;
+  display: block;
+}
+
 .logo-wrap:hover .logo-icon {
   box-shadow: 0 4px 24px rgba(255, 107, 157, 0.45);
   transform: scale(1.05);
 }
 
-.logo-text {
-  font-size: 22px;
-  font-weight: 900;
-  letter-spacing: 1px;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  text-shadow: 0 0 20px rgba(255, 107, 157, 0.15);
+.logo-wrap:hover .logo-text-img {
+  filter: brightness(1.08);
 }
 
 .nav {
@@ -556,103 +558,55 @@ onMounted(() => {
 }
 
 .stat-num {
-  font-size: 17px;
-  line-height: 1;
-  font-weight: 700;
+  font-size: 18px;
+  font-weight: 800;
   color: var(--text);
-  transition: color 0.2s;
 }
 
 .stat-label {
   font-size: 12px;
   color: var(--text-dim);
-  transition: color 0.2s;
 }
 
 .panel-menu {
-  padding: 6px 0 8px;
+  padding: 8px;
 }
 
 .menu-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 16px;
+  padding: 11px 12px;
+  border-radius: 12px;
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
   color: var(--text);
-  font-size: 14px;
-  line-height: 1;
+  transition: all 0.2s;
 }
 
 .menu-item:hover {
-  background: linear-gradient(135deg, rgba(255, 107, 157, 0.08), rgba(180, 132, 255, 0.06));
-  color: var(--pink);
+  background: var(--bg-soft);
 }
 
-.menu-item:hover .menu-icon,
-.menu-item:hover .menu-arrow {
-  stroke: var(--pink);
+.menu-item.logout {
+  color: #ef4444;
 }
 
 .menu-icon {
-  width: 21px;
-  height: 21px;
-  flex-shrink: 0;
-  stroke: var(--text-dim);
-  transition: stroke 0.2s;
+  width: 18px;
+  height: 18px;
+  color: currentColor;
 }
 
 .menu-arrow {
+  margin-left: auto;
   width: 16px;
   height: 16px;
-  margin-left: auto;
-  stroke: var(--text-dim);
-  flex-shrink: 0;
-  transition: stroke 0.2s;
+  color: var(--text-dim);
 }
 
 .menu-divider {
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 107, 157, 0.2), transparent);
-  margin: 8px 16px;
-}
-
-.menu-item.logout {
-  color: #e85b7d;
-}
-
-.menu-item.logout .menu-icon {
-  color: #e85b7d;
-}
-
-.menu-item.logout:hover {
-  background: rgba(232, 91, 125, 0.08);
-  color: #e85b7d;
-}
-
-@media (max-width: 768px) {
-  .header-bar {
-    padding: 0 16px;
-    height: auto;
-    min-height: 66px;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-  .header-center {
-    order: 3;
-    width: 100%;
-  }
-  .nav { display: none; }
-  .header-right {
-    gap: 6px;
-  }
-  .header-icons {
-    margin: 0;
-    gap: 6px;
-  }
-  .btn-create {
-    padding: 8px 14px;
-  }
+  background: var(--border);
+  margin: 6px 8px;
 }
 </style>

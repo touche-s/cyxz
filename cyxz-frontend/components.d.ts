@@ -15,6 +15,7 @@ declare module 'vue' {
     ConfirmModal: typeof import('./src/components/ConfirmModal.vue')['default']
     CreatorAgreement: typeof import('./src/components/creator/CreatorAgreement.vue')['default']
     CreatorContent: typeof import('./src/components/creator/CreatorContent.vue')['default']
+    CreatorData: typeof import('./src/components/creator/CreatorData.vue')['default']
     CreatorFans: typeof import('./src/components/creator/CreatorFans.vue')['default']
     CreatorHome: typeof import('./src/components/creator/CreatorHome.vue')['default']
     CreatorInteraction: typeof import('./src/components/creator/CreatorInteraction.vue')['default']
