@@ -37,7 +37,7 @@
           >
             <div class="msg-avatar" :class="{ system: msg.type === 'system' }" @click="msg.type !== 'system' && goUser(msg.userId)">
               <template v-if="msg.type === 'system'">
-                <i-ph-bell class="msg-type-icon pink-icon" />
+                <Icon icon="ph:bell" class="msg-type-icon pink-icon" />
               </template>
               <template v-else>
                 <img v-if="msg.userAvatar" :src="msg.userAvatar" alt="" />

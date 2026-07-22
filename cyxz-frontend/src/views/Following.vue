@@ -9,7 +9,7 @@
       <div class="placeholder-section">
         <div class="placeholder-card">
           <div class="placeholder-icon">
-            <Icon icon="ph:heart" class="placeholder-iconify" />
+            <Icon icon="ph:heart" class="placeholder-iconify pink-icon" />
           </div>
           <h3>关注动态即将上线</h3>
           <p>在这里你可以看到你关注的创作者的动态内容流。发现有趣的灵魂，建立你的次元圈~</p>
@@ -105,12 +105,10 @@ import { Icon } from '@iconify/vue'
   align-items: center;
   justify-content: center;
   margin: 0 auto 24px;
-  color: var(--pink);
 }
 .placeholder-iconify {
   width: 48px;
   height: 48px;
-  color: var(--pink);
 }
 
 .placeholder-card h3 {

@@ -1,6 +1,6 @@
 <template>
   <div class="empty-state">
-    <Icon v-if="icon" :icon="icon" class="empty-icon" />
+    <Icon v-if="icon" :icon="icon" class="empty-icon pink-icon" />
     <p class="empty-text">{{ title }}</p>
     <p v-if="hint" class="empty-hint">{{ hint }}</p>
     <div v-if="$slots.actions" class="empty-actions">
@@ -33,7 +33,6 @@ defineProps<{
   height: 64px;
   opacity: 0.5;
   margin-bottom: 12px;
-  color: var(--pink);
 }
 .empty-text {
   font-size: 14px;

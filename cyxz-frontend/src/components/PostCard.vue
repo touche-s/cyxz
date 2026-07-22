@@ -10,7 +10,7 @@
         :class="{ active: post.collected, popping: collectPopping[post.id] }"
         @click.stop="handleCollect(post)"
       >
-        <Icon :icon="post.collected ? 'ph:star-fill' : 'ph:star'" class="collect-icon" />
+        <Icon :icon="post.collected ? 'ph:star-fill' : 'ph:star'" class="collect-icon pink-icon" />
       </button>
     </div>
     <div class="card-body">
@@ -174,7 +174,6 @@ const getGradient = (id: string | number) => {
   width: 16px;
   height: 16px;
   display: block;
-  color: var(--pink);
 }
 
 .card-save:hover {

@@ -1,7 +1,7 @@
 <template>
   <div ref="cardRef" class="stat-card">
     <div class="stat-icon-wrapper" :class="iconClass">
-      <Icon :icon="icon" class="stat-icon" />
+      <Icon :icon="icon" class="stat-icon pink-icon" />
     </div>
     <div class="stat-info">
       <span class="stat-value">{{ formattedValue }}</span>
@@ -106,7 +106,6 @@ function startIfReady() {
   font-size: 24px;
   width: 24px;
   height: 24px;
-  color: var(--pink);
 }
 
 .stat-info {

@@ -69,3 +69,7 @@ a { text-decoration: none; color: inherit; }
 .pink-icon {
   color: var(--pink);
 }
+
+.white-icon {
+  color: #fff;
+}

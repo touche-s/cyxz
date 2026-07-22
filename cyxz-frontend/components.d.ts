@@ -13,6 +13,12 @@ declare module 'vue' {
   export interface GlobalComponents {
     CommentItem: typeof import('./src/components/CommentItem.vue')['default']
     ConfirmModal: typeof import('./src/components/ConfirmModal.vue')['default']
+    CreatorAgreement: typeof import('./src/components/creator/CreatorAgreement.vue')['default']
+    CreatorContent: typeof import('./src/components/creator/CreatorContent.vue')['default']
+    CreatorFans: typeof import('./src/components/creator/CreatorFans.vue')['default']
+    CreatorHome: typeof import('./src/components/creator/CreatorHome.vue')['default']
+    CreatorInteraction: typeof import('./src/components/creator/CreatorInteraction.vue')['default']
+    CreatorMagic: typeof import('./src/components/creator/CreatorMagic.vue')['default']
     EmptyState: typeof import('./src/components/EmptyState.vue')['default']
     FollowButton: typeof import('./src/components/FollowButton.vue')['default']
     HeaderBar: typeof import('./src/components/HeaderBar.vue')['default']
@@ -32,6 +38,7 @@ declare module 'vue' {
     PostCard: typeof import('./src/components/PostCard.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    SearchInput: typeof import('./src/components/SearchInput.vue')['default']
     StatCard: typeof import('./src/components/StatCard.vue')['default']
   }
 }

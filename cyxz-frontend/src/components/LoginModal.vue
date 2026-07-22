@@ -15,21 +15,21 @@
               </div>
               <div class="features">
                 <div class="feature-item">
-                  <Icon icon="ph:pencil-simple" class="feature-icon" />
+                  <Icon icon="ph:pencil-simple" class="feature-icon white-icon" />
                   <div>
                     <h3>创作分享</h3>
                     <p>发布绘画、摄影、Cosplay，展示你的创意世界</p>
                   </div>
                 </div>
                 <div class="feature-item">
-                  <Icon icon="ph:handshake" class="feature-icon" />
+                  <Icon icon="ph:handshake" class="feature-icon white-icon" />
                   <div>
                     <h3>同好社区</h3>
                     <p>找到志同道合的伙伴，一起追番聊番</p>
                   </div>
                 </div>
                 <div class="feature-item">
-                  <Icon icon="ph:sparkle" class="feature-icon" />
+                  <Icon icon="ph:sparkle" class="feature-icon white-icon" />
                   <div>
                     <h3>发现灵感</h3>
                     <p>探索海量优质内容，每一次浏览都是惊喜</p>
@@ -407,7 +407,6 @@ async function handleSubmit() {
   height: 24px;
   flex-shrink: 0;
   margin-top: 2px;
-  color: var(--pink);
 }
 .feature-item h3 {
   color: white;
