@@ -59,6 +59,12 @@ public class PostPO implements Serializable {
     /** 收藏数 */
     private Integer collections;
 
+    /** 是否置顶：0=否 1=是 */
+    private Integer isPinned;
+
+    /** 置顶时间 */
+    private LocalDateTime pinnedTime;
+
     /** 创建时间 */
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

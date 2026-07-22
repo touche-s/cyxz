@@ -201,4 +201,31 @@ public interface PostService {
      * @return 今日统计 VO
      */
     TodayStatsVO getTodayStats(Long userId);
+
+    /**
+     * 置顶帖子
+     * <p>仅已发布帖子可置顶，每人最多置顶 3 条。
+     *
+     * @param userId 当前用户 ID
+     * @param postId 帖子 ID
+     */
+    void pinPost(Long userId, Long postId);
+
+    /**
+     * 取消置顶帖子
+     *
+     * @param userId 当前用户 ID
+     * @param postId 帖子 ID
+     */
+    void unpinPost(Long userId, Long postId);
+
+    /**
+     * 批量操作帖子
+     * <p>支持批量发布和批量删除。
+     *
+     * @param userId  当前用户 ID
+     * @param postIds 帖子 ID 列表
+     * @param action  操作类型（publish / delete）
+     */
+    void batchOperate(Long userId, List<Long> postIds, String action);
 }

@@ -389,4 +389,34 @@ public class PostController {
                                        @CurrentUser(required = false) Long currentUserId) {
         return Result.success(postService.searchPosts(keyword, page, size, currentUserId));
     }
+
+    /**
+     * 置顶帖子
+     */
+    @PutMapping("/{postId}/pin")
+    public Result<Void> pinPost(@CurrentUser Long userId, @PathVariable("postId") Long postId) {
+        postService.pinPost(userId, postId);
+        return Result.success("置顶成功");
+    }
+
+    /**
+     * 取消置顶帖子
+     */
+    @DeleteMapping("/{postId}/pin")
+    public Result<Void> unpinPost(@CurrentUser Long userId, @PathVariable("postId") Long postId) {
+        postService.unpinPost(userId, postId);
+        return Result.success("取消置顶成功");
+    }
+
+    /**
+     * 批量操作帖子
+     */
+    @PostMapping("/batch")
+    public Result<Void> batchOperate(@CurrentUser Long userId, @RequestBody Map<String, Object> body) {
+        @SuppressWarnings("unchecked")
+        List<Long> postIds = ((List<String>) body.get("postIds")).stream().map(Long::valueOf).toList();
+        String action = (String) body.get("action");
+        postService.batchOperate(userId, postIds, action);
+        return Result.success("批量操作成功");
+    }
 }

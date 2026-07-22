@@ -142,4 +142,31 @@ public interface PostMapper extends BaseMapper<PostPO> {
             "WHERE p.user_id = #{userId} AND pc.status = 1 AND pc.create_time >= CURDATE()), 0) AS todayCollections, " +
             "0 AS todayComments")
     TodayStatsVO selectTodayStats(@Param("userId") Long userId);
+
+    /**
+     * 置顶帖子
+     */
+    @Update("UPDATE post SET is_pinned = 1, pinned_time = NOW() WHERE id = #{postId} AND user_id = #{userId}")
+    int pinPost(@Param("userId") Long userId, @Param("postId") Long postId);
+
+    /**
+     * 取消置顶
+     */
+    @Update("UPDATE post SET is_pinned = 0, pinned_time = NULL WHERE id = #{postId} AND user_id = #{userId}")
+    int unpinPost(@Param("userId") Long userId, @Param("postId") Long postId);
+
+    /**
+     * 统计当前用户已置顶帖子数
+     */
+    @Select("SELECT COUNT(*) FROM post WHERE user_id = #{userId} AND is_pinned = 1")
+    int countPinnedPosts(@Param("userId") Long userId);
+
+    /**
+     * 批量更新帖子状态
+     */
+    @Update("<script>" +
+            "UPDATE post SET status = #{status} WHERE user_id = #{userId} AND id IN " +
+            "<foreach collection='postIds' item='id' open='(' separator=',' close=')'>#{id}</foreach>" +
+            "</script>")
+    int batchUpdateStatus(@Param("userId") Long userId, @Param("postIds") List<Long> postIds, @Param("status") int status);
 }

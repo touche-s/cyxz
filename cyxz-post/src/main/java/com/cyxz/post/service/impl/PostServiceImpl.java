@@ -303,7 +303,10 @@ public class PostServiceImpl implements PostService {
         wrapper.orderByDesc(PostPO::getCreateTime);
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
 
-        return PageResult.of(fillPostVOList(result.getRecords(), currentUserId), result.getTotal(), page, size);
+        List<PostVO> vos = fillPostVOList(result.getRecords(), currentUserId);
+        // 全局列表不应暴露个人置顶状态
+        vos.forEach(vo -> vo.setPinned(false));
+        return PageResult.of(vos, result.getTotal(), page, size);
     }
 
     /**
@@ -323,7 +326,7 @@ public class PostServiceImpl implements PostService {
 
         String field = (sortField != null && ALLOWED_SORT_FIELDS.contains(sortField)) ? sortField : "createTime";
         boolean asc = "asc".equalsIgnoreCase(sortOrder);
-        wrapper.last("ORDER BY " + field + (asc ? " ASC" : " DESC"));
+        wrapper.last("ORDER BY is_pinned DESC, pinned_time DESC, " + field + (asc ? " ASC" : " DESC"));
 
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
 
@@ -354,7 +357,7 @@ public class PostServiceImpl implements PostService {
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostPO::getUserId, targetUserId);
         wrapper.eq(PostPO::getStatus, CommonStatus.ACTIVE);
-        wrapper.orderByDesc(PostPO::getCreateTime);
+        wrapper.last("ORDER BY is_pinned DESC, pinned_time DESC, create_time DESC");
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
 
         return PageResult.of(fillPostVOList(result.getRecords(), currentUserId), result.getTotal(), page, size);
@@ -454,6 +457,8 @@ public class PostServiceImpl implements PostService {
         vo.setViews(po.getViews());
         vo.setCollections(po.getCollections());
         vo.setCollected(collectedPostIds.contains(po.getId()));
+        vo.setPinned(po.getIsPinned() != null && po.getIsPinned() == 1);
+        vo.setPinnedTime(po.getPinnedTime());
         vo.setCreateTime(po.getCreateTime());
         vo.setUpdateTime(po.getUpdateTime());
 
@@ -769,6 +774,68 @@ public class PostServiceImpl implements PostService {
         if (!hasContent) {
             throw new BusinessException(ErrorCode.PARAM_MISSING, "草稿至少需要填写一项内容");
         }
+    }
+
+    @Override
+    public void pinPost(Long userId, Long postId) {
+        PostPO po = postMapper.selectById(postId);
+        if (po == null) {
+            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
+        }
+        if (!po.getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        if (po.getStatus() != STATUS_PUBLISHED) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "仅已发布帖子可置顶");
+        }
+        int pinnedCount = postMapper.countPinnedPosts(userId);
+        if (pinnedCount >= 3) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "最多置顶 3 条帖子");
+        }
+        postMapper.pinPost(userId, postId);
+        log.info("置顶帖子成功: postId={}, userId={}", postId, userId);
+    }
+
+    @Override
+    public void unpinPost(Long userId, Long postId) {
+        PostPO po = postMapper.selectById(postId);
+        if (po == null) {
+            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
+        }
+        if (!po.getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+        postMapper.unpinPost(userId, postId);
+        log.info("取消置顶帖子成功: postId={}, userId={}", postId, userId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void batchOperate(Long userId, List<Long> postIds, String action) {
+        if (postIds == null || postIds.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "请选择要操作的帖子");
+        }
+        if ("publish".equals(action)) {
+            for (Long postId : postIds) {
+                PostPO po = postMapper.selectById(postId);
+                if (po == null || !po.getUserId().equals(userId)) continue;
+                if (po.getStatus() != STATUS_DRAFT) continue;
+                // 草稿转发布需校验必填字段
+                if (po.getTitle() == null || po.getTitle().isBlank()
+                        || po.getCategoryId() == null
+                        || po.getContent() == null || po.getContent().isBlank()
+                        || po.getImages() == null || po.getImages().isBlank()) {
+                    log.warn("草稿缺少必填字段，跳过: postId={}", postId);
+                    continue;
+                }
+            }
+            postMapper.batchUpdateStatus(userId, postIds, STATUS_PUBLISHED);
+        } else if ("delete".equals(action)) {
+            postMapper.batchUpdateStatus(userId, postIds, STATUS_DELETED);
+        } else {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "不支持的操作类型: " + action);
+        }
+        log.info("批量操作完成: action={}, count={}, userId={}", action, postIds.size(), userId);
     }
 
 }

@@ -65,6 +65,12 @@ public class PostVO {
     /** 是否已收藏 */
     private Boolean collected;
 
+    /** 是否置顶 */
+    private Boolean pinned;
+
+    /** 置顶时间 */
+    private LocalDateTime pinnedTime;
+
     /** 创建时间 */
     private LocalDateTime createTime;
 
