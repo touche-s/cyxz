@@ -74,6 +74,7 @@
             size="small"
             :show-collect="false"
             :show-like="true"
+            :show-pin-badge="true"
             @click="goToPost"
           />
         </div>

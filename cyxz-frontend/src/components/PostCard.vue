@@ -4,6 +4,7 @@
       <img v-if="post.cover" :src="post.cover" class="img" alt="cover" />
       <div v-else class="img" :style="{ background: getGradient(post.id) }"></div>
       <span class="card-badge" v-if="post.categoryName">{{ post.categoryName }}</span>
+      <span class="card-pin-badge" :class="{ 'has-collect': showCollect }" v-if="showPinBadge && post.pinned"><Icon icon="ph:push-pin-fill" class="pin-badge-icon" />置顶</span>
       <button
         v-if="showCollect"
         class="card-save"
@@ -53,6 +54,7 @@ const props = defineProps<{
   post: PostVO
   showCollect?: boolean
   showLike?: boolean
+  showPinBadge?: boolean
   size?: 'normal' | 'small'
 }>()
 
@@ -149,6 +151,31 @@ const getGradient = (id: string | number) => {
   font-weight: 700;
   color: white;
   backdrop-filter: blur(8px);
+}
+
+.card-pin-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.9), rgba(251, 146, 60, 0.9));
+  font-size: 10px;
+  font-weight: 700;
+  color: white;
+  backdrop-filter: blur(8px);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.card-pin-badge.has-collect {
+  right: 52px;
+}
+
+.pin-badge-icon {
+  width: 11px;
+  height: 11px;
 }
 
 .card-save {

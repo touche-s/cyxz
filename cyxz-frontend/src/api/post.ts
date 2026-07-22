@@ -20,6 +20,8 @@ export interface PostVO {
   collections: number
   liked: boolean
   collected: boolean
+  pinned: boolean
+  pinnedTime: string
   createTime: string
   updateTime: string
 }
@@ -234,4 +236,19 @@ export interface TodayStats {
 /** 获取今日新增互动统计 */
 export const getTodayStats = () => {
   return request.get('/post/today')
+}
+
+/** 置顶帖子 */
+export const pinPost = (postId: string) => {
+  return request.put(`/post/${postId}/pin`)
+}
+
+/** 取消置顶帖子 */
+export const unpinPost = (postId: string) => {
+  return request.delete(`/post/${postId}/pin`)
+}
+
+/** 批量操作帖子 */
+export const batchOperate = (data: { postIds: string[]; action: string }) => {
+  return request.post('/post/batch', data)
 }

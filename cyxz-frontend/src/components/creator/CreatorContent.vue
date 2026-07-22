@@ -28,6 +28,10 @@
         <button class="refresh-btn" :class="{ spinning: loading }" @click="refreshPosts" title="刷新列表">
           <Icon icon="ph:arrow-counter-clockwise" class="refresh-icon" />
         </button>
+        <button class="batch-toggle-btn" :class="{ active: batchMode }" @click="toggleBatchMode">
+          <Icon icon="ph:check-square" class="batch-toggle-icon" />
+          <span>批量操作</span>
+        </button>
       </div>
       <div class="sort-group">
         <button
@@ -47,8 +51,29 @@
       <SearchInput v-model="searchKeyword" variant="inline" placeholder="搜索当前分类下的作品标题..." />
     </div>
 
+    <!-- 批量操作栏 -->
+    <div class="batch-bar" v-if="batchMode && selectedPostIds.length > 0">
+      <span class="batch-count">已选 {{ selectedPostIds.length }} 项</span>
+      <div class="batch-actions">
+        <button class="batch-btn batch-publish" @click="handleBatchPublish">批量发布</button>
+        <button class="batch-btn batch-delete" @click="handleBatchDelete">批量删除</button>
+      </div>
+      <button class="batch-clear" @click="selectedPostIds = []">清除选择</button>
+    </div>
+
+    <!-- 全选 -->
+    <div class="select-all-bar" v-if="batchMode && filteredContentPosts.length > 0 && !loading">
+      <label class="checkbox-label">
+        <input type="checkbox" :checked="isAllSelected" @change="toggleAll" />
+        <span>全选</span>
+      </label>
+    </div>
+
     <div class="content-list" v-if="!loading && filteredContentPosts.length > 0">
       <div class="content-item" v-for="post in filteredContentPosts" :key="post.id">
+        <label class="content-checkbox" v-if="batchMode">
+          <input type="checkbox" :checked="selectedPostIds.includes(post.id)" @change="togglePost(post.id)" />
+        </label>
         <div class="content-cover" :class="{ clickable: isPublished(post.status) }" @click="isPublished(post.status) && $emit('view', post.id)">
           <img v-if="post.cover" :src="post.cover" alt="cover" />
           <div v-else class="cover-placeholder">
@@ -56,7 +81,10 @@
           </div>
         </div>
         <div class="content-info">
-          <h3 class="content-title" :class="{ clickable: isPublished(post.status) }" @click="isPublished(post.status) && $emit('view', post.id)">{{ post.title }}</h3>
+          <h3 class="content-title" :class="{ clickable: isPublished(post.status) }" @click="isPublished(post.status) && $emit('view', post.id)">
+            <span class="title-text">{{ post.title }}</span>
+            <span class="pin-tag" v-if="post.pinned"><Icon icon="ph:push-pin-fill" />置顶</span>
+          </h3>
           <div class="content-meta">
             <span class="category-tag" v-if="post.categoryName">{{ post.categoryName }}</span>
             <span class="content-time">{{ formatDateTime(post.createTime) }}</span>
@@ -73,6 +101,12 @@
           </span>
         </div>
         <div class="content-actions">
+          <button v-if="isPublished(post.status) && !post.pinned" class="action-btn pin" @click="handlePin(post.id)" title="置顶">
+            <Icon icon="ph:push-pin" class="action-icon pin-icon" />
+          </button>
+          <button v-if="post.pinned" class="action-btn unpin" @click="handleUnpin(post.id)" title="取消置顶">
+            <Icon icon="ph:push-pin-simple" class="action-icon unpin-icon" />
+          </button>
           <button v-if="!isDeleted(post.status)" class="action-btn edit" @click="$emit('edit', post.id)" title="编辑">
             <Icon icon="ph:pencil-simple" class="action-icon pink-icon" />
           </button>
@@ -118,12 +152,12 @@ import { Icon } from '@iconify/vue'
 import SearchInput from '@/components/SearchInput.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import { getUserPosts } from '@/api/post'
+import { getUserPosts, pinPost, unpinPost, batchOperate } from '@/api/post'
 import { formatDateTime } from '@/utils/format'
 import type { PostVO } from '@/api/post'
 import { isDraft, isPublished, isDeleted, statusText } from '@/utils/postStatus'
 import { useUserStore } from '@/stores/user'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 defineEmits<{
   'edit': [postId: string]
@@ -143,6 +177,15 @@ const activeContentTab = ref<'all' | 'published' | 'draft' | 'deleted'>('all')
 const searchKeyword = ref('')
 const contentSortField = ref('create_time')
 const contentSortOrder = ref('desc')
+const selectedPostIds = ref<string[]>([])
+const batchMode = ref(false)
+
+const toggleBatchMode = () => {
+  batchMode.value = !batchMode.value
+  if (!batchMode.value) {
+    selectedPostIds.value = []
+  }
+}
 
 const iconEmpty = 'ph:tray'
 
@@ -196,6 +239,85 @@ const handleContentSort = (field: string) => {
     contentSortOrder.value = 'desc'
   }
   loadPosts()
+}
+
+const isAllSelected = computed(() => {
+  if (filteredContentPosts.value.length === 0) return false
+  return filteredContentPosts.value.every(p => selectedPostIds.value.includes(p.id))
+})
+
+const toggleAll = () => {
+  if (isAllSelected.value) {
+    selectedPostIds.value = []
+  } else {
+    selectedPostIds.value = filteredContentPosts.value.map(p => p.id)
+  }
+}
+
+const togglePost = (postId: string) => {
+  const idx = selectedPostIds.value.indexOf(postId)
+  if (idx === -1) {
+    selectedPostIds.value = [...selectedPostIds.value, postId]
+  } else {
+    selectedPostIds.value = selectedPostIds.value.filter(id => id !== postId)
+  }
+}
+
+const handlePin = async (postId: string) => {
+  try {
+    await pinPost(postId)
+    ElMessage.success('置顶成功')
+    selectedPostIds.value = []
+    loadPosts()
+  } catch (error: any) {
+    ElMessage.error(error?.message || '置顶失败')
+  }
+}
+
+const handleUnpin = async (postId: string) => {
+  try {
+    await unpinPost(postId)
+    ElMessage.success('取消置顶成功')
+    selectedPostIds.value = []
+    loadPosts()
+  } catch (error: any) {
+    ElMessage.error(error?.message || '取消置顶失败')
+  }
+}
+
+const handleBatchPublish = async () => {
+  try {
+    await ElMessageBox.confirm(`确认批量发布 ${selectedPostIds.value.length} 篇草稿？`, '批量发布', {
+      confirmButtonText: '确认',
+      cancelButtonText: '取消',
+    })
+    await batchOperate({ postIds: selectedPostIds.value, action: 'publish' })
+    ElMessage.success('批量发布成功')
+    selectedPostIds.value = []
+    loadPosts()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error(error?.message || '批量发布失败')
+    }
+  }
+}
+
+const handleBatchDelete = async () => {
+  try {
+    await ElMessageBox.confirm(`确认批量删除 ${selectedPostIds.value.length} 篇作品？`, '批量删除', {
+      confirmButtonText: '确认',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    await batchOperate({ postIds: selectedPostIds.value, action: 'delete' })
+    ElMessage.success('批量删除成功')
+    selectedPostIds.value = []
+    loadPosts()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error(error?.message || '批量删除失败')
+    }
+  }
 }
 
 const loadPosts = async () => {
@@ -392,6 +514,37 @@ defineExpose({
   color: var(--pink);
 }
 
+.batch-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-dim);
+  transition: all 0.22s ease-out;
+  white-space: nowrap;
+}
+
+.batch-toggle-btn:hover {
+  border-color: var(--pink);
+  color: var(--pink);
+}
+
+.batch-toggle-btn.active {
+  background: linear-gradient(135deg, rgba(255, 107, 157, 0.1), rgba(180, 132, 255, 0.1));
+  border-color: var(--pink);
+  color: var(--pink);
+}
+
+.batch-toggle-icon {
+  width: 15px;
+  height: 15px;
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -460,9 +613,11 @@ defineExpose({
   font-weight: 600;
   color: var(--text);
   margin-bottom: 8px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
   transition: color 0.22s ease-out;
 }
 
@@ -472,6 +627,14 @@ defineExpose({
 
 .content-title.clickable:hover {
   color: var(--pink);
+}
+
+.title-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  color: inherit;
 }
 
 .content-meta {
@@ -514,6 +677,26 @@ defineExpose({
   background: linear-gradient(135deg, rgba(255, 107, 157, 0.1), rgba(180, 132, 255, 0.1));
   color: var(--pink);
   font-weight: 500;
+}
+
+.pin-tag {
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.85), rgba(251, 146, 60, 0.85));
+  color: #fff;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(245, 158, 11, 0.25);
+}
+
+.pin-tag .iconify {
+  width: 12px;
+  height: 12px;
 }
 
 .content-stats {
@@ -680,5 +863,121 @@ defineExpose({
 .sort-arrow {
   font-size: 11px;
   line-height: 1;
+}
+
+/* 批量操作栏 */
+.batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(255, 107, 157, 0.08), rgba(180, 132, 255, 0.08));
+  border: 1px solid rgba(255, 107, 157, 0.2);
+}
+
+.batch-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pink);
+}
+
+.batch-actions {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+}
+
+.batch-btn {
+  padding: 5px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.batch-btn.batch-publish {
+  background: rgba(76, 175, 80, 0.1);
+  color: #2e7d32;
+  border-color: rgba(76, 175, 80, 0.2);
+}
+
+.batch-btn.batch-publish:hover {
+  background: rgba(76, 175, 80, 0.2);
+}
+
+.batch-btn.batch-delete {
+  background: rgba(244, 67, 54, 0.1);
+  color: #c62828;
+  border-color: rgba(244, 67, 54, 0.2);
+}
+
+.batch-btn.batch-delete:hover {
+  background: rgba(244, 67, 54, 0.2);
+}
+
+.batch-clear {
+  padding: 5px 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.batch-clear:hover {
+  color: var(--text);
+}
+
+/* 全选栏 */
+.select-all-bar {
+  padding: 4px 0 10px;
+}
+
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  accent-color: var(--pink);
+}
+
+/* 复选框 */
+.content-checkbox {
+  flex-shrink: 0;
+}
+
+.content-checkbox input[type="checkbox"] {
+  accent-color: var(--pink);
+  width: 16px;
+  height: 16px;
+}
+
+/* 置顶按钮 */
+.action-btn.pin .pin-icon {
+  color: var(--pink);
+}
+
+.action-btn.pin:hover {
+  background: linear-gradient(135deg, rgba(255, 107, 157, 0.1), rgba(180, 132, 255, 0.1));
+  border-color: rgba(255, 107, 157, 0.3);
+}
+
+.action-btn.unpin .unpin-icon {
+  color: #f59e0b;
+}
+
+.action-btn.unpin:hover {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(251, 191, 36, 0.1));
+  border-color: rgba(245, 158, 11, 0.3);
 }
 </style>
