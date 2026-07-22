@@ -2,16 +2,12 @@
   <div class="search-page">
     <div class="search-header">
       <div class="search-header-inner">
-        <div class="search-input-wrap">
-          <Icon icon="ph:magnifying-glass" class="search-icon" />
-          <input
-            ref="searchInputRef"
-            v-model="keyword"
-            type="text"
-            placeholder="搜索感兴趣的内容..."
-            @keyup.enter="doSearch"
-          />
-        </div>
+        <SearchInput
+          v-model="keyword"
+          variant="page"
+          placeholder="搜索感兴趣的内容..."
+          @search="doSearch"
+        />
         <button class="search-btn" @click="doSearch">搜索</button>
       </div>
     </div>
@@ -44,8 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
-import { Icon } from '@iconify/vue'
+import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useNavigate } from '@/composables/useNavigate'
 import { searchPosts } from '@/api/post'
@@ -53,11 +48,11 @@ import type { PostVO } from '@/api/post'
 import PostCard from '@/components/PostCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import SearchInput from '@/components/SearchInput.vue'
 
 const route = useRoute()
 const { open, router } = useNavigate()
 
-const searchInputRef = ref<HTMLInputElement>()
 const keyword = ref('')
 const searchedKeyword = ref('')
 const searched = ref(false)
@@ -92,7 +87,6 @@ onMounted(async () => {
   const q = route.query.q as string
   if (q) {
     keyword.value = q
-    await nextTick()
     doSearch()
   }
 })
@@ -120,42 +114,6 @@ onMounted(async () => {
   display: flex;
   gap: 12px;
   align-items: center;
-}
-
-.search-input-wrap {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  transition: border-color 0.2s;
-}
-
-.search-input-wrap:focus-within {
-  border-color: var(--pink);
-}
-
-.search-input-wrap .search-icon {
-  width: 18px;
-  height: 18px;
-  opacity: 0.4;
-  flex-shrink: 0;
-}
-
-.search-input-wrap input {
-  flex: 1;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-size: 15px;
-  color: var(--text);
-}
-
-.search-input-wrap input::placeholder {
-  color: var(--text-dim);
 }
 
 .search-btn {

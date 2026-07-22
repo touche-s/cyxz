@@ -61,10 +61,7 @@
     <!-- ===== 内容区 ===== -->
     <div class="content-area">
       <div class="content-tools">
-        <div class="tab-search">
-          <Icon icon="ph:magnifying-glass" class="search-icon" />
-          <input v-model="searchKeyword" :placeholder="activeTab === 'works' ? '搜索作品...' : '搜索收藏...'"></input>
-        </div>
+        <SearchInput v-model="searchKeyword" variant="pill" :placeholder="activeTab === 'works' ? '搜索作品...' : '搜索收藏...'" />
       </div>
 
       <!-- 作品 tab -->
@@ -126,6 +123,7 @@ import { useFollow } from '@/composables/useFollow'
 import PostCard from '@/components/PostCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import FollowButton from '@/components/FollowButton.vue'
+import SearchInput from '@/components/SearchInput.vue'
 
 const route = useRoute()
 const { to, open } = useNavigate()
@@ -456,35 +454,6 @@ function goToPost(post: PostVO) {
 }
 .tab-icon { width: 16px; height: 16px; }
 
-.tab-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(255,248,252,0.95);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 8px 16px;
-  box-shadow: inset 0 1px 3px rgba(255,107,157,0.06);
-  transition: background 0.2s, box-shadow 0.2s, border-color 0.2s;
-}
-.tab-search:focus-within {
-  background: var(--card);
-  border-color: var(--border);
-  box-shadow:
-    inset 0 1px 3px rgba(255,107,157,0.06),
-    0 0 0 2px rgba(255,107,157,0.12);
-}
-.tab-search input {
-  border: none;
-  background: none;
-  outline: none;
-  font-size: 13px;
-  width: 150px;
-  color: var(--text);
-}
-.tab-search input::placeholder { color: var(--text-dim); }
-.tab-search .search-icon { width: 14px; height: 14px; opacity: 0.4; }
-
 /* ===== 内容区 ===== */
 .content-area {
   max-width: 1220px;
@@ -601,7 +570,6 @@ function goToPost(post: PostVO) {
     overflow-x: auto;
   }
   .tab-nav a { padding: 10px 12px; font-size: 13px; }
-  .tab-search { display: none; }
   .content-area { padding: 20px 16px 40px; }
   .section-block { padding: 16px; }
 }

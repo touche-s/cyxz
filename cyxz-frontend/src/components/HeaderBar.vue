@@ -3,16 +3,13 @@
     <div class="header-left">
       <div class="logo-wrap">
         <div class="logo-icon">
-          <img src="@/assets/logo.png" alt="logo" class="logo-img" />
+          <img src="/favicon.svg" alt="logo" class="logo-img" />
         </div>
         <span class="logo-text">次元小站</span>
       </div>
     </div>
     <div class="header-center" :class="{ 'header-center--hidden': $route.path === '/search' }">
-      <div class="search-wrap">
-        <i-ph-magnifying-glass class="search-iconify" />
-        <input v-model="searchText" type="text" placeholder="搜索感兴趣的内容..." @keyup.enter="goToSearch" />
-      </div>
+      <SearchInput v-model="searchText" variant="header" placeholder="搜索感兴趣的内容..." @search="goToSearch" />
     </div>
     <nav class="nav">
       <router-link to="/" :class="{ active: $route.path === '/' }">发现</router-link>
@@ -68,24 +65,24 @@
       </div>
       <div class="header-icons">
         <button class="header-action" @click="goPrivateMessages">
-          <i-ph-chat-circle-text class="action-iconify" />
+          <Icon icon="ph:chat-circle-text" class="action-iconify" />
           <span class="action-label">私信</span>
         </button>
         <button class="header-action" @click="goMessages">
-          <i-ph-bell class="action-iconify" />
+          <Icon icon="ph:bell" class="action-iconify" />
           <span class="action-label">通知</span>
         </button>
         <button class="header-action" @click="goFavorites">
-          <i-ph-star class="action-iconify" />
+          <Icon icon="ph:star" class="action-iconify" />
           <span class="action-label">收藏</span>
         </button>
         <button class="header-action" @click="toggleDarkMode">
-          <i-ph-moon v-if="!isDark" class="action-iconify" />
-          <i-ph-sun v-else class="action-iconify" />
+          <Icon icon="ph:moon" v-if="!isDark" class="action-iconify" />
+          <Icon icon="ph:sun" v-else class="action-iconify" />
         </button>
       </div>
       <button class="btn-create" @click="goPublish">
-        <i-ph-pencil-simple class="btn-iconify" />
+        <Icon icon="ph:pencil-simple" class="btn-iconify" />
         发布
       </button>
     </div>
@@ -95,6 +92,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
+import SearchInput from '@/components/SearchInput.vue'
 import { useUserStore } from '@/stores/user'
 import { useAuth } from '@/composables/useAuth'
 import { useNavigate } from '@/composables/useNavigate'
@@ -232,9 +230,6 @@ onMounted(() => {
 
 .header-center--hidden {
   visibility: hidden;
-}
-
-.header-center--hidden .search-wrap {
   pointer-events: none;
 }
 
@@ -279,43 +274,6 @@ onMounted(() => {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   text-shadow: 0 0 20px rgba(255, 107, 157, 0.15);
-}
-
-.search-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--search-bg);
-  border: 1.5px solid var(--border);
-  border-radius: 12px;
-  padding: 9px 16px;
-  transition: all 0.22s ease-out;
-}
-
-.search-wrap:focus-within {
-  border-color: var(--purple);
-  background: var(--input-focus-bg);
-  box-shadow: 0 0 0 3px rgba(180, 132, 255, 0.1);
-}
-
-.search-iconify {
-  width: 18px;
-  height: 18px;
-  color: var(--purple);
-  transition: color 0.22s ease-out;
-}
-
-.search-wrap input {
-  border: none;
-  background: none;
-  outline: none;
-  font-size: 13px;
-  width: 220px;
-  color: var(--text);
-}
-
-.search-wrap input::placeholder {
-  color: var(--text-dim);
 }
 
 .nav {
@@ -683,12 +641,6 @@ onMounted(() => {
   }
   .header-center {
     order: 3;
-    width: 100%;
-  }
-  .search-wrap {
-    width: 100%;
-  }
-  .search-wrap input {
     width: 100%;
   }
   .nav { display: none; }
