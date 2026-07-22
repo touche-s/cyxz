@@ -5,6 +5,7 @@ import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.web.CurrentUser;
 import com.cyxz.comment.dto.CreateCommentRequest;
+import com.cyxz.comment.service.CommentInteractionService;
 import com.cyxz.comment.service.CommentService;
 import com.cyxz.comment.vo.CommentVO;
 import jakarta.validation.Valid;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 public class CommentController {
 
     private final CommentService commentService;
+    private final CommentInteractionService commentInteractionService;
 
     /**
      * 发表评论
@@ -93,7 +95,7 @@ public class CommentController {
     @PutMapping("/{commentId}/like")
     public Result<Void> like(@PathVariable("commentId") Long commentId,
                              @CurrentUser Long userId) {
-        commentService.likeComment(userId, commentId);
+        commentInteractionService.likeComment(userId, commentId);
         return Result.success();
     }
 
@@ -107,7 +109,7 @@ public class CommentController {
     @DeleteMapping("/{commentId}/like")
     public Result<Void> unlike(@PathVariable("commentId") Long commentId,
                                @CurrentUser Long userId) {
-        commentService.unlikeComment(userId, commentId);
+        commentInteractionService.unlikeComment(userId, commentId);
         return Result.success();
     }
 

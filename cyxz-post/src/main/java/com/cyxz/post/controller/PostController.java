@@ -6,6 +6,7 @@ import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.web.CurrentUser;
 import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
+import com.cyxz.post.service.PostInteractionService;
 import com.cyxz.post.service.PostService;
 import com.cyxz.post.vo.PostInfoVO;
 import com.cyxz.post.vo.PostStatsVO;
@@ -29,6 +30,7 @@ import java.util.Set;
 public class PostController {
 
     private final PostService postService;
+    private final PostInteractionService postInteractionService;
 
     /**
      * 创建帖子（发布）
@@ -197,7 +199,7 @@ public class PostController {
     @PutMapping("/{postId}/like")
     public Result<Void> like(@PathVariable("postId") Long postId,
                              @CurrentUser Long userId) {
-        postService.likePost(userId, postId);
+        postInteractionService.likePost(userId, postId);
         return Result.success();
     }
 
@@ -211,7 +213,7 @@ public class PostController {
     @DeleteMapping("/{postId}/like")
     public Result<Void> unlike(@PathVariable("postId") Long postId,
                                @CurrentUser Long userId) {
-        postService.unlikePost(userId, postId);
+        postInteractionService.unlikePost(userId, postId);
         return Result.success();
     }
 
@@ -225,7 +227,7 @@ public class PostController {
     @PutMapping("/{postId}/collect")
     public Result<Void> collect(@PathVariable("postId") Long postId,
                                 @CurrentUser Long userId) {
-        postService.collectPost(userId, postId);
+        postInteractionService.collectPost(userId, postId);
         return Result.success();
     }
 
@@ -239,7 +241,7 @@ public class PostController {
     @DeleteMapping("/{postId}/collect")
     public Result<Void> uncollect(@PathVariable("postId") Long postId,
                                   @CurrentUser Long userId) {
-        postService.uncollectPost(userId, postId);
+        postInteractionService.uncollectPost(userId, postId);
         return Result.success();
     }
 
@@ -256,7 +258,7 @@ public class PostController {
     public Result<Void> recordView(@PathVariable("postId") Long postId,
                                    @CurrentUser(required = false) Long currentUserId,
                                    HttpServletRequest request) {
-        postService.recordView(postId, currentUserId, request);
+        postInteractionService.recordView(postId, currentUserId, request);
         return Result.success();
     }
 

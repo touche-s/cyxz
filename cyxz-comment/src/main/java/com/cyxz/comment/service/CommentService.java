@@ -52,25 +52,6 @@ public interface CommentService {
     PageResult<CommentVO> listReplies(Long parentId, int page, int size, Long currentUserId);
 
     /**
-     * 点赞评论（幂等）
-     * <p>并发安全：尝试插入 status=1，冲突时捕获 DuplicateKeyException 重查真实状态。
-     * 仅在真实状态变化时更新计数。
-     *
-     * @param userId    当前登录用户 ID
-     * @param commentId 评论 ID
-     */
-    void likeComment(Long userId, Long commentId);
-
-    /**
-     * 取消点赞评论（幂等）
-     * <p>使用条件更新，仅在 status=1 时改为 0，保证计数只减一次。
-     *
-     * @param userId    当前登录用户 ID
-     * @param commentId 评论 ID
-     */
-    void unlikeComment(Long userId, Long commentId);
-
-    /**
      * 查询用户收到的评论列表（对用户帖子的评论 + 回复我的评论）
      * <p>用于互动管理，查询当前用户所有帖子收到的评论和回复自己的评论，按创建时间倒序。
      *

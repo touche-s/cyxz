@@ -6,11 +6,8 @@ import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
-import com.cyxz.common.constant.CacheKeyConstants;
-import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.constant.CommonStatus;
-import com.cyxz.common.utils.IpUtil;
-import com.cyxz.common.utils.StatusUpdateHelper;
+import com.cyxz.common.constant.PageConstants;
 import com.cyxz.post.vo.PostInfoVO;
 import com.cyxz.post.vo.PostStatsVO;
 import com.cyxz.post.vo.ReceivedLikeVO;
@@ -30,16 +27,12 @@ import com.cyxz.post.service.CategoryService;
 import com.cyxz.post.service.PostService;
 import com.cyxz.post.vo.PostVO;
 import com.cyxz.user.vo.UserProfileVO;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DuplicateKeyException;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -57,7 +50,6 @@ public class PostServiceImpl implements PostService {
     private final PostCollectMapper postCollectMapper;
     private final CommentFeignClient commentFeignClient;
     private final UserFeignClient userFeignClient;
-    private final StringRedisTemplate stringRedisTemplate;
 
     // ==================== 帖子状态常量与流转规则 ====================
 
@@ -494,99 +486,6 @@ public class PostServiceImpl implements PostService {
                 .collect(Collectors.toSet());
     }
 
-    /**
-     * 点赞帖子（幂等，并发安全）
-     * <p>目标：设为 status=1。并发安全策略：
-     * <ol>
-     *   <li>不存在记录 → 尝试插入，冲突则重查真实状态处理</li>
-     *   <li>存在且 status=0 → 条件更新为 1，成功则计数 +1</li>
-     *   <li>存在且 status=1 → 直接返回（幂等）</li>
-     * </ol>
-     * 唯一索引 uk_user_post 作为数据库最终兜底。
-     *
-     * @param userId 当前登录用户 ID
-     * @param postId 帖子 ID
-     */
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void likePost(Long userId, Long postId) {
-        PostPO po = postMapper.selectById(postId);
-        if (po == null || !isInteractable(po)) {
-            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
-        }
-
-        PostLikePO exist = queryPostLike(userId, postId);
-
-        if (exist == null) {
-            try {
-                PostLikePO newLike = new PostLikePO();
-                newLike.setPostId(postId);
-                newLike.setUserId(userId);
-                newLike.setStatus(CommonStatus.ACTIVE);
-                postLikeMapper.insert(newLike);
-                postMapper.updateLikes(postId, 1);
-                log.info("点赞帖子: postId={}, userId={}", postId, userId);
-            } catch (DuplicateKeyException e) {
-                // 并发冲突：另一请求已插入，重查真实状态
-                PostLikePO conflict = queryPostLike(userId, postId);
-                if (conflict.getStatus() == 1) {
-                    return; // 已被置为已点赞，幂等返回
-                }
-                // status=0 → 条件更新为 1
-                boolean updated = StatusUpdateHelper.updateStatus(postLikeMapper, conflict.getId(), 0, 1);
-                if (updated) {
-                    postMapper.updateLikes(postId, 1);
-                    log.info("点赞帖子(并发恢复): postId={}, userId={}", postId, userId);
-                }
-            }
-            return;
-        }
-
-        if (exist.getStatus() == 0) {
-            boolean updated = StatusUpdateHelper.updateStatus(postLikeMapper, exist.getId(), 0, 1);
-            if (updated) {
-                postMapper.updateLikes(postId, 1);
-                log.info("点赞帖子(恢复): postId={}, userId={}", postId, userId);
-            }
-            return;
-        }
-
-        log.debug("点赞帖子(幂等忽略): postId={}, userId={}", postId, userId);
-    }
-
-    /**
-     * 取消点赞帖子（幂等，并发安全）
-     * <p>目标：设为 status=0。仅在 status=1 时执行条件更新，保证计数只减一次。
-     *
-     * @param userId 当前登录用户 ID
-     * @param postId 帖子 ID
-     */
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void unlikePost(Long userId, Long postId) {
-        PostPO po = postMapper.selectById(postId);
-        if (po == null || !isInteractable(po)) {
-            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
-        }
-
-        PostLikePO exist = queryPostLike(userId, postId);
-        if (exist == null || exist.getStatus() == 0) {
-            return; // 不存在或已取消，幂等返回
-        }
-
-        boolean updated = StatusUpdateHelper.updateStatus(postLikeMapper, exist.getId(), 1, 0);
-        if (updated) {
-            postMapper.updateLikes(postId, -1);
-            log.info("取消点赞帖子: postId={}, userId={}", postId, userId);
-        }
-    }
-
-    private PostLikePO queryPostLike(Long userId, Long postId) {
-        LambdaQueryWrapper<PostLikePO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PostLikePO::getUserId, userId)
-                .eq(PostLikePO::getPostId, postId);
-        return postLikeMapper.selectOne(wrapper);
-    }
 
     /**
      * 获取当前用户已点赞的帖子 ID 集合
@@ -630,126 +529,6 @@ public class PostServiceImpl implements PostService {
         return list.stream()
                 .map(PostCollectPO::getPostId)
                 .collect(Collectors.toSet());
-    }
-
-    /**
-     * 收藏帖子（幂等，并发安全）
-     * <p>目标：设为 status=1。并发安全策略同 {@link #likePost}。
-     *
-     * @param userId 当前登录用户 ID
-     * @param postId 帖子 ID
-     */
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void collectPost(Long userId, Long postId) {
-        PostPO po = postMapper.selectById(postId);
-        if (po == null || !isInteractable(po)) {
-            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
-        }
-
-        PostCollectPO exist = queryPostCollect(userId, postId);
-
-        if (exist == null) {
-            try {
-                PostCollectPO newCollect = new PostCollectPO();
-                newCollect.setPostId(postId);
-                newCollect.setUserId(userId);
-                newCollect.setStatus(CommonStatus.ACTIVE);
-                postCollectMapper.insert(newCollect);
-                postMapper.updateCollections(postId, 1);
-                log.info("收藏帖子: postId={}, userId={}", postId, userId);
-            } catch (DuplicateKeyException e) {
-                PostCollectPO conflict = queryPostCollect(userId, postId);
-                if (conflict.getStatus() == 1) {
-                    return;
-                }
-                boolean updated = StatusUpdateHelper.updateStatus(postCollectMapper, conflict.getId(), 0, 1);
-                if (updated) {
-                    postMapper.updateCollections(postId, 1);
-                    log.info("收藏帖子(并发恢复): postId={}, userId={}", postId, userId);
-                }
-            }
-            return;
-        }
-
-        if (exist.getStatus() == 0) {
-            boolean updated = StatusUpdateHelper.updateStatus(postCollectMapper, exist.getId(), 0, 1);
-            if (updated) {
-                postMapper.updateCollections(postId, 1);
-                log.info("收藏帖子(恢复): postId={}, userId={}", postId, userId);
-            }
-            return;
-        }
-
-        log.debug("收藏帖子(幂等忽略): postId={}, userId={}", postId, userId);
-    }
-
-    /**
-     * 取消收藏帖子（幂等，并发安全）
-     * <p>目标：设为 status=0。仅在 status=1 时执行条件更新，保证计数只减一次。
-     *
-     * @param userId 当前登录用户 ID
-     * @param postId 帖子 ID
-     */
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void uncollectPost(Long userId, Long postId) {
-        PostPO po = postMapper.selectById(postId);
-        if (po == null || !isInteractable(po)) {
-            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
-        }
-
-        PostCollectPO exist = queryPostCollect(userId, postId);
-        if (exist == null || exist.getStatus() == 0) {
-            return;
-        }
-
-        boolean updated = StatusUpdateHelper.updateStatus(postCollectMapper, exist.getId(), 1, 0);
-        if (updated) {
-            postMapper.updateCollections(postId, -1);
-            log.info("取消收藏帖子: postId={}, userId={}", postId, userId);
-        }
-    }
-
-    private PostCollectPO queryPostCollect(Long userId, Long postId) {
-        LambdaQueryWrapper<PostCollectPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PostCollectPO::getUserId, userId)
-                .eq(PostCollectPO::getPostId, postId);
-        return postCollectMapper.selectOne(wrapper);
-    }
-
-    /**
-     * 记录浏览
-     * <p>用户进入帖子详情页时调用。
-     * <p>去重策略：登录用户按 userId、游客按 IP，30 分钟内同一标识只算一次。
-     * 去重通过则向 Redis Hash {@code post:view:delta} 对应 field 原子 +1，
-     * 由 {@link com.cyxz.post.task.ViewCountFlushTask} 定时刷库到 post.views。
-     *
-     * @param postId  帖子 ID
-     * @param userId  当前登录用户 ID（可为 null，游客按 IP 去重）
-     * @param request HTTP 请求（用于获取 IP）
-     */
-    @Override
-    public void recordView(Long postId, Long userId, HttpServletRequest request) {
-        PostPO po = postMapper.selectById(postId);
-        if (po == null || !isPublicVisible(po)) {
-            // 仅已发布帖子记录浏览
-            return;
-        }
-
-        // 生成去重标识：登录用户用 userId，游客用 IP
-        String identity = (userId != null) ? "user:" + userId : "ip:" + IpUtil.getClientIp(request);
-        String dedupKey = CacheKeyConstants.POST_VIEW_DEDUP_PREFIX + postId + ":" + identity;
-
-        // SETNX：key 不存在则设置成功（首次浏览），已存在则跳过
-        Boolean firstView = stringRedisTemplate.opsForValue()
-                .setIfAbsent(dedupKey, "1", Duration.ofMinutes(CacheKeyConstants.POST_VIEW_DEDUP_MINUTES));
-
-        if (Boolean.TRUE.equals(firstView)) {
-            // 去重通过，Hash 增量 +1
-            stringRedisTemplate.opsForHash()
-                    .increment(CacheKeyConstants.POST_VIEW_DELTA, postId.toString(), 1);
-        }
     }
 
     /**
@@ -884,6 +663,10 @@ public class PostServiceImpl implements PostService {
         return PageResult.of(records, total, page, size);
     }
 
+    /**
+     * 搜索帖子（标题+内容模糊匹配）
+     * <p>仅搜索已发布帖子，按创建时间倒序。
+     */
     @Override
     public PageResult<PostVO> searchPosts(String keyword, int page, int size, Long currentUserId) {
         if (keyword == null || keyword.isBlank()) {

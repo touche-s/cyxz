@@ -7,7 +7,6 @@ import com.cyxz.post.vo.PostInfoVO;
 import com.cyxz.post.vo.PostStatsVO;
 import com.cyxz.post.vo.PostVO;
 import com.cyxz.post.vo.ReceivedLikeVO;
-import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.List;
 import java.util.Map;
@@ -117,57 +116,6 @@ public interface PostService {
      * @return 分页结果（含总条数）
      */
     PageResult<PostVO> listFavorites(Long targetUserId, Long currentUserId, int page, int size);
-
-    /**
-     * 点赞帖子（幂等）
-     * <p>使用 post_like 表存储用户点赞关系（逻辑状态型）。
-     * 并发安全：尝试插入 status=1，冲突时捕获 DuplicateKeyException 重查真实状态。
-     * 仅在真实状态变化（null→1 或 0→1）时更新计数 +1。
-     *
-     * @param userId 当前登录用户 ID
-     * @param postId 帖子 ID
-     */
-    void likePost(Long userId, Long postId);
-
-    /**
-     * 取消点赞帖子（幂等）
-     * <p>使用条件更新，仅在 status=1 时改为 0，保证计数只减一次。
-     *
-     * @param userId 当前登录用户 ID
-     * @param postId 帖子 ID
-     */
-    void unlikePost(Long userId, Long postId);
-
-    /**
-     * 收藏帖子（幂等）
-     * <p>使用 post_collect 表存储用户收藏关系（逻辑状态型）。
-     * 并发安全：尝试插入 status=1，冲突时捕获 DuplicateKeyException 重查真实状态。
-     * 仅在真实状态变化（null→1 或 0→1）时更新计数 +1。
-     *
-     * @param userId 当前登录用户 ID
-     * @param postId 帖子 ID
-     */
-    void collectPost(Long userId, Long postId);
-
-    /**
-     * 取消收藏帖子（幂等）
-     * <p>使用条件更新，仅在 status=1 时改为 0，保证计数只减一次。
-     *
-     * @param userId 当前登录用户 ID
-     * @param postId 帖子 ID
-     */
-    void uncollectPost(Long userId, Long postId);
-
-    /**
-     * 记录浏览
-     * <p>用户进入帖子详情页时调用，Redis 去重（30min 内同一用户/IP 只算一次），
-     * 去重通过则 Hash 增量 +1，由定时任务刷库到 post.views。
-     *
-     * @param postId  帖子 ID
-     * @param userId  当前登录用户 ID（可为 null，游客按 IP 去重）
-     * @param request HTTP 请求（用于获取 IP）
-     */
-    void recordView(Long postId, Long userId, HttpServletRequest request);
 
     /**
      * 获取用户帖子统计数据

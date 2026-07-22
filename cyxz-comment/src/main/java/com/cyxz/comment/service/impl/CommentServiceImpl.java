@@ -10,20 +10,20 @@ import com.cyxz.comment.mapper.CommentMapper;
 import com.cyxz.comment.service.CommentService;
 import com.cyxz.comment.vo.CommentVO;
 import com.cyxz.common.base.BusinessException;
-import com.cyxz.common.constant.CommonStatus;
-import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
+import com.cyxz.common.constant.CacheKeyConstants;
+import com.cyxz.common.constant.CommonStatus;
+import com.cyxz.common.constant.PageConstants;
 import com.cyxz.post.feign.PostFeignClient;
-import com.cyxz.common.utils.StatusUpdateHelper;
-import com.cyxz.user.utils.UserFeignHelper;
 import com.cyxz.post.vo.PostInfoVO;
 import com.cyxz.user.feign.UserFeignClient;
+import com.cyxz.user.utils.UserFeignHelper;
 import com.cyxz.user.vo.UserProfileVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +42,7 @@ public class CommentServiceImpl implements CommentService {
     private final CommentLikeMapper commentLikeMapper;
     private final UserFeignClient userFeignClient;
     private final PostFeignClient postFeignClient;
+    private final StringRedisTemplate stringRedisTemplate;
 
     /**
      * 发表评论
@@ -77,6 +78,9 @@ public class CommentServiceImpl implements CommentService {
         }
 
         commentMapper.insert(po);
+        // Redis 增量：帖子评论数 +1
+        stringRedisTemplate.opsForHash()
+                .increment(CacheKeyConstants.POST_COMMENT_DELTA, po.getPostId().toString(), 1);
         log.info("发表评论成功: commentId={}, postId={}, userId={}", po.getId(), po.getPostId(), userId);
 
         // 组装完整 VO 返回给前端，前端可直接插入列表展示
@@ -111,6 +115,9 @@ public class CommentServiceImpl implements CommentService {
         }
         po.setStatus(CommonStatus.DELETED);
         commentMapper.updateById(po);
+        // Redis 增量：帖子评论数 -1
+        stringRedisTemplate.opsForHash()
+                .increment(CacheKeyConstants.POST_COMMENT_DELTA, po.getPostId().toString(), -1);
         log.info("删除评论成功: commentId={}, userId={}", commentId, userId);
     }
 
@@ -231,98 +238,6 @@ public class CommentServiceImpl implements CommentService {
 
         List<CommentVO> vos = convertToVOList(replies, userMap, likedCommentIds);
         return PageResult.of(vos, (int) replyPage.getTotal(), page, size);
-    }
-
-    /**
-     * 点赞评论（幂等，并发安全）
-     * <p>目标：设为 status=1。并发安全策略：
-     * <ol>
-     *   <li>不存在记录 → 尝试插入，冲突则重查真实状态处理</li>
-     *   <li>存在且 status=0 → 条件更新为 1，成功则计数 +1</li>
-     *   <li>存在且 status=1 → 直接返回（幂等）</li>
-     * </ol>
-     * 唯一索引 uk_user_comment 作为数据库最终兜底。
-     *
-     * @param userId    当前登录用户 ID
-     * @param commentId 评论 ID
-     */
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void likeComment(Long userId, Long commentId) {
-        CommentPO po = commentMapper.selectById(commentId);
-        if (po == null || po.getStatus() == 0) {
-            throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
-        }
-
-        CommentLikePO exist = queryCommentLike(userId, commentId);
-
-        if (exist == null) {
-            try {
-                CommentLikePO newLike = new CommentLikePO();
-                newLike.setCommentId(commentId);
-                newLike.setUserId(userId);
-                newLike.setStatus(CommonStatus.ACTIVE);
-                commentLikeMapper.insert(newLike);
-                commentMapper.updateLikes(commentId, 1);
-                log.info("点赞评论: commentId={}, userId={}", commentId, userId);
-            } catch (DuplicateKeyException e) {
-                CommentLikePO conflict = queryCommentLike(userId, commentId);
-                if (conflict.getStatus() == 1) {
-                    return;
-                }
-                boolean updated = StatusUpdateHelper.updateStatus(commentLikeMapper, conflict.getId(), 0, 1);
-                if (updated) {
-                    commentMapper.updateLikes(commentId, 1);
-                    log.info("点赞评论(并发恢复): commentId={}, userId={}", commentId, userId);
-                }
-            }
-            return;
-        }
-
-        if (exist.getStatus() == 0) {
-            boolean updated = StatusUpdateHelper.updateStatus(commentLikeMapper, exist.getId(), 0, 1);
-            if (updated) {
-                commentMapper.updateLikes(commentId, 1);
-                log.info("点赞评论(恢复): commentId={}, userId={}", commentId, userId);
-            }
-            return;
-        }
-
-        log.debug("点赞评论(幂等忽略): commentId={}, userId={}", commentId, userId);
-    }
-
-    /**
-     * 取消点赞评论（幂等，并发安全）
-     * <p>目标：设为 status=0。仅在 status=1 时执行条件更新，保证计数只减一次。
-     *
-     * @param userId    当前登录用户 ID
-     * @param commentId 评论 ID
-     */
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public void unlikeComment(Long userId, Long commentId) {
-        CommentPO po = commentMapper.selectById(commentId);
-        if (po == null || po.getStatus() == 0) {
-            throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
-        }
-
-        CommentLikePO exist = queryCommentLike(userId, commentId);
-        if (exist == null || exist.getStatus() == 0) {
-            return;
-        }
-
-        boolean updated = StatusUpdateHelper.updateStatus(commentLikeMapper, exist.getId(), 1, 0);
-        if (updated) {
-            commentMapper.updateLikes(commentId, -1);
-            log.info("取消点赞评论: commentId={}, userId={}", commentId, userId);
-        }
-    }
-
-    private CommentLikePO queryCommentLike(Long userId, Long commentId) {
-        LambdaQueryWrapper<CommentLikePO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(CommentLikePO::getUserId, userId)
-                .eq(CommentLikePO::getCommentId, commentId);
-        return commentLikeMapper.selectOne(wrapper);
     }
 
     /**

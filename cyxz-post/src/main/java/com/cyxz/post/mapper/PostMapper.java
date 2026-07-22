@@ -45,6 +45,15 @@ public interface PostMapper extends BaseMapper<PostPO> {
     void updateViews(@Param("postId") Long postId, @Param("delta") int delta);
 
     /**
+     * 原子更新评论数
+     *
+     * @param postId 帖子 ID
+     * @param delta  增量（+1 或 -1）
+     */
+    @Update("UPDATE post SET comments = GREATEST(comments + #{delta}, 0) WHERE id = #{postId}")
+    void updateComments(@Param("postId") Long postId, @Param("delta") int delta);
+
+    /**
      * SQL 聚合统计用户帖子数据
      * <p>一条 SQL 查询当前用户所有已发布帖子的总数、总浏览、总点赞、总收藏。
      *

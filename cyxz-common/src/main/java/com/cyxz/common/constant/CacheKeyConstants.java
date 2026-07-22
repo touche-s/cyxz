@@ -48,6 +48,18 @@ public final class CacheKeyConstants {
     /** 帖子浏览增量 Hash（field=postId, value=增量） */
     public static final String POST_VIEW_DELTA = "post:view:delta";
 
+    /** 帖子点赞增量 Hash（field=postId, value=增量） */
+    public static final String POST_LIKE_DELTA = "post:like:delta";
+
+    /** 帖子收藏增量 Hash（field=postId, value=增量） */
+    public static final String POST_COLLECT_DELTA = "post:collect:delta";
+
+    /** 帖子评论数增量 Hash（field=postId, value=增量） */
+    public static final String POST_COMMENT_DELTA = "post:comment:delta";
+
+    /** 评论点赞增量 Hash（field=commentId, value=增量） */
+    public static final String COMMENT_LIKE_DELTA = "comment:like:delta";
+
     /** 帖子浏览去重前缀（post:view:dedup:{postId}:{userOrIp}） */
     public static final String POST_VIEW_DEDUP_PREFIX = "post:view:dedup:";
 
