@@ -15,8 +15,6 @@
       <router-link to="/" :class="{ active: $route.path === '/' }">发现</router-link>
       <router-link to="/following" :class="{ active: $route.path === '/following' }">关注</router-link>
       <router-link to="/community" :class="{ active: $route.path === '/community' }">社区</router-link>
-      <a href="javascript:;" class="nav-disabled">热门</a>
-      <a href="javascript:;" class="nav-disabled">商城</a>
       <a href="javascript:;" :class="{ active: $route.path === '/creator' }" @click="goCreator">创作中心</a>
     </nav>
     <div class="header-right">

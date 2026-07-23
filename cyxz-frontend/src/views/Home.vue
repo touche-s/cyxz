@@ -74,24 +74,17 @@ const { open } = useNavigate()
 const { requireLogin } = useAuth()
 
 const iconMap: Record<string, string> = {
-  '推荐': 'ph:shooting-star',
-  '动漫': 'ph:television',
-  '游戏': 'ph:game-controller',
-  '绘画': 'ph:palette', '插画': 'ph:palette', '画': 'ph:palette',
-  'cos': 'ph:t-shirt',
-  '漫展': 'ph:ticket',
-  '同人': 'ph:book-open', '文': 'ph:book-open', '小说': 'ph:book-open',
-  '周边': 'ph:shopping-bag',
-  '闲聊': 'ph:chat-circle',
-  '资源': 'ph:folder',
+  '同人创作': 'ph:paint-brush-household',
+  '作品讨论': 'ph:books',
+  '安利推荐': 'ph:shooting-star',
+  '攻略考据': 'ph:notebook',
+  'COS摄影': 'ph:camera',
+  '周边晒单': 'ph:shopping-bag-open',
+  '日常分享': 'ph:image-square',
 }
 
 function getCategoryIcon(name: string): string {
-  const n = name.toLowerCase()
-  for (const [key, icon] of Object.entries(iconMap)) {
-    if (n.includes(key.toLowerCase())) return icon
-  }
-  return 'ph:folder'
+  return iconMap[name] ?? 'ph:folder'
 }
 
 const posts = ref<PostVO[]>([])
@@ -283,173 +276,6 @@ onMounted(() => {
   grid-template-columns: repeat(4, 1fr);
   gap: 18px;
   margin-bottom: 32px;
-}
-
-.card {
-  background: var(--card);
-  border-radius: 16px;
-  overflow: hidden;
-  border: 1.5px solid var(--border);
-  box-shadow: var(--shadow);
-  transition: all 0.22s ease-out;
-  cursor: pointer;
-}
-
-.card:hover {
-  transform: translateY(-4px) scale(1.02);
-  border-color: rgba(180, 132, 255, 0.3);
-  box-shadow: 0 12px 36px rgba(180, 132, 255, 0.15);
-}
-
-.card-cover {
-  position: relative;
-  height: 180px;
-  overflow: hidden;
-}
-
-.card-cover .img {
-  width: 100%;
-  height: 100%;
-  transition: transform 0.4s;
-}
-
-.card:hover .card-cover .img { transform: scale(1.05); }
-
-.card-badge {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  padding: 4px 10px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, rgba(255, 138, 200, 0.9), rgba(180, 132, 255, 0.9));
-  font-size: 10px;
-  font-weight: 700;
-  color: white;
-  backdrop-filter: blur(8px);
-}
-
-.card-save {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  border: none;
-  transition: all 0.22s ease-out;
-  padding: 0;
-  line-height: 0;
-}
-
-.card-save .collect-icon {
-  width: 16px;
-  height: 16px;
-  display: block;
-  color: var(--pink);
-}
-
-.card-save:hover {
-  background: white;
-  transform: scale(1.15);
-  box-shadow: 0 2px 12px rgba(180, 132, 255, 0.2);
-}
-
-.card-body { padding: 14px 16px; }
-
-.card-title {
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  margin-bottom: 12px;
-  color: var(--text);
-}
-
-.card-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.card-author { display: flex; align-items: center; gap: 8px; }
-
-.card-avatar {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  border: 2px solid white;
-  box-shadow: 0 1px 4px rgba(180, 132, 255, 0.15);
-}
-
-.card-author-name {
-  font-size: 12px;
-  color: var(--text-dim);
-  font-weight: 500;
-  transition: color 0.22s ease-out;
-}
-.card-author-name:hover {
-  color: var(--pink);
-}
-
-.card-stats { 
-  display: flex; 
-  align-items: center; 
-  gap: 14px; 
-  font-size: 12px; 
-  color: var(--text-dim);
-  line-height: 1;
-}
-
-.card-stats span { 
-  display: inline-flex; 
-  align-items: center; 
-  gap: 3px;
-  line-height: 1;
-  transition: color 0.22s ease-out;
-}
-
-.card-stats span:hover {
-  color: var(--text);
-}
-
-.card-stats .stat-icon { 
-  width: 14px; 
-  height: 14px; 
-  display: block;
-  flex-shrink: 0;
-}
-
-.like-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 12px;
-  color: var(--text-dim);
-  padding: 0;
-  transition: color 0.22s ease-out;
-  line-height: 1;
-  font-family: inherit;
-}
-
-.like-btn:hover {
-  color: var(--pink);
-}
-
-.like-btn.active {
-  color: var(--pink);
 }
 
 /* ===== Footer ===== */
