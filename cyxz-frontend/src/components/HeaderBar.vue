@@ -12,9 +12,9 @@
       <SearchInput v-model="searchText" variant="header" placeholder="搜索感兴趣的内容..." @search="goToSearch" />
     </div>
     <nav class="nav">
-      <router-link to="/" :class="{ active: $route.path === '/' }">发现</router-link>
+      <router-link to="/" :class="{ active: $route.path === '/' }">首页</router-link>
+      <router-link to="/discover" :class="{ active: $route.path === '/discover' }">广场</router-link>
       <router-link to="/following" :class="{ active: $route.path === '/following' }">关注</router-link>
-      <router-link to="/community" :class="{ active: $route.path === '/community' }">社区</router-link>
       <a href="javascript:;" :class="{ active: $route.path === '/creator' }" @click="goCreator">创作中心</a>
     </nav>
     <div class="header-right">
@@ -201,18 +201,20 @@ onMounted(() => {
 <style scoped>
 .header-bar {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  top: 10px;
+  left: 18px;
+  right: 18px;
   z-index: 100;
-  background: var(--header-bg);
-  backdrop-filter: blur(24px) saturate(1.4);
-  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 246, 251, 0.94));
+  backdrop-filter: blur(26px) saturate(1.75);
+  border: 1px solid rgba(255, 107, 157, 0.18);
+  box-shadow: 0 18px 48px rgba(255, 107, 157, 0.14), 0 4px 18px rgba(180, 132, 255, 0.12);
   padding: 0 44px;
   height: 66px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  border-radius: 22px;
 }
 
 .header-left {
@@ -284,9 +286,9 @@ onMounted(() => {
 
 .nav a {
   text-decoration: none;
-  color: var(--text-dim);
+  color: rgba(78, 61, 95, 0.82);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   padding: 8px 16px;
   border-radius: 12px;
   transition: all 0.22s ease-out;
@@ -298,21 +300,22 @@ onMounted(() => {
 }
 
 .nav a.active {
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  font-weight: 700;
+  color: #ff4fa0;
+  background: linear-gradient(180deg, rgba(255, 121, 176, 0.16), rgba(255, 121, 176, 0.08));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 121, 176, 0.18),
+    0 8px 18px rgba(255, 121, 176, 0.14);
+  font-weight: 800;
 }
 .nav a.active::after {
   content: '';
   position: absolute;
-  bottom: 2px;
   left: 16px;
   right: 16px;
-  height: 3px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, var(--pink), var(--purple));
+  bottom: 5px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 79, 160, 0.92), rgba(255, 140, 196, 0.88));
 }
 
 .nav a.nav-disabled {

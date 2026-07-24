@@ -82,6 +82,26 @@
 
           <div class="form-section">
             <label class="form-label">
+              <Icon icon="ph:circles-three-plus" class="label-icon pink-icon" />
+              <span>圈子</span>
+              <span class="label-required">*</span>
+            </label>
+            <div class="category-selector">
+              <button
+                v-for="c in circles"
+                :key="c.id"
+                type="button"
+                class="category-btn"
+                :class="{ active: form.circleId === c.id }"
+                @click="form.circleId = c.id"
+              >
+                {{ c.name }}
+              </button>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <label class="form-label">
               <Icon icon="ph:folder" class="label-icon pink-icon" />
               <span>分类</span>
               <span class="label-required">*</span>
@@ -176,14 +196,18 @@ import { Icon } from '@iconify/vue'
 import { useNavigate } from '@/composables/useNavigate'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { createPost, saveDraftPost, updatePost, getPostDetail, getCategoryList } from '@/api/post'
+import { getCircleList } from '@/api/circle'
+import type { CircleVO } from '@/api/circle'
 import { uploadPostImage, deleteUploadedFile } from '@/api/upload'
 import type { SaveDraftRequest, PostVO, CategoryVO } from '@/api/post'
 import { isDraft, isPublished, isDeleted } from '@/utils/postStatus'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import ImageCropper from '@/components/ImageCropper.vue'
+import { useUserStore } from '@/stores/user'
 
 const { to, router } = useNavigate()
 const route = useRoute()
+const userStore = useUserStore()
 
 const emit = defineEmits<{ goBack: [wasEditingDraft?: boolean]; publishSuccess: [] }>()
 
@@ -197,11 +221,13 @@ const isEditingDraft = computed(() => isEditMode.value && isDraft(currentPostSta
 const isEditingPublished = computed(() => isEditMode.value && isPublished(currentPostStatus.value))
 
 const categories = ref<CategoryVO[]>([])
+const circles = ref<CircleVO[]>([])
 const loading = ref(false)
 
 const form = ref({
   title: '',
   categoryId: '',
+  circleId: null as number | null,
   content: '',
   cover: '',
   images: [] as string[],
@@ -235,6 +261,19 @@ const loadCategories = async () => {
   }
 }
 
+const loadCircles = async () => {
+  try {
+    circles.value = await getCircleList()
+    // 如果是从圈子页跳转过来，自动预选圈子
+    if (userStore.pendingCircleId && !isEditMode.value) {
+      form.value.circleId = userStore.pendingCircleId
+      userStore.pendingCircleId = null
+    }
+  } catch (error) {
+    console.error('加载圈子失败:', error)
+  }
+}
+
 const loadPostDetail = async () => {
   if (!isEditMode.value) return
   try {
@@ -242,6 +281,7 @@ const loadPostDetail = async () => {
     form.value = {
       title: post.title,
       categoryId: String(post.categoryId),
+      circleId: post.circleId || null,
       content: post.content,
       cover: post.cover,
       images: post.images || [],
@@ -376,13 +416,14 @@ const removeTag = (index: number) => {
 const hasDraftContent = () => {
   return form.value.title.trim() !== ''
     || (form.value.categoryId !== null && form.value.categoryId !== '')
+    || form.value.circleId !== null
     || form.value.content.trim() !== ''
     || form.value.images.length > 0
 }
 
 const handleSubmit = async () => {
-  if (!form.value.title || !form.value.categoryId || !form.value.content) {
-    ElMessage.warning('请填写必填项')
+  if (!form.value.title || !form.value.categoryId || !form.value.circleId || !form.value.content) {
+    ElMessage.warning('请填写必填项（标题、圈子、分类、正文）')
     return
   }
 
@@ -399,6 +440,7 @@ const handleSubmit = async () => {
       await updatePost({
         id: postId.value,
         categoryId: Number(form.value.categoryId),
+        circleId: form.value.circleId ?? undefined,
         title: form.value.title,
         content: form.value.content,
         cover: form.value.cover || undefined,
@@ -410,6 +452,7 @@ const handleSubmit = async () => {
     } else {
       await createPost({
         categoryId: Number(form.value.categoryId),
+        circleId: form.value.circleId!,
         title: form.value.title,
         content: form.value.content,
         cover: form.value.cover || undefined,
@@ -444,6 +487,7 @@ const saveDraftOnly = async (): Promise<boolean> => {
   try {
     const data: SaveDraftRequest = {
       categoryId: form.value.categoryId ? Number(form.value.categoryId) : undefined,
+      circleId: form.value.circleId ?? undefined,
       title: form.value.title || undefined,
       content: form.value.content || undefined,
       cover: form.value.cover || undefined,
@@ -522,6 +566,7 @@ const goBack = async () => {
 
 onMounted(async () => {
   loadCategories()
+  loadCircles()
   await loadPostDetail()
   formInitialized.value = true
   window.addEventListener('beforeunload', handleBeforeUnload)
@@ -529,7 +574,7 @@ onMounted(async () => {
 
 // 监听表单字段变化，标记 dirty
 watch(
-  () => [form.value.title, form.value.categoryId, form.value.content, form.value.cover],
+  () => [form.value.title, form.value.categoryId, form.value.circleId, form.value.content, form.value.cover],
   () => {
     if (formInitialized.value) {
       dirty.value = true

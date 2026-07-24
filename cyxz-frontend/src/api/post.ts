@@ -8,6 +8,8 @@ export interface PostVO {
   authorAvatar: string
   categoryId: number
   categoryName: string
+  circleId: number
+  circleName: string
   title: string
   content: string
   cover: string
@@ -37,6 +39,7 @@ export interface CategoryVO {
 /** 保存草稿请求 */
 export interface SaveDraftRequest {
   categoryId?: number
+  circleId?: number
   title?: string
   content?: string
   cover?: string
@@ -47,6 +50,7 @@ export interface SaveDraftRequest {
 /** 发布帖子请求（标题、分类、正文、图片必填） */
 export interface PublishPostRequest {
   categoryId: number
+  circleId: number
   title: string
   content: string
   cover?: string
@@ -58,6 +62,7 @@ export interface PublishPostRequest {
 export interface UpdatePostRequest {
   id: string
   categoryId?: number
+  circleId?: number
   title?: string
   content?: string
   cover?: string
@@ -66,8 +71,8 @@ export interface UpdatePostRequest {
   status?: number
 }
 
-/** 查询帖子列表（仅已发布，可按分类筛选） */
-export const getPostList = (params: { categoryId?: number; page?: number; size?: number }) => {
+/** 查询帖子列表（仅已发布，可按分类、圈子筛选） */
+export const getPostList = (params: { categoryId?: number; circleId?: number; page?: number; size?: number }) => {
   return request.get('/post/list', { params })
 }
 

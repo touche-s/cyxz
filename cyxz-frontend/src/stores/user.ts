@@ -14,6 +14,7 @@ export const useUserStore = defineStore('user', () => {
   const showLoginModal = ref(false)
   const creatorActiveNav = ref('home')
   const creatorFansTab = ref<'followers' | 'following'>('followers')
+  const pendingCircleId = ref<number | null>(null)
 
   const isLoggedIn = computed(() => !!token.value)
 
@@ -42,5 +43,5 @@ export const useUserStore = defineStore('user', () => {
     localStorage.removeItem('userInfo')
   }
 
-  return { token, userInfo, isLoggedIn, showLoginModal, creatorActiveNav, creatorFansTab, openLoginModal, closeLoginModal, setToken, setUserInfo, clearAuth }
+  return { token, userInfo, isLoggedIn, showLoginModal, creatorActiveNav, creatorFansTab, pendingCircleId, openLoginModal, closeLoginModal, setToken, setUserInfo, clearAuth }
 })
