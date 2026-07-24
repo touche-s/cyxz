@@ -117,17 +117,78 @@ CREATE TABLE IF NOT EXISTS post_collect (
     INDEX idx_user_id (user_id)
 ) ENGINE=InnoDB COMMENT='帖子收藏关系表';
 
+-- ==================== 圈子表 ====================
+CREATE TABLE IF NOT EXISTS circle (
+    id BIGINT PRIMARY KEY COMMENT '圈子 ID（雪花算法）',
+    name VARCHAR(50) NOT NULL COMMENT '圈子名称',
+    slug VARCHAR(50) NOT NULL COMMENT 'URL 友好标识',
+    intro VARCHAR(200) COMMENT '一句话简介',
+    avatar VARCHAR(500) COMMENT '头像 URL',
+    cover VARCHAR(500) COMMENT '封面 URL',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '0=禁用 1=启用',
+    sort_order INT NOT NULL DEFAULT 0 COMMENT '排序值（越小越靠前）',
+    post_count INT NOT NULL DEFAULT 0 COMMENT '帖子数',
+    member_count INT NOT NULL DEFAULT 0 COMMENT '成员数',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE INDEX uk_slug (slug),
+    INDEX idx_status_sort (status, sort_order)
+) ENGINE=InnoDB COMMENT='圈子表';
+
+-- 圈子成员关系表
+CREATE TABLE IF NOT EXISTS circle_member (
+    id BIGINT PRIMARY KEY COMMENT '主键（雪花算法）',
+    circle_id BIGINT NOT NULL COMMENT '圈子 ID',
+    user_id BIGINT NOT NULL COMMENT '用户 ID',
+    status TINYINT NOT NULL DEFAULT 1 COMMENT '1=已加入 0=已退出',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE INDEX uk_circle_user (circle_id, user_id),
+    INDEX idx_user_id (user_id),
+    INDEX idx_circle_id (circle_id)
+) ENGINE=InnoDB COMMENT='圈子成员关系表';
+
+-- post 表新增圈子ID字段
+ALTER TABLE post ADD COLUMN circle_id BIGINT DEFAULT NULL COMMENT '圈子 ID' AFTER category_id;
+ALTER TABLE post ADD INDEX idx_circle_id (circle_id);
+
+-- ==================== 圈子初始化数据 ====================
+INSERT INTO circle (id, name, slug, intro, status, sort_order, post_count, member_count, create_time, update_time) VALUES
+-- 游戏作品圈
+(2, '原神', 'genshin', '旅行者，欢迎来到提瓦特大陆', 1, 1, 0, 0, NOW(), NOW()),
+(3, '崩坏：星穹铁道', 'starrail', '开拓者，星穹列车前方到站', 1, 2, 0, 0, NOW(), NOW()),
+(4, '明日方舟', 'arknights', '博士，罗德岛欢迎您', 1, 3, 0, 0, NOW(), NOW()),
+(5, '绝区零', 'zzz', '绳匠，欢迎来到新艾利都', 1, 4, 0, 0, NOW(), NOW()),
+(6, '崩坏3', 'honkai3rd', '为世界上所有的美好而战', 1, 5, 0, 0, NOW(), NOW()),
+(7, '蔚蓝档案', 'bluearchive', '老师，基沃托斯欢迎您的到来', 1, 6, 0, 0, NOW(), NOW()),
+(8, 'Fate', 'fate', '人理延续保障机关·迦勒底', 1, 7, 0, 0, NOW(), NOW()),
+(9, '碧蓝航线', 'azurlane', '指挥官，出击！', 1, 8, 0, 0, NOW(), NOW()),
+(10, '赛马娘', 'umamusume', '梦想在此驰骋', 1, 9, 0, 0, NOW(), NOW()),
+(11, '东方Project', 'touhou', '幻想乡，少女们的乐园', 1, 10, 0, 0, NOW(), NOW()),
+-- 动漫 / 企划作品圈
+(12, 'MyGO', 'mygo', '迷子でもいい、前へ進め', 1, 11, 0, 0, NOW(), NOW()),
+(13, '孤独摇滚', 'bocchi', '社恐少女与摇滚乐队的成长物语', 1, 12, 0, 0, NOW(), NOW()),
+(14, 'Love Live!', 'lovelive', 'みんなで叶える物語', 1, 13, 0, 0, NOW(), NOW()),
+-- 虚拟歌姬
+(18, '初音未来', 'miku', '世界第一的公主殿下', 1, 17, 0, 0, NOW(), NOW()),
+(19, '洛天依', 'luotianyi', '华风夏韵，洛水天依', 1, 18, 0, 0, NOW(), NOW()),
+-- 兜底圈
+(1, '原创圈', 'original', '原创设定、OC、人设与原创作品发布区', 1, 97, 0, 0, NOW(), NOW()),
+(20, '同人创作圈', 'fanwork', '小众作品二创、跨作品同人内容交流区', 1, 98, 0, 0, NOW(), NOW()),
+(21, '日常交流圈', 'daily', '抽卡记录、追番碎碎念、漫展返图等二次元日常交流', 1, 99, 0, 0, NOW(), NOW());
+
+-- 老帖子迁移到日常交流圈
+UPDATE post SET circle_id = 21 WHERE circle_id IS NULL;
+
 -- ==================== 分类初始化数据 ====================
 INSERT INTO category (id, name, description, sort_order, status, create_time, update_time) VALUES
-(1, '动漫', '番剧安利、作品讨论、新番扫雷', 1, 1, NOW(), NOW()),
-(2, '游戏', '二次元手游、单机大作、联机开黑', 2, 1, NOW(), NOW()),
-(3, '绘画', '同人图、原创插画、绘画教程', 3, 1, NOW(), NOW()),
-(4, 'COS', 'Cosplay正片、妆造分享、道具制作', 4, 1, NOW(), NOW()),
-(5, '漫展', '漫展活动信息、返图、参展攻略', 5, 1, NOW(), NOW()),
-(6, '同人', '同人文、轻小说创作、阅读推荐', 6, 1, NOW(), NOW()),
-(7, '周边', '手办开箱、模型评测、周边交流', 7, 1, NOW(), NOW()),
-(8, '闲聊', '水区、吐槽、二次元杂谈', 8, 1, NOW(), NOW()),
-(9, '资源', '壁纸、音乐、表情包、工具资源', 9, 1, NOW(), NOW());
+(1, '同人创作', '同人图、同人文、轻小说等二次创作', 1, 1, NOW(), NOW()),
+(2, '作品讨论', '番剧、游戏、轻小说等作品深度讨论', 2, 1, NOW(), NOW()),
+(3, '安利推荐', '发现好作品，分享你的心头好', 3, 1, NOW(), NOW()),
+(4, '攻略考据', '游戏攻略、设定考据、深度分析', 4, 1, NOW(), NOW()),
+(5, 'COS摄影', 'Cosplay正片、妆造分享、摄影作品', 5, 1, NOW(), NOW()),
+(6, '周边晒单', '手办开箱、模型评测、周边交流', 6, 1, NOW(), NOW()),
+(7, '日常分享', '水区、吐槽、二次元日常杂谈', 7, 1, NOW(), NOW());
 
 -- ==================== comment 库 ====================
 CREATE DATABASE IF NOT EXISTS cyxz_comment DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
