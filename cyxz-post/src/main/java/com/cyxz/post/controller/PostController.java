@@ -132,10 +132,11 @@ public class PostController {
      */
     @GetMapping("/list")
     public Result<PageResult<PostVO>> list(@RequestParam(value = "categoryId", required = false) Long categoryId,
+                                     @RequestParam(value = "circleId", required = false) Long circleId,
                                      @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
                                      @RequestParam(value = "size", defaultValue = PageConstants.DEFAULT_SIZE_STR) int size,
                                      @CurrentUser(required = false) Long currentUserId) {
-        return Result.success(postService.listPosts(categoryId, page, size, currentUserId));
+        return Result.success(postService.listPosts(categoryId, circleId, page, size, currentUserId));
     }
 
     /**

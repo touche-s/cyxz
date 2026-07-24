@@ -15,13 +15,16 @@ import com.cyxz.user.utils.UserFeignHelper;
 import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
 import com.cyxz.post.entity.CategoryPO;
+import com.cyxz.post.entity.CirclePO;
 import com.cyxz.post.entity.PostCollectPO;
 import com.cyxz.post.entity.PostLikePO;
 import com.cyxz.post.entity.PostPO;
+import com.cyxz.post.mapper.CircleMapper;
 import com.cyxz.post.mapper.PostCollectMapper;
 import com.cyxz.post.mapper.PostLikeMapper;
 import com.cyxz.post.mapper.PostMapper;
 import com.cyxz.post.service.CategoryService;
+import com.cyxz.post.service.CircleService;
 import com.cyxz.post.service.PostService;
 import com.cyxz.user.vo.UserProfileVO;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +46,8 @@ public class PostServiceImpl implements PostService {
 
     private final PostMapper postMapper;
     private final CategoryService categoryService;
+    private final CircleService circleService;
+    private final CircleMapper circleMapper;
     private final PostLikeMapper postLikeMapper;
     private final PostCollectMapper postCollectMapper;
     private final CommentFeignClient commentFeignClient;
@@ -106,13 +111,14 @@ public class PostServiceImpl implements PostService {
     public Long createPost(Long userId, CreatePostRequest request) {
         if (request.getStatus() != null && request.getStatus() == 1) {
             validatePublishFields(request.getTitle(), request.getCategoryId(),
-                    request.getContent(), request.getImages());
+                    request.getCircleId(), request.getContent(), request.getImages());
         } else {
             validateDraftHasContent(request);
         }
         PostPO po = new PostPO();
         po.setUserId(userId);
         po.setCategoryId(request.getCategoryId());
+        po.setCircleId(request.getCircleId());
         po.setTitle(request.getTitle());
         po.setContent(request.getContent());
         po.setCover(request.getCover());
@@ -161,6 +167,7 @@ public class PostServiceImpl implements PostService {
             validatePublishFields(
                     request.getTitle(),
                     request.getCategoryId(),
+                    request.getCircleId(),
                     request.getContent(),
                     request.getImages()
             );
@@ -185,6 +192,7 @@ public class PostServiceImpl implements PostService {
      */
     private void applyContentUpdate(PostPO po, UpdatePostRequest request) {
         if (request.getCategoryId() != null) po.setCategoryId(request.getCategoryId());
+        if (request.getCircleId() != null) po.setCircleId(request.getCircleId());
         if (StringUtils.hasText(request.getTitle())) po.setTitle(request.getTitle());
         if (request.getContent() != null) po.setContent(request.getContent());
         if (request.getCover() != null) po.setCover(request.getCover());
@@ -277,9 +285,10 @@ public class PostServiceImpl implements PostService {
         }
         Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, Set.of(po.getUserId()));
         Map<Long, CategoryPO> categoryMap = categoryService.getByIds(extractCategoryIds(List.of(po)));
+        Map<Long, CirclePO> circleMap = extractCircleMap(List.of(po));
         Set<Long> likedPostIds = getLikedPostIds(currentUserId);
         Set<Long> collectedPostIds = getCollectedPostIds(currentUserId);
-        return convertToVO(po, userMap, categoryMap, likedPostIds, collectedPostIds);
+        return convertToVO(po, userMap, categoryMap, circleMap, likedPostIds, collectedPostIds);
     }
 
     /**
@@ -293,12 +302,15 @@ public class PostServiceImpl implements PostService {
      * @return 帖子视图列表
      */
     @Override
-    public PageResult<PostVO> listPosts(Long categoryId, int page, int size, Long currentUserId) {
+    public PageResult<PostVO> listPosts(Long categoryId, Long circleId, int page, int size, Long currentUserId) {
         Page<PostPO> pageParam = PageConstants.pageOf(page, size);
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostPO::getStatus, CommonStatus.ACTIVE);
         if (categoryId != null) {
             wrapper.eq(PostPO::getCategoryId, categoryId);
+        }
+        if (circleId != null) {
+            wrapper.eq(PostPO::getCircleId, circleId);
         }
         wrapper.orderByDesc(PostPO::getCreateTime);
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
@@ -332,11 +344,12 @@ public class PostServiceImpl implements PostService {
 
         Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, result.getRecords().stream().map(PostPO::getUserId).collect(Collectors.toSet()));
         Map<Long, CategoryPO> categoryMap = categoryService.getByIds(extractCategoryIds(result.getRecords()));
+        Map<Long, CirclePO> circleMap = extractCircleMap(result.getRecords());
         Set<Long> likedPostIds = getLikedPostIds(userId);
         Set<Long> collectedPostIds = getCollectedPostIds(userId);
 
         List<PostVO> vos = result.getRecords().stream()
-                .map(po -> convertToVO(po, userMap, categoryMap, likedPostIds, collectedPostIds))
+                .map(po -> convertToVO(po, userMap, categoryMap, circleMap, likedPostIds, collectedPostIds))
                 .collect(Collectors.toList());
         return PageResult.of(vos, result.getTotal(), page, size);
     }
@@ -412,10 +425,11 @@ public class PostServiceImpl implements PostService {
         Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient,
                 posts.stream().map(PostPO::getUserId).collect(Collectors.toSet()));
         Map<Long, CategoryPO> categoryMap = categoryService.getByIds(extractCategoryIds(posts));
+        Map<Long, CirclePO> circleMap = extractCircleMap(posts);
         Set<Long> likedPostIds = getLikedPostIds(currentUserId);
         Set<Long> collectedPostIds = getCollectedPostIds(currentUserId);
         return posts.stream()
-                .map(po -> convertToVO(po, userMap, categoryMap, likedPostIds, collectedPostIds))
+                .map(po -> convertToVO(po, userMap, categoryMap, circleMap, likedPostIds, collectedPostIds))
                 .collect(Collectors.toList());
     }
 
@@ -426,17 +440,19 @@ public class PostServiceImpl implements PostService {
      * @param po            帖子实体
      * @param userMap       预查的用户信息映射
      * @param categoryMap   预查的分类信息映射
+     * @param circleMap     预查的圈子信息映射
      * @param likedPostIds  当前用户已点赞的帖子 ID 集合（可为空）
      * @param collectedPostIds 当前用户已收藏的帖子 ID 集合（可为空）
      * @return 帖子视图对象
      */
     private PostVO convertToVO(PostPO po, Map<Long, UserProfileVO> userMap,
-                                Map<Long, CategoryPO> categoryMap, Set<Long> likedPostIds,
-                                Set<Long> collectedPostIds) {
+                                Map<Long, CategoryPO> categoryMap, Map<Long, CirclePO> circleMap,
+                                Set<Long> likedPostIds, Set<Long> collectedPostIds) {
         PostVO vo = new PostVO();
         vo.setId(po.getId());
         vo.setUserId(po.getUserId());
         vo.setCategoryId(po.getCategoryId());
+        vo.setCircleId(po.getCircleId());
         vo.setTitle(po.getTitle());
         vo.setContent(po.getContent());
         vo.setCover(po.getCover());
@@ -475,6 +491,13 @@ public class PostServiceImpl implements PostService {
             }
         }
 
+        if (po.getCircleId() != null && circleMap != null) {
+            CirclePO circle = circleMap.get(po.getCircleId());
+            if (circle != null) {
+                vo.setCircleName(circle.getName());
+            }
+        }
+
         return vo;
     }
 
@@ -486,6 +509,21 @@ public class PostServiceImpl implements PostService {
                 .map(PostPO::getCategoryId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
+    }
+
+    /**
+     * 从帖子列表中提取圈子 ID 集合并预查实体
+     */
+    private Map<Long, CirclePO> extractCircleMap(List<PostPO> posts) {
+        Set<Long> circleIds = posts.stream()
+                .map(PostPO::getCircleId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (circleIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return circleMapper.selectBatchIds(circleIds).stream()
+                .collect(Collectors.toMap(CirclePO::getId, c -> c));
     }
 
 
@@ -565,8 +603,9 @@ public class PostServiceImpl implements PostService {
             return Collections.emptyList();
         }
         Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, topPosts.stream().map(PostPO::getUserId).collect(Collectors.toSet()));
+        Map<Long, CirclePO> circleMap = extractCircleMap(topPosts);
         return topPosts.stream()
-                .map(po -> convertToVO(po, userMap, Collections.emptyMap(), Collections.emptySet(), Collections.emptySet()))
+                .map(po -> convertToVO(po, userMap, Collections.emptyMap(), circleMap, Collections.emptySet(), Collections.emptySet()))
                 .collect(Collectors.toList());
     }
 
@@ -748,12 +787,15 @@ public class PostServiceImpl implements PostService {
     /**
      * 校验发布必填项：标题、分类、正文、图片缺一不可
      */
-    private void validatePublishFields(String title, Long categoryId, String content, List<String> images) {
+    private void validatePublishFields(String title, Long categoryId, Long circleId, String content, List<String> images) {
         if (title == null || title.isBlank()) {
             throw new BusinessException(ErrorCode.PARAM_MISSING, "发布时标题不能为空");
         }
         if (categoryId == null) {
             throw new BusinessException(ErrorCode.PARAM_MISSING, "发布时分类不能为空");
+        }
+        if (circleId == null) {
+            throw new BusinessException(ErrorCode.PARAM_MISSING, "发布时圈子不能为空");
         }
         if (content == null || content.isBlank()) {
             throw new BusinessException(ErrorCode.PARAM_MISSING, "发布时正文不能为空");

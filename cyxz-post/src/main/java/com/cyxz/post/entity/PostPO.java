@@ -29,6 +29,9 @@ public class PostPO implements Serializable {
     /** 分类 ID */
     private Long categoryId;
 
+    /** 圈子 ID */
+    private Long circleId;
+
     /** 标题 */
     private String title;
 

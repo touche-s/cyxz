@@ -24,7 +24,7 @@ public class RouteConfig {
                         .and().not(p -> p.path("/api/*/internal/**"))
                         .filters(f -> f.stripPrefix(1))
                         .uri("lb://cyxz-user"))
-                .route("post", r -> r.path("/api/post/**", "/api/posts/**", "/api/category/**")
+                .route("post", r -> r.path("/api/post/**", "/api/posts/**", "/api/category/**", "/api/circle/**")
                         .and().not(p -> p.path("/api/*/internal/**"))
                         .filters(f -> f.stripPrefix(1))
                         .uri("lb://cyxz-post"))

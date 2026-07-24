@@ -29,6 +29,12 @@ public class PostVO {
     /** 分类名称 */
     private String categoryName;
 
+    /** 圈子 ID */
+    private Long circleId;
+
+    /** 圈子名称 */
+    private String circleName;
+
     /** 标题 */
     private String title;
 
