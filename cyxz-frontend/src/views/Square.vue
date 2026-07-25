@@ -30,16 +30,23 @@
     </div>
 
     <div class="content-grid" v-if="!loading">
-      <PostCard
-        v-for="post in posts"
-        :key="post.id"
-        :post="post"
-        :show-collect="true"
-        :show-like="true"
-        @click="viewPost"
-        @like="handlePostLike"
-        @collect="toggleSave"
-      />
+      <MasonryGrid
+        :items="posts"
+        :column-count="4"
+        :gap="18"
+        :estimate-height="estimatePostHeight"
+      >
+        <template #item="{ item }">
+          <PostCard
+            :post="item"
+            :show-collect="true"
+            :show-like="true"
+            @click="viewPost"
+            @like="handlePostLike"
+            @collect="toggleSave"
+          />
+        </template>
+      </MasonryGrid>
     </div>
 
     <LoadingSpinner v-else text="加载中..." />
@@ -67,8 +74,10 @@ import type { PostVO, CategoryVO } from '@/api/post'
 import { useNavigate } from '@/composables/useNavigate'
 import { useAuth } from '@/composables/useAuth'
 import PostCard from '@/components/PostCard.vue'
+import MasonryGrid from '@/components/MasonryGrid.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import { estimatePostHeight } from '@/utils/format'
 
 const { open } = useNavigate()
 const { requireLogin } = useAuth()
@@ -272,9 +281,6 @@ onMounted(() => {
 
 /* ===== Content Grid ===== */
 .content-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 18px;
   margin-bottom: 32px;
 }
 
@@ -300,15 +306,14 @@ onMounted(() => {
 
 /* ===== Responsive ===== */
 @media (max-width: 1200px) {
-  .content-grid { grid-template-columns: repeat(3, 1fr); }
+  /* 4→3 列由组件 column-count prop 控制，此处无需额外处理 */
 }
 
 @media (max-width: 900px) {
-  .content-grid { grid-template-columns: repeat(2, 1fr); }
+  /* 3→2 列 */
 }
 
 @media (max-width: 768px) {
   .main-content { padding: 90px 0 60px; }
-  .content-grid { grid-template-columns: 1fr; }
 }
 </style>
