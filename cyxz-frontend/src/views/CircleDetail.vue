@@ -4,29 +4,36 @@
 
     <!-- 圈子头部 -->
     <div class="circle-header">
-      <div class="circle-header-left">
-        <div class="circle-avatar">
-          <img v-if="circle.avatar" :src="circle.avatar" :alt="circle.name" />
-          <span v-else class="avatar-text">{{ circle.name.charAt(0) }}</span>
-        </div>
-        <div class="circle-meta">
-          <h1 class="circle-name">{{ circle.name }}</h1>
-          <p class="circle-intro">{{ circle.intro }}</p>
-          <div class="circle-stats">
-            <span>{{ circle.postCount }} 帖子</span>
-            <span class="stat-sep">·</span>
-            <span>{{ circle.memberCount }} 成员</span>
+      <div class="circle-cover">
+        <img v-if="circle.cover" :src="circle.cover" :alt="circle.name" />
+        <div v-else class="cover-fallback"></div>
+        <div class="cover-overlay"></div>
+      </div>
+      <div class="circle-header-body">
+        <div class="circle-header-left">
+          <div class="circle-avatar">
+            <img v-if="circle.avatar" :src="circle.avatar" :alt="circle.name" />
+            <span v-else class="avatar-text">{{ circle.name.charAt(0) }}</span>
+          </div>
+          <div class="circle-meta">
+            <h1 class="circle-name">{{ circle.name }}</h1>
+            <p class="circle-intro">{{ circle.intro }}</p>
+            <div class="circle-stats">
+              <span>{{ circle.postCount }} 帖子</span>
+              <span class="stat-sep">·</span>
+              <span>{{ circle.memberCount }} 成员</span>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="circle-actions">
-        <button class="btn-publish" @click="goPublish">
-          <Icon icon="ph:pencil-simple" />
-          圈内发布
-        </button>
-        <button class="btn-join" :class="{ joined: circle.joined }" @click="toggleJoin">
-          {{ circle.joined ? '已加入' : '加入圈子' }}
-        </button>
+        <div class="circle-actions">
+          <button class="btn-publish" @click="goPublish">
+            <Icon icon="ph:pencil-simple" />
+            圈内发布
+          </button>
+          <button class="btn-join" :class="{ joined: circle.joined }" @click="toggleJoin">
+            {{ circle.joined ? '已加入' : '加入圈子' }}
+          </button>
+        </div>
       </div>
     </div>
 
@@ -38,16 +45,23 @@
 
     <!-- 帖子列表 -->
     <div class="content-grid" v-if="!loading">
-      <PostCard
-        v-for="post in posts"
-        :key="post.id"
-        :post="post"
-        :show-collect="true"
-        :show-like="true"
-        @click="viewPost"
-        @like="handlePostLike"
-        @collect="toggleSave"
-      />
+      <MasonryGrid
+        :items="posts"
+        :column-count="3"
+        :gap="18"
+        :estimate-height="estimatePostHeight"
+      >
+        <template #item="{ item }">
+          <PostCard
+            :post="item"
+            :show-collect="true"
+            :show-like="true"
+            @click="viewPost"
+            @like="handlePostLike"
+            @collect="toggleSave"
+          />
+        </template>
+      </MasonryGrid>
     </div>
 
     <LoadingSpinner v-else text="加载中..." />
@@ -70,8 +84,10 @@ import { useNavigate } from '@/composables/useNavigate'
 import { useAuth } from '@/composables/useAuth'
 import { useUserStore } from '@/stores/user'
 import PostCard from '@/components/PostCard.vue'
+import MasonryGrid from '@/components/MasonryGrid.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import { estimatePostHeight } from '@/utils/format'
 
 const route = useRoute()
 const { open, to } = useNavigate()
@@ -179,26 +195,65 @@ onMounted(() => {
 
 /* ===== Circle Header ===== */
 .circle-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 28px 32px;
   background: var(--card);
   border: 1.5px solid var(--border-light);
   border-radius: 20px;
+  overflow: hidden;
   margin-bottom: 24px;
   box-shadow: 0 4px 20px rgba(255, 107, 157, 0.04);
 }
 
-.circle-header-left {
+.circle-cover {
+  position: relative;
+  height: 170px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #fde8f5, #f0e6ff);
+}
+
+.circle-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cover-fallback {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #fbd0e8, #e8d5ff);
+}
+
+.cover-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 30%,
+    rgba(255, 255, 255, 0.08) 60%,
+    rgba(255, 255, 255, 0.35) 100%
+  );
+  pointer-events: none;
+}
+
+.circle-header-body {
   display: flex;
   align-items: center;
-  gap: 20px;
+  justify-content: space-between;
+  padding: 0 28px 24px;
+  margin-top: -36px;
+  position: relative;
+  z-index: 1;
+}
+
+.circle-header-left {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
 }
 
 .circle-avatar {
-  width: 72px;
-  height: 72px;
+  width: 80px;
+  height: 80px;
   border-radius: 20px;
   background: linear-gradient(135deg, var(--pink), var(--purple));
   display: flex;
@@ -207,6 +262,7 @@ onMounted(() => {
   overflow: hidden;
   box-shadow: 0 6px 20px rgba(255, 107, 157, 0.25);
   flex-shrink: 0;
+  border: 3px solid var(--card);
 }
 
 .circle-avatar img {
@@ -329,15 +385,12 @@ onMounted(() => {
 
 /* ===== Content Grid ===== */
 .content-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 18px;
+  margin-bottom: 32px;
 }
 
-@media (max-width: 1200px) { .content-grid { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 900px) { .content-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 768px) {
-  .circle-header { flex-direction: column; gap: 16px; align-items: flex-start; }
-  .content-grid { grid-template-columns: 1fr; }
+  .circle-cover { height: 120px; }
+  .circle-header-body { flex-direction: column; gap: 16px; align-items: flex-start; padding: 0 16px 18px; margin-top: -28px; }
+  .circle-avatar { width: 64px; height: 64px; }
 }
 </style>

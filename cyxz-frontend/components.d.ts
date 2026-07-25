@@ -11,6 +11,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    CircleCard: typeof import('./src/components/CircleCard.vue')['default']
     CommentItem: typeof import('./src/components/CommentItem.vue')['default']
     ConfirmModal: typeof import('./src/components/ConfirmModal.vue')['default']
     CreatorAgreement: typeof import('./src/components/creator/CreatorAgreement.vue')['default']
@@ -35,6 +36,7 @@ declare module 'vue' {
     Layout: typeof import('./src/components/Layout.vue')['default']
     LoadingSpinner: typeof import('./src/components/LoadingSpinner.vue')['default']
     LoginModal: typeof import('./src/components/LoginModal.vue')['default']
+    MasonryGrid: typeof import('./src/components/MasonryGrid.vue')['default']
     Pagination: typeof import('./src/components/Pagination.vue')['default']
     PostCard: typeof import('./src/components/PostCard.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']

@@ -9,9 +9,9 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/Home.vue'),
   },
   {
-    path: '/discover',
-    name: 'Discover',
-    component: () => import('@/views/Discover.vue'),
+    path: '/square',
+    name: 'Square',
+    component: () => import('@/views/Square.vue'),
   },
   {
     path: '/following',

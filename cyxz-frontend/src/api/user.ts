@@ -73,6 +73,6 @@ export const getFollowerList = (params: { page?: number; size?: number }) => {
 }
 
 /** 查询当前用户的关注数和粉丝数 */
-export const getFollowStats = () => {
-  return request.get('/user/follow-stats')
+export const getFollowStats = (): Promise<FollowStats> => {
+  return request.get('/user/follow-stats') as any
 }

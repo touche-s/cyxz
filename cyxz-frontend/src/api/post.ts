@@ -76,6 +76,11 @@ export const getPostList = (params: { categoryId?: number; circleId?: number; pa
   return request.get('/post/list', { params })
 }
 
+/** 查询关注动态（已加入圈子的帖子） */
+export const getFollowingPosts = (params: { page?: number; size?: number }) => {
+  return request.get('/post/following', { params })
+}
+
 /** 查询帖子详情 */
 export const getPostDetail = (postId: string) => {
   return request.get(`/post/${postId}`)
