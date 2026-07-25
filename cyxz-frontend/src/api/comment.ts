@@ -51,8 +51,8 @@ export const getCommentReplies = (params: {
 }) => request.get('/comment/replies', { params })
 
 /** 发表评论 */
-export const createComment = (data: CreateCommentRequest): Promise<{ data: { code: number; message: string; data: CommentVO } }> =>
-  request.post('/comment', data)
+export const createComment = (data: CreateCommentRequest): Promise<CommentVO> =>
+  request.post<CommentVO>('/comment', data)
 
 /** 删除评论 */
 export const deleteComment = (commentId: string) =>
