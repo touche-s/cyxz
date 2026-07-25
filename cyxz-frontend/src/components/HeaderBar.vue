@@ -13,7 +13,7 @@
     </div>
     <nav class="nav">
       <router-link to="/" :class="{ active: $route.path === '/' }">首页</router-link>
-      <router-link to="/discover" :class="{ active: $route.path === '/discover' }">广场</router-link>
+      <router-link to="/square" :class="{ active: $route.path === '/square' }">广场</router-link>
       <router-link to="/following" :class="{ active: $route.path === '/following' }">关注</router-link>
       <a href="javascript:;" :class="{ active: $route.path === '/creator' }" @click="goCreator">创作中心</a>
     </nav>
@@ -22,14 +22,14 @@
         <div class="user-dropdown" :class="{ open: dropdownOpen }">
           <div class="avatar-trigger" @click.stop="goToProfile" @mouseenter="dropdownOpen = true" @mouseleave="dropdownOpen = false">
             <img v-if="userStore.userInfo?.avatar" :src="userStore.userInfo.avatar" alt="avatar" class="avatar-img" />
-            <span v-else class="avatar-placeholder">{{ (userStore.userInfo?.nickname || 'U').charAt(0) }}</span>
+            <span v-else class="avatar-placeholder">{{ displayName.charAt(0) }}</span>
           </div>
           <Transition name="drop">
             <div v-if="dropdownOpen" class="dropdown-panel" @mouseenter="dropdownOpen = true" @mouseleave="dropdownOpen = false">
               <div class="panel-top">
                 <div class="panel-user-info">
-                  <span class="panel-nickname">{{ userStore.userInfo?.nickname || '用户' }}</span>
-                  <span class="panel-uid">UID: {{ userStore.userInfo?.id || '-' }}</span>
+                  <span class="panel-nickname">{{ displayName }}</span>
+                  <span class="panel-uid">UID: {{ uid }}</span>
                 </div>
               </div>
               <div class="panel-stats">
@@ -88,7 +88,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import SearchInput from '@/components/SearchInput.vue'
 import { useUserStore } from '@/stores/user'
@@ -106,6 +106,14 @@ const dropdownOpen = ref(false)
 const followStats = ref({ following: 0, followers: 0 })
 const searchText = ref('')
 const isDark = ref(false)
+
+const displayName = computed(() => {
+  const u = userStore.userInfo
+  if (!u) return '用户'
+  return (u as any).nickname || (u as any).username || `ID:${u.userId || '-'}`
+})
+
+const uid = computed(() => userStore.userInfo?.userId || '-')
 
 function toggleDarkMode() {
   isDark.value = !isDark.value

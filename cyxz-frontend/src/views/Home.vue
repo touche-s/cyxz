@@ -1,133 +1,173 @@
 <template>
   <main class="main-content">
     <div class="page-inner">
+      <!-- ===== Hero ===== -->
       <section class="hero-panel">
         <div class="hero-copy">
-          <span class="hero-kicker">首页 · 圈子广场</span>
-          <h1>先找到圈子，再开始今天的内容浏览</h1>
+          <!-- 装饰层 -->
+          <div class="hero-deco-layer">
+            <span class="meteor meteor--1"></span>
+            <span class="meteor meteor--2"></span>
+            <span class="meteor meteor--3"></span>
+          </div>
+          <div class="hero-sparkles">
+            <span class="sparkle sparkle--1"><Icon icon="ph:sparkle" /></span>
+            <span class="sparkle sparkle--2"><Icon icon="ph:star-four" /></span>
+            <span class="sparkle sparkle--3"><Icon icon="ph:sparkle" /></span>
+            <span class="sparkle sparkle--4"><Icon icon="ph:star-four" /></span>
+            <span class="sparkle sparkle--5"><Icon icon="ph:sparkle" /></span>
+          </div>
+          <span class="hero-kicker">
+            <Icon icon="ph:sparkle" class="kicker-icon" />
+            从作品进入同好世界
+          </span>
+          <h1>
+            找到你的<span class="h1-accent">同好圈</span>，从这里开始
+          </h1>
           <p>
-            首页聚焦圈子入口，把兴趣归属放在前面。先进入熟悉的同好圈，再看讨论、作品和动态，让每次打开都有明确落点。
+            每一部作品都是一个世界。选一个你喜欢的 IP，加入圈子，和同好一起讨论、创作、分享属于你们的次元故事。
           </p>
           <div class="hero-actions">
-            <button class="primary-btn" @click="scrollToJoined">进入我的圈子</button>
-            <button class="ghost-btn" @click="scrollToAll">查看全部圈子</button>
+            <button class="primary-btn" @click="scrollToJoined">
+              <Icon icon="ph:circles-three-plus" class="btn-icon" />
+              我的圈子
+            </button>
+            <button class="ghost-btn" @click="scrollToAll">
+              探索全部
+              <Icon icon="ph:arrow-right" class="btn-icon-arrow" />
+            </button>
           </div>
         </div>
 
-        <div class="hero-stats">
-          <div class="stat-card">
-            <strong>{{ circles.length }}</strong>
-            <span>可逛圈子</span>
+        <aside class="hero-side" v-if="hotCircles.length > 0">
+          <div class="hero-side-head">
+            <span class="hero-side-kicker">
+              <Icon icon="ph:fire" class="kicker-icon" />
+              热门圈子排行
+            </span>
+            <strong>本周最活跃</strong>
           </div>
-          <div class="stat-card">
-            <strong>{{ joinedCircles.length }}</strong>
-            <span>已加入</span>
+          <div class="hero-rank-list">
+            <article
+              v-for="(circle, index) in hotCircles"
+              :key="circle.id"
+              class="hero-rank-card"
+              @click="enterCircle(circle)"
+            >
+              <div class="hero-rank-badge" :class="`hero-rank-badge--${index + 1}`">
+                {{ index + 1 }}
+              </div>
+              <div class="hero-rank-avatar">
+                <img v-if="circle.avatar" :src="circle.avatar" :alt="circle.name" />
+                <span v-else class="hero-rank-avatar-fallback">{{ circle.name.charAt(0) }}</span>
+              </div>
+              <div class="hero-rank-main">
+                <div class="hero-rank-topline">
+                  <strong>{{ circle.name }}</strong>
+                  <span class="hero-rank-heat">{{ circle.memberCount }} 成员</span>
+                </div>
+                <p>{{ circle.intro }}</p>
+              </div>
+            </article>
           </div>
-          <div class="stat-card">
-            <strong>{{ hotCircles.length }}</strong>
-            <span>本周热门</span>
-          </div>
-        </div>
+        </aside>
       </section>
 
+      <!-- 我的圈子 -->
       <section v-if="joinedCircles.length > 0" ref="joinedSectionRef" class="circle-section">
         <div class="section-top">
           <div>
-            <span class="block-kicker">我的圈子</span>
-            <h2>优先回到你常驻的同好地带</h2>
+            <span class="block-kicker">
+              <Icon icon="ph:heart-straight" class="kicker-icon" />
+              我的圈子
+            </span>
+            <h2>常驻同好地带</h2>
           </div>
           <span class="section-count">{{ joinedCircles.length }}</span>
         </div>
         <div class="circle-grid">
-          <article
+          <CircleCard
             v-for="circle in joinedCircles"
             :key="circle.id"
-            class="circle-card circle-card--joined"
+            :circle="circle"
+            variant="joined"
             @click="enterCircle(circle)"
-          >
-            <div class="circle-avatar">
-              <img v-if="circle.avatar" :src="circle.avatar" :alt="circle.name" />
-              <span v-else class="avatar-text">{{ circle.name.charAt(0) }}</span>
-            </div>
-            <div class="circle-info">
-              <div class="circle-title-row">
-                <h3 class="circle-name">{{ circle.name }}</h3>
-                <span class="circle-tag">已加入</span>
-              </div>
-              <p class="circle-intro">{{ circle.intro }}</p>
-              <div class="circle-stats-row">
-                <span>{{ circle.postCount }} 帖子</span>
-                <span>{{ circle.memberCount }} 成员</span>
-              </div>
-            </div>
-          </article>
+          />
         </div>
       </section>
 
-      <section v-if="hotCircles.length > 0" class="circle-section hot-section">
+      <!-- 热门排行 -->
+      <section v-if="hotCircles.length > 0" class="circle-section">
         <div class="section-top">
           <div>
-            <span class="block-kicker">热门推荐</span>
-            <h2>本周最活跃的圈子</h2>
+            <span class="block-kicker">
+              <Icon icon="ph:fire" class="kicker-icon" />
+              热门推荐
+            </span>
+            <h2>本周最活跃圈子</h2>
           </div>
         </div>
-        <div class="hot-list">
+        <div class="hot-grid">
           <article
             v-for="(circle, index) in hotCircles"
             :key="circle.id"
             class="hot-card"
             @click="enterCircle(circle)"
           >
-            <div class="hot-rank">0{{ index + 1 }}</div>
-            <div class="hot-main">
-              <strong>{{ circle.name }}</strong>
-              <p>{{ circle.intro }}</p>
+            <div class="hot-cover">
+              <img
+                v-if="circle.cover"
+                :src="circle.cover"
+                :alt="circle.name"
+                class="hot-cover-img"
+              />
+              <div v-else class="hot-cover-fallback" :class="`hot-cover-fallback--${index + 1}`"></div>
+              <div class="hot-cover-overlay"></div>
+              <div class="hot-rank" :class="`hot-rank--${index + 1}`">
+                <template v-if="index === 0"><Icon icon="ph:crown-simple" /></template>
+                <template v-else>{{ index + 1 }}</template>
+              </div>
             </div>
-            <div class="hot-meta">
-              <span>{{ circle.postCount }} 帖子</span>
-              <span>{{ circle.memberCount }} 成员</span>
+            <div class="hot-body hot-body--stack">
+              <div class="hot-head-row">
+                <div class="hot-avatar">
+                  <img v-if="circle.avatar" :src="circle.avatar" :alt="circle.name" />
+                  <span v-else class="hot-avatar-fallback">{{ circle.name.charAt(0) }}</span>
+                </div>
+                <div class="hot-info">
+                  <strong>{{ circle.name }}</strong>
+                  <p>{{ circle.intro }}</p>
+                </div>
+              </div>
+              <div class="hot-meta">
+                <span><Icon icon="ph:note-pencil" /> {{ circle.postCount }} 帖子</span>
+                <span><Icon icon="ph:users" /> {{ circle.memberCount }} 成员</span>
+              </div>
             </div>
           </article>
         </div>
       </section>
 
+      <!-- 全部圈子 -->
       <section ref="allSectionRef" class="circle-section">
         <div class="section-top">
           <div>
-            <span class="block-kicker">圈子广场</span>
+            <span class="block-kicker">
+              <Icon icon="ph:planet" class="kicker-icon" />
+              全部圈子
+            </span>
             <h2>从作品主题进入社区</h2>
           </div>
           <span class="section-count">{{ circles.length }}</span>
         </div>
         <div v-if="!loading" class="circle-grid">
-          <article
+          <CircleCard
             v-for="circle in circles"
             :key="circle.id"
-            class="circle-card"
+            :circle="circle"
             @click="enterCircle(circle)"
-          >
-            <div class="circle-avatar">
-              <img v-if="circle.avatar" :src="circle.avatar" :alt="circle.name" />
-              <span v-else class="avatar-text">{{ circle.name.charAt(0) }}</span>
-            </div>
-            <div class="circle-info">
-              <div class="circle-title-row">
-                <h3 class="circle-name">{{ circle.name }}</h3>
-                <button
-                  class="join-btn"
-                  :class="{ joined: circle.joined }"
-                  @click.stop="toggleJoin(circle)"
-                >
-                  {{ circle.joined ? '已加入' : '加入' }}
-                </button>
-              </div>
-              <p class="circle-intro">{{ circle.intro }}</p>
-              <div class="circle-stats-row">
-                <span>{{ circle.postCount }} 帖子</span>
-                <span>{{ circle.memberCount }} 成员</span>
-              </div>
-            </div>
-          </article>
+            @toggle="toggleJoin(circle)"
+          />
         </div>
         <LoadingSpinner v-else text="加载圈子中..." />
         <EmptyState v-if="!loading && circles.length === 0" title="暂无圈子" />
@@ -154,6 +194,7 @@ import { useNavigate } from '@/composables/useNavigate'
 import { useAuth } from '@/composables/useAuth'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import CircleCard from '@/components/CircleCard.vue'
 
 const { open } = useNavigate()
 const { requireLogin } = useAuth()
@@ -243,162 +284,435 @@ onMounted(() => {
   margin: 0 auto;
 }
 
+/* ==================== HERO ==================== */
 .hero-panel {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.9fr);
+  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.95fr);
   gap: 20px;
-  margin-bottom: 32px;
-}
-
-.hero-copy,
-.hero-stats,
-.circle-card,
-.hot-card {
-  background: var(--card);
-  border: 1.5px solid var(--border-light);
-  border-radius: 24px;
+  margin-bottom: 40px;
 }
 
 .hero-copy {
   position: relative;
   overflow: hidden;
-  padding: 34px;
-  background: linear-gradient(135deg, #fff7fb 0%, #fff1f7 52%, #fff9fd 100%);
-  border: 1px solid rgba(255, 182, 213, 0.7);
-  box-shadow: 0 18px 38px rgba(255, 107, 157, 0.1);
+  padding: 30px 32px 28px;
+  background: linear-gradient(145deg, #fef6fb 0%, #fff2f8 38%, #faf2ff 100%);
+  background-size: 200% 200%;
+  animation: heroBgShift 8s ease-in-out infinite;
+  border: 1.5px solid rgba(255, 163, 200, 0.45);
+  border-radius: 24px;
+  box-shadow:
+    0 14px 32px rgba(255, 107, 157, 0.04),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.68);
 }
 
-.hero-ribbon {
-  position: absolute;
-  top: -48px;
-  left: -120px;
-  width: 240px;
-  height: calc(100% + 96px);
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.92), rgba(255, 194, 224, 0.65), rgba(255, 255, 255, 0));
-  transform: skewX(-18deg);
-  opacity: 0.95;
-  pointer-events: none;
-  animation: heroRibbonSweep 2.8s linear infinite;
+@keyframes heroBgShift {
+  0%, 100% { background-position: 0% 50%; }
+  25% { background-position: 50% 30%; }
+  50% { background-position: 100% 60%; }
+  75% { background-position: 30% 80%; }
 }
 
-.hero-copy::before {
-  content: '';
+/* ========== 流星装饰 ========== */
+.hero-deco-layer {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0));
+  overflow: hidden;
   pointer-events: none;
+  z-index: 1;
 }
 
-.hero-copy::after {
-  content: '';
+.meteor {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 3px;
-  background: linear-gradient(90deg, rgba(255, 125, 182, 0), rgba(255, 125, 182, 0.95), rgba(255, 125, 182, 0));
+  top: -30%;
+  width: 2.5px;
+  height: 60px;
+  border-radius: 3px;
+  background: linear-gradient(to bottom, #fff, rgba(255, 107, 157, 0.6), rgba(180, 132, 255, 0));
+  box-shadow: 0 0 8px 2px rgba(255, 163, 200, 0.5);
+  opacity: 0;
+  animation: meteorFall var(--meteor-dur, 3s) ease-in infinite;
+  animation-delay: var(--meteor-delay, 0s);
+}
+
+.meteor--1 {
+  left: 15%;
+  --meteor-dur: 3s;
+  --meteor-delay: 0s;
+}
+
+.meteor--2 {
+  left: 48%;
+  --meteor-dur: 3.6s;
+  --meteor-delay: 1.4s;
+  height: 48px;
+  width: 2px;
+}
+
+.meteor--3 {
+  left: 70%;
+  --meteor-dur: 2.8s;
+  --meteor-delay: 2.8s;
+  height: 68px;
+}
+
+@keyframes meteorFall {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(-22deg);
+  }
+  8% {
+    opacity: 0.9;
+  }
+  30% {
+    opacity: 0;
+    transform: translate(120px, 280px) rotate(-22deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(120px, 280px) rotate(-22deg);
+  }
+}
+
+/* ========== 闪光星点 ========== */
+.hero-sparkles {
+  position: absolute;
+  inset: 0;
   pointer-events: none;
+  z-index: 1;
+}
+
+.sparkle {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: sparklePulse 2s ease-in-out infinite;
+}
+
+.sparkle--1 {
+  top: 8%;
+  right: 12%;
+  font-size: 22px;
+  color: #ffb3d0;
+  animation-delay: 0s;
+  filter: drop-shadow(0 0 4px rgba(255, 107, 157, 0.4));
+}
+
+.sparkle--2 {
+  top: 48%;
+  right: 6%;
+  font-size: 16px;
+  color: #c4b5fd;
+  animation-delay: 0.5s;
+  animation-duration: 2.5s;
+  filter: drop-shadow(0 0 3px rgba(180, 132, 255, 0.45));
+}
+
+.sparkle--3 {
+  top: 14%;
+  right: 36%;
+  font-size: 14px;
+  color: #ffd1e3;
+  animation-delay: 1s;
+  animation-duration: 1.8s;
+  filter: drop-shadow(0 0 3px rgba(255, 163, 200, 0.35));
+}
+
+.sparkle--4 {
+  top: 60%;
+  right: 28%;
+  font-size: 20px;
+  color: #e0c8ff;
+  animation-delay: 1.6s;
+  animation-duration: 2.3s;
+  filter: drop-shadow(0 0 4px rgba(180, 132, 255, 0.4));
+}
+
+.sparkle--5 {
+  top: 5%;
+  right: 52%;
+  font-size: 12px;
+  color: #ffb3d0;
+  animation-delay: 2s;
+  animation-duration: 2.1s;
+  filter: drop-shadow(0 0 2px rgba(255, 107, 157, 0.35));
+}
+
+@keyframes sparklePulse {
+  0%, 100% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
 }
 
 .hero-kicker,
-.block-kicker {
+.block-kicker,
+.hero-side-kicker {
   display: inline-flex;
   align-items: center;
+  gap: 5px;
   font-size: 12px;
   font-weight: 700;
   color: var(--pink);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
+  padding: 5px 14px;
+  background: rgba(255, 107, 157, 0.1);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 107, 157, 0.18);
+}
+
+.block-kicker {
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.hero-side-kicker {
+  padding: 4px 12px;
+}
+
+.kicker-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 .hero-copy h1 {
-  margin: 14px 0 12px;
-  font-size: 34px;
-  line-height: 1.2;
+  margin: 12px 0 8px;
+  font-size: 32px;
+  line-height: 1.25;
+  font-weight: 800;
   color: var(--text);
+}
+
+.h1-accent {
+  background: linear-gradient(135deg, #ff5ea0, #b07cf0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .hero-copy p {
   margin: 0;
   font-size: 14px;
   line-height: 1.8;
-  color: rgba(92, 74, 110, 0.82);
-  max-width: 680px;
-  position: relative;
-  z-index: 1;
+  color: rgba(90, 70, 108, 0.75);
+  max-width: 620px;
 }
 
 .hero-actions {
   display: flex;
   gap: 12px;
-  margin-top: 24px;
+  margin-top: 20px;
 }
 
 .primary-btn,
-.ghost-btn,
-.join-btn {
+.ghost-btn {
   border-radius: 14px;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.22s ease-out;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .primary-btn {
   border: none;
   background: linear-gradient(135deg, var(--pink), var(--purple));
   color: white;
-  padding: 12px 20px;
-  box-shadow: 0 10px 24px rgba(255, 107, 157, 0.18);
+  padding: 12px 22px;
+  box-shadow: 0 6px 20px rgba(255, 107, 157, 0.18);
 }
 
 .primary-btn:hover {
   transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(180, 132, 255, 0.24);
 }
 
 .ghost-btn {
-  border: 1.5px solid var(--border);
-  background: rgba(255, 255, 255, 0.72);
+  border: 1.5px solid rgba(255, 163, 200, 0.4);
+  background: rgba(255, 255, 255, 0.78);
   color: var(--text);
-  padding: 12px 20px;
+  padding: 12px 22px;
 }
 
 .ghost-btn:hover {
   border-color: var(--pink);
   color: var(--pink);
+  background: rgba(255, 107, 157, 0.04);
 }
 
-.hero-stats {
-  padding: 20px;
-  display: grid;
-  gap: 14px;
+.ghost-btn:hover .btn-icon-arrow {
+  transform: translateX(3px);
 }
 
-.stat-card {
-  padding: 18px 20px;
-  border-radius: 18px;
-  background: var(--bg-soft);
+.btn-icon-arrow {
+  transition: transform 0.22s ease-out;
+}
+
+/* ==================== HERO SIDE RANK ==================== */
+.hero-side {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 248, 252, 0.98));
+  border: 1.5px solid rgba(255, 163, 200, 0.22);
+  border-radius: 24px;
+  padding: 16px;
+  box-shadow: 0 14px 32px rgba(255, 107, 157, 0.04);
+}
+
+.hero-side-head {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+  margin-bottom: 10px;
 }
 
-.stat-card strong {
-  font-size: 28px;
-  line-height: 1;
+.hero-side-head strong {
+  font-size: 18px;
   color: var(--text);
+  font-weight: 800;
 }
 
-.stat-card span {
+.hero-rank-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hero-rank-card {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid rgba(255, 163, 200, 0.14);
+  cursor: pointer;
+  transition: all 0.22s ease;
+}
+
+.hero-rank-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 107, 157, 0.3);
+  box-shadow: 0 10px 20px rgba(255, 107, 157, 0.06);
+}
+
+.hero-rank-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.hero-rank-badge :deep(svg) {
+  width: 18px;
+  height: 18px;
+}
+
+.hero-rank-badge--1 {
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+}
+
+.hero-rank-badge--2 {
+  background: linear-gradient(135deg, #a5b4fc, #c4b5fd);
+}
+
+.hero-rank-badge--3 {
+  background: linear-gradient(135deg, #fb923c, #fda4af);
+}
+
+.hero-rank-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #f9a8d4, #c4b5fd);
+  box-shadow: 0 3px 10px rgba(255, 107, 157, 0.12);
+}
+
+.hero-rank-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hero-rank-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.hero-rank-main {
+  min-width: 0;
+}
+
+.hero-rank-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.hero-rank-topline strong {
   font-size: 13px;
-  color: var(--text-dim);
+  color: var(--text);
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+.hero-rank-heat {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 107, 157, 0.08);
+  color: var(--pink);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.hero-rank-main p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+/* ==================== SECTIONS ==================== */
 .circle-section {
-  margin-bottom: 36px;
+  margin-bottom: 48px;
 }
 
 .section-top {
-  margin-bottom: 18px;
+  margin-bottom: 20px;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
@@ -406,194 +720,216 @@ onMounted(() => {
 }
 
 .section-top h2 {
-  margin: 8px 0 0;
-  font-size: 24px;
+  margin: 6px 0 0;
+  font-size: 22px;
+  font-weight: 800;
   color: var(--text);
 }
 
 .section-count {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text-dim);
-  background: var(--bg-soft);
+  background: var(--bg-alt);
   padding: 5px 12px;
   border-radius: 999px;
+  border: 1px solid var(--border-light);
 }
 
+/* ==================== GRID ==================== */
 .circle-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  gap: 20px;
 }
 
-.circle-card {
-  padding: 20px;
+/* ==================== HOT RANKING ==================== */
+.hot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.hot-card {
+  background: var(--card);
+  border: 1.5px solid var(--border-light);
+  border-radius: 20px;
+  overflow: hidden;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
+  transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.circle-card:hover,
 .hot-card:hover {
-  border-color: var(--pink);
-  box-shadow: 0 10px 28px rgba(255, 107, 157, 0.1);
+  border-color: rgba(255, 107, 157, 0.35);
+  box-shadow: 0 10px 28px rgba(255, 107, 157, 0.08);
   transform: translateY(-3px);
 }
 
-.circle-card--joined {
-  background: linear-gradient(180deg, rgba(255, 250, 252, 0.96), rgba(255, 255, 255, 0.98));
+.hot-cover {
+  position: relative;
+  height: 110px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #fde8f5, #f0e6ff);
 }
 
-.circle-avatar {
-  width: 60px;
-  height: 60px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+.hot-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.4s ease-out;
+}
+
+.hot-card:hover .hot-cover-img {
+  transform: scale(1.04);
+}
+
+.hot-cover-fallback {
+  width: 100%;
+  height: 100%;
+}
+
+.hot-cover-fallback--1 {
+  background: linear-gradient(135deg, #fde8e8, #f5e0ff);
+}
+.hot-cover-fallback--2 {
+  background: linear-gradient(135deg, #e8e8fd, #e0f0ff);
+}
+.hot-cover-fallback--3 {
+  background: linear-gradient(135deg, #fdf0e8, #ffe8f0);
+}
+
+.hot-cover-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 35%,
+    rgba(255, 255, 255, 0.12) 65%,
+    rgba(255, 255, 255, 0.45) 100%
+  );
+  pointer-events: none;
+}
+
+.hot-rank {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 800;
+  color: white;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+  z-index: 2;
+}
+
+.hot-rank--1 {
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+  font-size: 18px;
+}
+
+.hot-rank--2 {
+  background: linear-gradient(135deg, #94a3b8, #cbd5e1);
+  color: #475569;
+}
+
+.hot-rank--3 {
+  background: linear-gradient(135deg, #d97706, #f59e0b);
+}
+
+.hot-body {
+  padding: 16px;
+}
+
+.hot-body--stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hot-head-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hot-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f9a8d4, #c4b5fd);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   overflow: hidden;
-  box-shadow: 0 6px 16px rgba(255, 107, 157, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.88);
+  box-shadow: 0 3px 10px rgba(255, 107, 157, 0.14);
 }
 
-.circle-avatar img {
+.hot-avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.avatar-text {
+.hot-avatar-fallback {
   color: white;
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 800;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
-.circle-info {
+.hot-info {
   flex: 1;
   min-width: 0;
 }
 
-.circle-title-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 6px;
-}
-
-.circle-name {
-  margin: 0;
-  font-size: 17px;
+.hot-info strong {
+  display: block;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text);
-}
-
-.circle-tag {
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: rgba(255, 107, 157, 0.12);
-  color: var(--pink);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.circle-intro {
-  margin: 0 0 10px;
-  font-size: 13px;
-  line-height: 1.7;
-  color: var(--text-dim);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  margin-bottom: 4px;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.circle-stats-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  font-size: 12px;
+.hot-info p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.6;
   color: var(--text-dim);
-}
-
-.join-btn {
-  padding: 6px 14px;
-  border: 1.5px solid var(--pink);
-  background: transparent;
-  color: var(--pink);
-  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.join-btn:hover {
-  background: var(--pink);
-  color: white;
-}
-
-.join-btn.joined {
-  background: var(--bg-soft);
-  border-color: var(--border);
-  color: var(--text-dim);
-}
-
-.hot-list {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
-
-.hot-card {
-  padding: 18px 20px;
-  cursor: pointer;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 14px;
-  align-items: center;
-}
-
-.hot-rank {
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  font-weight: 800;
-}
-
-.hot-main strong {
-  display: block;
-  margin-bottom: 4px;
-  font-size: 16px;
-  color: var(--text);
-}
-
-.hot-main p {
-  margin: 0;
-  font-size: 12px;
-  color: var(--text-dim);
-  line-height: 1.6;
-}
-
 .hot-meta {
-  grid-column: 2;
   display: flex;
   gap: 12px;
   font-size: 11px;
   color: var(--text-dim);
 }
 
+.hot-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* ==================== FOOTER ==================== */
 .footer {
   text-align: center;
   padding: 40px 0 20px;
   border-top: 1px solid var(--border);
-  margin-top: 40px;
+  margin-top: 48px;
 }
 
 .footer-links {
@@ -609,75 +945,37 @@ onMounted(() => {
   text-decoration: none;
 }
 
-.footer-links a:hover {
-  color: var(--pink);
-}
+.footer-links a:hover { color: var(--pink); }
 
 .footer-copy {
   font-size: 11px;
   color: var(--text-dim);
 }
 
-@keyframes heroGlassSweep {
-  0% {
-    left: -48%;
-    opacity: 0;
-  }
-  16% {
-    opacity: 0.7;
-  }
-  52% {
-    left: 112%;
-    opacity: 0.28;
-  }
-  100% {
-    left: 112%;
-    opacity: 0;
-  }
-}
-
+/* ==================== RESPONSIVE ==================== */
 @media (max-width: 1100px) {
-  .hero-panel,
-  .hot-list,
-  .circle-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .hero-stats {
-    grid-column: 1 / -1;
-    grid-template-columns: repeat(3, 1fr);
-  }
+  .hero-panel { grid-template-columns: 1fr; }
+  .hot-grid,
+  .circle-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 768px) {
-  .page-inner {
-    width: min(100vw - 24px, 1368px);
-  }
+  .page-inner { width: min(100vw - 24px, 1368px); }
 
-  .hero-panel,
-  .hot-list,
-  .circle-grid,
-  .hero-stats {
-    grid-template-columns: 1fr;
-  }
+  .hero-copy { padding: 28px 24px; }
+  .hero-copy h1 { font-size: 26px; }
 
-  .hero-copy {
-    padding: 24px;
-  }
-
-  .hero-copy h1 {
-    font-size: 28px;
-  }
+  .hot-grid,
+  .circle-grid { grid-template-columns: 1fr; }
 
   .hero-actions,
-  .circle-title-row,
   .section-top {
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .join-btn {
-    width: 100%;
+  .hot-head-row {
+    align-items: flex-start;
   }
 }
 </style>

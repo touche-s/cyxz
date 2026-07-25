@@ -9,6 +9,7 @@
   --yellow: #fbbf24;
   --bg: #fef6ff;
   --bg-alt: #f5f0f8;
+  --bg-soft: #fdf2f9;
   --card: #fff;
   --text: #2d1b3d;
   --text-dim: #9a7e9e;
@@ -31,6 +32,7 @@
 html.dark {
   --bg: #1a1a2e;
   --bg-alt: #1e1e35;
+  --bg-soft: #24243d;
   --card: #252547;
   --text: #e0d6f0;
   --text-dim: #8b7a9e;
