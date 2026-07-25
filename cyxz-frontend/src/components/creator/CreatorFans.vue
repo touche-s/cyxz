@@ -23,8 +23,7 @@
     <div class="fans-list" v-if="!fansLoading">
       <div class="fan-item" v-for="fan in filteredFansList" :key="fan.userId">
         <div class="fan-avatar clickable" @click="goToUser(fan.userId)">
-          <img v-if="fan.avatar" :src="fan.avatar" alt="" />
-          <div v-else class="avatar-placeholder">👤</div>
+          <img :src="avatarUrl(fan.avatar)" alt="" />
         </div>
         <div class="fan-info">
           <h4 class="fan-name clickable" @click="goToUser(fan.userId)">{{ fan.nickname || '未知用户' }}</h4>
@@ -65,6 +64,7 @@ import { useNavigate } from '@/composables/useNavigate'
 import { getFollowerList, getFollowingList, followUser, unfollowUser, getFollowStats } from '@/api/user'
 import type { FollowUserVO } from '@/api/user'
 import { formatTime } from '@/utils/format'
+import { avatarUrl } from '@/utils/avatar'
 import SearchInput from '@/components/SearchInput.vue'
 import FollowButton from '@/components/FollowButton.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
@@ -284,16 +284,6 @@ onMounted(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.avatar-placeholder {
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, #ffd1dc, #e6e6fa);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
 }
 
 .fan-info {

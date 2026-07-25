@@ -21,8 +21,7 @@
       </div>
       <div class="card-meta">
         <div class="card-author">
-          <div class="card-avatar clickable" v-if="!post.authorAvatar" @click.stop="goToAuthor"></div>
-          <img v-else :src="post.authorAvatar" class="card-avatar clickable" alt="avatar" @click.stop="goToAuthor" />
+          <img :src="avatarUrl(post.authorAvatar)" class="card-avatar clickable" alt="avatar" @click.stop="goToAuthor" />
           <span class="card-author-name clickable" @click.stop="goToAuthor">{{ post.authorName || '匿名用户' }}</span>
         </div>
         <div class="card-stats">
@@ -48,6 +47,7 @@ import { ref, reactive } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { PostVO } from '@/api/post'
 import { formatNumber } from '@/utils/format'
+import { avatarUrl } from '@/utils/avatar'
 import { useNavigate } from '@/composables/useNavigate'
 
 const props = defineProps<{
@@ -253,7 +253,6 @@ const getGradient = (id: string | number) => {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
   border: 2px solid white;
   box-shadow: 0 1px 4px var(--shadow);
 }

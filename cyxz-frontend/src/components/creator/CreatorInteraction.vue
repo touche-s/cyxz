@@ -53,8 +53,7 @@
     <div class="comment-list" v-if="!commentsLoading && filteredManagedComments.length > 0">
       <div class="comment-manage-item" v-for="comment in filteredManagedComments" :key="comment.id">
         <div class="comment-avatar clickable" @click="goToUser(comment.userId)">
-          <img v-if="comment.userAvatar" :src="comment.userAvatar" alt="" />
-          <div v-else class="avatar-placeholder"></div>
+          <img :src="avatarUrl(comment.userAvatar)" alt="" />
         </div>
         <div class="comment-body">
           <div class="comment-top-row">
@@ -97,6 +96,7 @@ import { getUserPosts } from '@/api/post'
 import type { CommentVO } from '@/api/comment'
 import type { PostVO } from '@/api/post'
 import { formatTime } from '@/utils/format'
+import { avatarUrl } from '@/utils/avatar'
 import { useNavigate } from '@/composables/useNavigate'
 import { isDeleted, statusText } from '@/utils/postStatus'
 
@@ -441,16 +441,6 @@ onMounted(() => {
 .comment-avatar.clickable:hover,
 .comment-name.clickable:hover {
   opacity: 0.75;
-}
-
-.avatar-placeholder {
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, #ffd1dc, #e6e6fa);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
 }
 
 .comment-body {

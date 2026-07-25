@@ -1,14 +1,10 @@
 <template>
   <div class="comment-item" :class="{ 'is-reply': !isTopLevel }">
     <!-- 用户头像 -->
-    <img v-if="comment.userAvatar"
-         :src="comment.userAvatar"
+    <img :src="avatarUrl(comment.userAvatar)"
          class="comment-avatar"
          :class="{ clickable: comment.userId }"
          @click="comment.userId && goToUser()" />
-    <div v-else class="comment-avatar-placeholder"
-         :class="{ clickable: comment.userId }"
-         @click="comment.userId && goToUser()"></div>
 
     <div class="comment-body">
       <!-- 头部：用户名 + 内容（子评论时同行显示） -->
@@ -134,6 +130,7 @@ import { useAuth } from '@/composables/useAuth'
 import { useNavigate } from '@/composables/useNavigate'
 import { Icon } from '@iconify/vue'
 import { formatDateTime } from '@/utils/format'
+import { avatarUrl } from '@/utils/avatar'
 
 const { open } = useNavigate()
 
@@ -363,8 +360,7 @@ watch(() => props.comment.totalReplies, async (newVal, oldVal) => {
 }
 
 /* 顶级评论头像 */
-.comment-item:not(.is-reply) .comment-avatar,
-.comment-item:not(.is-reply) .comment-avatar-placeholder {
+.comment-item:not(.is-reply) .comment-avatar {
   width: 48px;
   height: 48px;
 }
@@ -377,17 +373,8 @@ watch(() => props.comment.totalReplies, async (newVal, oldVal) => {
   flex-shrink: 0;
 }
 
-.comment-avatar-placeholder {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  flex-shrink: 0;
-}
-
 /* 子评论头像小一点 */
-.comment-item.is-reply .comment-avatar,
-.comment-item.is-reply .comment-avatar-placeholder {
+.comment-item.is-reply .comment-avatar {
   width: 24px;
   height: 24px;
 }

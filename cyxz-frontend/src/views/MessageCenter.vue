@@ -48,14 +48,14 @@
                         v-for="(av, ai) in msg.mergeAvatars"
                         :key="ai"
                         class="stacked-avatar"
-                        :src="av || '/default-avatar.jpg'"
+                        :src="avatarUrl(av)"
                         alt=""
                         :style="{ left: Number(ai) * 14 + 'px', zIndex: 10 - Number(ai) }"
                       />
                     </div>
                   </div>
                   <div class="msg-avatar" v-else @click.stop="goUser(msg.senderId)">
-                    <img :src="msg.senderAvatar || '/default-avatar.jpg'" alt="" />
+                    <img :src="avatarUrl(msg.senderAvatar)" alt="" />
                   </div>
                 </div>
                 <div class="msg-content">
@@ -108,6 +108,7 @@ import { Icon } from '@iconify/vue'
 import { useNavigate } from '@/composables/useNavigate'
 import { useMessageStore } from '@/stores/message'
 import { getNotifications, markAllRead, markRead, type NotificationVO } from '@/api/message'
+import { avatarUrl } from '@/utils/avatar'
 
 const { open } = useNavigate()
 const messageStore = useMessageStore()

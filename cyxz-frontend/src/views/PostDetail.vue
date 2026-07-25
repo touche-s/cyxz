@@ -10,8 +10,7 @@
           <div class="post-main-card">
             <div class="post-header">
               <div class="author-info">
-                <img v-if="post.authorAvatar" :src="post.authorAvatar" class="author-avatar clickable" @click="goToAuthor" />
-                <div v-else class="author-avatar-placeholder clickable" @click="goToAuthor"></div>
+                <img :src="avatarUrl(post.authorAvatar)" class="author-avatar clickable" @click="goToAuthor" />
                 <div class="author-meta">
                   <div class="author-name-row">
                     <span class="author-name clickable" @click="goToAuthor">{{ post.authorName || '匿名用户' }}</span>
@@ -210,6 +209,7 @@ import { ElMessage } from 'element-plus'
 import { getPostDetail, likePost, unlikePost, collectPost, uncollectPost, recordPostView } from '@/api/post'
 import { isPublished } from '@/utils/postStatus'
 import { formatDateTime, formatNumber } from '@/utils/format'
+import { avatarUrl } from '@/utils/avatar'
 import {
   getCommentList,
   createComment,
@@ -631,15 +631,6 @@ onMounted(async () => {
   object-fit: cover;
   border: 2px solid white;
   box-shadow: var(--shadow-lg);
-}
-
-.author-avatar-placeholder {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  border: 2px solid white;
-  box-shadow: var(--shadow);
 }
 
 .author-meta {
