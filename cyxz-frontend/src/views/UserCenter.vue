@@ -194,7 +194,7 @@ const tabs = [
 ]
 
 const profile = reactive<UserInfo>({
-  userId: 0,
+  userId: '',
   nickname: '',
   avatar: '',
   bio: '',
