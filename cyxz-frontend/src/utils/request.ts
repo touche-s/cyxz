@@ -66,4 +66,9 @@ request.interceptors.response.use(
   }
 )
 
-export default request
+export default request as unknown as {
+  get<R = any>(url: string, config?: any): Promise<R>
+  post<R = any>(url: string, data?: any, config?: any): Promise<R>
+  put<R = any>(url: string, data?: any, config?: any): Promise<R>
+  delete<R = any>(url: string, config?: any): Promise<R>
+}
