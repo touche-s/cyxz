@@ -70,6 +70,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/MessageCenter.vue'),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/messages/chat',
+    name: 'PrivateMessages',
+    component: () => import('@/views/PrivateMessages.vue'),
+    meta: { requiresAuth: true },
+  },
 ]
 
 const router = createRouter({

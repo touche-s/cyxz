@@ -67,7 +67,10 @@
           <span class="action-label">私信</span>
         </button>
         <button class="header-action" @click="goMessages">
-          <Icon icon="ph:bell" class="action-iconify" />
+          <div class="action-icon-wrap">
+            <Icon icon="ph:bell" class="action-iconify" />
+            <span class="action-badge" v-if="unreadCount > 0">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+          </div>
           <span class="action-label">通知</span>
         </button>
         <button class="header-action" @click="goFavorites">
@@ -92,6 +95,7 @@ import { ref, computed, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import SearchInput from '@/components/SearchInput.vue'
 import { useUserStore } from '@/stores/user'
+import { useMessageStore } from '@/stores/message'
 import { useAuth } from '@/composables/useAuth'
 import { useNavigate } from '@/composables/useNavigate'
 import { logout } from '@/api/auth'
@@ -99,6 +103,7 @@ import { getFollowStats } from '@/api/user'
 import { ElMessage } from 'element-plus'
 
 const userStore = useUserStore()
+const messageStore = useMessageStore()
 const { requireLogin } = useAuth()
 const { open, openWithQuery, to } = useNavigate()
 
@@ -106,6 +111,7 @@ const dropdownOpen = ref(false)
 const followStats = ref({ following: 0, followers: 0 })
 const searchText = ref('')
 const isDark = ref(false)
+const unreadCount = computed(() => messageStore.unreadCount)
 
 const displayName = computed(() => {
   const u = userStore.userInfo
@@ -149,7 +155,7 @@ function goMessages() {
 
 function goPrivateMessages() {
   if (!requireLogin()) return
-  to('/messages')
+  to('/messages/chat')
 }
 
 function goPublish() {
@@ -199,10 +205,17 @@ async function loadFollowStats() {
   } catch { /* ignore */ }
 }
 
+function loadUnreadCount() {
+  if (!userStore.isLoggedIn) return
+  messageStore.refreshUnreadCount()
+}
+
 onMounted(() => {
   isDark.value = localStorage.getItem('darkMode') === '1'
   document.documentElement.classList.toggle('dark', isDark.value)
   loadFollowStats()
+  loadUnreadCount()
+  setInterval(() => { loadUnreadCount() }, 30000)
 })
 </script>
 
@@ -617,5 +630,31 @@ onMounted(() => {
   height: 1px;
   background: var(--border);
   margin: 6px 8px;
+}
+
+.action-icon-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-badge {
+  position: absolute;
+  top: -6px;
+  right: -10px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #ff4d6a, #ff6b9d);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-shadow: 0 2px 8px rgba(255, 77, 106, 0.35);
 }
 </style>
