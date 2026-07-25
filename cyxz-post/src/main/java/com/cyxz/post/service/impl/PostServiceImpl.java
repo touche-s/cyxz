@@ -880,4 +880,26 @@ public class PostServiceImpl implements PostService {
         log.info("批量操作完成: action={}, count={}, userId={}", action, postIds.size(), userId);
     }
 
+    @Override
+    public PageResult<PostVO> listFollowingPosts(Long userId, int page, int size) {
+        Result<List<Long>> feignResult = userFeignClient.getFollowingUserIds(userId);
+        List<Long> followingUserIds = (feignResult != null && feignResult.getData() != null)
+                ? feignResult.getData() : Collections.emptyList();
+
+        if (followingUserIds.isEmpty()) {
+            return PageResult.of(Collections.emptyList(), 0, page, size);
+        }
+
+        Page<PostPO> pageParam = PageConstants.pageOf(page, size);
+        LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PostPO::getStatus, CommonStatus.ACTIVE);
+        wrapper.in(PostPO::getUserId, followingUserIds);
+        wrapper.orderByDesc(PostPO::getCreateTime);
+        Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
+
+        List<PostVO> vos = fillPostVOList(result.getRecords(), userId);
+        vos.forEach(vo -> vo.setPinned(false));
+        return PageResult.of(vos, result.getTotal(), page, size);
+    }
+
 }

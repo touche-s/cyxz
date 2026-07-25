@@ -221,6 +221,17 @@ public interface PostService {
     void unpinPost(Long userId, Long postId);
 
     /**
+     * 分页查询关注动态（已加入圈子的帖子）
+     * <p>按创建时间倒序排列，仅返回已发布帖子。
+     *
+     * @param userId 当前用户 ID
+     * @param page   页码（从 1 开始）
+     * @param size   每页条数
+     * @return 分页结果（含总条数）
+     */
+    PageResult<PostVO> listFollowingPosts(Long userId, int page, int size);
+
+    /**
      * 批量操作帖子
      * <p>支持批量发布和批量删除。
      *

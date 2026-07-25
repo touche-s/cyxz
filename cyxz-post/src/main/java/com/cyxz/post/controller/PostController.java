@@ -140,6 +140,16 @@ public class PostController {
     }
 
     /**
+     * 分页查询关注动态（关注用户发布的帖子）
+     */
+    @GetMapping("/following")
+    public Result<PageResult<PostVO>> listFollowing(@CurrentUser Long userId,
+                                                    @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
+                                                    @RequestParam(value = "size", defaultValue = PageConstants.DEFAULT_SIZE_STR) int size) {
+        return Result.success(postService.listFollowingPosts(userId, page, size));
+    }
+
+    /**
      * 查询当前用户的帖子列表（含草稿和已删除）
      *
      * @param userId    当前登录用户 ID（由 Gateway 注入）
