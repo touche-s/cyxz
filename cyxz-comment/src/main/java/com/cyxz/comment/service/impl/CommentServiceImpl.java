@@ -16,6 +16,9 @@ import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.constant.PageConstants;
+import com.cyxz.message.api.dto.CreateNotificationRequest;
+import com.cyxz.message.api.enums.NotificationType;
+import com.cyxz.message.api.feign.MessageFeignClient;
 import com.cyxz.post.feign.PostFeignClient;
 import com.cyxz.post.vo.PostInfoVO;
 import com.cyxz.user.feign.UserFeignClient;
@@ -43,6 +46,7 @@ public class CommentServiceImpl implements CommentService {
     private final UserFeignClient userFeignClient;
     private final PostFeignClient postFeignClient;
     private final StringRedisTemplate stringRedisTemplate;
+    private final MessageFeignClient messageFeignClient;
 
     /**
      * 发表评论
@@ -78,6 +82,38 @@ public class CommentServiceImpl implements CommentService {
         }
 
         commentMapper.insert(po);
+        // 发送帖子被评论通知（评论作者不是帖子作者时才发）
+        if (!userId.equals(po.getPostAuthorId())) {
+            try {
+                messageFeignClient.createNotification(CreateNotificationRequest.builder()
+                    .receiverId(po.getPostAuthorId())
+                    .senderId(userId)
+                    .type(NotificationType.POST_COMMENTED.name())
+                    .targetId(po.getId())
+                    .targetType("comment")
+                    .relatedId(po.getPostId())
+                    .content(request.getContent())
+                    .build());
+            } catch (Exception e) {
+                log.warn("发送评论通知失败: commentId={}, postId={}", po.getId(), po.getPostId(), e);
+            }
+        }
+        // 发送回复通知（回复了别人的评论，且回复者不是被回复者）
+        if (po.getReplyToUserId() != null && !userId.equals(po.getReplyToUserId())) {
+            try {
+                messageFeignClient.createNotification(CreateNotificationRequest.builder()
+                    .receiverId(po.getReplyToUserId())
+                    .senderId(userId)
+                    .type(NotificationType.COMMENT_REPLIED.name())
+                    .targetId(po.getId())
+                    .targetType("comment")
+                    .relatedId(po.getPostId())
+                    .content(request.getContent())
+                    .build());
+            } catch (Exception e) {
+                log.warn("发送回复通知失败: commentId={}, replyToUserId={}", po.getId(), po.getReplyToUserId(), e);
+            }
+        }
         // Redis 增量：帖子评论数 +1
         stringRedisTemplate.opsForHash()
                 .increment(CacheKeyConstants.POST_COMMENT_DELTA, po.getPostId().toString(), 1);

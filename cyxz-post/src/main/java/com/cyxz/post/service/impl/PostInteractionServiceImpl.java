@@ -7,6 +7,9 @@ import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.utils.IpUtil;
 import com.cyxz.common.utils.StatusUpdateHelper;
+import com.cyxz.message.api.dto.CreateNotificationRequest;
+import com.cyxz.message.api.enums.NotificationType;
+import com.cyxz.message.api.feign.MessageFeignClient;
 import com.cyxz.post.entity.PostCollectPO;
 import com.cyxz.post.entity.PostLikePO;
 import com.cyxz.post.entity.PostPO;
@@ -38,6 +41,7 @@ public class PostInteractionServiceImpl implements PostInteractionService {
     private final PostLikeMapper postLikeMapper;
     private final PostCollectMapper postCollectMapper;
     private final StringRedisTemplate stringRedisTemplate;
+    private final MessageFeignClient messageFeignClient;
 
     /** 帖子是否允许互动（仅已发布） */
     private boolean isInteractable(PostPO po) {
@@ -70,6 +74,7 @@ public class PostInteractionServiceImpl implements PostInteractionService {
                 postLikeMapper.insert(newLike);
                 incrementLikeDelta(postId, 1);
                 log.info("点赞帖子: postId={}, userId={}", postId, userId);
+                sendLikeNotification(postId, userId, po);
             } catch (DuplicateKeyException e) {
                 PostLikePO conflict = queryPostLike(userId, postId);
                 if (conflict.getStatus() == 1) {
@@ -79,6 +84,7 @@ public class PostInteractionServiceImpl implements PostInteractionService {
                 if (updated) {
                     incrementLikeDelta(postId, 1);
                     log.info("点赞帖子(并发恢复): postId={}, userId={}", postId, userId);
+                    sendLikeNotification(postId, userId, po);
                 }
             }
             return;
@@ -89,6 +95,7 @@ public class PostInteractionServiceImpl implements PostInteractionService {
             if (updated) {
                 incrementLikeDelta(postId, 1);
                 log.info("点赞帖子(恢复): postId={}, userId={}", postId, userId);
+                sendLikeNotification(postId, userId, po);
             }
             return;
         }
@@ -145,6 +152,7 @@ public class PostInteractionServiceImpl implements PostInteractionService {
                 postCollectMapper.insert(newCollect);
                 incrementCollectDelta(postId, 1);
                 log.info("收藏帖子: postId={}, userId={}", postId, userId);
+                sendCollectNotification(postId, userId, po);
             } catch (DuplicateKeyException e) {
                 PostCollectPO conflict = queryPostCollect(userId, postId);
                 if (conflict.getStatus() == 1) {
@@ -154,6 +162,7 @@ public class PostInteractionServiceImpl implements PostInteractionService {
                 if (updated) {
                     incrementCollectDelta(postId, 1);
                     log.info("收藏帖子(并发恢复): postId={}, userId={}", postId, userId);
+                    sendCollectNotification(postId, userId, po);
                 }
             }
             return;
@@ -164,6 +173,7 @@ public class PostInteractionServiceImpl implements PostInteractionService {
             if (updated) {
                 incrementCollectDelta(postId, 1);
                 log.info("收藏帖子(恢复): postId={}, userId={}", postId, userId);
+                sendCollectNotification(postId, userId, po);
             }
             return;
         }
@@ -246,5 +256,51 @@ public class PostInteractionServiceImpl implements PostInteractionService {
         wrapper.eq(PostCollectPO::getUserId, userId)
                 .eq(PostCollectPO::getPostId, postId);
         return postCollectMapper.selectOne(wrapper);
+    }
+
+    // ==================== 通知辅助方法 ====================
+
+    /**
+     * 发送点赞通知
+     * <p>通过 Feign 调用消息服务创建点赞通知，失败仅记录日志不影响主流程。
+     *
+     * @param postId 帖子 ID
+     * @param userId 点赞用户 ID
+     * @param po     帖子实体（用于获取帖子作者作为接收者）
+     */
+    private void sendLikeNotification(Long postId, Long userId, PostPO po) {
+        try {
+            messageFeignClient.createNotification(CreateNotificationRequest.builder()
+                .receiverId(po.getUserId())
+                .senderId(userId)
+                .type(NotificationType.POST_LIKED.name())
+                .targetId(postId)
+                .targetType("post")
+                .build());
+        } catch (Exception e) {
+            log.warn("发送点赞通知失败: postId={}, userId={}", postId, userId, e);
+        }
+    }
+
+    /**
+     * 发送收藏通知
+     * <p>通过 Feign 调用消息服务创建收藏通知，失败仅记录日志不影响主流程。
+     *
+     * @param postId 帖子 ID
+     * @param userId 收藏用户 ID
+     * @param po     帖子实体（用于获取帖子作者作为接收者）
+     */
+    private void sendCollectNotification(Long postId, Long userId, PostPO po) {
+        try {
+            messageFeignClient.createNotification(CreateNotificationRequest.builder()
+                .receiverId(po.getUserId())
+                .senderId(userId)
+                .type(NotificationType.POST_COLLECTED.name())
+                .targetId(postId)
+                .targetType("post")
+                .build());
+        } catch (Exception e) {
+            log.warn("发送收藏通知失败: postId={}, userId={}", postId, userId, e);
+        }
     }
 }

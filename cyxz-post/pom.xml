@@ -88,6 +88,10 @@
             <groupId>com.cyxz</groupId>
             <artifactId>cyxz-comment-api</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.cyxz</groupId>
+            <artifactId>cyxz-message-api</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

@@ -228,3 +228,25 @@ CREATE TABLE IF NOT EXISTS comment_like (
     INDEX idx_comment_id (comment_id),
     INDEX idx_user_id (user_id)
 ) ENGINE=InnoDB COMMENT='评论点赞关系表';
+
+-- ==================== message 库 ====================
+CREATE DATABASE IF NOT EXISTS cyxz_message DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+
+USE cyxz_message;
+
+-- 通知表
+CREATE TABLE IF NOT EXISTS notification (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '通知 ID',
+    receiver_id BIGINT NOT NULL COMMENT '接收者用户 ID',
+    sender_id BIGINT NOT NULL COMMENT '触发者用户 ID',
+    type VARCHAR(32) NOT NULL COMMENT '通知类型: POST_LIKED/POST_COMMENTED/COMMENT_REPLIED/POST_COLLECTED/USER_FOLLOWED',
+    target_id BIGINT COMMENT '目标 ID（帖子 ID / 评论 ID）',
+    target_type VARCHAR(32) COMMENT '目标类型: post/comment',
+    related_id BIGINT COMMENT '关联 ID（评论所属帖子 ID）',
+    content VARCHAR(512) COMMENT '通知摘要内容（评论/回复内容截断）',
+    is_read TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否已读',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_receiver_read (receiver_id, is_read, create_time),
+    INDEX idx_receiver_type (receiver_id, type, create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='通知表';

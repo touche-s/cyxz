@@ -22,6 +22,7 @@
         <module>cyxz-user</module>
         <module>cyxz-post</module>
         <module>cyxz-comment</module>
+        <module>cyxz-message-api</module>
         <module>cyxz-message</module>
         <module>cyxz-search</module>
         <module>cyxz-upload</module>
@@ -99,6 +100,11 @@
             <dependency>
                 <groupId>com.cyxz</groupId>
                 <artifactId>cyxz-comment-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.cyxz</groupId>
+                <artifactId>cyxz-message-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

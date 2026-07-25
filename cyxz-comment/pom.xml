@@ -87,6 +87,11 @@
         </dependency>
 
         <dependency>
+            <groupId>com.cyxz</groupId>
+            <artifactId>cyxz-message-api</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
