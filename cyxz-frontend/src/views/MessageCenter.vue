@@ -21,305 +21,318 @@
       </aside>
 
       <div class="mc-main-wrap">
-        <!-- 右侧消息列表 -->
         <main class="mc-main">
-        <div class="main-header">
-          <h3>{{ currentTabLabel }}</h3>
-          <button class="mark-all-btn" @click="markAllRead">全部已读</button>
-        </div>
-
-        <div class="message-list" v-if="filteredMessages.length > 0">
-          <div
-            v-for="msg in filteredMessages"
-            :key="msg.id"
-            class="message-item"
-            :class="{ unread: !msg.read }"
-          >
-            <div class="msg-avatar" :class="{ system: msg.type === 'system' }" @click="msg.type !== 'system' && goUser(msg.userId)">
-              <template v-if="msg.type === 'system'">
-                <Icon icon="ph:bell" class="msg-type-icon pink-icon" />
-              </template>
-              <template v-else>
-                <img v-if="msg.userAvatar" :src="msg.userAvatar" alt="" />
-                <div v-else class="avatar-placeholder">{{ (msg.userName || '?').charAt(0) }}</div>
-              </template>
-            </div>
-            <div class="msg-body">
-              <div class="msg-top">
-                <span class="msg-username" :class="{ system: msg.type === 'system' }" @click="msg.type !== 'system' && goUser(msg.userId)">{{ msg.userName }}</span>
-                <span class="msg-action" v-if="msg.actionText">{{ msg.actionText }}</span>
-                <span class="msg-target" v-if="msg.targetTitle" @click="goTarget(msg)">{{ msg.targetTitle }}</span>
-                <span class="msg-dot" v-if="!msg.read"></span>
-              </div>
-              <div class="msg-quote" v-if="msg.quoteContent">
-                <span class="quote-text">"{{ msg.quoteContent }}"</span>
-              </div>
-              <div class="msg-time">{{ msg.timeText }}</div>
-            </div>
+          <div class="main-header">
+            <h3>{{ currentTabLabel }}</h3>
+            <button class="mark-all-btn" @click="handleMarkAllRead">全部已读</button>
           </div>
-        </div>
 
-        <div class="empty-state" v-else>
-          <div class="empty-icon">
-            <Icon icon="ph:bell" class="empty-iconify pink-icon" />
+          <!-- 分区渲染 -->
+          <template v-for="(section, si) in displaySections" :key="si">
+            <div class="section-header" v-if="section.title">
+              <span class="section-title">{{ section.title }}</span>
+              <span class="section-count" v-if="section.title === '最新'">{{ section.items.length }}</span>
+            </div>
+            <div class="message-list" v-if="section.items.length > 0">
+              <div
+                v-for="msg in section.items"
+                :key="msg._merged ? 'merged-' + msg.type + '-' + msg.targetId : msg.id"
+                class="message-item"
+                :class="{ unread: !msg.isRead, merged: msg._merged }"
+                @click="handleItemClick(msg)"
+              >
+                <div class="msg-avatar-col">
+                  <div class="msg-avatar merged-avatar" v-if="msg._merged">
+                    <div class="avatar-stack">
+                      <img
+                        v-for="(av, ai) in msg.mergeAvatars"
+                        :key="ai"
+                        class="stacked-avatar"
+                        :src="av || '/default-avatar.jpg'"
+                        alt=""
+                        :style="{ left: Number(ai) * 14 + 'px', zIndex: 10 - Number(ai) }"
+                      />
+                    </div>
+                  </div>
+                  <div class="msg-avatar" v-else @click.stop="goUser(msg.senderId)">
+                    <img :src="msg.senderAvatar || '/default-avatar.jpg'" alt="" />
+                  </div>
+                </div>
+                <div class="msg-content">
+                  <div class="msg-main">
+                    <div class="msg-top">
+                      <template v-if="msg._merged">
+                        <span class="msg-username merged-names" :title="msg.mergeNames">{{ msg.mergeNames }}</span>
+                        <span class="msg-action" v-if="msg.actionText">{{ msg.actionText }}</span>
+                      </template>
+                      <template v-else>
+                        <span class="msg-username" @click.stop="goUser(msg.senderId)">{{ msg.senderName }}</span>
+                        <span class="msg-action" v-if="msg.actionText">{{ msg.actionText }}</span>
+                      </template>
+                      <span class="msg-target" v-if="msg.targetTitle" @click.stop="goTarget(msg)">{{ msg.targetTitle }}</span>
+                      <span class="msg-dot" v-if="!msg.isRead"></span>
+                    </div>
+                    <div class="msg-meta-row">
+                      <div class="msg-time">{{ msg.timeText }}</div>
+                    </div>
+                  </div>
+                  <div class="msg-side" v-if="msg.quoteContent || msg.targetTitle">
+                    <div class="msg-quote" v-if="msg.quoteContent">
+                      <span class="quote-text">{{ msg.quoteContent }}</span>
+                    </div>
+                    <div class="msg-side-title" v-else-if="msg.targetTitle" @click.stop="goTarget(msg)">
+                      {{ msg.targetTitle }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- 空状态 -->
+          <div class="empty-state" v-if="isEmpty">
+            <div class="empty-icon">
+              <Icon icon="ph:bell" class="empty-iconify pink-icon" />
+            </div>
+            <p class="empty-text">暂无{{ currentTabLabel }}消息</p>
           </div>
-          <p class="empty-text">暂无{{ currentTabLabel }}消息</p>
-        </div>
-      </main>
+        </main>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import { useNavigate } from '@/composables/useNavigate'
+import { useMessageStore } from '@/stores/message'
+import { getNotifications, markAllRead, markRead, type NotificationVO } from '@/api/message'
 
 const { open } = useNavigate()
+const messageStore = useMessageStore()
 
-interface MessageItem {
-  id: number
-  type: 'like' | 'comment' | 'reply' | 'follow' | 'collect' | 'chat' | 'mention' | 'system'
-  userId: number
-  userName: string
-  userAvatar: string
-  actionText: string
-  targetTitle?: string
-  targetId?: number
-  targetType?: string
-  quoteContent?: string
-  read: boolean
-  timeText: string
+const activeTab = ref('like')
+const notifications = ref<NotificationVO[]>([])
+const loading = ref(false)
+
+// 类型到前端的映射
+const typeConfig: Record<string, { label: string; frontType: string }> = {
+  POST_LIKED: { label: '赞了你的帖子', frontType: 'like' },
+  POST_COMMENTED: { label: '评论了你的帖子', frontType: 'comment' },
+  COMMENT_REPLIED: { label: '回复了你的评论', frontType: 'reply' },
+  POST_COLLECTED: { label: '收藏了你的帖子', frontType: 'collect' },
+  USER_FOLLOWED: { label: '关注了你', frontType: 'follow' },
 }
 
-const activeTab = ref('all')
+// 分类计数（mapNotification 已把 type 转成了 frontType）
+const commentUnread = computed(() => notifications.value.filter(m => (m.type === 'comment' || m.type === 'reply') && !m.isRead).length)
+const likeUnread = computed(() => notifications.value.filter(m => m.type === 'like' && !m.isRead).length)
+const collectUnread = computed(() => notifications.value.filter(m => m.type === 'collect' && !m.isRead).length)
+const followUnread = computed(() => notifications.value.filter(m => m.type === 'follow' && !m.isRead).length)
 
 const tabs = computed(() => [
-  { key: 'all', label: '全部消息', count: messages.value.filter(m => !m.read).length },
-  { key: 'chat', label: '私信', count: messages.value.filter(m => m.type === 'chat' && !m.read).length },
-  { key: 'mention', label: '@我的', count: messages.value.filter(m => m.type === 'mention' && !m.read).length },
-  { key: 'comment', label: '评论和回复', count: messages.value.filter(m => (m.type === 'comment' || m.type === 'reply') && !m.read).length },
-  { key: 'like', label: '我收到的赞', count: messages.value.filter(m => m.type === 'like' && !m.read).length },
-  { key: 'system', label: '系统通知', count: messages.value.filter(m => m.type === 'system' && !m.read).length },
+  { key: 'like', label: '我收到的赞', count: likeUnread.value },
+  { key: 'comment', label: '评论和回复', count: commentUnread.value },
+  { key: 'collect', label: '收藏', count: collectUnread.value },
+  { key: 'follow', label: '关注', count: followUnread.value },
 ])
 
 const currentTabLabel = computed(() => {
   const map: Record<string, string> = {
-    all: '全部消息',
-    chat: '私信',
-    mention: '@我的',
-    comment: '评论和回复',
-    like: '我收到的赞',
-    system: '系统通知',
+    like: '我收到的赞', comment: '评论和回复',
+    collect: '收藏', follow: '关注',
   }
   return map[activeTab.value] || '消息'
 })
 
+/** 点赞/收藏 tab 需要分区展示 */
+const mergeTab = computed(() => ['like', 'collect'].includes(activeTab.value))
+
 const filteredMessages = computed(() => {
-  if (activeTab.value === 'all') return messages.value
-  if (activeTab.value === 'comment') return messages.value.filter(m => m.type === 'comment' || m.type === 'reply')
-  return messages.value.filter(m => m.type === activeTab.value)
+  if (activeTab.value === 'comment') return notifications.value.filter(m => m.type === 'comment' || m.type === 'reply')
+  return notifications.value.filter(m => m.type === activeTab.value)
 })
 
-const messages = ref<MessageItem[]>([
-  {
-    id: 1,
-    type: 'chat',
-    userId: 101,
-    userName: '樱小路露娜',
-    userAvatar: '',
-    actionText: '发送了私信',
-    quoteContent: '太太你好~想问一下最近接稿吗，很喜欢你的画风！',
-    read: false,
-    timeText: '3分钟前',
-  },
-  {
-    id: 2,
-    type: 'chat',
-    userId: 105,
-    userName: '七海灯子',
-    userAvatar: '',
-    actionText: '发送了私信',
-    quoteContent: '看到了！笔刷推荐你试试DAUB的Blender系列',
-    read: false,
-    timeText: '15分钟前',
-  },
-  {
-    id: 3,
-    type: 'mention',
-    userId: 102,
-    userName: '夜空下的星尘',
-    userAvatar: '',
-    actionText: '在评论中 @了你',
-    targetTitle: '赛马娘同人图楼',
-    targetId: 3,
-    targetType: 'post',
-    quoteContent: '@次元小站 这张有没有更高清的版本呀！',
-    read: false,
-    timeText: '18分钟前',
-  },
-  {
-    id: 4,
-    type: 'comment',
-    userId: 103,
-    userName: '喵喵拳',
-    userAvatar: '',
-    actionText: '评论了你的帖子',
-    targetTitle: '最近摸鱼画的水彩风插画合集',
-    targetId: 2,
-    targetType: 'post',
-    quoteContent: '画风好好看！请问大大用的什么笔刷啊？',
-    read: true,
-    timeText: '42分钟前',
-  },
-  {
-    id: 5,
-    type: 'reply',
-    userId: 104,
-    userName: '白夜凛音',
-    userAvatar: '',
-    actionText: '回复了你的评论',
-    targetTitle: '最近摸鱼画的水彩风插画合集',
-    targetId: 2,
-    targetType: 'post',
-    quoteContent: '同问！求笔刷推荐 ~',
-    read: true,
-    timeText: '1小时前',
-  },
-  {
-    id: 6,
-    type: 'like',
-    userId: 101,
-    userName: '樱小路露娜',
-    userAvatar: '',
-    actionText: '赞了你的帖子',
-    targetTitle: '【板绘教程】从零开始的SAI上色技巧分享',
-    targetId: 1,
-    targetType: 'post',
-    read: false,
-    timeText: '2小时前',
-  },
-  {
-    id: 7,
-    type: 'like',
-    userId: 106,
-    userName: '夜刀神十香',
-    userAvatar: '',
-    actionText: '赞了你的评论',
-    targetTitle: '赛马娘同人图楼',
-    targetId: 3,
-    targetType: 'post',
-    read: true,
-    timeText: '5小时前',
-  },
-  {
-    id: 8,
-    type: 'like',
-    userId: 107,
-    userName: '时崎狂三',
-    userAvatar: '',
-    actionText: '赞了你的帖子',
-    targetTitle: '【板绘教程】从零开始的SAI上色技巧分享',
-    targetId: 1,
-    targetType: 'post',
-    read: true,
-    timeText: '昨天 23:14',
-  },
-  {
-    id: 9,
-    type: 'like',
-    userId: 108,
-    userName: '霞之丘诗羽',
-    userAvatar: '',
-    actionText: '赞了你的帖子',
-    targetTitle: '赛马娘同人图楼',
-    targetId: 3,
-    targetType: 'post',
-    read: true,
-    timeText: '昨天 20:30',
-  },
-  {
-    id: 10,
-    type: 'system',
-    userId: 0,
-    userName: '系统',
-    userAvatar: '',
-    actionText: '',
-    quoteContent: '恭喜你，作品【板绘教程】进入今日热门推荐！',
-    read: true,
-    timeText: '昨天 18:22',
-  },
-  {
-    id: 11,
-    type: 'system',
-    userId: 0,
-    userName: '系统',
-    userAvatar: '',
-    actionText: '',
-    quoteContent: '你的粉丝数突破100啦，继续加油！',
-    read: true,
-    timeText: '前天 15:40',
-  },
-  {
-    id: 12,
-    type: 'comment',
-    userId: 109,
-    userName: '五更琉璃',
-    userAvatar: '',
-    actionText: '评论了你的帖子',
-    targetTitle: '最近摸鱼画的水彩风插画合集',
-    targetId: 2,
-    targetType: 'post',
-    quoteContent: '颜色搭配很舒服，已关注！',
-    read: true,
-    timeText: '前天 11:08',
-  },
-  {
-    id: 13,
-    type: 'follow',
-    userId: 110,
-    userName: '小鸟游六花',
-    userAvatar: '',
-    actionText: '关注了你',
-    read: true,
-    timeText: '前天 10:22',
-  },
-  {
-    id: 14,
-    type: 'collect',
-    userId: 111,
-    userName: '和泉纱雾',
-    userAvatar: '',
-    actionText: '收藏了你的帖子',
-    targetTitle: '最近摸鱼画的水彩风插画合集',
-    targetId: 2,
-    targetType: 'post',
-    read: true,
-    timeText: '3天前',
-  },
-])
+/** 合并同类型同目标的点赞/收藏通知 */
+function mergeMessages(list: any[]) {
+  const groups = new Map<string, any[]>()
+  const ungrouped: any[] = []
 
-function markAllRead() {
-  messages.value.forEach(m => { m.read = true })
+  for (const msg of list) {
+    if (msg.targetId) {
+      const key = `${msg.type}_${msg.targetId}`
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key)!.push(msg)
+    } else {
+      ungrouped.push(msg)
+    }
+  }
+
+  const result: any[] = []
+  for (const [, items] of groups) {
+    if (items.length === 0) continue
+    // 只有一个人不合并，直接当单条
+    if (items.length === 1) {
+      result.push(items[0])
+      continue
+    }
+    const first = items[0]
+    const names = items.map((m: any) => m.senderName || '用户')
+    const top = names.slice(0, 2)
+    const suffix = `等总计${items.length}人`
+    result.push({
+      _merged: true,
+      mergeCount: items.length,
+      mergeNames: top.join('、') + ' ' + suffix,
+      mergeAvatars: items.slice(0, 2).map((m: any) => m.senderAvatar || ''),
+      ...first,
+      senderName: top.join('、') + ' ' + suffix,
+      isRead: items.every((m: any) => m.isRead),
+    })
+  }
+  result.push(...ungrouped)
+  result.sort((a, b) => {
+    const ta = a.createTime ? new Date(a.createTime).getTime() : 0
+    const tb = b.createTime ? new Date(b.createTime).getTime() : 0
+    return tb - ta
+  })
+  return result
 }
 
-function goToUser(userId: number) {
-  open(`/user/${userId}`)
+/** 最新未读（逐条） */
+const latestMessages = computed(() => {
+  return filteredMessages.value
+    .filter(m => !m.isRead)
+    .sort((a, b) => {
+      const ta = a.createTime ? new Date(a.createTime).getTime() : 0
+      const tb = b.createTime ? new Date(b.createTime).getTime() : 0
+      return tb - ta
+    })
+})
+
+/** 累计（合并） */
+const accumulatedMessages = computed(() => mergeMessages(filteredMessages.value))
+
+/** 展示分区：
+ *  - 点赞/收藏 tab：有未读则 [最新] + [累计]，没有则仅 [累计]
+ *  - 其它 tab：直接展示 filteredMessages
+ */
+const displaySections = computed(() => {
+  if (!mergeTab.value) {
+    return filteredMessages.value.length > 0
+      ? [{ title: null as string | null, items: filteredMessages.value }]
+      : []
+  }
+  const sections: Array<{ title: string | null; items: any[] }> = []
+  if (latestMessages.value.length > 0) {
+    sections.push({ title: '最新', items: latestMessages.value })
+  }
+  if (accumulatedMessages.value.length > 0) {
+    sections.push({ title: sections.length > 0 ? '累计' : null, items: accumulatedMessages.value })
+  }
+  return sections
+})
+
+const isEmpty = computed(() => displaySections.value.every(s => s.items.length === 0))
+
+/** 同步铃铛未读数为当前全部未读总数 */
+function syncStoreUnread() {
+  messageStore.unreadCount = notifications.value.filter(m => !m.isRead).length
 }
 
-function goTarget(msg: MessageItem) {
+/** 首次加载全部通知（不按类型筛选，确保各 tab 未读数准确） */
+async function loadNotifications() {
+  loading.value = true
+  try {
+    let res: any = await getNotifications({ page: 1, size: 20 })
+    if (res.records) {
+      notifications.value = res.records.map(mapNotification)
+    } else {
+      const data = res?.data || res
+      if (data?.records) {
+        notifications.value = data.records.map(mapNotification)
+      }
+    }
+  } catch {
+    // ignore
+  } finally {
+    loading.value = false
+  }
+}
+
+function mapNotification(n: NotificationVO): NotificationVO & { timeText: string } {
+  const cfg = typeConfig[n.type] || { label: '与你互动', frontType: 'system' }
+  return {
+    ...n,
+    actionText: cfg.label,
+    senderName: n.senderName || '用户',
+    senderAvatar: n.senderAvatar || '',
+    isRead: n.isRead,
+    timeText: formatTime(n.createTime),
+    type: cfg.frontType as any,
+  } as any
+}
+
+function formatTime(time: string): string {
+  if (!time) return ''
+  const now = Date.now()
+  const t = new Date(time).getTime()
+  const diff = now - t
+  if (diff < 60_000) return '刚刚'
+  if (diff < 3600_000) return `${Math.floor(diff / 60_000)}分钟前`
+  if (diff < 86400_000) return `${Math.floor(diff / 3600_000)}小时前`
+  if (diff < 172800_000) return '昨天'
+  const d = new Date(time)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** 点击消息条目：单条已读 + 导航 */
+async function handleItemClick(msg: any) {
+  if (!msg.isRead) {
+    try {
+      await markRead(msg.id)
+      const found = notifications.value.find((m: any) => m.id === msg.id)
+      if (found) (found as any).isRead = true
+      syncStoreUnread()
+    } catch { /* ignore */ }
+  }
+  if (!msg._merged) {
+    goTarget(msg)
+  }
+}
+
+async function handleMarkAllRead() {
+  try {
+    await markAllRead()
+    notifications.value.forEach(m => { m.isRead = true })
+    messageStore.clearUnreadCount()
+  } catch { /* ignore */ }
+}
+
+function goUser(userId: number) {
+  if (userId) open(`/user/${userId}`)
+}
+
+function goTarget(msg: any) {
   if (msg.targetType === 'post' && msg.targetId) {
     open(`/post/${msg.targetId}`)
   }
+  if (msg.relatedId && msg.targetType === 'comment') {
+    open(`/post/${msg.relatedId}`)
+  }
 }
+
+onMounted(async () => {
+  await loadNotifications()
+})
 </script>
 
 <style scoped>
 .message-center {
   min-height: calc(100vh - 78px);
   padding-top: 78px;
-  background: linear-gradient(180deg, #fdf4f9 0%, #faf5ff 100%);
+  background: var(--bg-soft);
 }
 
 .mc-container {
@@ -442,7 +455,7 @@ function goTarget(msg: MessageItem) {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 28px;
+  padding: 16px 28px;
   border-bottom: 1px solid var(--border-light);
 }
 
@@ -451,6 +464,36 @@ function goTarget(msg: MessageItem) {
   font-weight: 700;
   color: var(--text);
   margin: 0;
+}
+
+/* 分区标题 */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px 4px;
+}
+
+.section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--pink);
+  letter-spacing: 0.3px;
+}
+
+.section-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: white;
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .mark-all-btn {
@@ -472,14 +515,14 @@ function goTarget(msg: MessageItem) {
 
 /* ===== 消息列表 ===== */
 .message-list {
-  padding: 8px 0;
+  padding: 4px 0;
 }
 
 .message-item {
   display: flex;
   align-items: flex-start;
-  gap: 16px;
-  padding: 16px 28px;
+  gap: 14px;
+  padding: 18px 24px;
   transition: background 0.15s ease;
   cursor: pointer;
 }
@@ -489,65 +532,90 @@ function goTarget(msg: MessageItem) {
 }
 
 .message-item + .message-item {
-  border-top: 1px solid rgba(255, 107, 157, 0.05);
+  border-top: 1px solid rgba(255, 107, 157, 0.06);
 }
 
 .message-item.unread {
   background: rgba(255, 107, 157, 0.02);
 }
 
+.msg-avatar-col {
+  width: 52px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+}
+
 .msg-avatar {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   overflow: hidden;
   flex-shrink: 0;
   cursor: pointer;
-  transition: opacity 0.15s;
-  border: 2px solid rgba(255, 107, 157, 0.12);
-}
-
-.msg-avatar.system {
-  cursor: default;
-  border-color: rgba(180, 132, 255, 0.15);
-  background: var(--purple-bg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--purple);
-}
-.msg-type-icon {
-  width: 20px;
-  height: 20px;
-}
-
-.msg-avatar.system:hover {
-  opacity: 1;
+  transition: opacity 0.15s ease;
+  border: 1px solid rgba(255, 107, 157, 0.12);
+  background: #fff;
 }
 
 .msg-avatar:hover {
-  opacity: 0.8;
+  opacity: 0.84;
 }
 
-.msg-avatar img {
+.msg-avatar:not(.merged-avatar) img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
 }
 
-.avatar-placeholder {
+/* 堆叠头像 */
+.msg-avatar.merged-avatar {
+  width: 52px;
+  height: 40px;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+  cursor: default;
+  background: transparent;
+}
+
+.avatar-stack {
+  position: relative;
   width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 16px;
-  font-weight: 700;
+  height: 32px;
 }
 
-.msg-body {
+.stacked-avatar {
+  position: absolute;
+  top: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--card);
+  object-fit: cover;
+  display: block;
+  background: #fff;
+}
+
+.merged-names {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+}
+
+.msg-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.msg-main {
   flex: 1;
   min-width: 0;
 }
@@ -557,25 +625,15 @@ function goTarget(msg: MessageItem) {
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 .msg-username {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text);
   cursor: pointer;
   transition: color 0.15s;
-  white-space: nowrap;
-}
-
-.msg-username.system {
-  color: var(--purple);
-  cursor: default;
-}
-
-.msg-username.system:hover {
-  color: var(--purple);
 }
 
 .msg-username:hover {
@@ -583,57 +641,81 @@ function goTarget(msg: MessageItem) {
 }
 
 .msg-action {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-dim);
-  white-space: nowrap;
 }
 
 .msg-target {
-  font-size: 13px;
-  color: var(--pink);
+  font-size: 14px;
+  color: var(--text-dim);
   cursor: pointer;
+  transition: color 0.15s;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 260px;
-  transition: opacity 0.15s;
 }
 
 .msg-target:hover {
-  opacity: 0.7;
+  color: var(--pink);
 }
 
 .msg-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--pink), var(--purple));
   flex-shrink: 0;
   margin-left: 4px;
 }
 
-.msg-quote {
-  margin-top: 8px;
-  padding: 10px 14px;
-  background: var(--pink-bg);
-  border-radius: 8px;
-  border-left: 3px solid var(--border);
-}
-
-.quote-text {
-  font-size: 13px;
-  color: var(--text-dim);
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.msg-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 6px;
 }
 
 .msg-time {
-  margin-top: 6px;
-  font-size: 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.msg-side {
+  width: 112px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.msg-quote,
+.msg-side-title {
+  width: 112px;
+  padding: 8px 10px;
+  background: var(--pink-bg);
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.4;
   color: var(--text-dim);
+  text-align: left;
+  word-break: break-word;
+}
+
+.msg-side-title {
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.msg-side-title:hover {
+  color: var(--pink);
+  background: var(--pink-bg-hover);
+}
+
+.quote-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* ===== 空状态 ===== */
@@ -712,13 +794,8 @@ function goTarget(msg: MessageItem) {
   }
 
   .message-item {
-    padding: 14px 16px;
-    gap: 12px;
-  }
-
-  .msg-avatar {
-    width: 38px;
-    height: 38px;
+    padding: 12px 16px;
+    gap: 10px;
   }
 
   .msg-target {
