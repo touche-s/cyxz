@@ -205,4 +205,9 @@ public class FollowServiceImpl implements FollowService {
     public int countNewFollowers(Long userId) {
         return followMapper.countNewFollowers(userId);
     }
+
+    @Override
+    public List<Long> listFollowingUserIds(Long userId) {
+        return followMapper.selectFollowingIds(userId);
+    }
 }

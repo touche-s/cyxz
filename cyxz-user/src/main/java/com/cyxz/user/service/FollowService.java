@@ -3,6 +3,8 @@ package com.cyxz.user.service;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.user.vo.FollowUserVO;
 
+import java.util.List;
+
 /**
  * 关注服务接口
  */
@@ -79,4 +81,12 @@ public interface FollowService {
      * @return 今日新增粉丝数
      */
     int countNewFollowers(Long userId);
+
+    /**
+     * 查询当前用户关注的用户 ID 列表（内部接口，供 post 服务拉取关注动态）
+     *
+     * @param userId 用户 ID
+     * @return 关注的用户 ID 列表
+     */
+    List<Long> listFollowingUserIds(Long userId);
 }

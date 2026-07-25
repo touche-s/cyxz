@@ -46,6 +46,11 @@ public class UserFeignClientFallbackFactory implements FallbackFactory<UserFeign
             public Result<Map<Long, UserProfileVO>> batchGetByIds(List<Long> userIds) {
                 return Result.success(Collections.emptyMap());
             }
+
+            @Override
+            public Result<List<Long>> getFollowingUserIds(Long userId) {
+                return Result.success(Collections.emptyList());
+            }
         };
     }
 }
