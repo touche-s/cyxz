@@ -91,7 +91,7 @@ const magicFeatures = [
   background: linear-gradient(135deg, var(--pink) 0%, var(--purple) 100%);
   border-radius: 20px;
   padding: 40px;
-  color: white;
+  color: var(--white);
   text-align: center;
   margin: 0 28px 24px;
 }
@@ -157,7 +157,7 @@ const magicFeatures = [
   cursor: pointer;
   border: none;
   background: linear-gradient(135deg, var(--pink), var(--purple));
-  color: white;
+  color: var(--white);
   transition: all 0.22s ease-out;
 }
 

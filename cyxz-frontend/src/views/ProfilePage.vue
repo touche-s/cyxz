@@ -292,7 +292,7 @@ function goToPost(post: PostVO) {
 }
 .pc-bio {
   font-size: 13px;
-  color: #fff;
+  color: var(--white);
   margin: 0;
   line-height: 1.5;
   text-shadow: 0 1px 3px rgba(0,0,0,0.18);
@@ -317,7 +317,7 @@ function goToPost(post: PostVO) {
 .pc-stat strong {
   font-size: 20px;
   font-weight: 700;
-  color: white;
+  color: var(--white);
 }
 .pc-stat:hover {
   opacity: 0.85;
@@ -334,7 +334,7 @@ function goToPost(post: PostVO) {
   transition: all 0.2s;
   border: 1px solid rgba(255,255,255,0.3);
   background: rgba(255,255,255,0.18);
-  color: white;
+  color: var(--white);
 }
 .pc-action-btn:hover {
   background: rgba(255,255,255,0.35);
@@ -359,7 +359,7 @@ function goToPost(post: PostVO) {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: var(--white);
   font-size: 36px;
   font-weight: 800;
   border: 4px solid var(--bg);
@@ -524,14 +524,14 @@ function goToPost(post: PostVO) {
 }
 .guide-btn-primary {
   background: linear-gradient(135deg, var(--pink), var(--purple));
-  color: white;
+  color: var(--white);
   box-shadow: var(--shadow);
 }
 .guide-btn-primary:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
 }
-.btn-icon { width: 16px; height: 16px; margin-right: 6px; color: white; }
+.btn-icon { width: 16px; height: 16px; margin-right: 6px; color: var(--white); }
 .loading-placeholder {
   text-align: center;
   padding: 60px 0;

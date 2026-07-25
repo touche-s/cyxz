@@ -296,7 +296,7 @@ onMounted(() => {
   position: relative;
   overflow: hidden;
   padding: 30px 32px 28px;
-  background: linear-gradient(145deg, #fef6fb 0%, #fff2f8 38%, #faf2ff 100%);
+  background: var(--gradient-hero);
   background-size: 200% 200%;
   animation: heroBgShift 8s ease-in-out infinite;
   border: 1.5px solid rgba(255, 163, 200, 0.45);
@@ -594,7 +594,7 @@ onMounted(() => {
   gap: 10px;
   padding: 9px 12px;
   border-radius: 14px;
-  background: #fff;
+  background: var(--card);
   border: 1px solid rgba(255, 163, 200, 0.14);
   cursor: pointer;
   transition: all 0.22s ease;
@@ -643,7 +643,7 @@ onMounted(() => {
   border-radius: 14px;
   overflow: hidden;
   flex-shrink: 0;
-  background: linear-gradient(135deg, #f9a8d4, #c4b5fd);
+  background: var(--gradient-tag);
   box-shadow: 0 3px 10px rgba(255, 107, 157, 0.12);
 }
 
@@ -769,7 +769,7 @@ onMounted(() => {
   position: relative;
   height: 110px;
   overflow: hidden;
-  background: linear-gradient(135deg, #fde8f5, #f0e6ff);
+  background: var(--gradient-card);
 }
 
 .hot-cover-img {
@@ -862,7 +862,7 @@ onMounted(() => {
   width: 46px;
   height: 46px;
   border-radius: 14px;
-  background: linear-gradient(135deg, #f9a8d4, #c4b5fd);
+  background: var(--gradient-tag);
   display: flex;
   align-items: center;
   justify-content: center;

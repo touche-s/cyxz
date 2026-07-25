@@ -119,7 +119,7 @@ onMounted(async () => {
 .search-btn {
   padding: 10px 28px;
   background: var(--pink);
-  color: white;
+  color: var(--white);
   border: none;
   border-radius: 10px;
   font-size: 14px;

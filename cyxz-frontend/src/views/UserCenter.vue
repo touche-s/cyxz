@@ -361,7 +361,7 @@ async function saveInfo() {
   display: flex;
   justify-content: center;
   min-height: 100vh;
-  background: linear-gradient(180deg, #fff5f9 0%, #f8f9ff 100%);
+  background: linear-gradient(180deg, var(--bg-soft) 0%, var(--bg) 100%);
 }
 
 .user-center-inner {
@@ -468,7 +468,7 @@ async function saveInfo() {
 }
 
 .hero-avatar-text {
-  color: white;
+  color: var(--white);
   font-size: 32px;
   font-weight: 800;
 }
@@ -591,7 +591,7 @@ async function saveInfo() {
 }
 
 .avatar-placeholder-lg {
-  color: white;
+  color: var(--white);
   font-size: 48px;
   font-weight: 800;
 }
@@ -609,7 +609,7 @@ async function saveInfo() {
   padding: 10px 24px;
   border-radius: 12px;
   background: linear-gradient(135deg, var(--pink), var(--purple));
-  color: white;
+  color: var(--white);
   font-size: 14px;
   font-weight: 600;
   border: none;
@@ -622,7 +622,7 @@ async function saveInfo() {
 .upload-icon {
   width: 18px;
   height: 18px;
-  color: white;
+  color: var(--white);
 }
 
 .upload-btn:hover {
@@ -676,9 +676,9 @@ async function saveInfo() {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  border: 2px solid white;
+  border: 2px solid var(--white);
   background: var(--overlay);
-  color: #fff;
+  color: var(--white);
   font-size: 12px;
   line-height: 1;
   display: flex;
@@ -691,7 +691,7 @@ async function saveInfo() {
 }
 
 .history-avatar:hover .history-delete { opacity: 1; }
-.history-delete:hover { background: #ff4d4f; }
+.history-delete:hover { background: var(--error); }
 
 .empty-hint {
   text-align: center;

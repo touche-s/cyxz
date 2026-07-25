@@ -435,7 +435,7 @@ onMounted(async () => {
   border-radius: 10px;
   font-size: 11px;
   font-weight: 700;
-  color: white;
+  color: var(--white);
   background: linear-gradient(135deg, var(--pink), var(--purple));
   line-height: 1;
 }
@@ -485,7 +485,7 @@ onMounted(async () => {
 .section-count {
   font-size: 11px;
   font-weight: 700;
-  color: white;
+  color: var(--white);
   background: linear-gradient(135deg, var(--pink), var(--purple));
   min-width: 16px;
   height: 16px;
@@ -556,7 +556,7 @@ onMounted(async () => {
   cursor: pointer;
   transition: opacity 0.15s ease;
   border: 1px solid rgba(255, 107, 157, 0.12);
-  background: #fff;
+  background: var(--card);
 }
 
 .msg-avatar:hover {
@@ -596,7 +596,7 @@ onMounted(async () => {
   border: 2px solid var(--card);
   object-fit: cover;
   display: block;
-  background: #fff;
+  background: var(--card);
 }
 
 .merged-names {

@@ -635,7 +635,7 @@ defineExpose({ dirty, confirmLeave })
 }
 
 .label-required {
-  color: #ff4d4f;
+  color: var(--error);
   font-size: 12px;
 }
 
@@ -763,7 +763,7 @@ defineExpose({ dirty, confirmLeave })
   height: 24px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.5);
-  color: white;
+  color: var(--white);
   border: none;
   cursor: pointer;
   display: flex;
@@ -789,7 +789,7 @@ defineExpose({ dirty, confirmLeave })
   height: 24px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.5);
-  color: white;
+  color: var(--white);
   border: none;
   cursor: pointer;
   display: flex;
@@ -910,7 +910,7 @@ defineExpose({ dirty, confirmLeave })
 
 .tag-remove:hover {
   background: rgba(255, 71, 87, 0.8);
-  color: white;
+  color: var(--white);
 }
 
 .tag-remove svg {
@@ -1001,7 +1001,7 @@ defineExpose({ dirty, confirmLeave })
 
 .publish-btn {
   background: linear-gradient(135deg, var(--pink), var(--purple));
-  color: white;
+  color: var(--white);
   box-shadow: 0 4px 20px var(--shadow-lg);
 }
 

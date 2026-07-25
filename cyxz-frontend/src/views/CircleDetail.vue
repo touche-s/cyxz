@@ -207,7 +207,7 @@ onMounted(() => {
   position: relative;
   height: 170px;
   overflow: hidden;
-  background: linear-gradient(135deg, #fde8f5, #f0e6ff);
+  background: var(--gradient-card);
 }
 
 .circle-cover img {
@@ -220,7 +220,7 @@ onMounted(() => {
 .cover-fallback {
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #fbd0e8, #e8d5ff);
+  background: var(--gradient-card-hover);
 }
 
 .cover-overlay {

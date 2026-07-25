@@ -610,7 +610,7 @@ onMounted(() => {
 }
 
 .menu-item.logout {
-  color: #ef4444;
+  color: var(--error);
 }
 
 .menu-icon {

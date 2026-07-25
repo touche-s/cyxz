@@ -629,7 +629,7 @@ onMounted(async () => {
   height: 56px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid white;
+  border: 2px solid var(--white);
   box-shadow: var(--shadow-lg);
 }
 
@@ -711,7 +711,7 @@ onMounted(async () => {
   height: 40px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.4);
-  color: white;
+  color: var(--white);
   border: none;
   cursor: pointer;
   display: flex;
@@ -936,7 +936,7 @@ onMounted(async () => {
   padding: 10px 24px;
   border-radius: 16px;
   background: linear-gradient(135deg, var(--pink), var(--purple));
-  color: white;
+  color: var(--white);
   font-size: 14px;
   font-weight: 600;
   border: none;
@@ -1015,7 +1015,7 @@ onMounted(async () => {
   padding: 10px 32px;
   border-radius: 20px;
   background: linear-gradient(135deg, var(--pink), var(--purple));
-  color: white;
+  color: var(--white);
   font-size: 14px;
   font-weight: 600;
   border: none;
@@ -1065,7 +1065,7 @@ onMounted(async () => {
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.18);
   backdrop-filter: blur(8px);
-  color: white;
+  color: var(--white);
   border: 1px solid rgba(255, 255, 255, 0.25);
   cursor: pointer;
   display: flex;
@@ -1095,7 +1095,7 @@ onMounted(async () => {
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(8px);
-  color: white;
+  color: var(--white);
   border: 1px solid rgba(255, 255, 255, 0.22);
   cursor: pointer;
   display: flex;
@@ -1128,7 +1128,7 @@ onMounted(async () => {
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(8px);
-  color: white;
+  color: var(--white);
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.05em;

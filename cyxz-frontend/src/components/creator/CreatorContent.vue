@@ -662,7 +662,7 @@ defineExpose({
 .cover-placeholder {
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #f0e6ff, #ffe6f0);
+  background: var(--gradient-card);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -684,7 +684,7 @@ defineExpose({
   padding: 3px 10px;
   border-radius: 8px;
   background: linear-gradient(135deg, rgba(245, 158, 11, 0.85), rgba(251, 146, 60, 0.85));
-  color: #fff;
+  color: var(--white);
   font-weight: 700;
   display: inline-flex;
   align-items: center;
@@ -731,17 +731,17 @@ defineExpose({
 
 .status-0 {
   background: linear-gradient(135deg, rgba(255, 193, 7, 0.12), rgba(255, 152, 0, 0.12));
-  color: #f57c00;
+  color: var(--warning);
 }
 
 .status-1 {
   background: linear-gradient(135deg, rgba(76, 175, 80, 0.12), rgba(56, 142, 60, 0.12));
-  color: #2e7d32;
+  color: var(--success);
 }
 
 .status-2 {
   background: linear-gradient(135deg, rgba(244, 67, 54, 0.12), rgba(211, 47, 47, 0.12));
-  color: #c62828;
+  color: var(--error);
 }
 
 .action-btn {
@@ -788,7 +788,7 @@ defineExpose({
 }
 
 .action-btn.publish .action-icon {
-  color: #4caf50;
+  color: var(--success);
 }
 
 .action-btn.restore:hover {
@@ -806,7 +806,7 @@ defineExpose({
 }
 
 .action-btn.delete .action-icon {
-  color: #f44336;
+  color: var(--error);
 }
 
 .create-btn {
@@ -900,23 +900,23 @@ defineExpose({
 }
 
 .batch-btn.batch-publish {
-  background: rgba(76, 175, 80, 0.1);
-  color: #2e7d32;
+  background: var(--success-bg);
+  color: var(--success);
   border-color: rgba(76, 175, 80, 0.2);
 }
 
 .batch-btn.batch-publish:hover {
-  background: rgba(76, 175, 80, 0.2);
+  background: var(--success-bg);
 }
 
 .batch-btn.batch-delete {
-  background: rgba(244, 67, 54, 0.1);
-  color: #c62828;
+  background: var(--error-bg);
+  color: var(--error);
   border-color: rgba(244, 67, 54, 0.2);
 }
 
 .batch-btn.batch-delete:hover {
-  background: rgba(244, 67, 54, 0.2);
+  background: var(--error-bg);
 }
 
 .batch-clear {
@@ -973,7 +973,7 @@ defineExpose({
 }
 
 .action-btn.unpin .unpin-icon {
-  color: #f59e0b;
+  color: var(--warning);
 }
 
 .action-btn.unpin:hover {

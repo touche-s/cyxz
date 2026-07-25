@@ -484,7 +484,7 @@ watch(() => props.comment.totalReplies, async (newVal, oldVal) => {
 }
 
 .delete-btn:hover {
-  color: #e74c3c;
+  color: var(--error);
   background: rgba(231, 76, 60, 0.08);
 }
 

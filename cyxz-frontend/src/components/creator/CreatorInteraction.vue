@@ -279,27 +279,27 @@ onMounted(() => {
 
 .comment-post-select :deep(.el-input__wrapper) {
   border-radius: 20px;
-  border-color: #FFB6CC;
+  border-color: var(--border);
   background: var(--bg);
   box-shadow: none;
   transition: all 0.22s ease-out;
 }
 
 .comment-post-select :deep(.el-input__wrapper:hover) {
-  border-color: #FF6B9D;
+  border-color: var(--pink);
   background: var(--bg);
 }
 
 .comment-post-select :deep(.el-input__wrapper.is-focus),
 .comment-post-select :deep(.el-select__wrapper.is-focused),
 .comment-post-select :deep(.el-input.is-focus .el-input__wrapper) {
-  border-color: #FF6B9D !important;
+  border-color: var(--pink) !important;
   box-shadow: 0 0 0 3px rgba(255, 107, 157, 0.15) !important;
   background: var(--card);
 }
 
 .comment-post-select :deep(.el-select__caret) {
-  color: #FF6B9D;
+  color: var(--pink);
 }
 
 .comment-post-select :deep(.el-select__placeholder) {
@@ -349,12 +349,12 @@ onMounted(() => {
 }
 
 .comment-post-option-status.status-1 {
-  color: #16a34a;
+  color: var(--success);
   background: rgba(22, 163, 74, 0.12);
 }
 
 .comment-post-option-status.status-2 {
-  color: #ef4444;
+  color: var(--error);
   background: rgba(239, 68, 68, 0.12);
 }
 
@@ -527,7 +527,7 @@ onMounted(() => {
 
 .comment-delete-btn:hover .delete-icon {
   opacity: 0.7;
-  color: #f44336;
+  color: var(--error);
 }
 
 .comment-manage-item .delete-icon {
@@ -537,6 +537,6 @@ onMounted(() => {
 
 .comment-manage-item:hover .delete-icon {
   opacity: 0.6;
-  color: #f44336;
+  color: var(--error);
 }
 </style>

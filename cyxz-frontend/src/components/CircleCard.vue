@@ -93,7 +93,7 @@ defineEmits<{
   position: relative;
   height: 122px;
   overflow: hidden;
-  background: linear-gradient(135deg, #fde8f5, #f0e6ff);
+  background: var(--gradient-card);
 }
 
 .cover-img {
@@ -169,7 +169,7 @@ defineEmits<{
 }
 
 .avatar-fallback {
-  color: white;
+  color: var(--white);
   font-size: 22px;
   font-weight: 800;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);

@@ -565,22 +565,22 @@ watch(activeNav, (val) => {
 
 .nav-item-primary {
   background: linear-gradient(135deg, var(--pink), var(--purple));
-  color: white;
+  color: var(--white);
   margin-bottom: 8px;
 }
 
 .nav-item-primary:hover {
   background: linear-gradient(135deg, var(--pink), var(--purple));
-  color: white;
+  color: var(--white);
 }
 
 .nav-item-primary.active {
   background: linear-gradient(135deg, var(--pink), var(--purple));
-  color: white;
+  color: var(--white);
 }
 
 .nav-item-primary .nav-icon {
-  color: white;
+  color: var(--white);
 }
 
 .nav-icon {
@@ -607,7 +607,7 @@ watch(activeNav, (val) => {
   padding: 12px 32px;
   border-radius: 25px;
   background: linear-gradient(135deg, var(--pink), var(--purple));
-  color: white;
+  color: var(--white);
   font-size: 15px;
   font-weight: 600;
   border: none;
@@ -624,17 +624,17 @@ watch(activeNav, (val) => {
 /* ===== 状态标签 ===== */
 .status-0 {
   background: linear-gradient(135deg, rgba(255, 193, 7, 0.12), rgba(255, 152, 0, 0.12));
-  color: #f57c00;
+  color: var(--warning);
 }
 
 .status-1 {
   background: linear-gradient(135deg, rgba(76, 175, 80, 0.12), rgba(56, 142, 60, 0.12));
-  color: #2e7d32;
+  color: var(--success);
 }
 
 .status-2 {
   background: linear-gradient(135deg, rgba(244, 67, 54, 0.12), rgba(211, 47, 47, 0.12));
-  color: #c62828;
+  color: var(--error);
 }
 
 /* ===== 预览弹窗 ===== */
@@ -682,12 +682,12 @@ watch(activeNav, (val) => {
 
 .preview-status-tag.status-0 {
   background: rgba(255, 152, 0, 0.12);
-  color: #f57c00;
+  color: var(--warning);
 }
 
 .preview-status-tag.status-1 {
   background: rgba(76, 175, 80, 0.12);
-  color: #2e7d32;
+  color: var(--success);
 }
 
 .preview-close-btn {
@@ -774,7 +774,7 @@ watch(activeNav, (val) => {
   border-radius: 50%;
   border: none;
   background: rgba(0, 0, 0, 0.35);
-  color: white;
+  color: var(--white);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -816,7 +816,7 @@ watch(activeNav, (val) => {
 }
 
 .preview-carousel-dot.active {
-  background: white;
+  background: var(--card);
   transform: scale(1.3);
 }
 
@@ -978,12 +978,12 @@ watch(activeNav, (val) => {
 }
 
 .comment-post-option-status.status-1 {
-  color: #16a34a;
+  color: var(--success);
   background: rgba(22, 163, 74, 0.12);
 }
 
 .comment-post-option-status.status-2 {
-  color: #ef4444;
+  color: var(--error);
   background: rgba(239, 68, 68, 0.12);
 }
 </style>

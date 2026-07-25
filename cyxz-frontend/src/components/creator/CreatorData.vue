@@ -433,7 +433,7 @@ function onBarClick(params: any) {
   background: transparent;
   padding: 4px 14px;
   font-size: 12px;
-  color: #909399;
+  color: var(--text-muted);
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
@@ -472,7 +472,7 @@ function onBarClick(params: any) {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  color: #c0c4cc;
+  color: var(--text-muted);
   font-size: 13px;
 }
 
@@ -498,7 +498,7 @@ function onBarClick(params: any) {
   background: transparent;
   padding: 6px 0 0;
   margin-top: 4px;
-  color: #c0c4cc;
+  color: var(--text-muted);
 }
 
 .insight-icon {

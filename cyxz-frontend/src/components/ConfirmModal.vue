@@ -153,7 +153,7 @@ onUnmounted(() => {
 }
 
 .modal-icon-wrapper.is-danger :deep(.modal-warn-icon) {
-  color: #dc2626;
+  color: var(--error);
 }
 
 .modal-danger-badge {
@@ -261,8 +261,8 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   white-space: nowrap;
-  background: linear-gradient(135deg, #ff7eb6, #c084fc);
-  color: white;
+  background: var(--gradient-brand);
+  color: var(--white);
   box-shadow: 0 8px 24px rgba(192, 132, 252, 0.3);
 }
 

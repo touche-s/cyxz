@@ -45,7 +45,7 @@ defineEmits<{ toggle: [] }>()
   font-size: 12px;
   font-weight: 600;
   background: linear-gradient(135deg, var(--pink), var(--purple));
-  color: white;
+  color: var(--white);
   box-shadow: 0 2px 8px var(--shadow);
 }
 .variant-profile:hover:not(:disabled) {

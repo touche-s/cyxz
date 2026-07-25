@@ -285,7 +285,7 @@ onMounted(() => {
   gap: 8px;
   padding: 12px 24px;
   border-radius: 14px;
-  background: #fff;
+  background: var(--card);
   color: var(--pink);
   font-size: 14px;
   font-weight: 700;
@@ -441,12 +441,12 @@ onMounted(() => {
 
 .pending-audit .pending-icon,
 .pending-audit .pending-icon-wrap {
-  color: #f59e0b;
+  color: var(--warning);
 }
 
 .pending-reject .pending-icon,
 .pending-reject .pending-icon-wrap {
-  color: #ef4444;
+  color: var(--error);
 }
 
 .pending-content {

@@ -240,7 +240,7 @@ onMounted(async () => {
   justify-content: center;
   overflow: hidden;
   box-shadow: 0 2px 12px rgba(255, 107, 157, 0.18);
-  border: 2px solid #fff;
+  border: 2px solid var(--white);
   transition: box-shadow 0.2s;
 }
 
@@ -255,7 +255,7 @@ onMounted(async () => {
 }
 
 .following-avatar span {
-  color: #fff;
+  color: var(--white);
   font-size: 20px;
   font-weight: 700;
 }
@@ -327,7 +327,7 @@ onMounted(async () => {
 }
 
 .tl-avatar span {
-  color: #fff;
+  color: var(--white);
   font-size: 13px;
   font-weight: 700;
 }
@@ -355,7 +355,7 @@ onMounted(async () => {
   border-radius: 8px;
   overflow: hidden;
   flex-shrink: 0;
-  background: linear-gradient(135deg, #fde8f5, #f0e6ff);
+  background: var(--gradient-card);
 }
 
 .tl-cover img {

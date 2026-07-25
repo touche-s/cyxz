@@ -511,7 +511,7 @@ async function handleSubmit() {
   transition: border-color 0.2s;
 }
 .auth-form :deep(.el-input__wrapper:hover) {
-  border-color: #e0b0d0;
+  border-color: var(--border);
 }
 .auth-form :deep(.el-input__wrapper.is-focus) {
   border-color: var(--pink);
