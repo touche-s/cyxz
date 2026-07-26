@@ -51,7 +51,10 @@ public class CommentCountFlushServiceImpl implements CommentCountFlushService {
                 Long entityId = Long.valueOf(idStr);
                 int delta = Integer.parseInt(deltaStr);
                 updater.apply(entityId, delta);
-                hashOps.delete(deltaKey, idStr);
+                Long remaining = hashOps.increment(deltaKey, idStr, -delta);
+                if (remaining != null && remaining <= 0) {
+                    hashOps.delete(deltaKey, idStr);
+                }
                 success++;
             } catch (NumberFormatException e) {
                 log.warn("增量格式异常，跳过: key={}, id={}, delta={}", deltaKey, idStr, deltaStr);

@@ -13,7 +13,7 @@ import java.util.Map;
 /**
  * 帖子计数刷库服务实现
  * <p>定时将 Redis Hash 中的增量刷入 MySQL post 表。
- * <p>策略：遍历 Hash 所有 field，逐条 update，成功后删除对应 field。
+ * <p>策略：遍历 Hash 所有 field，逐条 update，成功后扣减对应增量防止并发丢失。
  */
 @Slf4j
 @Service
@@ -79,7 +79,10 @@ public class PostCountFlushServiceImpl implements com.cyxz.post.service.PostCoun
                 Long entityId = Long.valueOf(idStr);
                 int delta = Integer.parseInt(deltaStr);
                 updater.apply(entityId, delta);
-                hashOps.delete(deltaKey, idStr);
+                Long remaining = hashOps.increment(deltaKey, idStr, -delta);
+                if (remaining != null && remaining <= 0) {
+                    hashOps.delete(deltaKey, idStr);
+                }
                 success++;
             } catch (NumberFormatException e) {
                 log.warn("增量格式异常，跳过: key={}, id={}, delta={}", deltaKey, idStr, deltaStr);
