@@ -38,7 +38,7 @@
         <button
           class="comment-action-btn"
           :class="{ active: comment.liked }"
-          @click="handleToggleLike"
+          @click="likeInteraction.toggle"
         >
           <Icon icon="ph:heart" class="action-icon pink-icon" v-show="!comment.liked" />
           <Icon icon="ph:heart-fill" class="action-icon pink-icon" v-show="comment.liked" />
@@ -50,6 +50,7 @@
         <button
           v-if="isOwner"
           class="comment-action-btn delete-btn"
+          :disabled="deleteLoading"
           @click="handleDelete"
         >
           <span>删除</span>
@@ -126,8 +127,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { likeComment, unlikeComment, deleteComment, getCommentReplies } from '@/api/comment'
 import type { CommentVO } from '@/api/comment'
 import { useUserStore } from '@/stores/user'
-import { useAuth } from '@/composables/useAuth'
 import { useNavigate } from '@/composables/useNavigate'
+import { useToggleInteraction } from '@/composables/useToggleInteraction'
 import { Icon } from '@iconify/vue'
 import { formatDateTime } from '@/utils/format'
 import { avatarUrl } from '@/utils/avatar'
@@ -160,44 +161,29 @@ function goToUser() {
 }
 
 const userStore = useUserStore()
-const { requireLogin } = useAuth()
 
 // ===== 点赞 =====
-const likeLoading = ref(false)
-
-const handleToggleLike = async () => {
-  if (!requireLogin()) return
-  if (likeLoading.value) return
-
-  const oldLiked = props.comment.liked
-  const oldLikes = props.comment.likes
-
-  likeLoading.value = true
-  props.comment.liked = !oldLiked
-  props.comment.likes = oldLiked ? Math.max(oldLikes - 1, 0) : oldLikes + 1
-
-  try {
-    if (oldLiked) {
-      await unlikeComment(props.comment.id)
-    } else {
-      await likeComment(props.comment.id)
-    }
-  } catch {
-    props.comment.liked = oldLiked
-    props.comment.likes = oldLikes
-  } finally {
-    likeLoading.value = false
-  }
-}
+const likeInteraction = useToggleInteraction({
+  target: () => props.comment,
+  likedField: 'liked',
+  countField: 'likes',
+  likeApi: (id) => likeComment(id),
+  unlikeApi: (id) => unlikeComment(id),
+  idGetter: (c) => c.id,
+})
 
 // ===== 删除 =====
+const deleteLoading = ref(false)
+
 const isOwner = computed(() => {
   if (!props.currentUserId) return false
   return props.currentUserId === props.comment.userId
 })
 
 const handleDelete = async () => {
+  if (deleteLoading.value) return
   try {
+    deleteLoading.value = true
     await ElMessageBox.confirm('确定要删除这条评论吗？', '删除评论', {
       confirmButtonText: '删除',
       cancelButtonText: '取消',
@@ -210,6 +196,8 @@ const handleDelete = async () => {
     if (e !== 'cancel' && e !== 'close') {
       ElMessage.error('删除失败')
     }
+  } finally {
+    deleteLoading.value = false
   }
 }
 

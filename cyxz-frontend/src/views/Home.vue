@@ -207,6 +207,7 @@ const { requireLogin } = useAuth()
 const circles = ref<CircleVO[]>([])
 const joinedCircles = ref<CircleVO[]>([])
 const loading = ref(false)
+const joinLoading = ref<Record<number, boolean>>({})
 const joinedSectionRef = ref<HTMLElement | null>(null)
 const allSectionRef = ref<HTMLElement | null>(null)
 
@@ -285,6 +286,10 @@ function scrollToAll() {
 
 async function toggleJoin(circle: CircleVO) {
   if (!requireLogin()) return
+  if (joinLoading.value[circle.id]) return
+  const prevJoined = circle.joined
+  const prevMemberCount = circle.memberCount
+  joinLoading.value[circle.id] = true
   try {
     if (circle.joined) {
       await leaveCircle(circle.id)
@@ -299,6 +304,10 @@ async function toggleJoin(circle: CircleVO) {
     }
   } catch (e) {
     console.error('操作失败:', e)
+    circle.joined = prevJoined
+    circle.memberCount = prevMemberCount
+  } finally {
+    joinLoading.value[circle.id] = false
   }
 }
 

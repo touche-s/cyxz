@@ -51,6 +51,7 @@ import { Icon } from '@iconify/vue'
 import { getCircleList, getJoinedCircles, getHotCircles, joinCircle, leaveCircle } from '@/api/circle'
 import type { CircleVO } from '@/api/circle'
 import { useNavigate } from '@/composables/useNavigate'
+import { useAuth } from '@/composables/useAuth'
 import CircleCard from '@/components/CircleCard.vue'
 import UnderlineTabs from '@/components/UnderlineTabs.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
@@ -59,6 +60,7 @@ import EmptyState from '@/components/EmptyState.vue'
 const route = useRoute()
 const router = useRouter()
 const { open } = useNavigate()
+const { requireLogin } = useAuth()
 
 const tabs = [
   { key: 'joined', label: '我的圈子', icon: 'ph:heart-straight' },
@@ -72,6 +74,7 @@ const joinedCircles = ref<CircleVO[]>([])
 const hotCircles = ref<CircleVO[]>([])
 const keyword = ref('')
 const loading = ref(false)
+const joinLoading = ref<Record<number, boolean>>({})
 
 const filteredCircles = computed(() => {
   let list: CircleVO[] = []
@@ -136,7 +139,7 @@ async function loadHot() {
   loading.value = true
   try {
     const data = await getHotCircles()
-    hotCircles.value = data.records || []
+    hotCircles.value = (data as CircleVO[]) || []
   } catch (e) {
     console.error('加载热门圈子失败:', e)
   } finally {
@@ -149,6 +152,11 @@ function enterCircle(circle: CircleVO) {
 }
 
 async function toggleJoin(circle: CircleVO) {
+  if (!requireLogin()) return
+  if (joinLoading.value[circle.id]) return
+  const prevJoined = circle.joined
+  const prevMemberCount = circle.memberCount
+  joinLoading.value[circle.id] = true
   try {
     if (circle.joined) {
       await leaveCircle(circle.id)
@@ -170,6 +178,10 @@ async function toggleJoin(circle: CircleVO) {
     if (inHot) inHot.joined = circle.joined
   } catch (e) {
     console.error('操作失败:', e)
+    circle.joined = prevJoined
+    circle.memberCount = prevMemberCount
+  } finally {
+    joinLoading.value[circle.id] = false
   }
 }
 

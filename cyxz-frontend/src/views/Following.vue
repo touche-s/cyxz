@@ -28,10 +28,7 @@
     </div>
 
     <!-- 加载中 -->
-    <div v-if="loading && followingUsers.length === 0" class="loading-state">
-      <Icon icon="ph:spinner" class="spinner" />
-      <span>加载中...</span>
-    </div>
+    <LoadingSpinner v-if="loading && followingUsers.length === 0" />
 
     <!-- 动态时间线 -->
     <section v-if="posts.length > 0" class="timeline-section">
@@ -77,7 +74,8 @@
 
       <!-- 加载更多 -->
       <div v-if="hasMore" class="load-more" @click="loadMore">
-        {{ loadingMore ? '加载中...' : '加载更多' }}
+        <LoadingSpinner v-if="loadingMore" inline text="" />
+        <span v-else>加载更多</span>
       </div>
     </section>
 
@@ -104,6 +102,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
+import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import { getFollowingList } from '@/api/user'
 import { getFollowingPosts } from '@/api/post'
 import type { FollowUserVO } from '@/api/user'
@@ -139,7 +138,7 @@ async function loadPosts(reset = false) {
 
   try {
     const res = await getFollowingPosts({ page: page.value, size: pageSize })
-    const list: PostVO[] = (res as any).records ?? res as PostVO[]
+    const list: PostVO[] = (res as any).records ?? (res as any)
     total.value = (res as any).total ?? 0
 
     if (reset) {
@@ -424,26 +423,6 @@ onMounted(async () => {
 }
 
 /* ===== 加载/空态 ===== */
-.loading-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 60px 0;
-  color: var(--text-dim);
-  font-size: 14px;
-}
-
-.spinner {
-  animation: spin 0.8s linear infinite;
-  font-size: 22px;
-  color: var(--pink);
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
 .empty-card {
   background: var(--card);
   border: 1.5px solid var(--border-light);

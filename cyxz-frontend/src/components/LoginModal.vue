@@ -256,7 +256,7 @@ async function handleSubmit() {
       ElMessage.success('登录成功')
       try {
         const pdata = await getMyProfile()
-        userStore.setUserInfo({ userId: data.userId, ...pdata })
+        userStore.setUserInfo({ ...pdata, userId: data.userId })
       } catch {
         userStore.setUserInfo({ userId: data.userId, nickname: form.username } as any)
       }

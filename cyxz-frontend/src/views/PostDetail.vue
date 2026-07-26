@@ -77,14 +77,14 @@
           </div>
 
           <div class="post-action-bar">
-            <button class="action-btn" :class="{ active: liked, popping: likePopping }" @click="handlePostLike">
-              <Icon icon="ph:heart" class="action-icon pink-icon" v-show="!liked" />
-              <Icon icon="ph:heart-fill" class="action-icon pink-icon" v-show="liked" />
+            <button class="action-btn" :class="{ active: post.liked, popping: likeInteraction.popping }" @click="likeInteraction.toggle">
+              <Icon icon="ph:heart" class="action-icon pink-icon" v-show="!post.liked" />
+              <Icon icon="ph:heart-fill" class="action-icon pink-icon" v-show="post.liked" />
               <span class="action-count">{{ formatNumber(post.likes) }}</span>
             </button>
-            <button class="action-btn" :class="{ active: collected, popping: collectPopping }" @click="handleCollect">
-              <Icon icon="ph:star" class="action-icon pink-icon" v-show="!collected" />
-              <Icon icon="ph:star-fill" class="action-icon pink-icon" v-show="collected" />
+            <button class="action-btn" :class="{ active: post.collected, popping: collectInteraction.popping }" @click="collectInteraction.toggle">
+              <Icon icon="ph:star" class="action-icon pink-icon" v-show="!post.collected" />
+              <Icon icon="ph:star-fill" class="action-icon pink-icon" v-show="post.collected" />
               <span class="action-count">{{ formatNumber(post.collections) }}</span>
             </button>
             <button class="action-btn" @click="handleShare">
@@ -232,6 +232,7 @@ import CommentItem from '@/components/CommentItem.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import FollowButton from '@/components/FollowButton.vue'
+import { useToggleInteraction } from '@/composables/useToggleInteraction'
 import { Icon } from '@iconify/vue'
 
 const route = useRoute()
@@ -242,12 +243,28 @@ const { following, followLoading, checkFollowing, toggleFollow: doFollow } = use
 
 const post = ref<PostVO | null>(null)
 const loading = ref(false)
-const liked = ref(false)
-const collected = ref(false)
 const commentInput = ref('')
 const commentSection = ref<HTMLElement | null>(null)
 const currentImage = ref(0)
 
+
+const likeInteraction = useToggleInteraction({
+  target: () => post.value,
+  likedField: 'liked',
+  countField: 'likes',
+  likeApi: (id) => likePost(id),
+  unlikeApi: (id) => unlikePost(id),
+  idGetter: (p) => String(p.id),
+})
+
+const collectInteraction = useToggleInteraction({
+  target: () => post.value,
+  likedField: 'collected',
+  countField: 'collections',
+  likeApi: (id) => collectPost(id),
+  unlikeApi: (id) => uncollectPost(id),
+  idGetter: (p) => String(p.id),
+})
 // ===== 图片轮播动态比例 =====
 const imageNaturalRatios = ref<number[]>([])
 function onImageLoad(index: number, e: Event) {
@@ -262,8 +279,6 @@ const carouselAspectRatio = computed(() => {
 const replyTarget = ref<{ comment: CommentVO; parentId: string } | null>(null)
 const activeReplyId = ref<string | null>(null) // 哪个顶级评论下方显示回复框
 
-const likePopping = ref(false)
-const collectPopping = ref(false)
 
 // ===== 评论列表 =====
 const comments = ref<CommentVO[]>([])
@@ -350,8 +365,6 @@ const loadPost = async () => {
       loading.value = false
       return
     }
-    liked.value = post.value.liked || false
-    collected.value = post.value.collected || false
     // 非作者本人时查询关注状态
     if (post.value.userId && String(post.value.userId) !== String(currentUserId.value)) {
       await checkFollowing(String(post.value.userId))
@@ -363,62 +376,6 @@ const loadPost = async () => {
   }
 }
 
-const likeLoading = ref(false)
-const collectLoading = ref(false)
-
-const handlePostLike = async () => {
-  if (!requireLogin()) return
-  if (!post.value || likeLoading.value) return
-
-  const oldLiked = liked.value
-  const oldLikes = post.value.likes
-
-  likeLoading.value = true
-  liked.value = !oldLiked
-  post.value.likes = oldLiked ? Math.max(oldLikes - 1, 0) : oldLikes + 1
-  likePopping.value = true
-  setTimeout(() => { likePopping.value = false }, 450)
-
-  try {
-    if (oldLiked) {
-      await unlikePost(String(post.value.id))
-    } else {
-      await likePost(String(post.value.id))
-    }
-  } catch {
-    liked.value = oldLiked
-    post.value.likes = oldLikes
-  } finally {
-    likeLoading.value = false
-  }
-}
-
-const handleCollect = async () => {
-  if (!requireLogin()) return
-  if (!post.value || collectLoading.value) return
-
-  const oldCollected = collected.value
-  const oldCollections = post.value.collections
-
-  collectLoading.value = true
-  collected.value = !oldCollected
-  post.value.collections = oldCollected ? Math.max(oldCollections - 1, 0) : oldCollections + 1
-  collectPopping.value = true
-  setTimeout(() => { collectPopping.value = false }, 450)
-
-  try {
-    if (oldCollected) {
-      await uncollectPost(String(post.value.id))
-    } else {
-      await collectPost(String(post.value.id))
-    }
-  } catch {
-    collected.value = oldCollected
-    post.value.collections = oldCollections
-  } finally {
-    collectLoading.value = false
-  }
-}
 
 function toggleFollow() {
   if (!post.value?.userId) return

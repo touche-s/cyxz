@@ -21,12 +21,13 @@ export function useToggleInteraction<T extends Record<string, any>>(options: {
     const t = options.target()
     if (!t || loading.value) return
 
-    const oldLiked = t[options.likedField]
-    const oldCount = t[options.countField]
+    const record = t as Record<string, any>
+    const oldLiked = record[options.likedField]
+    const oldCount = record[options.countField]
 
     loading.value = true
-    t[options.likedField] = !oldLiked
-    t[options.countField] = oldLiked ? Math.max(oldCount - 1, 0) : oldCount + 1
+    record[options.likedField] = !oldLiked
+    record[options.countField] = oldLiked ? Math.max(oldCount - 1, 0) : oldCount + 1
     popping.value = true
     setTimeout(() => { popping.value = false }, 450)
 
@@ -37,8 +38,8 @@ export function useToggleInteraction<T extends Record<string, any>>(options: {
         await options.likeApi(options.idGetter(t))
       }
     } catch {
-      t[options.likedField] = oldLiked
-      t[options.countField] = oldCount
+      record[options.likedField] = oldLiked
+      record[options.countField] = oldCount
     } finally {
       loading.value = false
     }

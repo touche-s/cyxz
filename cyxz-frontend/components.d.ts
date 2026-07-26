@@ -24,6 +24,7 @@ declare module 'vue' {
     EmptyState: typeof import('./src/components/EmptyState.vue')['default']
     FollowButton: typeof import('./src/components/FollowButton.vue')['default']
     HeaderBar: typeof import('./src/components/HeaderBar.vue')['default']
+    ImageCarousel: typeof import('./src/components/ImageCarousel.vue')['default']
     ImageCropper: typeof import('./src/components/ImageCropper.vue')['default']
     Layout: typeof import('./src/components/Layout.vue')['default']
     LoadingSpinner: typeof import('./src/components/LoadingSpinner.vue')['default']

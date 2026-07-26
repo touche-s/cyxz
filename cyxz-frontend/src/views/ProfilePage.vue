@@ -83,7 +83,7 @@
             </button>
           </template>
         </EmptyState>
-        <div v-else class="loading-placeholder">加载中...</div>
+        <LoadingSpinner v-else />
       </div>
 
       <!-- 收藏 tab -->
@@ -100,7 +100,7 @@
           />
         </div>
         <EmptyState v-else-if="!favoriteLoading" :title="searchKeyword ? '没有匹配的收藏' : '还没有收藏任何内容'" hint="发现喜欢的帖子就收藏起来吧~" />
-        <div v-else class="loading-placeholder">加载中...</div>
+        <LoadingSpinner v-else />
       </div>
     </div>
   </div>
@@ -123,6 +123,7 @@ import PostCard from '@/components/PostCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import FollowButton from '@/components/FollowButton.vue'
 import SearchInput from '@/components/SearchInput.vue'
+import LoadingSpinner from '@/components/LoadingSpinner.vue'
 
 const route = useRoute()
 const { to, open } = useNavigate()
@@ -163,7 +164,7 @@ onMounted(async () => {
     activeTab.value = 'favorites'
   }
   try {
-    profile.value = await getUserProfile(userId)
+    profile.value = await getUserProfile(userId) as unknown as UserInfo
     // 加载作品列表
     await loadPosts(userId)
     // 加载收藏列表（主页 tab 也需要展示）
@@ -523,12 +524,6 @@ function goToPost(post: PostVO) {
   box-shadow: var(--shadow-lg);
 }
 .btn-icon { width: 16px; height: 16px; margin-right: 6px; color: var(--white); }
-.loading-placeholder {
-  text-align: center;
-  padding: 60px 0;
-  color: var(--text-dim);
-  font-size: 14px;
-}
 
 /* 响应式 */
 @media (max-width: 768px) {

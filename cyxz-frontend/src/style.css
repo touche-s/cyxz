@@ -42,6 +42,9 @@
   --header-top: 6px;
   --header-height: 66px;
   --header-offset: calc(var(--header-top) + var(--header-height) + 16px);
+  --bg-primary: var(--card);
+  --text-primary: var(--text);
+  --accent: var(--pink);
 }
 
 html.dark {

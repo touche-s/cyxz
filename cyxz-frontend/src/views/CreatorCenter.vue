@@ -152,27 +152,7 @@
               <h2 class="preview-title">{{ previewPost.title }}</h2>
 
               <div class="preview-images" v-if="previewPost.images && previewPost.images.length > 0">
-                <div class="preview-carousel" :style="{ aspectRatio: previewCarouselRatio }">
-                  <div class="preview-carousel-track" :style="{ transform: `translateX(-${previewImageIndex * 100}%)` }">
-                    <img
-                      v-for="(img, index) in previewPost.images"
-                      :key="index"
-                      :src="img"
-                      :alt="'图片' + (index + 1)"
-                      class="preview-carousel-slide"
-                      @load="(e) => onPreviewImageLoad(index, e)"
-                    />
-                  </div>
-                  <button v-if="previewPost.images.length > 1" class="preview-carousel-arrow preview-carousel-prev" @click="previewImageIndex = Math.max(0, previewImageIndex - 1)">
-                    <Icon icon="ph:caret-left" class="carousel-arrow-icon" />
-                  </button>
-                  <button v-if="previewPost.images.length > 1" class="preview-carousel-arrow preview-carousel-next" @click="previewImageIndex = Math.min((previewPost.images?.length ?? 1) - 1, previewImageIndex + 1)">
-                    <Icon icon="ph:caret-right" class="carousel-arrow-icon" />
-                  </button>
-                  <div class="preview-carousel-dots" v-if="previewPost.images.length > 1">
-                    <span v-for="(_, index) in previewPost.images" :key="index" class="preview-carousel-dot" :class="{ active: index === previewImageIndex }" @click="previewImageIndex = index"></span>
-                  </div>
-                </div>
+                <ImageCarousel :images="previewPost.images" />
               </div>
 
               <div class="preview-content" v-if="previewPost.content">
@@ -205,6 +185,7 @@ import type { CommentVO } from '@/api/comment'
 import { deleteComment } from '@/api/comment'
 import PostCreate from '@/views/PostCreate.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
+import ImageCarousel from '@/components/ImageCarousel.vue'
 import { isDeleted, statusText, canPublish } from '@/utils/postStatus'
 
 // 创作中心子组件按需懒加载，首次进入时不加载未使用的 Tab 组件
@@ -251,18 +232,6 @@ const iconComment = 'ph:chat-circle-text'
 const iconEmpty = 'ph:tray'
 
 const previewPost = ref<PostVO | null>(null)
-const previewImageIndex = ref(0)
-const previewImageRatios = ref<number[]>([])
-
-function onPreviewImageLoad(index: number, e: Event) {
-  const img = e.target as HTMLImageElement
-  previewImageRatios.value[index] = img.naturalWidth / img.naturalHeight
-}
-
-const previewCarouselRatio = computed(() => {
-  const ratio = previewImageRatios.value[previewImageIndex.value]
-  return ratio ? `${ratio}` : '4/3'
-})
 
 const previewParagraphs = computed(() => {
   return previewPost.value?.content?.split('\n').filter(p => p.trim()) || []
@@ -276,8 +245,6 @@ const openPreview = (post: PostVO) => {
 const closePreview = () => {
   showPreviewModal.value = false
   previewPost.value = null
-  previewImageIndex.value = 0
-  previewImageRatios.value = []
 }
 
 const switchNav = async (nav: typeof activeNav.value) => {
@@ -759,81 +726,6 @@ watch(activeNav, (val) => {
   margin-bottom: 20px;
 }
 
-.preview-carousel {
-  position: relative;
-  border-radius: 14px;
-  overflow: hidden;
-  background: var(--bg);
-}
-
-.preview-carousel-track {
-  display: flex;
-  transition: transform 0.35s ease;
-  height: 100%;
-}
-
-.preview-carousel-slide {
-  min-width: 100%;
-  height: 100%;
-  object-fit: contain;
-  background: var(--bg);
-}
-
-.preview-carousel-arrow {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(0, 0, 0, 0.35);
-  color: var(--white);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.22s ease;
-  z-index: 2;
-}
-
-.preview-carousel-arrow:hover {
-  background: rgba(0, 0, 0, 0.55);
-  transform: translateY(-50%) scale(1.08);
-}
-
-.preview-carousel-prev {
-  left: 12px;
-}
-
-.preview-carousel-next {
-  right: 12px;
-}
-
-.preview-carousel-dots {
-  position: absolute;
-  bottom: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 8px;
-  z-index: 2;
-}
-
-.preview-carousel-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.5);
-  cursor: pointer;
-  transition: all 0.22s ease;
-}
-
-.preview-carousel-dot.active {
-  background: var(--card);
-  transform: scale(1.3);
-}
-
 .preview-content {
   margin-bottom: 20px;
 }
@@ -942,9 +834,6 @@ watch(activeNav, (val) => {
   }
 }
 
-html.dark .preview-carousel-dot {
-  background: rgba(180, 132, 255, 0.25);
-}
 </style>
 
 <style>

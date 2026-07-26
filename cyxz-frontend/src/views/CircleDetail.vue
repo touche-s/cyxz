@@ -30,7 +30,7 @@
             <Icon icon="ph:pencil-simple" />
             圈内发布
           </button>
-          <button class="btn-join" :class="{ joined: circle.joined }" @click="toggleJoin">
+          <button class="btn-join" :class="{ joined: circle.joined }" :disabled="joinLoading" @click="toggleJoin">
             {{ circle.joined ? '已加入' : '加入' }}
           </button>
         </div>
@@ -100,6 +100,7 @@ const circleId = Number(route.params.id)
 const circle = ref<CircleVO | null>(null)
 const posts = ref<PostVO[]>([])
 const loading = ref(false)
+const joinLoading = ref(false)
 const sortBy = ref('latest')
 const sortTabs = [
   { key: 'hot', label: '热门', icon: 'ph:fire' },
@@ -154,6 +155,10 @@ async function loadPosts() {
 async function toggleJoin() {
   if (!requireLogin()) return
   if (!circle.value) return
+  if (joinLoading.value) return
+  const prevJoined = circle.value.joined
+  const prevMemberCount = circle.value.memberCount
+  joinLoading.value = true
   try {
     if (circle.value.joined) {
       await leaveCircle(circle.value.id)
@@ -166,6 +171,10 @@ async function toggleJoin() {
     }
   } catch (e) {
     console.error('操作失败:', e)
+    circle.value.joined = prevJoined
+    circle.value.memberCount = prevMemberCount
+  } finally {
+    joinLoading.value = false
   }
 }
 

@@ -54,3 +54,9 @@ export function estimatePostHeight(post: { title?: string; tags?: string[] }): n
   const metaH = 52
   return coverH + titleH + tagsH + metaH
 }
+
+/** 将帖子内容按换行拆分为段落，过滤空行 */
+export function splitParagraphs(content: string): string[] {
+  if (!content) return []
+  return content.split('\n').filter(p => p.trim())
+}
