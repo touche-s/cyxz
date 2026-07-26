@@ -21,4 +21,7 @@ public interface CircleService {
     void leaveCircle(Long userId, Long circleId);
 
     List<CircleVO> listJoined(Long userId);
+
+    /** 全量重算所有圈子的 post_count 与 member_count */
+    void recountStats();
 }

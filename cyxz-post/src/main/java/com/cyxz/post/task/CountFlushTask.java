@@ -1,5 +1,6 @@
 package com.cyxz.post.task;
 
+import com.cyxz.post.service.CircleService;
 import com.cyxz.post.service.PostCountFlushService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -7,9 +8,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 帖子计数刷库任务
- * <p>定时将 Redis Hash 中的各维度增量（浏览/点赞/收藏/评论数）刷入 MySQL post 表。
- * <p>刷库逻辑委托给 {@link PostCountFlushService}，本类只负责调度。
+ * 计数刷库任务
+ * <p>定时将各维度增量数据刷入 MySQL。
  */
 @Slf4j
 @Component
@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 public class CountFlushTask {
 
     private final PostCountFlushService flushService;
+    private final CircleService circleService;
 
     /** 每 30 秒执行一次 */
     @Scheduled(fixedDelay = 30_000)
@@ -25,5 +26,11 @@ public class CountFlushTask {
         flushService.flushLikeCounts();
         flushService.flushCollectCounts();
         flushService.flushCommentCounts();
+    }
+
+    /** 每 2 分钟重算一次圈子统计（post_count / member_count） */
+    @Scheduled(fixedDelay = 120_000)
+    public void recountCircleStats() {
+        circleService.recountStats();
     }
 }

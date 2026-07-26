@@ -293,16 +293,18 @@ public class PostServiceImpl implements PostService {
 
     /**
      * 分页查询帖子列表（仅已发布）
-     * <p>按创建时间倒序排列，可按分类筛选。
+     * <p>支持按分类、圈子筛选和排序。
      *
      * @param categoryId    分类 ID（可为 null，null 时查全部分类）
+     * @param circleId      圈子 ID（可为 null）
+     * @param sortBy        排序方式：latest 按创建时间倒序，hot 按热度倒序，非法值降级为 latest
      * @param page          页码（从 1 开始）
      * @param size          每页条数
      * @param currentUserId 当前登录用户 ID（可为 null）
      * @return 帖子视图列表
      */
     @Override
-    public PageResult<PostVO> listPosts(Long categoryId, Long circleId, int page, int size, Long currentUserId) {
+    public PageResult<PostVO> listPosts(Long categoryId, Long circleId, String sortBy, int page, int size, Long currentUserId) {
         Page<PostPO> pageParam = PageConstants.pageOf(page, size);
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostPO::getStatus, CommonStatus.ACTIVE);
@@ -312,7 +314,16 @@ public class PostServiceImpl implements PostService {
         if (circleId != null) {
             wrapper.eq(PostPO::getCircleId, circleId);
         }
-        wrapper.orderByDesc(PostPO::getCreateTime);
+        // 排序：hot 按热度（点赞→评论→收藏→浏览），latest 及其他非法值按创建时间倒序
+        if ("hot".equals(sortBy)) {
+            wrapper.orderByDesc(PostPO::getLikes)
+                   .orderByDesc(PostPO::getComments)
+                   .orderByDesc(PostPO::getCollections)
+                   .orderByDesc(PostPO::getViews)
+                   .orderByDesc(PostPO::getCreateTime);
+        } else {
+            wrapper.orderByDesc(PostPO::getCreateTime);
+        }
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
 
         List<PostVO> vos = fillPostVOList(result.getRecords(), currentUserId);

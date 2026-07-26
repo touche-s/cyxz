@@ -9,8 +9,10 @@ import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.constant.PageConstants;
 import com.cyxz.post.entity.CircleMemberPO;
 import com.cyxz.post.entity.CirclePO;
+import com.cyxz.post.entity.PostPO;
 import com.cyxz.post.mapper.CircleMapper;
 import com.cyxz.post.mapper.CircleMemberMapper;
+import com.cyxz.post.mapper.PostMapper;
 import com.cyxz.post.service.CircleService;
 import com.cyxz.post.vo.CircleVO;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +32,7 @@ public class CircleServiceImpl implements CircleService {
 
     private final CircleMapper circleMapper;
     private final CircleMemberMapper circleMemberMapper;
+    private final PostMapper postMapper;
 
     @Override
     public List<CircleVO> listAll(Long currentUserId) {
@@ -84,7 +87,6 @@ public class CircleServiceImpl implements CircleService {
         } else {
             return;
         }
-        circleMapper.updateMemberCount(circleId, 1);
     }
 
     @Override
@@ -100,7 +102,6 @@ public class CircleServiceImpl implements CircleService {
         }
         member.setStatus(CommonStatus.DELETED);
         circleMemberMapper.updateById(member);
-        circleMapper.updateMemberCount(circleId, -1);
     }
 
     @Override
@@ -114,6 +115,26 @@ public class CircleServiceImpl implements CircleService {
                 .filter(c -> c.getStatus() == CommonStatus.ACTIVE)
                 .map(c -> toVO(c, userId))
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public void recountStats() {
+        List<CirclePO> circles = circleMapper.selectList(new LambdaQueryWrapper<CirclePO>()
+                .eq(CirclePO::getStatus, CommonStatus.ACTIVE));
+        if (circles.isEmpty()) return;
+
+        for (CirclePO circle : circles) {
+            long cnt = postMapper.selectCount(new LambdaQueryWrapper<PostPO>()
+                    .eq(PostPO::getCircleId, circle.getId())
+                    .eq(PostPO::getStatus, CommonStatus.ACTIVE));
+            circleMapper.setPostCount(circle.getId(), (int) cnt);
+
+            long mbr = circleMemberMapper.selectCount(new LambdaQueryWrapper<CircleMemberPO>()
+                    .eq(CircleMemberPO::getCircleId, circle.getId())
+                    .eq(CircleMemberPO::getStatus, CommonStatus.ACTIVE));
+            circleMapper.setMemberCount(circle.getId(), (int) mbr);
+        }
+        log.debug("recountCircleStats done: {} circles", circles.size());
     }
 
     private List<CircleVO> toVOList(List<CirclePO> circles, Long currentUserId) {

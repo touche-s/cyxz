@@ -125,6 +125,8 @@ public class PostController {
      * 分页查询帖子列表（仅已发布）
      *
      * @param categoryId    分类 ID（可选，null 时查全部分类）
+     * @param circleId      圈子 ID（可选）
+     * @param sortBy        排序方式：latest/hot，默认 latest
      * @param page          页码（从 1 开始，默认 1）
      * @param size          每页条数（默认 10）
      * @param currentUserId 当前登录用户 ID（由 Gateway 注入，游客为 null）
@@ -133,10 +135,11 @@ public class PostController {
     @GetMapping("/list")
     public Result<PageResult<PostVO>> list(@RequestParam(value = "categoryId", required = false) Long categoryId,
                                      @RequestParam(value = "circleId", required = false) Long circleId,
+                                     @RequestParam(value = "sortBy", defaultValue = "latest") String sortBy,
                                      @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
                                      @RequestParam(value = "size", defaultValue = PageConstants.DEFAULT_SIZE_STR) int size,
                                      @CurrentUser(required = false) Long currentUserId) {
-        return Result.success(postService.listPosts(categoryId, circleId, page, size, currentUserId));
+        return Result.success(postService.listPosts(categoryId, circleId, sortBy, page, size, currentUserId));
     }
 
     /**
