@@ -50,17 +50,33 @@ public class UploadController {
 
     /**
      * 删除已上传的文件
+     * <p>仅允许删除自己的文件：头像路径格式为 avatar/{userId}/...，
+     * 会校验当前登录用户是否与路径中的 userId 一致。
      *
-     * @param url 文件完整 URL
+     * @param url    文件完整 URL
+     * @param userId 当前登录用户 ID（由 Gateway 注入）
      * @return 操作结果
      */
     @DeleteMapping("/file")
-    public Result<Void> deleteFile(@RequestParam("url") String url) {
+    public Result<Void> deleteFile(@RequestParam("url") String url, @CurrentUser Long userId) {
         String prefix = minioConfig.getEndpoint() + "/" + minioConfig.getBucketName() + "/";
         if (!url.startsWith(prefix)) {
             return Result.fail("非法的文件地址");
         }
         String objectName = url.substring(prefix.length());
+
+        // 头像文件校验归属：avatar/{userId}/...
+        if (objectName.startsWith("avatar/")) {
+            String remaining = objectName.substring("avatar/".length());
+            int slashIdx = remaining.indexOf('/');
+            if (slashIdx > 0) {
+                String ownerIdStr = remaining.substring(0, slashIdx);
+                if (!String.valueOf(userId).equals(ownerIdStr)) {
+                    return Result.fail("无权删除他人的文件");
+                }
+            }
+        }
+
         uploadService.deleteFile(objectName);
         return Result.success("操作成功", null);
     }
