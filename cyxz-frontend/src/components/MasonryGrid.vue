@@ -9,19 +9,34 @@
 </template>
 
 <script setup lang="ts" generic="T">
-import { computed } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 
 const props = withDefaults(defineProps<{
   items: T[]
   columnCount?: number
   gap?: number
   keyField?: string
-  /** 估算卡片高度，用于最短列分配。不传则均匀分配（退化为轮询） */
   estimateHeight?: (item: T) => number
 }>(), {
   columnCount: 4,
   gap: 16,
   keyField: 'id',
+})
+
+const windowWidth = ref(window.innerWidth)
+
+function onResize() {
+  windowWidth.value = window.innerWidth
+}
+
+onMounted(() => window.addEventListener('resize', onResize, { passive: true }))
+onUnmounted(() => window.removeEventListener('resize', onResize))
+
+const actualColumnCount = computed(() => {
+  const w = windowWidth.value
+  if (w >= 1280) return 4
+  if (w >= 960) return 3
+  return 2
 })
 
 function getKey(item: T): string | number {
@@ -33,7 +48,7 @@ function getIndex(item: T): number {
 }
 
 const columns = computed(() => {
-  const cols = props.columnCount
+  const cols = actualColumnCount.value
   const result: T[][] = Array.from({ length: cols }, () => [])
   const heights = Array(cols).fill(0)
 

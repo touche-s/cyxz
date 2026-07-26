@@ -14,6 +14,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/Square.vue'),
   },
   {
+    path: '/discover',
+    name: 'Discover',
+    component: () => import('@/views/Discover.vue'),
+  },
+  {
     path: '/following',
     name: 'Following',
     component: () => import('@/views/Following.vue'),
@@ -69,6 +74,11 @@ const routes: RouteRecordRaw[] = [
     name: 'MessageCenter',
     component: () => import('@/views/MessageCenter.vue'),
     meta: { requiresAuth: true },
+  },
+  {
+    path: '/guidelines',
+    name: 'Guidelines',
+    component: () => import('@/views/Guidelines.vue'),
   },
   {
     path: '/messages/chat',

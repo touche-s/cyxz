@@ -31,23 +31,23 @@
             圈内发布
           </button>
           <button class="btn-join" :class="{ joined: circle.joined }" @click="toggleJoin">
-            {{ circle.joined ? '已加入' : '加入圈子' }}
+            {{ circle.joined ? '已加入' : '加入' }}
           </button>
         </div>
       </div>
     </div>
 
+    <!-- 板块筛选 -->
+    <PillTabs v-model="categoryTab" :tabs="categoryTabs" />
+
     <!-- 排序切换 -->
-    <div class="sort-bar">
-      <button :class="{ active: sortBy === 'hot' }" @click="sortBy = 'hot'; loadPosts()">热门</button>
-      <button :class="{ active: sortBy === 'latest' }" @click="sortBy = 'latest'; loadPosts()">最新</button>
-    </div>
+    <UnderlineTabs v-model="sortBy" :tabs="sortTabs" />
 
     <!-- 帖子列表 -->
     <div class="content-grid" v-if="!loading">
       <MasonryGrid
         :items="posts"
-        :column-count="3"
+        :column-count="4"
         :gap="18"
         :estimate-height="estimatePostHeight"
       >
@@ -73,17 +73,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { getCircleDetail, joinCircle, leaveCircle } from '@/api/circle'
 import type { CircleVO } from '@/api/circle'
-import { getPostList, likePost, unlikePost, collectPost, uncollectPost } from '@/api/post'
-import type { PostVO } from '@/api/post'
+import { getPostList, getCategoryList, likePost, unlikePost, collectPost, uncollectPost } from '@/api/post'
+import type { PostVO, CategoryVO } from '@/api/post'
 import { useNavigate } from '@/composables/useNavigate'
 import { useAuth } from '@/composables/useAuth'
 import { useUserStore } from '@/stores/user'
 import PostCard from '@/components/PostCard.vue'
+import UnderlineTabs from '@/components/UnderlineTabs.vue'
+import PillTabs from '@/components/PillTabs.vue'
 import MasonryGrid from '@/components/MasonryGrid.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -98,7 +100,24 @@ const circleId = Number(route.params.id)
 const circle = ref<CircleVO | null>(null)
 const posts = ref<PostVO[]>([])
 const loading = ref(false)
-const sortBy = ref<'hot' | 'latest'>('hot')
+const sortBy = ref('latest')
+const sortTabs = [
+  { key: 'hot', label: '热门', icon: 'ph:fire' },
+  { key: 'latest', label: '最新', icon: 'ph:clock' },
+]
+const categories = ref<CategoryVO[]>([])
+const selectedCategoryId = ref<number | null>(null)
+
+const categoryTab = ref('all')
+const categoryTabs = computed(() => [
+  { key: 'all', label: '全部' },
+  ...categories.value.map(c => ({ key: String(c.id), label: c.name })),
+])
+
+watch(categoryTab, (val) => {
+  selectedCategoryId.value = val === 'all' ? null : Number(val)
+  loadPosts()
+})
 
 async function loadCircle() {
   try {
@@ -108,10 +127,21 @@ async function loadCircle() {
   }
 }
 
+async function loadCategories() {
+  try {
+    categories.value = await getCategoryList()
+  } catch (e) {
+    console.error('加载分类失败:', e)
+  }
+}
+
 async function loadPosts() {
   loading.value = true
   try {
-    const params: any = { circleId, page: 1, size: 12 }
+    const params: any = { circleId, sortBy: sortBy.value, page: 1, size: 12 }
+    if (selectedCategoryId.value !== null) {
+      params.categoryId = selectedCategoryId.value
+    }
     const data = await getPostList(params)
     posts.value = data.records || []
   } catch (e) {
@@ -177,8 +207,11 @@ const handlePostLike = async (post: PostVO) => {
   }
 }
 
+watch(sortBy, () => loadPosts())
+
 onMounted(() => {
   loadCircle()
+  loadCategories()
   loadPosts()
 })
 </script>
@@ -332,55 +365,55 @@ onMounted(() => {
 .btn-publish:active { transform: scale(0.97); }
 
 .btn-join {
-  padding: 10px 22px;
-  border-radius: 14px;
+  padding: 8px 16px;
+  border-radius: 12px;
   border: 1.5px solid var(--pink);
   background: transparent;
   color: var(--pink);
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.22s ease-out;
+  align-self: center;
+  transition: all 0.22s ease;
+  white-space: nowrap;
 }
 
 .btn-join:hover {
   background: var(--pink);
   color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 107, 157, 0.18);
 }
 
 .btn-join.joined {
-  border-color: var(--border);
-  color: var(--text-dim);
-  background: var(--bg-soft);
+  background: linear-gradient(135deg, rgba(255, 107, 157, 0.08), rgba(180, 132, 255, 0.06));
+  border-color: var(--pink);
+  color: var(--pink);
+  box-shadow: 0 0 0 1px rgba(255, 107, 157, 0.08);
 }
 
-/* ===== Sort Bar ===== */
-.sort-bar {
+.btn-join.joined:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+  background: #fef2f2;
+  box-shadow: none;
+}
+
+.filter-toolbar {
   display: flex;
-  gap: 4px;
+  align-items: center;
+  gap: 16px;
   margin-bottom: 20px;
+  flex-wrap: wrap;
 }
 
-.sort-bar button {
-  padding: 8px 20px;
-  border-radius: 10px;
-  border: none;
-  background: transparent;
-  color: var(--text-dim);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
+.filter-toolbar :deep(.pill-tabs) {
+  margin-bottom: 0;
 }
 
-.sort-bar button:hover {
-  color: var(--pink);
-}
-
-.sort-bar button.active {
-  background: var(--pink-bg);
-  color: var(--pink);
-  font-weight: 700;
+.filter-toolbar :deep(.underline-tabs) {
+  margin-bottom: 0;
+  padding-bottom: 4px;
 }
 
 /* ===== Content Grid ===== */
@@ -392,5 +425,19 @@ onMounted(() => {
   .circle-cover { height: 120px; }
   .circle-header-body { flex-direction: column; gap: 16px; align-items: flex-start; padding: 0 16px 18px; margin-top: -28px; }
   .circle-avatar { width: 64px; height: 64px; }
+}
+
+/* ===== Dark mode overrides ===== */
+html.dark .cover-overlay {
+  background: linear-gradient(
+    to bottom,
+    transparent 30%,
+    rgba(40, 35, 60, 0.08) 60%,
+    rgba(40, 35, 60, 0.35) 100%
+  );
+}
+
+html.dark .btn-join.joined:hover {
+  background: rgba(239, 68, 68, 0.1);
 }
 </style>

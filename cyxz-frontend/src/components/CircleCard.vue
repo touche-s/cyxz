@@ -13,19 +13,24 @@
       />
       <div v-else class="cover-fallback"></div>
       <div class="cover-overlay"></div>
+      <div v-if="rank !== undefined" class="cover-rank" :class="`cover-rank--${rank + 1}`">
+        <Icon v-if="rank === 0" icon="ph:crown-simple" />
+        <template v-else>{{ rank + 1 }}</template>
+      </div>
     </div>
-    <div class="card-body-row card-body-row--stack">
-      <div class="card-head-row">
-        <div
-          class="circle-avatar"
-          :class="{ 'circle-avatar--lg': variant === 'joined' }"
-        >
+    <div class="card-body">
+      <div class="card-head">
+        <div class="circle-avatar">
           <img v-if="circle.avatar" :src="circle.avatar" :alt="circle.name" />
           <span v-else class="avatar-fallback">{{ circle.name.charAt(0) }}</span>
         </div>
-        <div class="circle-head-copy">
+        <div class="card-head-info">
           <h3 class="circle-name">{{ circle.name }}</h3>
-          <span v-if="variant === 'joined'" class="joined-badge">已加入</span>
+          <div class="circle-stats">
+            <span>{{ circle.postCount }} 帖子</span>
+            <span class="stat-sep">·</span>
+            <span>{{ circle.memberCount }} 成员</span>
+          </div>
         </div>
         <button
           v-if="variant !== 'joined'"
@@ -33,24 +38,11 @@
           :class="{ joined: circle.joined }"
           @click.stop="$emit('toggle')"
         >
-          <Icon v-if="!circle.joined" icon="ph:plus" />
-          <Icon v-else icon="ph:check" />
           {{ circle.joined ? '已加入' : '加入' }}
         </button>
+        <span v-else class="joined-tag">已加入</span>
       </div>
-      <div class="circle-info circle-info--full">
-        <p class="circle-intro">{{ circle.intro }}</p>
-        <div class="circle-stats-row">
-          <span class="stat-item">
-            <Icon icon="ph:note-pencil" class="stat-icon" />
-            {{ circle.postCount }} 帖子
-          </span>
-          <span class="stat-item">
-            <Icon icon="ph:users" class="stat-icon" />
-            {{ circle.memberCount }} 成员
-          </span>
-        </div>
-      </div>
+      <p class="circle-intro">{{ circle.intro }}</p>
     </div>
   </article>
 </template>
@@ -61,6 +53,7 @@ import type { CircleVO } from '@/api/circle'
 defineProps<{
   circle: CircleVO
   variant?: 'default' | 'joined'
+  rank?: number
 }>()
 
 defineEmits<{
@@ -91,7 +84,7 @@ defineEmits<{
 
 .card-cover {
   position: relative;
-  height: 122px;
+  height: 80px;
   overflow: hidden;
   background: var(--gradient-card);
 }
@@ -126,40 +119,60 @@ defineEmits<{
   pointer-events: none;
 }
 
-.card-body-row {
-  padding: 16px 18px 18px;
-}
-
-.card-body-row--stack {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.card-head-row {
+.cover-rank {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 2;
+}
+
+.cover-rank--1 {
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+  font-size: 16px;
+}
+
+.cover-rank--2 {
+  background: linear-gradient(135deg, #a5b4fc, #c4b5fd);
+}
+
+.cover-rank--3 {
+  background: linear-gradient(135deg, #d97706, #f59e0b);
+}
+
+.card-body {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .circle-avatar {
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   background: linear-gradient(135deg, #f9a8d4, #c4b5fd);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   overflow: hidden;
-  box-shadow: 0 4px 14px rgba(255, 107, 157, 0.16);
   border: 2px solid rgba(255, 255, 255, 0.88);
-}
-
-.circle-avatar--lg {
-  width: 62px;
-  height: 62px;
-  border-radius: 18px;
 }
 
 .circle-avatar img {
@@ -169,43 +182,43 @@ defineEmits<{
 }
 
 .avatar-fallback {
-  color: var(--white);
-  font-size: 22px;
+  color: #fff;
+  font-size: 17px;
   font-weight: 800;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
-.circle-avatar--lg .avatar-fallback {
-  font-size: 26px;
-}
-
-.circle-head-copy {
+.card-head-info {
   min-width: 0;
   flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.circle-info--full {
-  min-width: 0;
 }
 
 .circle-name {
   margin: 0;
-  font-size: 16px;
-  font-weight: 800;
+  font-size: 14px;
+  font-weight: 700;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.circle-stats {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.stat-sep {
+  color: var(--border);
+}
+
 .circle-intro {
-  margin: 0 0 12px;
+  margin: 0;
   font-size: 12px;
-  line-height: 1.65;
+  line-height: 1.5;
   color: var(--text-dim);
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -213,52 +226,26 @@ defineEmits<{
   overflow: hidden;
 }
 
-.circle-stats-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  font-size: 11px;
-  color: var(--text-dim);
-}
-
-.stat-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-}
-
-.stat-icon {
-  width: 13px;
-  height: 13px;
-  color: var(--text-dim);
-}
-
-.joined-badge {
+.joined-tag {
   flex-shrink: 0;
-  padding: 3px 10px;
-  border-radius: 999px;
+  padding: 4px 10px;
+  border-radius: 8px;
   background: rgba(255, 107, 157, 0.08);
   color: var(--pink);
-  font-size: 10px;
-  font-weight: 700;
-  border: 1px solid rgba(255, 107, 157, 0.18);
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .join-btn {
-  margin-left: auto;
-  padding: 6px 13px;
+  padding: 4px 10px;
   border: 1.5px solid var(--pink);
   background: transparent;
   color: var(--pink);
   flex-shrink: 0;
-  font-size: 12px;
-  gap: 4px;
-  border-radius: 10px;
+  font-size: 11px;
+  border-radius: 8px;
   cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  font-weight: 700;
+  font-weight: 600;
   transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -279,5 +266,27 @@ defineEmits<{
   border-color: #ef4444;
   color: #ef4444;
   background: #fef2f2;
+}
+
+/* ===== Dark mode overrides ===== */
+html.dark .cover-overlay {
+  background: linear-gradient(
+    to bottom,
+    transparent 30%,
+    rgba(40, 35, 60, 0.1) 68%,
+    rgba(40, 35, 60, 0.42) 100%
+  );
+}
+
+html.dark .join-btn.joined:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+html.dark .circle-card:hover {
+  box-shadow: 0 12px 36px rgba(255, 107, 157, 0.04);
+}
+
+html.dark .join-btn:hover {
+  box-shadow: 0 4px 12px rgba(255, 107, 157, 0.09);
 }
 </style>

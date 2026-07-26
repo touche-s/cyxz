@@ -24,6 +24,10 @@ export const getJoinedCircles = () => {
   return request.get('/circle/joined')
 }
 
+export const getHotCircles = () => {
+  return request.get('/circle/hot', { params: { page: 1, size: 20 } })
+}
+
 export const joinCircle = (circleId: number) => {
   return request.post(`/circle/${circleId}/join`)
 }
