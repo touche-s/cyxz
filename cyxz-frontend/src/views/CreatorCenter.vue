@@ -189,7 +189,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
 import { useNavigate } from '@/composables/useNavigate'
 import { Icon } from '@iconify/vue'
@@ -201,14 +201,16 @@ import type { CommentVO } from '@/api/comment'
 import { deleteComment } from '@/api/comment'
 import PostCreate from '@/views/PostCreate.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
-import CreatorHome from '@/components/creator/CreatorHome.vue'
-import CreatorContent from '@/components/creator/CreatorContent.vue'
-import CreatorData from '@/components/creator/CreatorData.vue'
-import CreatorFans from '@/components/creator/CreatorFans.vue'
-import CreatorInteraction from '@/components/creator/CreatorInteraction.vue'
-import CreatorMagic from '@/components/creator/CreatorMagic.vue'
-import CreatorAgreement from '@/components/creator/CreatorAgreement.vue'
 import { isDeleted, statusText, canPublish } from '@/utils/postStatus'
+
+// 创作中心子组件按需懒加载，首次进入时不加载未使用的 Tab 组件
+const CreatorHome = defineAsyncComponent(() => import('@/components/creator/CreatorHome.vue'))
+const CreatorContent = defineAsyncComponent(() => import('@/components/creator/CreatorContent.vue'))
+const CreatorData = defineAsyncComponent(() => import('@/components/creator/CreatorData.vue'))
+const CreatorFans = defineAsyncComponent(() => import('@/components/creator/CreatorFans.vue'))
+const CreatorInteraction = defineAsyncComponent(() => import('@/components/creator/CreatorInteraction.vue'))
+const CreatorMagic = defineAsyncComponent(() => import('@/components/creator/CreatorMagic.vue'))
+const CreatorAgreement = defineAsyncComponent(() => import('@/components/creator/CreatorAgreement.vue'))
 
 const { open, router } = useNavigate()
 const route = useRoute()
