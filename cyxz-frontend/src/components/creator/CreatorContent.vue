@@ -157,6 +157,7 @@ import { formatDateTime } from '@/utils/format'
 import type { PostVO } from '@/api/post'
 import { isDraft, isPublished, isDeleted, statusText } from '@/utils/postStatus'
 import { useUserStore } from '@/stores/user'
+import { useApi } from '@/composables/useApi'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 defineEmits<{
@@ -172,7 +173,7 @@ defineEmits<{
 const userStore = useUserStore()
 
 const posts = ref<PostVO[]>([])
-const loading = ref(false)
+const { loading, run } = useApi()
 const activeContentTab = ref<'all' | 'published' | 'draft' | 'deleted'>('all')
 const searchKeyword = ref('')
 const contentSortField = ref('create_time')
@@ -322,16 +323,10 @@ const handleBatchDelete = async () => {
 
 const loadPosts = async () => {
   if (!userStore.userInfo?.id) return
-  loading.value = true
-  try {
+  await run(async () => {
     const data = await getUserPosts({ page: 1, size: 100, sortField: contentSortField.value, sortOrder: contentSortOrder.value })
     posts.value = data.records || []
-  } catch (error) {
-    console.error('加载帖子失败:', error)
-    ElMessage.error('加载失败')
-  } finally {
-    loading.value = false
-  }
+  }, { onError: () => ElMessage.error('加载失败') })
 }
 
 const refreshPosts = () => {
@@ -467,7 +462,7 @@ defineExpose({
   font-size: 11px;
   padding: 1px 6px;
   border-radius: 8px;
-  background: rgba(0, 0, 0, 0.06);
+  background: rgba(127, 127, 127, 0.12);
   font-weight: 600;
   line-height: 1.6;
   display: inline-flex;
@@ -475,7 +470,11 @@ defineExpose({
 }
 
 .filter-btn.active .filter-count {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 107, 157, 0.25);
+}
+
+html.dark .filter-count {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .refresh-btn {

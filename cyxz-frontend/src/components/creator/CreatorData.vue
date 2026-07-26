@@ -311,20 +311,21 @@ const barChartOption = computed(() => {
 const pieChartOption = computed(() => {
   const dist = dashboard.value?.categoryDistribution
   if (!dist?.length) return null
+  const isDark = document.documentElement.classList.contains('dark')
   return {
     tooltip: { trigger: 'item', formatter: '{b}: {c} 篇 ({d}%)' },
     legend: {
       orient: 'vertical',
       right: 10,
       top: 'center',
-      textStyle: { color: '#909399', fontSize: 11 },
+      textStyle: { color: isDark ? '#b0a0c0' : '#909399', fontSize: 11 },
     },
     series: [{
       type: 'pie',
       radius: ['45%', '75%'],
       center: ['35%', '50%'],
       avoidLabelOverlap: false,
-      itemStyle: { borderRadius: 4, borderColor: '#fff', borderWidth: 2 },
+      itemStyle: { borderRadius: 4, borderColor: isDark ? '#252547' : '#fff', borderWidth: 2 },
       label: { show: false },
       emphasis: { label: { show: true, fontSize: 14, fontWeight: 'bold' } },
       data: dist.map((d, i) => ({ name: d.name, value: d.count, itemStyle: { color: chartColors[i % chartColors.length] } })),

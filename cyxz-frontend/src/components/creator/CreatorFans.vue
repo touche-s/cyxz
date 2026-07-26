@@ -226,7 +226,7 @@ onMounted(() => {
   font-size: 11px;
   padding: 1px 6px;
   border-radius: 8px;
-  background: rgba(0, 0, 0, 0.06);
+  background: rgba(127, 127, 127, 0.12);
   font-weight: 600;
   line-height: 1.6;
   display: inline-flex;
@@ -234,7 +234,11 @@ onMounted(() => {
 }
 
 .fans-tab-btn.active .tab-badge {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 107, 157, 0.25);
+}
+
+html.dark .tab-badge {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .search-bar {

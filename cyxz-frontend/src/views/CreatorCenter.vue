@@ -176,6 +176,7 @@
 import { ref, computed, onMounted, watch, defineAsyncComponent } from 'vue'
 import { useRoute } from 'vue-router'
 import { useNavigate } from '@/composables/useNavigate'
+import { useApi } from '@/composables/useApi'
 import { Icon } from '@iconify/vue'
 import { ElMessage } from 'element-plus'
 import { deletePost, permanentDeletePost, updatePost } from '@/api/post'
@@ -200,6 +201,12 @@ const CreatorAgreement = defineAsyncComponent(() => import('@/components/creator
 const { open, router } = useNavigate()
 const route = useRoute()
 const userStore = useUserStore()
+
+const { loading: publishLoading, run: runPublish } = useApi()
+const { loading: restoreLoading, run: runRestore } = useApi()
+const { loading: deleteLoading, run: runDelete } = useApi()
+const { loading: permDeleteLoading, run: runPermDelete } = useApi()
+const { loading: commentDeleteLoading, run: runCommentDelete } = useApi()
 
 const activeNav = ref<'home' | 'content' | 'data' | 'fans' | 'interaction' | 'magic' | 'agreement' | 'publish'>('home')
 const postCreateRef = ref<InstanceType<typeof PostCreate>>()
@@ -306,7 +313,7 @@ const publishPost = (postId: string) => {
 }
 
 const doPublish = async () => {
-  if (!postToPublish.value) return
+  if (!postToPublish.value || publishLoading.value) return
   if (!canPublish(postToPublish.value)) {
     showPublishModal.value = false
     ElMessage.warning('请先完善标题、分类、正文和图片后再发布')
@@ -314,30 +321,25 @@ const doPublish = async () => {
     postToPublish.value = null
     return
   }
-  try {
+  await runPublish(async () => {
     await updatePost({
-      id: postToPublish.value.id,
-      categoryId: postToPublish.value.categoryId,
-      title: postToPublish.value.title,
-      content: postToPublish.value.content,
-      images: postToPublish.value.images,
-      tags: postToPublish.value.tags,
-      cover: postToPublish.value.cover,
+      id: postToPublish.value!.id,
+      categoryId: postToPublish.value!.categoryId,
+      title: postToPublish.value!.title,
+      content: postToPublish.value!.content,
+      images: postToPublish.value!.images,
+      tags: postToPublish.value!.tags,
+      cover: postToPublish.value!.cover,
       status: 1,
     })
     ElMessage.success('发布成功')
     showPublishModal.value = false
     postToPublish.value = null
     contentRef.value?.refreshPosts()
-  } catch (error: any) {
-    const msg = error?.response?.data?.msg
-    if (msg) {
-      ElMessage.warning(msg)
-    } else {
-      ElMessage.error('发布失败')
-    }
-    console.error('发布失败:', error)
-  }
+  }, { onError: (e) => {
+    const msg = e?.response?.data?.msg
+    ElMessage.error(msg || '发布失败')
+  }})
 }
 
 const cancelPublish = () => {
@@ -352,17 +354,14 @@ const restorePost = (postId: string) => {
 }
 
 const doRestore = async () => {
-  if (!postToRestore.value) return
-  try {
-    await updatePost({ id: postToRestore.value.id, status: 0 })
+  if (!postToRestore.value || restoreLoading.value) return
+  await runRestore(async () => {
+    await updatePost({ id: postToRestore.value!.id, status: 0 })
     ElMessage.success('已恢复到草稿')
     showRestoreModal.value = false
     postToRestore.value = null
     contentRef.value?.refreshPosts()
-  } catch (error) {
-    console.error('恢复失败:', error)
-    ElMessage.error('恢复失败')
-  }
+  }, { onError: () => ElMessage.error('恢复失败') })
 }
 
 const cancelRestore = () => {
@@ -381,38 +380,31 @@ const cancelDelete = () => {
 }
 
 const doDelete = async () => {
-  if (!postToDelete.value) return
-  try {
-    const isPermanent = isDeleted(postToDelete.value.status)
-    if (isPermanent) {
-      showDeleteModal.value = false
-      showPermanentDeleteModal.value = true
-    } else {
-      await deletePost(postToDelete.value.id)
-      ElMessage.success('已移入回收站')
-      showDeleteModal.value = false
-      postToDelete.value = null
-      contentRef.value?.refreshPosts()
-    }
-  } catch (error) {
-    console.error('删除失败:', error)
-    ElMessage.error('删除失败')
+  if (!postToDelete.value || deleteLoading.value) return
+  const isPermanent = isDeleted(postToDelete.value.status)
+  if (isPermanent) {
+    showDeleteModal.value = false
+    showPermanentDeleteModal.value = true
+    return
   }
+  await runDelete(async () => {
+    await deletePost(postToDelete.value!.id)
+    ElMessage.success('已移入回收站')
+    showDeleteModal.value = false
+    postToDelete.value = null
+    contentRef.value?.refreshPosts()
+  }, { onError: () => ElMessage.error('删除失败') })
 }
 
 const doPermanentDelete = async () => {
-  if (!postToDelete.value) return
-  try {
-    await permanentDeletePost(postToDelete.value.id)
+  if (!postToDelete.value || permDeleteLoading.value) return
+  await runPermDelete(async () => {
+    await permanentDeletePost(postToDelete.value!.id)
     ElMessage.success('彻底删除成功')
     contentRef.value?.refreshPosts()
-  } catch (error) {
-    console.error('彻底删除失败:', error)
-    ElMessage.error('彻底删除失败')
-  } finally {
-    showPermanentDeleteModal.value = false
-    postToDelete.value = null
-  }
+  }, { onError: () => ElMessage.error('彻底删除失败') })
+  showPermanentDeleteModal.value = false
+  postToDelete.value = null
 }
 
 const cancelPermanentDelete = () => {
@@ -426,16 +418,13 @@ const handleDeleteComment = (comment: CommentVO) => {
 }
 
 const doDeleteComment = async () => {
-  if (!commentToDelete.value) return
-  try {
-    await deleteComment(commentToDelete.value.id)
+  if (!commentToDelete.value || commentDeleteLoading.value) return
+  await runCommentDelete(async () => {
+    await deleteComment(commentToDelete.value!.id)
     ElMessage.success('删除成功')
-  } catch (error) {
-    console.error('删除评论失败:', error)
-  } finally {
-    showDeleteCommentModal.value = false
-    commentToDelete.value = null
-  }
+  })
+  showDeleteCommentModal.value = false
+  commentToDelete.value = null
 }
 
 const cancelDeleteComment = () => {
@@ -676,7 +665,7 @@ watch(activeNav, (val) => {
   height: 32px;
   border-radius: 50%;
   border: none;
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--pink-bg);
   cursor: pointer;
   display: flex;
   align-items: center;

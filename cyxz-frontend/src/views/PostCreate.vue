@@ -44,12 +44,12 @@
               <div
                 v-if="form.images.length < 9"
                 class="add-image-btn"
-                :class="{ uploading: imageUploading }"
+                :class="{ uploading: imgLoading }"
                 @click="triggerImageUpload"
                 @dragover.prevent
                 @drop.prevent="handleImageDrop"
               >
-                <template v-if="imageUploading">
+                <template v-if="imgLoading">
                   <span class="upload-spinner"></span>
                   <span>上传中...</span>
                 </template>
@@ -165,11 +165,11 @@
             <button
               type="submit"
               class="action-btn publish-btn"
-              :disabled="loading"
+              :disabled="submitLoading"
             >
-              <LoadingSpinner v-if="loading" inline text="" />
+              <LoadingSpinner v-if="submitLoading" inline text="" />
               <Icon v-else icon="ph:paper-plane-right" />
-              <span>{{ loading ? '发布中...' : (isEditingPublished ? '更新发布' : '发布帖子') }}</span>
+              <span>{{ submitLoading ? '发布中...' : (isEditingPublished ? '更新发布' : '发布帖子') }}</span>
             </button>
           </div>
         </form>
@@ -194,6 +194,7 @@ import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, onBeforeRouteLeave } from 'vue-router'
 import { Icon } from '@iconify/vue'
 import { useNavigate } from '@/composables/useNavigate'
+import { useApi } from '@/composables/useApi'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { createPost, saveDraftPost, updatePost, getPostDetail, getCategoryList } from '@/api/post'
 import { getCircleList, getJoinedCircles } from '@/api/circle'
@@ -236,7 +237,7 @@ const sortedCircles = computed(() => {
   }
   return [...joined, ...others]
 })
-const loading = ref(false)
+const { loading: submitLoading, run: submit } = useApi()
 
 const form = ref({
   title: '',
@@ -250,7 +251,7 @@ const form = ref({
 
 const tagInput = ref('')
 const imageInput = ref<HTMLInputElement | null>(null)
-const imageUploading = ref(false)
+const { loading: imgLoading, run: upload } = useApi()
 const dirty = ref(false)
 const formInitialized = ref(false)
 const imageCropperRef = ref<InstanceType<typeof ImageCropper> | null>(null)
@@ -376,39 +377,25 @@ function onImageCropCancel() {
 
 async function uploadAndReplace(index: number, file: File) {
   const oldUrl = form.value.images[index]
-  imageUploading.value = true
-  try {
+  await upload(async () => {
     const newUrl = await uploadPostImage(file)
     form.value.images[index] = newUrl
-    if (form.value.cover === oldUrl) {
-      form.value.cover = newUrl
-    }
+    if (form.value.cover === oldUrl) form.value.cover = newUrl
     dirty.value = true
     deleteUploadedFile(oldUrl).catch(() => {})
     ElMessage.success('裁剪完成')
-  } catch (error) {
-    ElMessage.error('图片上传失败')
-    console.error('裁剪上传失败:', error)
-  } finally {
-    imageUploading.value = false
-  }
+  }, { onError: () => ElMessage.error('图片上传失败') })
 }
 
 const uploadImage = async (file: File) => {
-  imageUploading.value = true
-  try {
+  await upload(async () => {
     const url = await uploadPostImage(file)
     form.value.images.push(url)
     dirty.value = true
     if (form.value.images.length === 1 && !form.value.cover) {
       form.value.cover = url
     }
-  } catch (error) {
-    ElMessage.error('图片上传失败')
-    console.error('上传图片失败:', error)
-  } finally {
-    imageUploading.value = false
-  }
+  }, { onError: () => ElMessage.error('图片上传失败') })
 }
 
 const removeImage = (index: number) => {
@@ -451,8 +438,7 @@ const handleSubmit = async () => {
     return
   }
 
-  loading.value = true
-  try {
+  await submit(async () => {
     const images = form.value.images.length > 0 ? form.value.images : []
 
     if (isEditMode.value) {
@@ -488,12 +474,7 @@ const handleSubmit = async () => {
     } else {
       to('/creator')
     }
-  } catch (error) {
-    ElMessage.error(isEditingPublished.value ? '更新失败' : '发布失败')
-    console.error('提交失败:', error)
-  } finally {
-    loading.value = false
-  }
+  }, { onError: () => ElMessage.error(isEditingPublished.value ? '更新失败' : '发布失败') })
 }
 
 const saveDraftOnly = async (): Promise<boolean> => {
@@ -502,8 +483,7 @@ const saveDraftOnly = async (): Promise<boolean> => {
     return false
   }
 
-  loading.value = true
-  try {
+  const result = await submit(async () => {
     const data: SaveDraftRequest = {
       categoryId: form.value.categoryId ? Number(form.value.categoryId) : undefined,
       circleId: form.value.circleId ?? undefined,
@@ -523,14 +503,12 @@ const saveDraftOnly = async (): Promise<boolean> => {
     dirty.value = false
     ElMessage.success('草稿保存成功')
     return true
-  } catch (error: any) {
-    const msg = error?.response?.data?.msg || '保存失败'
+  }, { onError: (e: any) => {
+    const msg = e?.response?.data?.msg || '保存失败'
     ElMessage.error(msg)
-    console.error('保存草稿失败:', error)
-    return false
-  } finally {
-    loading.value = false
-  }
+  }})
+
+  return result ?? false
 }
 
 const saveDraft = async () => {
