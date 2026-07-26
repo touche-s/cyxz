@@ -222,7 +222,7 @@ onMounted(() => {
 <style scoped>
 .header-bar {
   position: fixed;
-  top: 10px;
+  top: var(--header-top);
   left: 18px;
   right: 18px;
   z-index: 100;
@@ -231,11 +231,17 @@ onMounted(() => {
   border: 1px solid rgba(255, 107, 157, 0.18);
   box-shadow: 0 18px 48px rgba(255, 107, 157, 0.14), 0 4px 18px rgba(180, 132, 255, 0.12);
   padding: 0 44px;
-  height: 66px;
+  height: var(--header-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-radius: 22px;
+}
+
+html.dark .header-bar {
+  background: linear-gradient(180deg, rgba(30, 26, 50, 0.94), rgba(26, 22, 45, 0.92));
+  border-color: rgba(255, 107, 157, 0.1);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.3), 0 4px 18px rgba(0, 0, 0, 0.2);
 }
 
 .header-left {
@@ -307,7 +313,7 @@ onMounted(() => {
 
 .nav a {
   text-decoration: none;
-  color: rgba(78, 61, 95, 0.82);
+  color: var(--text-dim);
   font-size: 13px;
   font-weight: 700;
   padding: 8px 16px;
@@ -489,9 +495,9 @@ onMounted(() => {
 }
 
 .user-dropdown.open .avatar-trigger {
-  transform: translateY(18px) scale(1.56);
+  transform: translateY(24px) scale(1.9);
   border-color: #fff;
-  box-shadow: 0 10px 24px rgba(255, 107, 157, 0.24);
+  box-shadow: 0 12px 28px rgba(255, 107, 157, 0.28);
 }
 
 .avatar-placeholder {
@@ -502,7 +508,7 @@ onMounted(() => {
 
 .dropdown-panel {
   position: absolute;
-  top: calc(100% - 8px);
+  top: calc(100% + 2px);
   left: 50%;
   transform: translateX(-50%);
   width: 260px;
@@ -512,7 +518,7 @@ onMounted(() => {
   box-shadow: 0 18px 48px rgba(255, 107, 157, 0.10), 0 2px 10px rgba(255, 107, 157, 0.06);
   z-index: 200;
   overflow: visible;
-  padding-top: 38px;
+  padding-top: 46px;
 }
 
 .drop-enter-active {

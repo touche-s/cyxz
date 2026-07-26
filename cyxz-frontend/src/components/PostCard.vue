@@ -3,7 +3,11 @@
     <div class="card-cover">
       <img v-if="post.cover" :src="post.cover" class="img" alt="cover" />
       <div v-else class="img" :style="{ background: getGradient(post.id) }"></div>
-      <span class="card-badge" v-if="post.categoryName">{{ post.categoryName }}</span>
+      <span class="card-badge" v-if="post.circleName || post.categoryName">
+        <span v-if="post.circleName" class="circle-link" @click.stop="goToCircle">{{ post.circleName }}</span>
+        <span v-if="post.circleName && post.categoryName" class="badge-sep"> · </span>
+        <span v-if="post.categoryName">{{ post.categoryName }}</span>
+      </span>
       <span class="card-pin-badge" :class="{ 'has-collect': showCollect }" v-if="showPinBadge && post.pinned"><Icon icon="ph:push-pin-fill" class="pin-badge-icon" />置顶</span>
       <button
         v-if="showCollect"
@@ -66,6 +70,12 @@ function goToAuthor() {
   }
 }
 
+function goToCircle() {
+  if (props.post.circleId) {
+    open(`/circle/${props.post.circleId}`)
+  }
+}
+
 const emit = defineEmits<{
   click: [post: PostVO]
   like: [post: PostVO]
@@ -119,9 +129,9 @@ const getGradient = (id: string | number) => {
 }
 
 .card:hover {
-  transform: translateY(-4px) scale(1.03);
-  border-color: var(--border);
-  box-shadow: 0 12px 36px var(--shadow-lg);
+  transform: translateY(-2px);
+  border-color: rgba(255, 107, 157, 0.2);
+  box-shadow: 0 8px 28px rgba(180, 132, 255, 0.1);
 }
 
 .card-cover {
@@ -138,7 +148,7 @@ const getGradient = (id: string | number) => {
   transition: transform 0.4s;
 }
 
-.card:hover .card-cover .img { transform: scale(1.05); }
+.card:hover .card-cover .img { transform: scale(1.02); }
 
 .card-badge {
   position: absolute;
@@ -151,6 +161,19 @@ const getGradient = (id: string | number) => {
   font-weight: 700;
   color: white;
   backdrop-filter: blur(8px);
+}
+
+.circle-link {
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.circle-link:hover {
+  opacity: 0.7;
+}
+
+.badge-sep {
+  opacity: 0.6;
 }
 
 .card-pin-badge {

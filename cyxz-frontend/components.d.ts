@@ -30,10 +30,12 @@ declare module 'vue' {
     LoginModal: typeof import('./src/components/LoginModal.vue')['default']
     MasonryGrid: typeof import('./src/components/MasonryGrid.vue')['default']
     Pagination: typeof import('./src/components/Pagination.vue')['default']
+    PillTabs: typeof import('./src/components/PillTabs.vue')['default']
     PostCard: typeof import('./src/components/PostCard.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SearchInput: typeof import('./src/components/SearchInput.vue')['default']
     StatCard: typeof import('./src/components/StatCard.vue')['default']
+    UnderlineTabs: typeof import('./src/components/UnderlineTabs.vue')['default']
   }
 }
