@@ -30,6 +30,7 @@ export default defineConfig({
       },
     },
   },
+  // @ts-expect-error - vitest config types not resolved by vue-tsc -b
   test: {
     environment: 'jsdom',
     globals: true,

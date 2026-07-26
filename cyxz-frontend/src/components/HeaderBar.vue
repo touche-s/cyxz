@@ -15,6 +15,7 @@
       <router-link to="/" :class="{ active: $route.path === '/' }">首页</router-link>
       <router-link to="/square" :class="{ active: $route.path === '/square' }">广场</router-link>
       <router-link to="/following" :class="{ active: $route.path === '/following' }">关注</router-link>
+      <router-link to="/discover" :class="{ active: $route.path === '/discover' }">发现</router-link>
       <a href="javascript:;" :class="{ active: $route.path === '/creator' }" @click="goCreator">创作中心</a>
     </nav>
     <div class="header-right">
@@ -327,7 +328,7 @@ html.dark .header-bar {
 }
 
 .nav a.active {
-  color: #ff4fa0;
+  color: var(--pink);
   background: linear-gradient(180deg, rgba(255, 121, 176, 0.16), rgba(255, 121, 176, 0.08));
   box-shadow:
     inset 0 0 0 1px rgba(255, 121, 176, 0.18),
@@ -483,7 +484,6 @@ html.dark .header-bar {
   cursor: pointer;
   overflow: hidden;
   border: 2px solid rgba(255, 255, 255, 0.95);
-  transition: transform 0.24s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.24s ease, border-color 0.24s ease;
   background: linear-gradient(135deg, var(--pink), var(--purple));
   display: flex;
   align-items: center;
@@ -492,12 +492,22 @@ html.dark .header-bar {
   z-index: 301;
   flex-shrink: 0;
   box-shadow: 0 4px 16px rgba(255, 107, 157, 0.22);
+  transition: transform 0.24s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.24s ease, border-color 0.24s ease;
+  padding: 0;
+}
+
+html.dark .avatar-trigger {
+  border-color: rgba(255, 255, 255, 0.55);
 }
 
 .user-dropdown.open .avatar-trigger {
   transform: translateY(24px) scale(1.9);
   border-color: #fff;
   box-shadow: 0 12px 28px rgba(255, 107, 157, 0.28);
+}
+
+html.dark .user-dropdown.open .avatar-trigger {
+  border-color: rgba(255, 255, 255, 0.7);
 }
 
 .avatar-placeholder {
@@ -662,5 +672,31 @@ html.dark .header-bar {
   justify-content: center;
   line-height: 1;
   box-shadow: 0 2px 8px rgba(255, 77, 106, 0.35);
+}
+
+html.dark .logo-icon {
+  box-shadow: 0 4px 16px rgba(255, 107, 157, 0.2);
+}
+
+html.dark .logo-wrap:hover .logo-icon {
+  box-shadow: 0 4px 24px rgba(255, 107, 157, 0.3);
+}
+
+html.dark .dropdown-panel {
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35), 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+html.dark .btn-create {
+  box-shadow: 0 4px 16px rgba(255, 107, 157, 0.18);
+}
+
+html.dark .btn-create:hover {
+  box-shadow: 0 6px 24px rgba(180, 132, 255, 0.28);
+}
+
+html.dark .nav-mobile {
+  background: rgba(30, 26, 50, 0.96);
+  border-color: rgba(255, 107, 157, 0.1);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
 }
 </style>

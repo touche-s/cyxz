@@ -39,6 +39,9 @@
   --gradient-hero: linear-gradient(145deg, #fef6fb 0%, #fff2f8 38%, #faf2ff 100%);
   --radius: 18px;
   --radius-sm: 12px;
+  --header-top: 6px;
+  --header-height: 66px;
+  --header-offset: calc(var(--header-top) + var(--header-height) + 16px);
 }
 
 html.dark {
