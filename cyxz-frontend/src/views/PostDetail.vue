@@ -8,6 +8,15 @@
 
         <div v-else-if="post" class="post-detail">
           <div class="post-main-card">
+            <button class="post-more-btn" @click.stop="showReportMenu = !showReportMenu">
+              <Icon icon="ph:dots-three-outline-vertical" />
+            </button>
+            <div v-if="showReportMenu" class="post-more-dropdown" @click.stop>
+              <button class="post-more-item" @click="handleReportFromMenu">
+                <Icon icon="ph:warning" class="more-item-icon" />
+                举报
+              </button>
+            </div>
             <div class="post-header">
               <div class="author-info">
                 <img :src="avatarUrl(post.authorAvatar)" class="author-avatar clickable" @click="goToAuthor" />
@@ -84,13 +93,13 @@
             </button>
             <button class="action-btn" @click="scrollToComment">
               <Icon icon="ph:chat-circle-text" class="action-icon pink-icon" />
-              <span class="action-count">{{ commentTotal }}</span>
+              <span class="action-count">{{ post.comments ?? 0 }}</span>
             </button>
           </div>
 
           <div class="comment-section" ref="commentSection">
             <div class="section-header">
-              <h2>评论 ({{ commentTotal }})</h2>
+              <h2>评论 ({{ post.comments ?? 0 }})</h2>
             </div>
 
             <!-- 顶部评论框：始终显示，用于回复帖子 -->
@@ -259,7 +268,6 @@ const collectPopping = ref(false)
 // ===== 评论列表 =====
 const comments = ref<CommentVO[]>([])
 const commentPage = ref(1)
-const commentTotal = ref(0)
 const commentSize = 20
 const commentLoading = ref(false)
 const commentFinished = ref(false)
@@ -430,7 +438,33 @@ const scrollToComment = () => {
   commentSection.value?.scrollIntoView({ behavior: 'smooth' })
 }
 
-// ===== 评论列表加载 =====
+const handleReport = () => {
+  ElMessage.info('举报功能即将上线。如遇违规内容，请联系管理员。')
+}
+
+const showReportMenu = ref(false)
+
+function handleReportFromMenu() {
+  showReportMenu.value = false
+  ElMessage.info('举报功能即将上线。如遇违规内容，请联系管理员。')
+}
+
+function onDocClick() {
+  showReportMenu.value = false
+}
+
+onMounted(() => {
+  document.addEventListener('click', onDocClick)
+})
+
+onMounted(async () => {
+  await loadPost()
+  if (post.value) {
+    loadComments(true)
+    recordPostView(String(route.params.id)).catch(() => {})
+  }
+})
+
 const loadComments = async (reset = false) => {
   if (!post.value) return
   if (commentLoading.value) return
@@ -456,8 +490,8 @@ const loadComments = async (reset = false) => {
     } else {
       comments.value.push(...records)
     }
-    commentTotal.value = pageResult.total || 0
-    if (comments.value.length >= commentTotal.value) {
+    if (post.value) post.value.comments = pageResult.total || 0
+    if (comments.value.length >= (pageResult.total || 0)) {
       commentFinished.value = true
     }
   } catch {
@@ -488,7 +522,7 @@ const submitTopComment = async () => {
     commentInput.value = ''
     // 后端返回完整 CommentVO，直接插入列表第一条展示
     comments.value.unshift(newComment)
-    commentTotal.value++
+    if (post.value) post.value.comments = (post.value.comments ?? 0) + 1
   } catch {
     ElMessage.error('评论失败')
   }
@@ -549,21 +583,12 @@ const handleCommentDeleted = (commentId: string) => {
   if (idx !== -1) {
     comments.value.splice(idx, 1)
   }
-  commentTotal.value = Math.max(0, commentTotal.value - 1)
+  if (post.value) post.value.comments = Math.max(0, (post.value.comments ?? 1) - 1)
 }
 
 const goHome = () => {
   to('/')
 }
-
-onMounted(async () => {
-  await loadPost()
-  if (post.value) {
-    loadComments(true)
-    // 静默上报浏览，失败不影响展示
-    recordPostView(String(route.params.id)).catch(() => {})
-  }
-})
 </script>
 
 <style scoped>
@@ -608,6 +633,76 @@ onMounted(async () => {
   padding: 24px;
   box-shadow: var(--shadow);
   border: 1px solid rgba(255, 255, 255, 0.6);
+  position: relative;
+}
+
+.post-more-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  z-index: 10;
+  transition: all 0.2s ease;
+}
+
+.post-more-btn:hover {
+  background: var(--pink-bg);
+  color: var(--pink);
+}
+
+.post-more-dropdown {
+  position: absolute;
+  top: 58px;
+  right: 18px;
+  background: var(--card);
+  border-radius: 14px;
+  border: 1px solid var(--border-light);
+  box-shadow: 0 8px 28px rgba(255, 107, 157, 0.12);
+  min-width: 130px;
+  padding: 6px;
+  z-index: 20;
+}
+
+.post-more-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  font-family: inherit;
+}
+
+.post-more-item:hover {
+  background: var(--pink-bg);
+  color: var(--pink);
+}
+
+.more-item-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--text-dim);
+}
+
+.post-more-item:hover .more-item-icon {
+  color: var(--warning);
 }
 
 .post-header {
@@ -836,6 +931,8 @@ onMounted(async () => {
   color: var(--pink);
 }
 
+
+/* ===== 评论顶部输入框 ===== */
 .comment-section {
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(10px);
@@ -1208,5 +1305,44 @@ onMounted(async () => {
 
 .action-btn.popping img {
   animation: postLikePop 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===== Dark mode overrides ===== */
+html.dark .post-main-card {
+  background: rgba(30, 26, 50, 0.75);
+  border-color: rgba(255, 182, 215, 0.1);
+}
+
+html.dark .post-action-bar {
+  background: rgba(30, 26, 50, 0.75);
+  border-color: rgba(255, 182, 215, 0.1);
+}
+
+html.dark .comment-section {
+  background: rgba(30, 26, 50, 0.75);
+  border-color: rgba(255, 182, 215, 0.1);
+}
+
+html.dark .carousel-dot {
+  background: rgba(30, 26, 50, 0.5);
+}
+
+html.dark .comment-input {
+  background: rgba(30, 26, 50, 0.6);
+}
+
+html.dark .lightbox-close {
+  background: rgba(255, 107, 157, 0.04);
+  border-color: rgba(255, 107, 157, 0.06);
+}
+
+html.dark .lightbox-arrow {
+  background: rgba(255, 107, 157, 0.04);
+  border-color: rgba(255, 107, 157, 0.06);
+}
+
+html.dark .lightbox-counter {
+  background: rgba(255, 107, 157, 0.04);
+  border-color: rgba(255, 107, 157, 0.06);
 }
 </style>

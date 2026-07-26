@@ -88,7 +88,7 @@
             </label>
             <div class="category-selector">
               <button
-                v-for="c in circles"
+                v-for="c in sortedCircles"
                 :key="c.id"
                 type="button"
                 class="category-btn"
@@ -103,7 +103,7 @@
           <div class="form-section">
             <label class="form-label">
               <Icon icon="ph:folder" class="label-icon pink-icon" />
-              <span>分类</span>
+              <span>{{ form.circleId ? '发布板块' : '分类' }}</span>
               <span class="label-required">*</span>
             </label>
             <div class="category-selector">
@@ -196,7 +196,7 @@ import { Icon } from '@iconify/vue'
 import { useNavigate } from '@/composables/useNavigate'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { createPost, saveDraftPost, updatePost, getPostDetail, getCategoryList } from '@/api/post'
-import { getCircleList } from '@/api/circle'
+import { getCircleList, getJoinedCircles } from '@/api/circle'
 import type { CircleVO } from '@/api/circle'
 import { uploadPostImage, deleteUploadedFile } from '@/api/upload'
 import type { SaveDraftRequest, PostVO, CategoryVO } from '@/api/post'
@@ -222,6 +222,20 @@ const isEditingPublished = computed(() => isEditMode.value && isPublished(curren
 
 const categories = ref<CategoryVO[]>([])
 const circles = ref<CircleVO[]>([])
+const joinedCircleIds = ref<Set<number>>(new Set())
+
+const sortedCircles = computed(() => {
+  const joined: CircleVO[] = []
+  const others: CircleVO[] = []
+  for (const c of circles.value) {
+    if (joinedCircleIds.value.has(c.id)) {
+      joined.push(c)
+    } else {
+      others.push(c)
+    }
+  }
+  return [...joined, ...others]
+})
 const loading = ref(false)
 
 const form = ref({
@@ -264,6 +278,11 @@ const loadCategories = async () => {
 const loadCircles = async () => {
   try {
     circles.value = await getCircleList()
+    // 已加入的圈子排序靠前
+    try {
+      const joined = await getJoinedCircles()
+      joinedCircleIds.value = new Set(joined.map((c: CircleVO) => c.id))
+    } catch { /* 未登录时获取已加入圈子失败，忽略 */ }
     // 如果是从圈子页跳转过来，自动预选圈子
     if (userStore.pendingCircleId && !isEditMode.value) {
       form.value.circleId = userStore.pendingCircleId
@@ -1056,6 +1075,10 @@ defineExpose({ dirty, confirmLeave })
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+html.dark .draft-btn {
+  background: rgba(30, 26, 50, 0.85);
+}
 </style>
 
 <style>
@@ -1065,6 +1088,10 @@ defineExpose({ dirty, confirmLeave })
   box-shadow: 0 12px 48px var(--shadow-lg);
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(12px);
+}
+
+html.dark .leave-confirm-dialog {
+  background: rgba(30, 26, 50, 0.94);
 }
 
 .leave-confirm-dialog .el-message-box__header {
