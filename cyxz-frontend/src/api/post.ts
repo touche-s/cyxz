@@ -71,8 +71,8 @@ export interface UpdatePostRequest {
   status?: number
 }
 
-/** 查询帖子列表（仅已发布，可按分类、圈子筛选） */
-export const getPostList = (params: { categoryId?: number; circleId?: number; page?: number; size?: number }) => {
+/** 查询帖子列表（仅已发布，可按分类、圈子筛选，支持排序） */
+export const getPostList = (params: { categoryId?: number; circleId?: number; sortBy?: string; page?: number; size?: number }) => {
   return request.get('/post/list', { params })
 }
 
