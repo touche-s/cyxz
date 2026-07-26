@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import type { PageResult } from '@/api/types/common'
 
 /** 通知 VO */
 export interface NotificationVO {
@@ -16,16 +17,8 @@ export interface NotificationVO {
   createTime: string
 }
 
-/** 分页结果 */
-export interface PageResult<T> {
-  records: T[]
-  total: number
-  page: number
-  size: number
-}
-
 /** 获取通知列表 */
-export const getNotifications = (params: { type?: string; page?: number; size?: number }) =>
+export const getNotifications = (params: { type?: string; page?: number; size?: number }): Promise<PageResult<NotificationVO>> =>
   request.get('/message/notifications', { params })
 
 /** 获取未读数量 */

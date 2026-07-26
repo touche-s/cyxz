@@ -12,19 +12,19 @@ export interface CircleVO {
   joined: boolean
 }
 
-export const getCircleList = () => {
+export const getCircleList = (): Promise<CircleVO[]> => {
   return request.get('/circle/list')
 }
 
-export const getCircleDetail = (circleId: number) => {
+export const getCircleDetail = (circleId: number): Promise<CircleVO> => {
   return request.get(`/circle/${circleId}`)
 }
 
-export const getJoinedCircles = () => {
+export const getJoinedCircles = (): Promise<CircleVO[]> => {
   return request.get('/circle/joined')
 }
 
-export const getHotCircles = () => {
+export const getHotCircles = (): Promise<CircleVO[]> => {
   return request.get('/circle/hot', { params: { page: 1, size: 20 } })
 }
 

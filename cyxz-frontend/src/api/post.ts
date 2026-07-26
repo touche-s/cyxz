@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import type { PageResult } from '@/api/types/common'
 
 /** 帖子 VO */
 export interface PostVO {
@@ -72,17 +73,17 @@ export interface UpdatePostRequest {
 }
 
 /** 查询帖子列表（仅已发布，可按分类、圈子筛选，支持排序） */
-export const getPostList = (params: { categoryId?: number; circleId?: number; sortBy?: string; page?: number; size?: number }) => {
+export const getPostList = (params: { categoryId?: number; circleId?: number; sortBy?: string; page?: number; size?: number }): Promise<PageResult<PostVO>> => {
   return request.get('/post/list', { params })
 }
 
 /** 查询关注动态（已加入圈子的帖子） */
-export const getFollowingPosts = (params: { page?: number; size?: number }) => {
+export const getFollowingPosts = (params: { page?: number; size?: number }): Promise<PageResult<PostVO>> => {
   return request.get('/post/following', { params })
 }
 
 /** 查询帖子详情 */
-export const getPostDetail = (postId: string) => {
+export const getPostDetail = (postId: string): Promise<PostVO> => {
   return request.get(`/post/${postId}`)
 }
 
@@ -112,22 +113,22 @@ export const permanentDeletePost = (postId: string) => {
 }
 
 /** 查询当前用户的帖子列表（含草稿和已删除，内容管理用） */
-export const getUserPosts = (params: { page?: number; size?: number; sortField?: string; sortOrder?: string }) => {
+export const getUserPosts = (params: { page?: number; size?: number; sortField?: string; sortOrder?: string }): Promise<PageResult<PostVO>> => {
   return request.get('/post/user', { params })
 }
 
 /** 查询指定用户的已发布帖子列表（个人空间 - 作品 tab） */
-export const getUserPostsByTarget = (targetUserId: string, params: { page?: number; size?: number }) => {
+export const getUserPostsByTarget = (targetUserId: string, params: { page?: number; size?: number }): Promise<PageResult<PostVO>> => {
   return request.get(`/post/user/${targetUserId}/posts`, { params })
 }
 
 /** 查询指定用户的收藏帖子列表（个人空间 - 收藏 tab） */
-export const getUserFavorites = (targetUserId: string, params: { page?: number; size?: number }) => {
+export const getUserFavorites = (targetUserId: string, params: { page?: number; size?: number }): Promise<PageResult<PostVO>> => {
   return request.get(`/post/user/${targetUserId}/favorites`, { params })
 }
 
 /** 查询分类列表 */
-export const getCategoryList = () => {
+export const getCategoryList = (): Promise<CategoryVO[]> => {
   return request.get('/category/list')
 }
 
@@ -165,12 +166,12 @@ export interface PostStatsVO {
 }
 
 /** 获取当前用户的帖子统计数据（数据中心） */
-export const getPostStats = () => {
+export const getPostStats = (): Promise<PostStatsVO> => {
   return request.get('/post/stats')
 }
 
 /** 获取指定用户的帖子统计数据（个人空间 - 查看他人空间时展示获赞、浏览） */
-export const getUserPostStats = (userId: string) => {
+export const getUserPostStats = (userId: string): Promise<PostStatsVO> => {
   return request.get(`/post/user/${userId}/stats`)
 }
 
@@ -232,7 +233,7 @@ export interface DashboardVO {
 }
 
 /** 获取数据中心仪表盘数据 */
-export const getDashboard = () => {
+export const getDashboard = (): Promise<DashboardVO> => {
   return request.get('/post/dashboard')
 }
 

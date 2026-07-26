@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import type { PageResult } from '@/api/types/common'
 
 /** 评论 VO */
 export interface CommentVO {
@@ -20,14 +21,6 @@ export interface CommentVO {
   createTime: string
 }
 
-/** 分页结果 */
-export interface PageResult<T> {
-  records: T[]
-  total: number
-  page: number
-  size: number
-}
-
 /** 发表评论参数 */
 export interface CreateCommentRequest {
   postId: string
@@ -41,14 +34,14 @@ export const getCommentList = (params: {
   postId: string
   page?: number
   size?: number
-}) => request.get('/comment/list', { params })
+}): Promise<PageResult<CommentVO>> => request.get('/comment/list', { params })
 
 /** 查询子回复列表 */
 export const getCommentReplies = (params: {
   parentId: string
   page?: number
   size?: number
-}) => request.get('/comment/replies', { params })
+}): Promise<PageResult<CommentVO>> => request.get('/comment/replies', { params })
 
 /** 发表评论 */
 export const createComment = (data: CreateCommentRequest): Promise<CommentVO> =>
