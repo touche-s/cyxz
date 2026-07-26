@@ -1,14 +1,16 @@
 <template>
   <div class="creator-home">
     <div class="home-hero">
-      <div class="hero-info">
-        <h1>创作中心</h1>
-        <p>记录你的灵感瞬间，发布图文作品，和同好一起交流</p>
+      <div class="hero-main">
+        <div class="hero-greeting">
+          <span class="greeting-text">{{ greetingText }}</span>
+          <h1 class="greeting-guide">继续创作，让灵感发光</h1>
+        </div>
+        <button class="hero-publish-btn" @click="$emit('goCreate')">
+          <Icon icon="ph:pencil-simple" class="btn-icon" />
+          <span>发布新作品</span>
+        </button>
       </div>
-      <button class="hero-publish-btn" @click="$emit('goCreate')">
-        <Icon icon="ph:pencil-simple" class="btn-icon" />
-        <span>发布新作品</span>
-      </button>
     </div>
 
     <div class="dashboard-layout">
@@ -22,7 +24,7 @@
         </div>
         <div class="stats-grid">
           <StatCard icon-class="works-icon" :icon="iconWorks" :value="dataStats?.totalPosts ?? 0" label="总作品" />
-          <StatCard icon-class="views-icon" :icon="iconEye" :value="dataStats?.totalViews ?? 0" label="总浏览" />
+          <StatCard icon-class="views-icon views-icon--primary" :icon="iconEye" :value="dataStats?.totalViews ?? 0" label="总浏览" />
           <StatCard icon-class="likes-icon" :icon="iconLike" :value="dataStats?.totalLikes ?? 0" label="总点赞" />
           <StatCard icon-class="collections-icon" :icon="iconFavorite" :value="dataStats?.totalCollections ?? 0" label="总收藏" />
           <StatCard icon-class="fans-icon" :icon="iconFans" :value="followerCount" label="粉丝数" />
@@ -34,7 +36,7 @@
         <div class="panel-header panel-header--compact">
           <div>
             <h3 class="section-title">待处理</h3>
-            <p class="section-desc">优先处理需要你立即关注的事项</p>
+            <p class="section-desc">优先处理需要你关注的事项</p>
           </div>
         </div>
         <div class="pending-grid">
@@ -51,7 +53,7 @@
             </div>
           </div>
 
-          <div class="pending-card pending-audit pending-card--disabled">
+          <div class="pending-card pending-card--disabled">
             <div class="pending-icon-wrap">
               <Icon icon="ph:clipboard-text" class="pending-icon" />
             </div>
@@ -60,11 +62,11 @@
                 <span class="pending-label">待审核</span>
                 <span class="pending-num">—</span>
               </div>
-              <span class="pending-sub">审核功能接入后在此显示</span>
+              <span class="pending-sub">功能建设中</span>
             </div>
           </div>
 
-          <div class="pending-card pending-reject pending-card--disabled">
+          <div class="pending-card pending-card--disabled">
             <div class="pending-icon-wrap">
               <Icon icon="ph:x-circle" class="pending-icon" />
             </div>
@@ -73,7 +75,7 @@
                 <span class="pending-label">驳回</span>
                 <span class="pending-num">—</span>
               </div>
-              <span class="pending-sub">驳回内容将在这里提醒</span>
+              <span class="pending-sub">功能建设中</span>
             </div>
           </div>
         </div>
@@ -142,6 +144,7 @@ import { ref, computed, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import StatCard from '@/components/StatCard.vue'
 import { usePostStats } from '@/composables/usePostStats'
+import { useUserStore } from '@/stores/user'
 import { getUserPosts, getTodayStats, type PostVO, type TodayStats } from '@/api/post'
 import { getFollowStats } from '@/api/user'
 import { getManagedComments } from '@/api/comment'
@@ -154,6 +157,7 @@ const emit = defineEmits<{
   goFans: []
 }>()
 
+const userStore = useUserStore()
 const postStatsState = usePostStats()
 const dataStats = postStatsState.stats
 
@@ -164,6 +168,13 @@ const todayStats = ref<TodayStats>({ todayLikes: 0, todayCollections: 0, todayCo
 const posts = ref<PostVO[]>([])
 
 const draftCount = computed(() => posts.value.filter(p => isDraft(p.status)).length)
+
+const greetingText = computed(() => {
+  const nickname = (userStore.userInfo as any)?.nickname || ''
+  const h = new Date().getHours()
+  const period = h < 12 ? '上午好' : h < 18 ? '下午好' : '晚上好'
+  return nickname ? `${period}，${nickname}` : `${period}`
+})
 
 const iconWorks = 'ph:pencil-simple'
 const iconEye = 'ph:eye'
@@ -180,9 +191,7 @@ const loadPosts = async () => {
   try {
     const data = await getUserPosts({ page: 1, size: 100 })
     posts.value = data.records || []
-  } catch {
-    // ignore
-  }
+  } catch { /* ignore */ }
 }
 
 const loadFollowStats = async () => {
@@ -190,26 +199,20 @@ const loadFollowStats = async () => {
     const stats = await getFollowStats()
     followerCount.value = stats.followerCount || 0
     newFollowerCount.value = stats.newFollowerCount || 0
-  } catch {
-    // ignore
-  }
+  } catch { /* ignore */ }
 }
 
 const loadCommentsTotal = async () => {
   try {
     const data = await getManagedComments({ page: 1, size: 1 })
     commentsTotal.value = data.total || 0
-  } catch {
-    // ignore
-  }
+  } catch { /* ignore */ }
 }
 
 const loadTodayStats = async () => {
   try {
     todayStats.value = await getTodayStats()
-  } catch {
-    // ignore
-  }
+  } catch { /* ignore */ }
 }
 
 onMounted(() => {
@@ -229,54 +232,40 @@ onMounted(() => {
 }
 
 .home-hero {
+  background: linear-gradient(135deg, #fde4f0 0%, #f5e6ff 60%, #ece4ff 100%);
+  border: 1px solid rgba(255, 107, 157, 0.15);
+  border-radius: 18px;
+}
+
+html.dark .home-hero {
+  background: linear-gradient(135deg, #2d1a2e 0%, #252040 60%, #1e1c38 100%);
+  border-color: rgba(255, 107, 157, 0.1);
+}
+
+.hero-main {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 24px 28px;
-  background: linear-gradient(135deg, var(--pink) 0%, var(--purple) 100%);
-  border-radius: 18px;
-  color: white;
-  position: relative;
-  overflow: hidden;
 }
 
-.home-hero::before {
-  content: '';
-  position: absolute;
-  top: -60%;
-  right: -12%;
-  width: 260px;
-  height: 260px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
+.hero-greeting {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.home-hero::after {
-  content: '';
-  position: absolute;
-  bottom: -70%;
-  left: 12%;
-  width: 220px;
-  height: 220px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
+.greeting-text {
+  font-size: 14px;
+  color: var(--text-dim);
+  font-weight: 500;
 }
 
-.hero-info,
-.hero-publish-btn {
-  position: relative;
-  z-index: 1;
-}
-
-.hero-info h1 {
-  font-size: 24px;
+.greeting-guide {
+  font-size: 20px;
   font-weight: 800;
-  margin-bottom: 4px;
-}
-
-.hero-info p {
-  font-size: 12px;
-  opacity: 0.88;
+  color: var(--text);
+  margin: 0;
 }
 
 .hero-publish-btn {
@@ -285,19 +274,20 @@ onMounted(() => {
   gap: 8px;
   padding: 12px 24px;
   border-radius: 14px;
-  background: var(--card);
-  color: var(--pink);
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  color: var(--white);
   font-size: 14px;
   font-weight: 700;
   border: none;
   cursor: pointer;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 16px rgba(255, 107, 157, 0.25);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  flex-shrink: 0;
 }
 
 .hero-publish-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+  box-shadow: 0 8px 24px rgba(255, 107, 157, 0.35);
 }
 
 .btn-icon {
@@ -307,18 +297,18 @@ onMounted(() => {
 
 .card-panel,
 .stats-panel {
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-light);
   border-radius: 16px;
   background: var(--card);
-  box-shadow: 0 6px 22px rgba(180, 132, 255, 0.06);
+  box-shadow: 0 2px 10px rgba(180, 132, 255, 0.04);
 }
 
 .stats-panel {
-  padding: 18px 18px 16px;
+  padding: 20px 20px 18px;
 }
 
 .card-panel {
-  padding: 18px;
+  padding: 20px;
 }
 
 .panel-header {
@@ -326,23 +316,24 @@ onMounted(() => {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 14px;
-}
-
-.panel-header--compact {
   margin-bottom: 16px;
 }
 
+.panel-header--compact {
+  margin-bottom: 14px;
+}
+
 .section-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text);
-  margin-bottom: 4px;
+  margin: 0 0 3px;
 }
 
 .section-desc {
   font-size: 12px;
   color: var(--text-dim);
+  margin: 0;
 }
 
 .panel-link {
@@ -350,15 +341,16 @@ onMounted(() => {
   color: var(--purple);
   cursor: pointer;
   white-space: nowrap;
+  transition: opacity 0.2s;
 }
 
 .panel-link:hover {
-  opacity: 0.72;
+  opacity: 0.7;
 }
 
 .dashboard-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-columns: minmax(0, 1fr) 290px;
   grid-template-areas:
     'stats side'
     'pending side';
@@ -387,6 +379,21 @@ onMounted(() => {
   gap: 12px;
 }
 
+.stats-grid :deep(.stat-card) {
+  border: 1px solid var(--border-light);
+  box-shadow: none;
+}
+
+.stats-grid :deep(.stat-card:hover) {
+  border-color: rgba(255, 107, 157, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(180, 132, 255, 0.06);
+}
+
+.stats-grid :deep(.views-icon--primary .stat-icon-wrapper) {
+  background: linear-gradient(135deg, rgba(255, 107, 157, 0.12), rgba(180, 132, 255, 0.1));
+}
+
 .pending-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -399,23 +406,25 @@ onMounted(() => {
   gap: 12px;
   padding: 16px;
   border-radius: 14px;
-  border: 1px solid var(--border);
-  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0));
+  border: 1px solid var(--border-light);
+  background: var(--bg-soft);
   transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
 .pending-card.has-count {
   cursor: pointer;
+  background: var(--card);
 }
 
 .pending-card.has-count:hover {
-  border-color: var(--purple-light, #d8b4fe);
-  box-shadow: 0 8px 22px rgba(192, 132, 252, 0.12);
+  border-color: rgba(255, 107, 157, 0.2);
+  box-shadow: 0 4px 16px rgba(180, 132, 255, 0.08);
   transform: translateY(-2px);
 }
 
 .pending-card--disabled {
-  opacity: 0.72;
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .pending-icon-wrap {
@@ -426,7 +435,6 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.04);
 }
 
 .pending-icon {
@@ -434,19 +442,9 @@ onMounted(() => {
   height: 20px;
 }
 
-.pending-draft .pending-icon,
 .pending-draft .pending-icon-wrap {
+  background: rgba(139, 92, 246, 0.1);
   color: #8b5cf6;
-}
-
-.pending-audit .pending-icon,
-.pending-audit .pending-icon-wrap {
-  color: var(--warning);
-}
-
-.pending-reject .pending-icon,
-.pending-reject .pending-icon-wrap {
-  color: var(--error);
 }
 
 .pending-content {
@@ -483,7 +481,7 @@ onMounted(() => {
 .today-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
 }
 
 .today-row {
@@ -493,7 +491,11 @@ onMounted(() => {
   gap: 10px;
   padding: 10px 12px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.02);
+  transition: background 0.18s ease;
+}
+
+.today-row:hover {
+  background: var(--pink-bg);
 }
 
 .today-left {
@@ -528,8 +530,8 @@ onMounted(() => {
 }
 
 .fans-panel:hover {
-  border-color: var(--purple-light, #d8b4fe);
-  box-shadow: 0 8px 22px rgba(192, 132, 252, 0.12);
+  border-color: rgba(255, 107, 157, 0.15);
+  box-shadow: 0 4px 16px rgba(180, 132, 255, 0.06);
   transform: translateY(-2px);
 }
 
@@ -571,16 +573,58 @@ onMounted(() => {
   border-radius: 10px;
   font-size: 12px;
   color: var(--pink);
-  background: rgba(255, 107, 157, 0.08);
+  background: var(--pink-bg);
 }
 
 .fans-new--empty {
   color: var(--text-dim);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg-soft);
 }
 
 .fans-new-icon {
   width: 14px;
   height: 14px;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'stats'
+      'pending'
+      'side';
+  }
+
+  .dashboard-side {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .hero-main {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 20px;
+  }
+
+  .hero-publish-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .pending-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-side {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

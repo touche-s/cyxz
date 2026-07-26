@@ -1,6 +1,10 @@
 <template>
   <div class="creator-container">
     <aside class="sidebar">
+      <div class="sidebar-hd">
+        <span class="sidebar-hd-label">创作中心</span>
+        <span class="sidebar-hd-user">{{ displayName }}</span>
+      </div>
       <nav class="sidebar-nav">
         <div class="nav-section">
         <button class="nav-item nav-item-primary" :class="{ active: activeNav === 'publish' }" @click="switchNav('publish')">
@@ -219,6 +223,12 @@ const userStore = useUserStore()
 const activeNav = ref<'home' | 'content' | 'data' | 'fans' | 'interaction' | 'magic' | 'agreement' | 'publish'>('home')
 const postCreateRef = ref<InstanceType<typeof PostCreate>>()
 const contentRef = ref<InstanceType<typeof CreatorContent>>()
+
+const displayName = computed(() => {
+  const u = userStore.userInfo
+  if (!u) return ''
+  return (u as any).nickname || (u as any).username || `ID:${u.userId || '-'}`
+})
 
 const showDeleteModal = ref(false)
 const showPublishModal = ref(false)
@@ -485,62 +495,61 @@ watch(activeNav, (val) => {
 }
 
 .sidebar {
-  width: 200px;
+  width: 230px;
   background: var(--card);
-  border-right: 1.5px solid var(--border);
-  padding: 20px 0;
+  border-right: 1px solid var(--border-light);
   flex-shrink: 0;
   position: fixed;
   left: 0;
-  top: 66px;
+  top: 86px;
   bottom: 0;
   overflow-y: auto;
   z-index: 99;
-}
-
-.sidebar-header {
-  padding: 0 20px 20px;
-  border-bottom: 1px solid var(--border);
-}
-
-.logo-wrapper {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
 }
 
-.logo-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+.sidebar-hd {
+  padding: 20px 20px 14px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.logo-text {
-  font-size: 18px;
+.sidebar-hd-label {
+  font-size: 16px;
   font-weight: 800;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--text);
+}
+
+.sidebar-hd-user {
+  font-size: 12px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sidebar-nav {
-  padding: 16px 20px;
+  padding: 12px 12px 20px;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .nav-section {
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .nav-divider {
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--border), transparent);
-  margin: 16px 0;
+  background: linear-gradient(90deg, transparent, var(--border-light), transparent);
+  margin: 10px 8px;
 }
 
 .nav-item {
   width: 100%;
-  padding: 10px 14px;
+  padding: 10px 12px;
   border-radius: 10px;
   border: none;
   background: transparent;
@@ -550,8 +559,8 @@ watch(activeNav, (val) => {
   gap: 12px;
   font-size: 14px;
   font-weight: 500;
-  color: var(--text-secondary);
-  transition: all 0.22s ease-out;
+  color: var(--text-dim);
+  transition: all 0.2s ease;
 }
 
 .nav-item:hover {
@@ -568,12 +577,14 @@ watch(activeNav, (val) => {
 .nav-item-primary {
   background: linear-gradient(135deg, var(--pink), var(--purple));
   color: var(--white);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  font-weight: 700;
 }
 
 .nav-item-primary:hover {
   background: linear-gradient(135deg, var(--pink), var(--purple));
   color: var(--white);
+  opacity: 0.92;
 }
 
 .nav-item-primary.active {
@@ -594,9 +605,10 @@ watch(activeNav, (val) => {
 
 .main-content {
   flex: 1;
-  margin-left: 200px;
-  padding: 90px 32px 24px;
+  margin-left: 230px;
+  padding: 96px 32px 32px;
   min-height: 100vh;
+  max-width: calc(100vw - 230px);
 }
 
 .stat-mini-icon {
@@ -886,22 +898,20 @@ watch(activeNav, (val) => {
 @media (max-width: 1024px) {
   .sidebar {
     width: 60px;
-    top: 66px;
+    top: 86px;
   }
 
-  .sidebar-header {
-    padding: 0;
-    display: flex;
-    justify-content: center;
+  .sidebar-hd {
+    padding: 14px 8px 10px;
+    align-items: center;
   }
 
-  .logo-wrapper {
-    flex-direction: column;
-    gap: 4px;
+  .sidebar-hd-label {
+    font-size: 13px;
   }
 
-  .logo-text {
-    font-size: 10px;
+  .sidebar-hd-user {
+    display: none;
   }
 
   .nav-text {
@@ -910,12 +920,13 @@ watch(activeNav, (val) => {
 
   .nav-item {
     justify-content: center;
-    padding: 12px;
+    padding: 12px 8px;
   }
 
   .main-content {
     margin-left: 60px;
-    padding: 90px 20px 20px;
+    padding: 96px 20px 20px;
+    max-width: calc(100vw - 60px);
   }
 }
 
@@ -926,8 +937,13 @@ watch(activeNav, (val) => {
 
   .main-content {
     margin-left: 0;
-    padding: 80px 16px 20px;
+    padding: 86px 16px 20px;
+    max-width: 100vw;
   }
+}
+
+html.dark .preview-carousel-dot {
+  background: rgba(180, 132, 255, 0.25);
 }
 </style>
 

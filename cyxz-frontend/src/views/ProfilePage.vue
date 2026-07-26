@@ -55,14 +55,12 @@
             <Icon icon="ph:star" class="tab-icon pink-icon" />收藏
           </a>
         </div>
+        <SearchInput v-model="searchKeyword" variant="pill" :placeholder="activeTab === 'works' ? '搜索作品...' : '搜索收藏...'" />
       </div>
     </div>
 
     <!-- ===== 内容区 ===== -->
     <div class="content-area">
-      <div class="content-tools">
-        <SearchInput v-model="searchKeyword" variant="pill" :placeholder="activeTab === 'works' ? '搜索作品...' : '搜索收藏...'" />
-      </div>
 
       <!-- 作品 tab -->
       <div v-if="activeTab === 'works'">
@@ -247,7 +245,7 @@ function goToPost(post: PostVO) {
 /* ===== Banner ===== */
 .cover-banner {
   width: 100%;
-  height: 280px;
+  height: 260px;
   background-image:
     linear-gradient(180deg, rgba(255,255,255,0) 50%, rgba(0,0,0,0.22) 100%),
     url('@/assets/images/post-detail-bg.svg');
@@ -267,7 +265,7 @@ function goToPost(post: PostVO) {
   padding: 0 4px 10px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
   border-radius: 20px 20px 0 0;
 }
 .pc-top {
@@ -302,7 +300,7 @@ function goToPost(post: PostVO) {
 .pc-stats-row {
   display: flex;
   gap: 24px;
-  padding: 14px 4px 8px;
+  padding: 12px 4px 4px;
   flex-wrap: wrap;
 }
 .pc-stat {
@@ -312,10 +310,10 @@ function goToPost(post: PostVO) {
   transition: all 0.2s;
   display: inline-flex;
   align-items: baseline;
-  gap: 5px;
+  gap: 4px;
 }
 .pc-stat strong {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--white);
 }
@@ -406,22 +404,22 @@ function goToPost(post: PostVO) {
   position: sticky;
   top: 78px;
   z-index: 20;
-  padding-top: 6px;
+  padding-top: 0;
 }
 .info-bar-inner {
   max-width: 1220px;
   margin: 0 auto;
-  padding: 4px 24px 4px;
+  padding: 6px 24px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 16px;
-  min-height: 48px;
+  justify-content: space-between;
+  gap: 20px;
+  min-height: 52px;
 }
 .tab-nav {
   display: inline-flex;
   gap: 8px;
-  margin: 0 auto;
+  margin: 0;
   padding: 6px;
   background: rgba(255,244,250,0.96);
   border: 1px solid var(--border-light);
@@ -433,12 +431,12 @@ function goToPost(post: PostVO) {
   color: var(--text-dim);
   font-size: 13px;
   font-weight: 500;
-  padding: 8px 16px;
+  padding: 7px 14px;
   border-radius: 999px;
   transition: all 0.2s;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   white-space: nowrap;
 }
 .tab-nav a:hover {
@@ -453,18 +451,13 @@ function goToPost(post: PostVO) {
     0 4px 12px rgba(255,107,157,0.1),
     inset 0 0 0 1px rgba(255,107,157,0.16);
 }
-.tab-icon { width: 16px; height: 16px; }
+.tab-icon { width: 15px; height: 15px; }
 
 /* ===== 内容区 ===== */
 .content-area {
   max-width: 1220px;
   margin: 0 auto;
-  padding: 0 24px 60px;
-}
-.content-tools {
-  display: flex;
-  justify-content: flex-start;
-  margin-bottom: 18px;
+  padding: 12px 24px 60px;
 }
 
 .section-header {
@@ -489,15 +482,13 @@ function goToPost(post: PostVO) {
 /* 内容网格：四列 */
 .content-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 270px));
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
-  justify-content: start;
 }
 .content-grid :deep(.card) {
-  width: 270px;
   border-radius: 14px;
   border: 1px solid var(--border-light);
-  box-shadow: var(--shadow);
+  box-shadow: 0 2px 12px rgba(180, 132, 255, 0.05);
   transition: all 0.25s ease;
 }
 .content-grid :deep(.card:hover) {
@@ -558,9 +549,6 @@ function goToPost(post: PostVO) {
     grid-template-columns: 1fr;
     gap: 10px;
   }
-  .content-grid :deep(.card) {
-    width: 100%;
-  }
   .info-bar-inner {
     padding: 8px 16px;
     justify-content: center;
@@ -573,5 +561,27 @@ function goToPost(post: PostVO) {
   .tab-nav a { padding: 10px 12px; font-size: 13px; }
   .content-area { padding: 20px 16px 40px; }
   .section-block { padding: 16px; }
+}
+
+/* ===== Dark mode overrides ===== */
+html.dark .cover-banner {
+  background-image:
+    linear-gradient(180deg, rgba(30, 26, 50, 0) 50%, rgba(0, 0, 0, 0.22) 100%),
+    url('@/assets/images/post-detail-bg.svg');
+  background-size: cover;
+  background-position: center;
+}
+
+html.dark .pc-name {
+  text-shadow: none;
+}
+
+html.dark .pc-action-btn {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+html.dark .pc-action-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
 }
 </style>
