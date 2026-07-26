@@ -17,13 +17,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -88,8 +86,8 @@ class PostCountFlushServiceImplTest {
             // 只有 postId=1 成功刷入，0 和负数虽不调用 mapper 但仍算"成功"（field 被删）
             assertEquals(3, success);
             verify(postMapper).updateViews(1L, 10);
-            verify(postMapper, never()).updateViews(eq(2L), anyLong());
-            verify(postMapper, never()).updateViews(eq(3L), anyLong());
+            verify(postMapper, never()).updateViews(eq(2L), anyInt());
+            verify(postMapper, never()).updateViews(eq(3L), anyInt());
         }
     }
 
@@ -125,7 +123,7 @@ class PostCountFlushServiceImplTest {
             int success = flushService.flushLikeCounts();
 
             assertEquals(0, success);
-            verify(postMapper, never()).updateLikes(anyLong(), anyLong());
+            verify(postMapper, never()).updateLikes(anyLong(), anyInt());
         }
 
         @Test
