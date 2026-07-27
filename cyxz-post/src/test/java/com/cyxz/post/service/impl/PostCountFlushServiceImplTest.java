@@ -25,11 +25,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * PostCountFlushServiceImpl 单元测试
- * <p>覆盖增量刷库的核心逻辑：正常刷入、跳过零/负浏览、
- * 异常保留增量等关键路径。
- */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("PostCountFlushService 增量刷库")
 class PostCountFlushServiceImplTest {
@@ -56,12 +51,14 @@ class PostCountFlushServiceImplTest {
     class FlushViewCounts {
 
         @Test
-        @DisplayName("正常刷入正增量")
+        @DisplayName("正常刷入正增量，成功后扣减并删除 field")
         void shouldFlushPositiveDelta() {
             Map<Object, Object> deltas = new HashMap<>();
             deltas.put("1", "10");
             deltas.put("2", "5");
             when(hashOps.entries(CacheKeyConstants.POST_VIEW_DELTA)).thenReturn(deltas);
+            when(hashOps.increment(CacheKeyConstants.POST_VIEW_DELTA, "1", -10)).thenReturn(0L);
+            when(hashOps.increment(CacheKeyConstants.POST_VIEW_DELTA, "2", -5)).thenReturn(0L);
 
             int success = flushService.flushViewCounts();
 
@@ -80,10 +77,12 @@ class PostCountFlushServiceImplTest {
             deltas.put("2", "0");
             deltas.put("3", "-3");
             when(hashOps.entries(CacheKeyConstants.POST_VIEW_DELTA)).thenReturn(deltas);
+            when(hashOps.increment(CacheKeyConstants.POST_VIEW_DELTA, "1", -10)).thenReturn(0L);
+            when(hashOps.increment(CacheKeyConstants.POST_VIEW_DELTA, "2", -0)).thenReturn(0L);
+            when(hashOps.increment(CacheKeyConstants.POST_VIEW_DELTA, "3", 3)).thenReturn(0L);
 
             int success = flushService.flushViewCounts();
 
-            // 只有 postId=1 成功刷入，0 和负数虽不调用 mapper 但仍算"成功"（field 被删）
             assertEquals(3, success);
             verify(postMapper).updateViews(1L, 10);
             verify(postMapper, never()).updateViews(eq(2L), anyInt());
@@ -99,9 +98,11 @@ class PostCountFlushServiceImplTest {
         @DisplayName("点赞增量可正可负（取消点赞）")
         void shouldHandleLikeAndUnlike() {
             Map<Object, Object> deltas = new HashMap<>();
-            deltas.put("100", "3");   // 3 人点赞
-            deltas.put("200", "-1");  // 1 人取消
+            deltas.put("100", "3");
+            deltas.put("200", "-1");
             when(hashOps.entries(CacheKeyConstants.POST_LIKE_DELTA)).thenReturn(deltas);
+            when(hashOps.increment(CacheKeyConstants.POST_LIKE_DELTA, "100", -3)).thenReturn(0L);
+            when(hashOps.increment(CacheKeyConstants.POST_LIKE_DELTA, "200", 1)).thenReturn(0L);
 
             int success = flushService.flushLikeCounts();
 
@@ -130,9 +131,10 @@ class PostCountFlushServiceImplTest {
         @DisplayName("格式异常 field 直接删除，不阻塞后续")
         void shouldSkipMalformedEntryAndContinue() {
             Map<Object, Object> deltas = new HashMap<>();
-            deltas.put("abc", "xyz");      // 非数字
-            deltas.put("3", "5");           // 正常
+            deltas.put("abc", "xyz");
+            deltas.put("3", "5");
             when(hashOps.entries(CacheKeyConstants.POST_LIKE_DELTA)).thenReturn(deltas);
+            when(hashOps.increment(CacheKeyConstants.POST_LIKE_DELTA, "3", -5)).thenReturn(0L);
 
             int success = flushService.flushLikeCounts();
 
@@ -143,7 +145,7 @@ class PostCountFlushServiceImplTest {
         }
 
         @Test
-        @DisplayName("DB 更新失败保留增量，不删除 Redis field")
+        @DisplayName("DB 更新失败保留增量不删，成功条目正常扣减")
         void shouldRetainDeltaOnUpdateFailure() {
             Map<Object, Object> deltas = new HashMap<>();
             deltas.put("1", "10");
@@ -151,14 +153,28 @@ class PostCountFlushServiceImplTest {
             when(hashOps.entries(CacheKeyConstants.POST_LIKE_DELTA)).thenReturn(deltas);
             doThrow(new RuntimeException("DB 宕机"))
                     .when(postMapper).updateLikes(1L, 10);
+            when(hashOps.increment(CacheKeyConstants.POST_LIKE_DELTA, "2", -5)).thenReturn(0L);
 
             int success = flushService.flushLikeCounts();
 
-            // postId=2 成功，postId=1 失败
             assertEquals(1, success);
-            // postId=1 失败后不应删除其 Redis field
             verify(hashOps, never()).delete(CacheKeyConstants.POST_LIKE_DELTA, "1");
             verify(hashOps).delete(CacheKeyConstants.POST_LIKE_DELTA, "2");
+        }
+
+        @Test
+        @DisplayName("刷库期间并发写入新增量，剩余量 > 0 时不删除 field")
+        void shouldRetainFieldWhenNewDeltaWrittenDuringFlush() {
+            Map<Object, Object> deltas = new HashMap<>();
+            deltas.put("1", "10");
+            when(hashOps.entries(CacheKeyConstants.POST_LIKE_DELTA)).thenReturn(deltas);
+            when(hashOps.increment(CacheKeyConstants.POST_LIKE_DELTA, "1", -10)).thenReturn(3L);
+
+            int success = flushService.flushLikeCounts();
+
+            assertEquals(1, success);
+            verify(postMapper).updateLikes(1L, 10);
+            verify(hashOps, never()).delete(CacheKeyConstants.POST_LIKE_DELTA, "1");
         }
     }
 
@@ -172,6 +188,7 @@ class PostCountFlushServiceImplTest {
             Map<Object, Object> deltas = new HashMap<>();
             deltas.put("10", "2");
             when(hashOps.entries(CacheKeyConstants.POST_COLLECT_DELTA)).thenReturn(deltas);
+            when(hashOps.increment(CacheKeyConstants.POST_COLLECT_DELTA, "10", -2)).thenReturn(0L);
 
             int success = flushService.flushCollectCounts();
 
@@ -185,6 +202,7 @@ class PostCountFlushServiceImplTest {
             Map<Object, Object> deltas = new HashMap<>();
             deltas.put("20", "3");
             when(hashOps.entries(CacheKeyConstants.POST_COMMENT_DELTA)).thenReturn(deltas);
+            when(hashOps.increment(CacheKeyConstants.POST_COMMENT_DELTA, "20", -3)).thenReturn(0L);
 
             int success = flushService.flushCommentCounts();
 
