@@ -248,5 +248,6 @@ CREATE TABLE IF NOT EXISTS notification (
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     INDEX idx_receiver_read (receiver_id, is_read, create_time),
-    INDEX idx_receiver_type (receiver_id, type, create_time)
+    INDEX idx_receiver_type (receiver_id, type, create_time),
+    UNIQUE INDEX uk_dedup (receiver_id, sender_id, type, target_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='通知表';
