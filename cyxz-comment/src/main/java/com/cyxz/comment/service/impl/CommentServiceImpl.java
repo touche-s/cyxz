@@ -18,6 +18,7 @@ import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.constant.PageConstants;
 import com.cyxz.message.api.dto.CreateNotificationRequest;
 import com.cyxz.message.api.enums.NotificationType;
+import com.cyxz.message.api.event.NotificationEvent;
 import com.cyxz.message.api.feign.MessageFeignClient;
 import com.cyxz.post.feign.PostFeignClient;
 import com.cyxz.post.vo.PostInfoVO;
@@ -26,6 +27,7 @@ import com.cyxz.user.utils.UserFeignHelper;
 import com.cyxz.user.vo.UserProfileVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,6 +49,7 @@ public class CommentServiceImpl implements CommentService {
     private final PostFeignClient postFeignClient;
     private final StringRedisTemplate stringRedisTemplate;
     private final MessageFeignClient messageFeignClient;
+    private final RabbitTemplate rabbitTemplate;
 
     /**
      * 发表评论
@@ -82,36 +85,48 @@ public class CommentServiceImpl implements CommentService {
         }
 
         commentMapper.insert(po);
-        // 发送帖子被评论通知（评论作者不是帖子作者时才发）
+        // 发送帖子被评论通知 — MQ 异步
         if (!userId.equals(po.getPostAuthorId())) {
             try {
-                messageFeignClient.createNotification(CreateNotificationRequest.builder()
-                    .receiverId(po.getPostAuthorId())
-                    .senderId(userId)
-                    .type(NotificationType.POST_COMMENTED.name())
-                    .targetId(po.getId())
-                    .targetType("comment")
-                    .relatedId(po.getPostId())
-                    .content(request.getContent())
-                    .build());
+                rabbitTemplate.convertAndSend(
+                    "cyxz.notification.exchange",
+                    "notification.create",
+                    NotificationEvent.builder()
+                        .receiverId(po.getPostAuthorId())
+                        .senderId(userId)
+                        .type(NotificationType.POST_COMMENTED.name())
+                        .title("有人评论了你的帖子")
+                        .targetType("comment")
+                        .targetId(po.getId())
+                        .relatedId(po.getPostId())
+                        .content(request.getContent())
+                        .createTime(System.currentTimeMillis())
+                        .build()
+                );
             } catch (Exception e) {
-                log.warn("发送评论通知失败: commentId={}, postId={}", po.getId(), po.getPostId(), e);
+                log.warn("MQ 发布评论通知失败: commentId={}, postId={}", po.getId(), po.getPostId(), e);
             }
         }
-        // 发送回复通知（回复了别人的评论，且回复者不是被回复者）
+        // 发送回复通知 — MQ 异步
         if (po.getReplyToUserId() != null && !userId.equals(po.getReplyToUserId())) {
             try {
-                messageFeignClient.createNotification(CreateNotificationRequest.builder()
-                    .receiverId(po.getReplyToUserId())
-                    .senderId(userId)
-                    .type(NotificationType.COMMENT_REPLIED.name())
-                    .targetId(po.getId())
-                    .targetType("comment")
-                    .relatedId(po.getPostId())
-                    .content(request.getContent())
-                    .build());
+                rabbitTemplate.convertAndSend(
+                    "cyxz.notification.exchange",
+                    "notification.create",
+                    NotificationEvent.builder()
+                        .receiverId(po.getReplyToUserId())
+                        .senderId(userId)
+                        .type(NotificationType.COMMENT_REPLIED.name())
+                        .title("有人回复了你的评论")
+                        .targetType("comment")
+                        .targetId(po.getId())
+                        .relatedId(po.getPostId())
+                        .content(request.getContent())
+                        .createTime(System.currentTimeMillis())
+                        .build()
+                );
             } catch (Exception e) {
-                log.warn("发送回复通知失败: commentId={}, replyToUserId={}", po.getId(), po.getReplyToUserId(), e);
+                log.warn("MQ 发布回复通知失败: commentId={}, replyToUserId={}", po.getId(), po.getReplyToUserId(), e);
             }
         }
         // Redis 增量：帖子评论数 +1
