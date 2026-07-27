@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.constant.PageConstants;
 import com.cyxz.message.api.dto.CreateNotificationRequest;
+import com.cyxz.message.api.event.NotificationEvent;
 import com.cyxz.message.api.vo.NotificationVO;
 import com.cyxz.message.entity.NotificationPO;
 import com.cyxz.message.mapper.NotificationMapper;
@@ -15,6 +16,7 @@ import com.cyxz.user.utils.UserFeignHelper;
 import com.cyxz.user.vo.UserProfileVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -37,23 +39,12 @@ public class NotificationServiceImpl implements NotificationService {
     /**
      * 创建通知
      * <p>不给自己发通知（receiverId == senderId 时直接返回）。
-     * <p>去重：同 receiver + 同 sender + 同 type + 同 target 的通知已存在时跳过，防止取关重关等操作刷通知。
      * 内容超过 200 字自动截断。
      */
     @Override
     public void create(CreateNotificationRequest request) {
         if (request.getReceiverId().equals(request.getSenderId())) {
             return; // 不给自己发通知
-        }
-        // 去重：同一发送者对同一目标同类型的通知已存在则跳过
-        LambdaQueryWrapper<NotificationPO> dupWrapper = new LambdaQueryWrapper<>();
-        dupWrapper.eq(NotificationPO::getReceiverId, request.getReceiverId())
-                .eq(NotificationPO::getSenderId, request.getSenderId())
-                .eq(NotificationPO::getType, request.getType())
-                .eq(request.getTargetId() != null, NotificationPO::getTargetId, request.getTargetId());
-        if (notificationMapper.selectCount(dupWrapper) > 0) {
-            log.debug("通知去重跳过: type={}, receiverId={}, senderId={}", request.getType(), request.getReceiverId(), request.getSenderId());
-            return;
         }
         NotificationPO po = new NotificationPO();
         po.setReceiverId(request.getReceiverId());
@@ -67,6 +58,36 @@ public class NotificationServiceImpl implements NotificationService {
         po.setIsRead(0);
         notificationMapper.insert(po);
         log.debug("创建通知: type={}, receiverId={}, senderId={}", request.getType(), request.getReceiverId(), request.getSenderId());
+    }
+
+    /** 从 MQ 事件创建通知 */
+    public boolean createByEvent(NotificationEvent event) {
+        if (event.getReceiverId() == null || event.getType() == null) {
+            log.warn("事件字段非法: receiverId={}, type={}", event.getReceiverId(), event.getType());
+            return false;
+        }
+        if (event.getReceiverId().equals(event.getSenderId())) {
+            return false;
+        }
+        NotificationPO po = new NotificationPO();
+        po.setReceiverId(event.getReceiverId());
+        po.setSenderId(event.getSenderId() != null ? event.getSenderId() : 0L);
+        po.setType(event.getType());
+        po.setTargetId(event.getTargetId());
+        po.setTargetType(event.getTargetType());
+        po.setRelatedId(event.getRelatedId());
+        po.setContent(event.getContent() != null && event.getContent().length() > 200
+                ? event.getContent().substring(0, 200) : event.getContent());
+        po.setIsRead(0);
+        try {
+            notificationMapper.insert(po);
+            log.info("MQ 通知落库: type={}, receiverId={}", event.getType(), event.getReceiverId());
+            return true;
+        } catch (DuplicateKeyException e) {
+            log.debug("通知重复跳过: type={}, receiverId={}, senderId={}, targetId={}",
+                    event.getType(), event.getReceiverId(), event.getSenderId(), event.getTargetId());
+            return false;
+        }
     }
 
     /**
