@@ -453,14 +453,12 @@ const privacyDesc: Record<string, string> = {
 const notificationSettings = reactive([
   { key: 'notificationLike', label: '点赞通知', value: true },
   { key: 'notificationComment', label: '评论通知', value: true },
-  { key: 'notificationFavorite', label: '收藏通知', value: true },
   { key: 'notificationFollow', label: '关注通知', value: true },
 ])
 
 const notifDesc: Record<string, string> = {
   notificationLike: '有人点赞你的帖子时通知',
   notificationComment: '有人评论你的帖子时通知',
-  notificationFavorite: '有人收藏你的帖子时通知',
   notificationFollow: '有人关注你时通知',
 }
 

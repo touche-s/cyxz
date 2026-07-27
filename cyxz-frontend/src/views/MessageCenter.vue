@@ -131,34 +131,29 @@ const typeConfig: Record<string, { label: string; frontType: string }> = {
   POST_LIKED: { label: '赞了你的帖子', frontType: 'like' },
   POST_COMMENTED: { label: '评论了你的帖子', frontType: 'comment' },
   COMMENT_REPLIED: { label: '回复了你的评论', frontType: 'reply' },
-  POST_COLLECTED: { label: '收藏了你的帖子', frontType: 'collect' },
   USER_FOLLOWED: { label: '关注了你', frontType: 'follow' },
 }
 
-// 分类计数（mapNotification 已把 type 转成了 frontType）
 const commentUnread = computed(() => notifications.value.filter(m => (m.type === 'comment' || m.type === 'reply') && !m.isRead).length)
 const likeUnread = computed(() => notifications.value.filter(m => m.type === 'like' && !m.isRead).length)
-const collectUnread = computed(() => notifications.value.filter(m => m.type === 'collect' && !m.isRead).length)
 const followUnread = computed(() => notifications.value.filter(m => m.type === 'follow' && !m.isRead).length)
 const totalUnread = computed(() => notifications.value.filter(m => !m.isRead).length)
 
 const tabs = computed(() => [
   { key: 'like', label: '我收到的赞', icon: 'ph:heart-straight', count: likeUnread.value },
   { key: 'comment', label: '评论和回复', icon: 'ph:chat-circle-dots', count: commentUnread.value },
-  { key: 'collect', label: '收藏', icon: 'ph:star', count: collectUnread.value },
   { key: 'follow', label: '关注', icon: 'ph:user-plus', count: followUnread.value },
 ])
 
 const currentTabLabel = computed(() => {
   const map: Record<string, string> = {
-    like: '我收到的赞', comment: '评论和回复',
-    collect: '收藏', follow: '关注',
+    like: '我收到的赞', comment: '评论和回复', follow: '关注',
   }
   return map[activeTab.value] || '消息'
 })
 
-/** 点赞/收藏 tab 需要分区展示 */
-const mergeTab = computed(() => ['like', 'collect'].includes(activeTab.value))
+/** 点赞 tab 需要分区展示（最新 / 累计） */
+const mergeTab = computed(() => activeTab.value === 'like')
 
 const filteredMessages = computed(() => {
   if (activeTab.value === 'comment') return notifications.value.filter(m => m.type === 'comment' || m.type === 'reply')
