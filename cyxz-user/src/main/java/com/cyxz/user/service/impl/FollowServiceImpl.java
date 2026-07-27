@@ -8,6 +8,7 @@ import com.cyxz.common.base.PageResult;
 import com.cyxz.common.utils.StatusUpdateHelper;
 import com.cyxz.message.api.dto.CreateNotificationRequest;
 import com.cyxz.message.api.enums.NotificationType;
+import com.cyxz.message.api.event.NotificationEvent;
 import com.cyxz.message.api.feign.MessageFeignClient;
 import com.cyxz.user.entity.UserFollowPO;
 import com.cyxz.user.mapper.UserFollowMapper;
@@ -15,6 +16,7 @@ import com.cyxz.user.service.FollowService;
 import com.cyxz.user.vo.FollowUserVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +36,7 @@ public class FollowServiceImpl implements FollowService {
 
     private final UserFollowMapper followMapper;
     private final MessageFeignClient messageFeignClient;
+    private final RabbitTemplate rabbitTemplate;
 
     /**
      * 关注目标用户（幂等，并发安全）
@@ -66,15 +69,23 @@ public class FollowServiceImpl implements FollowService {
                 newFollow.setStatus(CommonStatus.ACTIVE);
                 followMapper.insert(newFollow);
                 log.info("关注用户: userId={}, followUserId={}", userId, targetUserId);
-                // 发送关注通知给被关注用户
+                // 发送关注通知 — MQ 异步
                 try {
-                    messageFeignClient.createNotification(CreateNotificationRequest.builder()
-                        .receiverId(targetUserId)
-                        .senderId(userId)
-                        .type(NotificationType.USER_FOLLOWED.name())
-                        .build());
+                    rabbitTemplate.convertAndSend(
+                        "cyxz.notification.exchange",
+                        "notification.create",
+                        NotificationEvent.builder()
+                            .receiverId(targetUserId)
+                            .senderId(userId)
+                            .type(NotificationType.USER_FOLLOWED.name())
+                            .title("有人关注了你")
+                            .targetType("user")
+                            .targetId(targetUserId)
+                            .createTime(System.currentTimeMillis())
+                            .build()
+                    );
                 } catch (Exception e2) {
-                    log.warn("发送关注通知失败: userId={}, targetUserId={}", userId, targetUserId, e2);
+                    log.warn("MQ 发布关注通知失败: userId={}, targetUserId={}", userId, targetUserId, e2);
                 }
             } catch (DuplicateKeyException e) {
                 // 并发冲突：另一请求已插入，重查真实状态
@@ -85,16 +96,6 @@ public class FollowServiceImpl implements FollowService {
                 boolean updated = StatusUpdateHelper.updateStatus(followMapper, conflict.getId(), 0, 1);
                 if (updated) {
                     log.info("关注用户(并发恢复): userId={}, followUserId={}", userId, targetUserId);
-                    // 发送关注通知给被关注用户（并发恢复场景）
-                    try {
-                        messageFeignClient.createNotification(CreateNotificationRequest.builder()
-                            .receiverId(targetUserId)
-                            .senderId(userId)
-                            .type(NotificationType.USER_FOLLOWED.name())
-                            .build());
-                    } catch (Exception e3) {
-                        log.warn("发送关注通知失败: userId={}, targetUserId={}", userId, targetUserId, e3);
-                    }
                 }
             }
             return;
@@ -104,16 +105,6 @@ public class FollowServiceImpl implements FollowService {
             boolean updated = StatusUpdateHelper.updateStatus(followMapper, exist.getId(), 0, 1);
             if (updated) {
                 log.info("恢复关注: userId={}, followUserId={}", userId, targetUserId);
-                // 发送关注通知给被关注用户（恢复关注场景）
-                try {
-                    messageFeignClient.createNotification(CreateNotificationRequest.builder()
-                        .receiverId(targetUserId)
-                        .senderId(userId)
-                        .type(NotificationType.USER_FOLLOWED.name())
-                        .build());
-                } catch (Exception e4) {
-                    log.warn("发送关注通知失败: userId={}, targetUserId={}", userId, targetUserId, e4);
-                }
             }
             return;
         }
