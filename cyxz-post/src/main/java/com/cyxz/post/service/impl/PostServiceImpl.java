@@ -6,6 +6,7 @@ import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
+import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.constant.PageConstants;
 import com.cyxz.post.vo.*;
@@ -29,11 +30,15 @@ import com.cyxz.post.service.PostService;
 import com.cyxz.user.vo.UserProfileVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.Duration;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 /**
@@ -52,6 +57,11 @@ public class PostServiceImpl implements PostService {
     private final PostCollectMapper postCollectMapper;
     private final CommentFeignClient commentFeignClient;
     private final UserFeignClient userFeignClient;
+    private final RedisTemplate<String, Object> redisTemplate;
+
+    /** 帖子详情缓存 TTL（分钟），默认 30 */
+    @Value("${spring.data.redis.cache-ttl-minutes:30}")
+    private long cacheTtlMinutes;
 
     // ==================== 帖子状态常量与流转规则 ====================
 
@@ -184,6 +194,7 @@ public class PostServiceImpl implements PostService {
         }
 
         postMapper.updateById(po);
+        evictDetailCache(po.getId());
         log.info("{}帖子成功: postId={}, userId={}", isPublishAction ? "发布" : "更新", po.getId(), userId);
     }
 
@@ -219,6 +230,7 @@ public class PostServiceImpl implements PostService {
         }
         po.setStatus(STATUS_DELETED);
         postMapper.updateById(po);
+        evictDetailCache(postId);
         log.info("软删除帖子成功: postId={}, userId={}", postId, userId);
     }
 
@@ -262,6 +274,7 @@ public class PostServiceImpl implements PostService {
 
         // 4. 删除帖子主表
         postMapper.deleteById(postId);
+        evictDetailCache(postId);
         log.info("彻底删除帖子成功: postId={}, userId={}", postId, userId);
     }
 
@@ -275,6 +288,17 @@ public class PostServiceImpl implements PostService {
      */
     @Override
     public PostVO getById(Long postId, Long currentUserId) {
+        // 读缓存：游客和登录用户共用同一份缓存，liked/collected 在命中后补填
+        String cacheKey = CacheKeyConstants.getPostDetailKey(postId);
+        PostVO cached = (PostVO) redisTemplate.opsForValue().get(cacheKey);
+        if (cached != null) {
+            if (currentUserId != null) {
+                cached.setLiked(getLikedPostIds(currentUserId, Set.of(postId)).contains(postId));
+                cached.setCollected(getCollectedPostIds(currentUserId, Set.of(postId)).contains(postId));
+            }
+            return cached;
+        }
+
         PostPO po = postMapper.selectById(postId);
         if (po == null) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
@@ -286,9 +310,12 @@ public class PostServiceImpl implements PostService {
         Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, Set.of(po.getUserId()));
         Map<Long, CategoryPO> categoryMap = categoryService.getByIds(extractCategoryIds(List.of(po)));
         Map<Long, CirclePO> circleMap = extractCircleMap(List.of(po));
-        Set<Long> likedPostIds = getLikedPostIds(currentUserId);
-        Set<Long> collectedPostIds = getCollectedPostIds(currentUserId);
-        return convertToVO(po, userMap, categoryMap, circleMap, likedPostIds, collectedPostIds);
+        Set<Long> likedPostIds = getLikedPostIds(currentUserId, Set.of(postId));
+        Set<Long> collectedPostIds = getCollectedPostIds(currentUserId, Set.of(postId));
+        PostVO vo = convertToVO(po, userMap, categoryMap, circleMap, likedPostIds, collectedPostIds);
+
+        redisTemplate.opsForValue().set(cacheKey, vo, Duration.ofMinutes(cacheTtlMinutes));
+        return vo;
     }
 
     /**
@@ -356,8 +383,9 @@ public class PostServiceImpl implements PostService {
         Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, result.getRecords().stream().map(PostPO::getUserId).collect(Collectors.toSet()));
         Map<Long, CategoryPO> categoryMap = categoryService.getByIds(extractCategoryIds(result.getRecords()));
         Map<Long, CirclePO> circleMap = extractCircleMap(result.getRecords());
-        Set<Long> likedPostIds = getLikedPostIds(userId);
-        Set<Long> collectedPostIds = getCollectedPostIds(userId);
+        Set<Long> postIds = result.getRecords().stream().map(PostPO::getId).collect(Collectors.toSet());
+        Set<Long> likedPostIds = getLikedPostIds(userId, postIds);
+        Set<Long> collectedPostIds = getCollectedPostIds(userId, postIds);
 
         List<PostVO> vos = result.getRecords().stream()
                 .map(po -> convertToVO(po, userMap, categoryMap, circleMap, likedPostIds, collectedPostIds))
@@ -426,19 +454,41 @@ public class PostServiceImpl implements PostService {
 
     /**
      * 批量填充帖子 VO 列表
-     * <p>统一查询作者信息、分类、当前用户的点赞/收藏状态，并将实体列表转换为 VO 列表。
+     * <p>并行查询用户信息、分类、圈子、点赞/收藏状态，减少串行等待时间。
      *
      * @param posts         帖子实体列表
      * @param currentUserId 当前登录用户 ID（可为 null）
      * @return 帖子 VO 列表
      */
     private List<PostVO> fillPostVOList(List<PostPO> posts, Long currentUserId) {
-        Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient,
-                posts.stream().map(PostPO::getUserId).collect(Collectors.toSet()));
-        Map<Long, CategoryPO> categoryMap = categoryService.getByIds(extractCategoryIds(posts));
-        Map<Long, CirclePO> circleMap = extractCircleMap(posts);
-        Set<Long> likedPostIds = getLikedPostIds(currentUserId);
-        Set<Long> collectedPostIds = getCollectedPostIds(currentUserId);
+        if (posts.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Set<Long> userIds = posts.stream().map(PostPO::getUserId).collect(Collectors.toSet());
+        Set<Long> categoryIds = extractCategoryIds(posts);
+        Set<Long> postIds = posts.stream().map(PostPO::getId).collect(Collectors.toSet());
+
+        // 5 个独立查询并行执行
+        CompletableFuture<Map<Long, UserProfileVO>> userFuture =
+                CompletableFuture.supplyAsync(() -> UserFeignHelper.batchGetUsers(userFeignClient, userIds));
+        CompletableFuture<Map<Long, CategoryPO>> categoryFuture =
+                CompletableFuture.supplyAsync(() -> categoryService.getByIds(categoryIds));
+        CompletableFuture<Map<Long, CirclePO>> circleFuture =
+                CompletableFuture.supplyAsync(() -> extractCircleMap(posts));
+        CompletableFuture<Set<Long>> likedIdFuture =
+                CompletableFuture.supplyAsync(() -> getLikedPostIds(currentUserId, postIds));
+        CompletableFuture<Set<Long>> collectedIdFuture =
+                CompletableFuture.supplyAsync(() -> getCollectedPostIds(currentUserId, postIds));
+
+        CompletableFuture.allOf(userFuture, categoryFuture, circleFuture, likedIdFuture, collectedIdFuture).join();
+
+        Map<Long, UserProfileVO> userMap = userFuture.join();
+        Map<Long, CategoryPO> categoryMap = categoryFuture.join();
+        Map<Long, CirclePO> circleMap = circleFuture.join();
+        Set<Long> likedPostIds = likedIdFuture.join();
+        Set<Long> collectedPostIds = collectedIdFuture.join();
+
         return posts.stream()
                 .map(po -> convertToVO(po, userMap, categoryMap, circleMap, likedPostIds, collectedPostIds))
                 .collect(Collectors.toList());
@@ -539,20 +589,20 @@ public class PostServiceImpl implements PostService {
 
 
     /**
-     * 获取当前用户已点赞的帖子 ID 集合
-     * <p>从 post_like 表批量查询当前用户 status=1 的点赞记录。
-     * 注意：这里查的是全量，用于列表页批量回填 liked 状态。
-     * 后续数据量增大时可改为按 postIds 批量查。
+     * 获取当前用户对指定帖子的点赞状态
+     * <p>按需查询，只查当前页涉及的 postIds，避免全量扫描。
      *
-     * @param userId 当前登录用户 ID（可为 null）
+     * @param userId  当前登录用户 ID（可为 null）
+     * @param postIds 待查询的帖子 ID 集合
      * @return 已点赞帖子 ID 集合
      */
-    private Set<Long> getLikedPostIds(Long userId) {
-        if (userId == null) {
+    private Set<Long> getLikedPostIds(Long userId, Set<Long> postIds) {
+        if (userId == null || postIds == null || postIds.isEmpty()) {
             return Collections.emptySet();
         }
         LambdaQueryWrapper<PostLikePO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostLikePO::getUserId, userId)
+                .in(PostLikePO::getPostId, postIds)
                 .eq(PostLikePO::getStatus, CommonStatus.ACTIVE)
                 .select(PostLikePO::getPostId);
         List<PostLikePO> list = postLikeMapper.selectList(wrapper);
@@ -562,18 +612,20 @@ public class PostServiceImpl implements PostService {
     }
 
     /**
-     * 获取当前用户已收藏的帖子 ID 集合
-     * <p>从 post_collect 表批量查询当前用户 status=1 的收藏记录。
+     * 获取当前用户对指定帖子的收藏状态
+     * <p>按需查询，只查当前页涉及的 postIds，避免全量扫描。
      *
-     * @param userId 当前登录用户 ID（可为 null）
+     * @param userId  当前登录用户 ID（可为 null）
+     * @param postIds 待查询的帖子 ID 集合
      * @return 已收藏帖子 ID 集合
      */
-    private Set<Long> getCollectedPostIds(Long userId) {
-        if (userId == null) {
+    private Set<Long> getCollectedPostIds(Long userId, Set<Long> postIds) {
+        if (userId == null || postIds == null || postIds.isEmpty()) {
             return Collections.emptySet();
         }
         LambdaQueryWrapper<PostCollectPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostCollectPO::getUserId, userId)
+                .in(PostCollectPO::getPostId, postIds)
                 .eq(PostCollectPO::getStatus, CommonStatus.ACTIVE)
                 .select(PostCollectPO::getPostId);
         List<PostCollectPO> list = postCollectMapper.selectList(wrapper);
@@ -911,6 +963,15 @@ public class PostServiceImpl implements PostService {
         List<PostVO> vos = fillPostVOList(result.getRecords(), userId);
         vos.forEach(vo -> vo.setPinned(false));
         return PageResult.of(vos, result.getTotal(), page, size);
+    }
+
+    /**
+     * 清除帖子详情缓存
+     * <p>帖子更新/删除时调用，下次请求会从 DB 重新加载并写入缓存。
+     */
+    private void evictDetailCache(Long postId) {
+        String key = CacheKeyConstants.getPostDetailKey(postId);
+        redisTemplate.delete(key);
     }
 
 }
