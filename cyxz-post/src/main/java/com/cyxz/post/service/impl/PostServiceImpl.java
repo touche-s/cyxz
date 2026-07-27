@@ -11,21 +11,19 @@ import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.constant.PageConstants;
 import com.cyxz.post.vo.*;
 import com.cyxz.comment.feign.CommentFeignClient;
+import com.cyxz.circle.feign.CircleFeignClient;
 import com.cyxz.user.feign.UserFeignClient;
 import com.cyxz.user.utils.UserFeignHelper;
 import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
 import com.cyxz.post.entity.CategoryPO;
-import com.cyxz.post.entity.CirclePO;
 import com.cyxz.post.entity.PostCollectPO;
 import com.cyxz.post.entity.PostLikePO;
 import com.cyxz.post.entity.PostPO;
-import com.cyxz.post.mapper.CircleMapper;
 import com.cyxz.post.mapper.PostCollectMapper;
 import com.cyxz.post.mapper.PostLikeMapper;
 import com.cyxz.post.mapper.PostMapper;
 import com.cyxz.post.service.CategoryService;
-import com.cyxz.post.service.CircleService;
 import com.cyxz.post.service.PostService;
 import com.cyxz.user.vo.UserProfileVO;
 import lombok.RequiredArgsConstructor;
@@ -51,8 +49,7 @@ public class PostServiceImpl implements PostService {
 
     private final PostMapper postMapper;
     private final CategoryService categoryService;
-    private final CircleService circleService;
-    private final CircleMapper circleMapper;
+    private final CircleFeignClient circleFeignClient;
     private final PostLikeMapper postLikeMapper;
     private final PostCollectMapper postCollectMapper;
     private final CommentFeignClient commentFeignClient;
@@ -309,10 +306,10 @@ public class PostServiceImpl implements PostService {
         }
         Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, Set.of(po.getUserId()));
         Map<Long, CategoryPO> categoryMap = categoryService.getByIds(extractCategoryIds(List.of(po)));
-        Map<Long, CirclePO> circleMap = extractCircleMap(List.of(po));
+        Map<Long, String> circleNameMap = extractCircleNameMap(List.of(po));
         Set<Long> likedPostIds = getLikedPostIds(currentUserId, Set.of(postId));
         Set<Long> collectedPostIds = getCollectedPostIds(currentUserId, Set.of(postId));
-        PostVO vo = convertToVO(po, userMap, categoryMap, circleMap, likedPostIds, collectedPostIds);
+        PostVO vo = convertToVO(po, userMap, categoryMap, circleNameMap, likedPostIds, collectedPostIds);
 
         redisTemplate.opsForValue().set(cacheKey, vo, Duration.ofMinutes(cacheTtlMinutes));
         return vo;
@@ -382,13 +379,13 @@ public class PostServiceImpl implements PostService {
 
         Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, result.getRecords().stream().map(PostPO::getUserId).collect(Collectors.toSet()));
         Map<Long, CategoryPO> categoryMap = categoryService.getByIds(extractCategoryIds(result.getRecords()));
-        Map<Long, CirclePO> circleMap = extractCircleMap(result.getRecords());
+        Map<Long, String> circleNameMap = extractCircleNameMap(result.getRecords());
         Set<Long> postIds = result.getRecords().stream().map(PostPO::getId).collect(Collectors.toSet());
         Set<Long> likedPostIds = getLikedPostIds(userId, postIds);
         Set<Long> collectedPostIds = getCollectedPostIds(userId, postIds);
 
         List<PostVO> vos = result.getRecords().stream()
-                .map(po -> convertToVO(po, userMap, categoryMap, circleMap, likedPostIds, collectedPostIds))
+                .map(po -> convertToVO(po, userMap, categoryMap, circleNameMap, likedPostIds, collectedPostIds))
                 .collect(Collectors.toList());
         return PageResult.of(vos, result.getTotal(), page, size);
     }
@@ -474,8 +471,8 @@ public class PostServiceImpl implements PostService {
                 CompletableFuture.supplyAsync(() -> UserFeignHelper.batchGetUsers(userFeignClient, userIds));
         CompletableFuture<Map<Long, CategoryPO>> categoryFuture =
                 CompletableFuture.supplyAsync(() -> categoryService.getByIds(categoryIds));
-        CompletableFuture<Map<Long, CirclePO>> circleFuture =
-                CompletableFuture.supplyAsync(() -> extractCircleMap(posts));
+        CompletableFuture<Map<Long, String>> circleFuture =
+                CompletableFuture.supplyAsync(() -> extractCircleNameMap(posts));
         CompletableFuture<Set<Long>> likedIdFuture =
                 CompletableFuture.supplyAsync(() -> getLikedPostIds(currentUserId, postIds));
         CompletableFuture<Set<Long>> collectedIdFuture =
@@ -485,12 +482,12 @@ public class PostServiceImpl implements PostService {
 
         Map<Long, UserProfileVO> userMap = userFuture.join();
         Map<Long, CategoryPO> categoryMap = categoryFuture.join();
-        Map<Long, CirclePO> circleMap = circleFuture.join();
+        Map<Long, String> circleNameMap = circleFuture.join();
         Set<Long> likedPostIds = likedIdFuture.join();
         Set<Long> collectedPostIds = collectedIdFuture.join();
 
         return posts.stream()
-                .map(po -> convertToVO(po, userMap, categoryMap, circleMap, likedPostIds, collectedPostIds))
+                .map(po -> convertToVO(po, userMap, categoryMap, circleNameMap, likedPostIds, collectedPostIds))
                 .collect(Collectors.toList());
     }
 
@@ -501,13 +498,13 @@ public class PostServiceImpl implements PostService {
      * @param po            帖子实体
      * @param userMap       预查的用户信息映射
      * @param categoryMap   预查的分类信息映射
-     * @param circleMap     预查的圈子信息映射
+     * @param circleNameMap 预查的圈子名称映射
      * @param likedPostIds  当前用户已点赞的帖子 ID 集合（可为空）
      * @param collectedPostIds 当前用户已收藏的帖子 ID 集合（可为空）
      * @return 帖子视图对象
      */
     private PostVO convertToVO(PostPO po, Map<Long, UserProfileVO> userMap,
-                                Map<Long, CategoryPO> categoryMap, Map<Long, CirclePO> circleMap,
+                                Map<Long, CategoryPO> categoryMap, Map<Long, String> circleNameMap,
                                 Set<Long> likedPostIds, Set<Long> collectedPostIds) {
         PostVO vo = new PostVO();
         vo.setId(po.getId());
@@ -552,10 +549,10 @@ public class PostServiceImpl implements PostService {
             }
         }
 
-        if (po.getCircleId() != null && circleMap != null) {
-            CirclePO circle = circleMap.get(po.getCircleId());
-            if (circle != null) {
-                vo.setCircleName(circle.getName());
+        if (po.getCircleId() != null && circleNameMap != null) {
+            String circleName = circleNameMap.get(po.getCircleId());
+            if (circleName != null) {
+                vo.setCircleName(circleName);
             }
         }
 
@@ -573,9 +570,9 @@ public class PostServiceImpl implements PostService {
     }
 
     /**
-     * 从帖子列表中提取圈子 ID 集合并预查实体
+     * 从帖子列表中提取圈子 ID 集合并批量查名称
      */
-    private Map<Long, CirclePO> extractCircleMap(List<PostPO> posts) {
+    private Map<Long, String> extractCircleNameMap(List<PostPO> posts) {
         Set<Long> circleIds = posts.stream()
                 .map(PostPO::getCircleId)
                 .filter(Objects::nonNull)
@@ -583,8 +580,11 @@ public class PostServiceImpl implements PostService {
         if (circleIds.isEmpty()) {
             return Collections.emptyMap();
         }
-        return circleMapper.selectBatchIds(circleIds).stream()
-                .collect(Collectors.toMap(CirclePO::getId, c -> c));
+        Result<Map<Long, String>> result = circleFeignClient.batchGetNames(circleIds);
+        if (result == null || result.getData() == null) {
+            return Collections.emptyMap();
+        }
+        return result.getData();
     }
 
 
@@ -666,9 +666,9 @@ public class PostServiceImpl implements PostService {
             return Collections.emptyList();
         }
         Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, topPosts.stream().map(PostPO::getUserId).collect(Collectors.toSet()));
-        Map<Long, CirclePO> circleMap = extractCircleMap(topPosts);
+        Map<Long, String> circleNameMap = extractCircleNameMap(topPosts);
         return topPosts.stream()
-                .map(po -> convertToVO(po, userMap, Collections.emptyMap(), circleMap, Collections.emptySet(), Collections.emptySet()))
+                .map(po -> convertToVO(po, userMap, Collections.emptyMap(), circleNameMap, Collections.emptySet(), Collections.emptySet()))
                 .collect(Collectors.toList());
     }
 

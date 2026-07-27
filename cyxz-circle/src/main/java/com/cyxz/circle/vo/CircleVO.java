@@ -1,10 +1,7 @@
-package com.cyxz.post.vo;
+package com.cyxz.circle.vo;
 
 import lombok.Data;
 
-/**
- * 圈子视图对象
- */
 @Data
 public class CircleVO {
 

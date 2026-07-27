@@ -226,16 +226,7 @@ const circles = ref<CircleVO[]>([])
 const joinedCircleIds = ref<Set<number>>(new Set())
 
 const sortedCircles = computed(() => {
-  const joined: CircleVO[] = []
-  const others: CircleVO[] = []
-  for (const c of circles.value) {
-    if (joinedCircleIds.value.has(c.id)) {
-      joined.push(c)
-    } else {
-      others.push(c)
-    }
-  }
-  return [...joined, ...others]
+  return circles.value.filter(c => joinedCircleIds.value.has(c.id))
 })
 const { loading: submitLoading, run: submit } = useApi()
 

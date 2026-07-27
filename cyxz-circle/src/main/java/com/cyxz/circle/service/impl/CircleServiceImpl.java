@@ -1,4 +1,4 @@
-package com.cyxz.post.service.impl;
+package com.cyxz.circle.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -7,14 +7,13 @@ import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.constant.PageConstants;
-import com.cyxz.post.entity.CircleMemberPO;
-import com.cyxz.post.entity.CirclePO;
-import com.cyxz.post.entity.PostPO;
-import com.cyxz.post.mapper.CircleMapper;
-import com.cyxz.post.mapper.CircleMemberMapper;
-import com.cyxz.post.mapper.PostMapper;
-import com.cyxz.post.service.CircleService;
-import com.cyxz.post.vo.CircleVO;
+import com.cyxz.circle.entity.CircleMemberPO;
+import com.cyxz.circle.entity.CirclePO;
+import com.cyxz.circle.mapper.CircleMapper;
+import com.cyxz.circle.mapper.CircleMemberMapper;
+import com.cyxz.circle.service.CircleService;
+import com.cyxz.circle.vo.CircleVO;
+import com.cyxz.circle.vo.PublishableResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -32,7 +32,6 @@ public class CircleServiceImpl implements CircleService {
 
     private final CircleMapper circleMapper;
     private final CircleMemberMapper circleMemberMapper;
-    private final PostMapper postMapper;
 
     @Override
     public List<CircleVO> listAll(Long currentUserId) {
@@ -81,9 +80,11 @@ public class CircleServiceImpl implements CircleService {
             member.setUserId(userId);
             member.setStatus(CommonStatus.ACTIVE);
             circleMemberMapper.insert(member);
+            circleMapper.updateMemberCount(circleId, 1);
         } else if (member.getStatus() != CommonStatus.ACTIVE) {
             member.setStatus(CommonStatus.ACTIVE);
             circleMemberMapper.updateById(member);
+            circleMapper.updateMemberCount(circleId, 1);
         } else {
             return;
         }
@@ -102,6 +103,7 @@ public class CircleServiceImpl implements CircleService {
         }
         member.setStatus(CommonStatus.DELETED);
         circleMemberMapper.updateById(member);
+        circleMapper.updateMemberCount(circleId, -1);
     }
 
     @Override
@@ -118,23 +120,31 @@ public class CircleServiceImpl implements CircleService {
     }
 
     @Override
-    public void recountStats() {
-        List<CirclePO> circles = circleMapper.selectList(new LambdaQueryWrapper<CirclePO>()
-                .eq(CirclePO::getStatus, CommonStatus.ACTIVE));
-        if (circles.isEmpty()) return;
-
-        for (CirclePO circle : circles) {
-            long cnt = postMapper.selectCount(new LambdaQueryWrapper<PostPO>()
-                    .eq(PostPO::getCircleId, circle.getId())
-                    .eq(PostPO::getStatus, CommonStatus.ACTIVE));
-            circleMapper.setPostCount(circle.getId(), (int) cnt);
-
-            long mbr = circleMemberMapper.selectCount(new LambdaQueryWrapper<CircleMemberPO>()
-                    .eq(CircleMemberPO::getCircleId, circle.getId())
-                    .eq(CircleMemberPO::getStatus, CommonStatus.ACTIVE));
-            circleMapper.setMemberCount(circle.getId(), (int) mbr);
+    public PublishableResult checkPublishable(Long circleId, Long userId) {
+        PublishableResult result = new PublishableResult();
+        CirclePO circle = circleMapper.selectById(circleId);
+        if (circle == null) {
+            return result;
         }
-        log.debug("recountCircleStats done: {} circles", circles.size());
+        result.setExists(true);
+        result.setEnabled(circle.getStatus() == CommonStatus.ACTIVE);
+
+        LambdaQueryWrapper<CircleMemberPO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(CircleMemberPO::getCircleId, circleId)
+                .eq(CircleMemberPO::getUserId, userId)
+                .eq(CircleMemberPO::getStatus, CommonStatus.ACTIVE);
+        result.setJoined(circleMemberMapper.selectCount(wrapper) > 0);
+        result.setPublishable(result.isExists() && result.isEnabled() && result.isJoined());
+        return result;
+    }
+
+    @Override
+    public Map<Long, String> batchGetNames(Set<Long> circleIds) {
+        if (circleIds == null || circleIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return circleMapper.selectBatchIds(circleIds).stream()
+                .collect(Collectors.toMap(CirclePO::getId, CirclePO::getName));
     }
 
     private List<CircleVO> toVOList(List<CirclePO> circles, Long currentUserId) {

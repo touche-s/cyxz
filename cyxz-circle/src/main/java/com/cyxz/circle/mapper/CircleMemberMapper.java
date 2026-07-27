@@ -1,16 +1,13 @@
-package com.cyxz.post.mapper;
+package com.cyxz.circle.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.cyxz.post.entity.CircleMemberPO;
+import com.cyxz.circle.entity.CircleMemberPO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.Set;
 
-/**
- * 圈子成员 Mapper
- */
 @Mapper
 public interface CircleMemberMapper extends BaseMapper<CircleMemberPO> {
 

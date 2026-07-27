@@ -1,4 +1,4 @@
-package com.cyxz.post.entity;
+package com.cyxz.circle.entity;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.TableField;
@@ -9,26 +9,32 @@ import lombok.Data;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
-/**
- * 圈子成员实体
- */
 @Data
-@TableName("circle_member")
-public class CircleMemberPO implements Serializable {
+@TableName("circle")
+public class CirclePO implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     @TableId
     private Long id;
 
-    /** 圈子 ID */
-    private Long circleId;
+    private String name;
 
-    /** 用户 ID */
-    private Long userId;
+    private String slug;
 
-    /** 状态：1=已加入 0=已退出 */
+    private String intro;
+
+    private String avatar;
+
+    private String cover;
+
     private Integer status;
+
+    private Integer sortOrder;
+
+    private Integer postCount;
+
+    private Integer memberCount;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createTime;

@@ -1,15 +1,18 @@
-package com.cyxz.post.controller;
+package com.cyxz.circle.controller;
 
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.web.CurrentUser;
-import com.cyxz.post.service.CircleService;
-import com.cyxz.post.vo.CircleVO;
+import com.cyxz.circle.service.CircleService;
+import com.cyxz.circle.vo.CircleVO;
+import com.cyxz.circle.vo.PublishableResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/circle")
@@ -51,5 +54,16 @@ public class CircleController {
     public Result<Void> leave(@PathVariable Long circleId, @CurrentUser Long userId) {
         circleService.leaveCircle(userId, circleId);
         return Result.success();
+    }
+
+    @GetMapping("/internal/{circleId}/publishable")
+    public Result<PublishableResult> checkPublishable(@PathVariable Long circleId,
+                                                       @RequestParam Long userId) {
+        return Result.success(circleService.checkPublishable(circleId, userId));
+    }
+
+    @GetMapping("/internal/batch-names")
+    public Result<Map<Long, String>> batchNames(@RequestParam Set<Long> circleIds) {
+        return Result.success(circleService.batchGetNames(circleIds));
     }
 }

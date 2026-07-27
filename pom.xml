@@ -26,6 +26,7 @@
         <module>cyxz-message</module>
         <module>cyxz-search</module>
         <module>cyxz-upload</module>
+        <module>cyxz-circle</module>
     </modules>
 
     <properties>

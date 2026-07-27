@@ -60,6 +60,9 @@ public final class CacheKeyConstants {
     /** 评论点赞增量 Hash（field=commentId, value=增量） */
     public static final String COMMENT_LIKE_DELTA = "comment:like:delta";
 
+    /** 圈子帖子数增量 Hash（field=circleId, value=增量，由 cyxz-post 写入，cyxz-circle 消费刷库） */
+    public static final String CIRCLE_POST_DELTA = "circle:post:delta";
+
     /** 帖子浏览去重前缀（post:view:dedup:{postId}:{userOrIp}） */
     public static final String POST_VIEW_DEDUP_PREFIX = "post:view:dedup:";
 

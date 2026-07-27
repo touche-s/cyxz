@@ -1,13 +1,13 @@
-package com.cyxz.post.service;
+package com.cyxz.circle.service;
 
 import com.cyxz.common.base.PageResult;
-import com.cyxz.post.vo.CircleVO;
+import com.cyxz.circle.vo.CircleVO;
+import com.cyxz.circle.vo.PublishableResult;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
-/**
- * 圈子服务接口
- */
 public interface CircleService {
 
     List<CircleVO> listAll(Long currentUserId);
@@ -22,6 +22,7 @@ public interface CircleService {
 
     List<CircleVO> listJoined(Long userId);
 
-    /** 全量重算所有圈子的 post_count 与 member_count */
-    void recountStats();
+    PublishableResult checkPublishable(Long circleId, Long userId);
+
+    Map<Long, String> batchGetNames(Set<Long> circleIds);
 }
