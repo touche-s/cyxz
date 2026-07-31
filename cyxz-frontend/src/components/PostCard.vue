@@ -3,11 +3,7 @@
     <div class="card-cover">
       <img v-if="post.cover" :src="post.cover" class="img" alt="cover" />
       <div v-else class="img" :style="{ background: getGradient(post.id) }"></div>
-      <span class="card-badge" v-if="post.circleName || post.categoryName">
-        <span v-if="post.circleName" class="circle-link" @click.stop="goToCircle">{{ post.circleName }}</span>
-        <span v-if="post.circleName && post.categoryName" class="badge-sep"> · </span>
-        <span v-if="post.categoryName">{{ post.categoryName }}</span>
-      </span>
+      <span class="card-badge" v-if="post.sectionName">{{ post.sectionName }}</span>
       <span class="card-pin-badge" :class="{ 'has-collect': showCollect }" v-if="showPinBadge && post.pinned"><Icon icon="ph:push-pin-fill" class="pin-badge-icon" />置顶</span>
       <button
         v-if="showCollect"
@@ -19,7 +15,10 @@
       </button>
     </div>
     <div class="card-body">
-      <div class="card-title">{{ post.title }}</div>
+      <div class="card-title">
+        <span class="card-type-badge" v-if="post.postType === 'ARTICLE'">长文</span>
+        {{ post.title }}
+      </div>
       <div class="card-tags">
         <span class="card-tag" v-for="tag in (post.tags || []).slice(0, 3)" :key="tag">{{ tag }}</span>
       </div>
@@ -67,12 +66,6 @@ const { open } = useNavigate()
 function goToAuthor() {
   if (props.post.userId) {
     open(`/user/${props.post.userId}`)
-  }
-}
-
-function goToCircle() {
-  if (props.post.circleId) {
-    open(`/circle/${props.post.circleId}`)
   }
 }
 
@@ -163,17 +156,17 @@ const getGradient = (id: string | number) => {
   backdrop-filter: blur(8px);
 }
 
-.circle-link {
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-
-.circle-link:hover {
-  opacity: 0.7;
-}
-
-.badge-sep {
-  opacity: 0.6;
+.card-type-badge {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--gradient-brand); opacity: 0.7;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
 }
 
 .card-pin-badge {

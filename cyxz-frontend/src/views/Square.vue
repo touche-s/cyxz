@@ -4,7 +4,7 @@
 
       <!-- 页面标题 -->
       <div class="page-title">
-        <h1>圈子广场</h1>
+        <h1>圈子</h1>
         <p>找到你喜欢的作品圈子，加入同好</p>
       </div>
 
@@ -47,7 +47,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Icon } from '@iconify/vue'
 import { getCircleList, getJoinedCircles, getHotCircles, joinCircle, leaveCircle } from '@/api/circle'
 import type { CircleVO } from '@/api/circle'
 import { useNavigate } from '@/composables/useNavigate'
@@ -56,6 +55,7 @@ import CircleCard from '@/components/CircleCard.vue'
 import UnderlineTabs from '@/components/UnderlineTabs.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import SearchInput from '@/components/SearchInput.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -234,39 +234,7 @@ watch(() => route.query.tab, (val) => {
 
 /* ===== Search ===== */
 .search-bar {
-  position: relative;
-  max-width: 400px;
-  margin: 0 auto 24px;
-}
-
-.search-icon {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 16px;
-  height: 16px;
-  color: var(--text-dim);
-}
-
-.search-input {
-  width: 100%;
-  padding: 10px 16px 10px 40px;
-  border-radius: 12px;
-  border: 1.5px solid var(--border);
-  font-size: 14px;
-  color: var(--text);
-  background: var(--card);
-  transition: border-color 0.22s ease-out;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: var(--pink);
-}
-
-.search-input::placeholder {
-  color: var(--text-dim);
+  margin-bottom: 20px;
 }
 
 /* ===== Circle Grid ===== */

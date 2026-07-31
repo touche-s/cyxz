@@ -49,13 +49,13 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/post/create',
     name: 'PostCreate',
-    component: () => import('@/views/PostCreate.vue'),
+    component: () => import('@/views/PublishFlow.vue'),
     meta: { requiresAuth: true },
   },
   {
     path: '/post/edit/:id',
     name: 'PostEdit',
-    component: () => import('@/views/PostCreate.vue'),
+    component: () => import('@/views/PublishFlow.vue'),
     meta: { requiresAuth: true },
   },
   {
@@ -79,6 +79,12 @@ const routes: RouteRecordRaw[] = [
     path: '/guidelines',
     name: 'Guidelines',
     component: () => import('@/views/Guidelines.vue'),
+  },
+  {
+    path: '/admin',
+    name: 'Admin',
+    component: () => import('@/views/AdminView.vue'),
+    meta: { requiresAuth: true },
   },
   {
     path: '/messages/chat',

@@ -473,7 +473,7 @@ onMounted(() => {
   height: 18px;
   padding: 0 5px;
   border-radius: 9px;
-  background: linear-gradient(135deg, #ff6b9d, #c084fc);
+  background: var(--gradient-brand);
   color: var(--white);
   font-size: 10px;
   font-weight: 700;
@@ -734,7 +734,7 @@ onMounted(() => {
   height: 42px;
   border-radius: 14px;
   border: none;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   color: var(--white);
   font-size: 14px;
   font-weight: 700;

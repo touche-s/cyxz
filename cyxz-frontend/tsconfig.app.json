@@ -11,6 +11,7 @@
     },
     "noUnusedLocals": false,
     "noUnusedParameters": false,
+    "skipLibCheck": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },

@@ -71,7 +71,7 @@ const magicFeatures = [
   font-weight: 800;
   color: var(--text);
   margin-bottom: 4px;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -156,7 +156,7 @@ const magicFeatures = [
   font-weight: 600;
   cursor: pointer;
   border: none;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   color: var(--white);
   transition: all 0.22s ease-out;
 }

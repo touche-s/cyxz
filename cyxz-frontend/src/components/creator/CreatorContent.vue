@@ -7,7 +7,7 @@
       </div>
       <button class="publish-btn" @click="$emit('createPost')">
         <Icon icon="ph:pencil-simple" class="btn-icon" />
-        <span>发布新作品</span>
+        <span>去创作</span>
       </button>
     </header>
 
@@ -48,7 +48,7 @@
     </div>
 
     <div class="search-bar">
-      <SearchInput v-model="searchKeyword" variant="inline" placeholder="搜索当前分类下的作品标题..." />
+      <SearchInput v-model="searchKeyword" variant="inline" placeholder="搜索当前板块下的作品标题..." />
     </div>
 
     <!-- 批量操作栏 -->
@@ -74,19 +74,19 @@
         <label class="content-checkbox" v-if="batchMode">
           <input type="checkbox" :checked="selectedPostIds.includes(post.id)" @change="togglePost(post.id)" />
         </label>
-        <div class="content-cover" :class="{ clickable: isPublished(post.status) }" @click="isPublished(post.status) && $emit('view', post.id)">
+        <div class="content-cover" :class="{ clickable: isApproved(post.status) }" @click="isApproved(post.status) && $emit('view', post.id)">
           <img v-if="post.cover" :src="post.cover" alt="cover" />
           <div v-else class="cover-placeholder">
             <span>暂无封面</span>
           </div>
         </div>
         <div class="content-info">
-          <h3 class="content-title" :class="{ clickable: isPublished(post.status) }" @click="isPublished(post.status) && $emit('view', post.id)">
+          <h3 class="content-title" :class="{ clickable: isApproved(post.status) }" @click="isApproved(post.status) && $emit('view', post.id)">
             <span class="title-text">{{ post.title }}</span>
             <span class="pin-tag" v-if="post.pinned"><Icon icon="ph:push-pin-fill" />置顶</span>
           </h3>
           <div class="content-meta">
-            <span class="category-tag" v-if="post.categoryName">{{ post.categoryName }}</span>
+            <span class="section-tag" v-if="post.sectionName">{{ post.sectionName }}</span>
             <span class="content-time">{{ formatDateTime(post.createTime) }}</span>
           </div>
           <div class="content-stats">
@@ -101,13 +101,13 @@
           </span>
         </div>
         <div class="content-actions">
-          <button v-if="isPublished(post.status) && !post.pinned" class="action-btn pin" @click="handlePin(post.id)" title="置顶">
+          <button v-if="isApproved(post.status) && !post.pinned" class="action-btn pin" @click="handlePin(post.id)" title="置顶">
             <Icon icon="ph:push-pin" class="action-icon pin-icon" />
           </button>
           <button v-if="post.pinned" class="action-btn unpin" @click="handleUnpin(post.id)" title="取消置顶">
             <Icon icon="ph:push-pin-simple" class="action-icon unpin-icon" />
           </button>
-          <button v-if="!isDeleted(post.status)" class="action-btn edit" @click="$emit('edit', post.id)" title="编辑">
+          <button v-if="!isDeleted(post.status) && !isPending(post.status)" class="action-btn edit" @click="$emit('edit', post.id)" title="编辑">
             <Icon icon="ph:pencil-simple" class="action-icon pink-icon" />
           </button>
           <button v-if="isDraft(post.status)" class="action-btn preview" @click="$emit('preview', post)" title="预览">
@@ -136,7 +136,7 @@
       </div>
     </div>
 
-    <EmptyState v-else-if="!loading" :icon="iconEmpty" :title="`还没有${activeContentTab === 'published' ? '已发布的' : activeContentTab === 'draft' ? '草稿' : activeContentTab === 'deleted' ? '已删除的' : ''}作品`">
+    <EmptyState v-else-if="!loading" :icon="iconEmpty" :title="`还没有${activeContentTab === 'published' ? '已通过的' : activeContentTab === 'pending' ? '待审核的' : activeContentTab === 'rejected' ? '被拒绝的' : activeContentTab === 'draft' ? '草稿' : activeContentTab === 'deleted' ? '已删除的' : ''}作品`">
       <template #actions>
         <button class="create-btn" @click="$emit('createPost')">去创作</button>
       </template>
@@ -155,7 +155,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import { getUserPosts, pinPost, unpinPost, batchOperate } from '@/api/post'
 import { formatDateTime } from '@/utils/format'
 import type { PostVO } from '@/api/post'
-import { isDraft, isPublished, isDeleted, statusText } from '@/utils/postStatus'
+import { isDraft, isPending, isApproved, isRejected, isDeleted, statusText } from '@/utils/postStatus'
 import { useUserStore } from '@/stores/user'
 import { useApi } from '@/composables/useApi'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -174,7 +174,7 @@ const userStore = useUserStore()
 
 const posts = ref<PostVO[]>([])
 const { loading, run } = useApi()
-const activeContentTab = ref<'all' | 'published' | 'draft' | 'deleted'>('all')
+const activeContentTab = ref<'all' | 'published' | 'pending' | 'rejected' | 'draft' | 'deleted'>('all')
 const searchKeyword = ref('')
 const contentSortField = ref('create_time')
 const contentSortOrder = ref('desc')
@@ -191,10 +191,12 @@ const toggleBatchMode = () => {
 const iconEmpty = 'ph:tray'
 
 const contentTabs = computed(() => {
-  const activePosts = posts.value.filter(p => !isDeleted(p.status))
+  const activePosts = posts.value.filter(p => !isDeleted(p.status) && !isRejected(p.status))
   return [
     { label: '全部', value: 'all' as const, count: activePosts.length },
-    { label: '已发布', value: 'published' as const, count: posts.value.filter(p => isPublished(p.status)).length },
+    { label: '已通过', value: 'published' as const, count: posts.value.filter(p => isApproved(p.status)).length },
+    { label: '待审核', value: 'pending' as const, count: posts.value.filter(p => isPending(p.status)).length },
+    { label: '拒绝', value: 'rejected' as const, count: posts.value.filter(p => isRejected(p.status)).length },
     { label: '草稿', value: 'draft' as const, count: posts.value.filter(p => isDraft(p.status)).length },
     { label: '已删除', value: 'deleted' as const, count: posts.value.filter(p => isDeleted(p.status)).length },
   ]
@@ -205,7 +207,13 @@ const filteredContentPosts = computed(() => {
 
   switch (activeContentTab.value) {
     case 'published':
-      filtered = filtered.filter(p => isPublished(p.status))
+      filtered = filtered.filter(p => isApproved(p.status))
+      break
+    case 'pending':
+      filtered = filtered.filter(p => isPending(p.status))
+      break
+    case 'rejected':
+      filtered = filtered.filter(p => isRejected(p.status))
       break
     case 'draft':
       filtered = filtered.filter(p => isDraft(p.status))
@@ -214,7 +222,7 @@ const filteredContentPosts = computed(() => {
       filtered = filtered.filter(p => isDeleted(p.status))
       break
     default:
-      filtered = filtered.filter(p => !isDeleted(p.status))
+      filtered = filtered.filter(p => !isDeleted(p.status) && !isRejected(p.status))
   }
 
   if (searchKeyword.value.trim()) {
@@ -377,7 +385,7 @@ defineExpose({
 
 .page-container .page-header h1 {
   font-size: 24px;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -388,7 +396,7 @@ defineExpose({
   gap: 8px;
   padding: 10px 22px;
   border-radius: 12px;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   color: white;
   font-size: 14px;
   font-weight: 600;
@@ -551,7 +559,6 @@ html.dark .filter-count {
 .search-bar {
   margin-top: 16px;
   margin-bottom: 20px;
-  max-width: 360px;
 }
 
 .content-list {
@@ -669,7 +676,7 @@ html.dark .filter-count {
   color: var(--text-dim);
 }
 
-.category-tag {
+.section-tag {
   font-size: 12px;
   padding: 2px 8px;
   border-radius: 6px;
@@ -734,13 +741,23 @@ html.dark .filter-count {
 }
 
 .status-1 {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(37, 99, 235, 0.12));
+  color: #3b82f6;
+}
+
+.status-2 {
   background: linear-gradient(135deg, rgba(76, 175, 80, 0.12), rgba(56, 142, 60, 0.12));
   color: var(--success);
 }
 
-.status-2 {
+.status-3 {
   background: linear-gradient(135deg, rgba(244, 67, 54, 0.12), rgba(211, 47, 47, 0.12));
   color: var(--error);
+}
+
+.status-4 {
+  background: linear-gradient(135deg, rgba(158, 158, 158, 0.12), rgba(117, 117, 117, 0.12));
+  color: #9e9e9e;
 }
 
 .action-btn {
@@ -811,7 +828,7 @@ html.dark .filter-count {
 .create-btn {
   padding: 12px 32px;
   border-radius: 25px;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   color: white;
   font-size: 15px;
   font-weight: 600;

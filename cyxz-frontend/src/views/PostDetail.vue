@@ -65,7 +65,10 @@
               </div>
             </div>
 
-            <div class="post-content">
+            <div class="post-content" v-if="post.postType === 'ARTICLE'">
+              <v-md-preview :text="post.content" />
+            </div>
+            <div class="post-content" v-else>
               <p v-for="(paragraph, index) in contentParagraphs" :key="index" class="content-paragraph">
                 {{ paragraph }}
               </p>
@@ -234,6 +237,10 @@ import EmptyState from '@/components/EmptyState.vue'
 import FollowButton from '@/components/FollowButton.vue'
 import { useToggleInteraction } from '@/composables/useToggleInteraction'
 import { Icon } from '@iconify/vue'
+import VMdPreview from '@kangc/v-md-editor/lib/preview'
+import githubTheme from '@kangc/v-md-editor/lib/theme/github.js'
+
+VMdPreview.use(githubTheme)
 
 const route = useRoute()
 const { open, to } = useNavigate()
@@ -989,7 +996,7 @@ const goHome = () => {
 .send-btn {
   padding: 10px 24px;
   border-radius: 16px;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   color: var(--white);
   font-size: 14px;
   font-weight: 600;
@@ -1068,7 +1075,7 @@ const goHome = () => {
 .back-btn {
   padding: 10px 32px;
   border-radius: 20px;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   color: var(--white);
   font-size: 14px;
   font-weight: 600;

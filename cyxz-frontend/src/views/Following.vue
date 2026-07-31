@@ -233,7 +233,7 @@ onMounted(async () => {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -311,7 +311,7 @@ onMounted(async () => {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   display: flex;
   align-items: center;
   justify-content: center;

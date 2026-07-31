@@ -132,27 +132,31 @@ const typeConfig: Record<string, { label: string; frontType: string }> = {
   POST_COMMENTED: { label: '评论了你的帖子', frontType: 'comment' },
   COMMENT_REPLIED: { label: '回复了你的评论', frontType: 'reply' },
   USER_FOLLOWED: { label: '关注了你', frontType: 'follow' },
+  POST_APPROVED: { label: '审核通过', frontType: 'system' },
+  POST_REJECTED: { label: '审核未通过', frontType: 'system' },
 }
 
 const commentUnread = computed(() => notifications.value.filter(m => (m.type === 'comment' || m.type === 'reply') && !m.isRead).length)
 const likeUnread = computed(() => notifications.value.filter(m => m.type === 'like' && !m.isRead).length)
 const followUnread = computed(() => notifications.value.filter(m => m.type === 'follow' && !m.isRead).length)
+const systemUnread = computed(() => notifications.value.filter(m => m.type === 'system' && !m.isRead).length)
 const totalUnread = computed(() => notifications.value.filter(m => !m.isRead).length)
 
 const tabs = computed(() => [
   { key: 'like', label: '我收到的赞', icon: 'ph:heart-straight', count: likeUnread.value },
   { key: 'comment', label: '评论和回复', icon: 'ph:chat-circle-dots', count: commentUnread.value },
   { key: 'follow', label: '关注', icon: 'ph:user-plus', count: followUnread.value },
+  { key: 'system', label: '系统通知', icon: 'ph:bell', count: systemUnread.value },
 ])
 
 const currentTabLabel = computed(() => {
   const map: Record<string, string> = {
-    like: '我收到的赞', comment: '评论和回复', follow: '关注',
+    like: '我收到的赞', comment: '评论和回复', follow: '关注', system: '系统通知',
   }
   return map[activeTab.value] || '消息'
 })
 
-/** 点赞 tab 需要分区展示（最新 / 累计） */
+/** 点赞 tab 需要分区展示（最新 / 累计），系统通知不合并 */
 const mergeTab = computed(() => activeTab.value === 'like')
 
 const filteredMessages = computed(() => {
@@ -451,7 +455,7 @@ onMounted(async () => {
   font-size: 10px;
   font-weight: 700;
   color: var(--white);
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   line-height: 1;
 }
 
@@ -501,7 +505,7 @@ onMounted(async () => {
   font-size: 10px;
   font-weight: 700;
   color: var(--white);
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   min-width: 16px;
   height: 16px;
   padding: 0 4px;
@@ -680,7 +684,7 @@ onMounted(async () => {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   flex-shrink: 0;
   margin-left: 4px;
 }
@@ -845,7 +849,7 @@ onMounted(async () => {
 
 .mc-sidebar { position: sticky; top: 92px; padding: 18px 12px 14px; border-radius: 22px; }
 .sidebar-brand { display: flex; align-items: center; gap: 12px; padding: 4px 8px 20px; }
-.brand-icon { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 14px; color: var(--white); background: linear-gradient(135deg, var(--pink), var(--purple)); box-shadow: 0 8px 18px rgba(255, 107, 157, 0.2); }
+.brand-icon { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 14px; color: var(--white); background: var(--gradient-brand); box-shadow: 0 8px 18px rgba(255, 107, 157, 0.2); }
 .brand-icon svg { width: 21px; height: 21px; }
 .sidebar-brand p,
 .hero-eyebrow { margin: 0; color: var(--text-dim); font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
@@ -858,7 +862,7 @@ onMounted(async () => {
 .nav-icon { width: 18px; height: 18px; flex-shrink: 0; }
 .nav-label { flex: 1; }
 .nav-badge,
-.section-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; color: var(--white); background: linear-gradient(135deg, var(--pink), var(--purple)); font-size: 10px; font-weight: 800; }
+.section-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; color: var(--white); background: var(--gradient-brand); font-size: 10px; font-weight: 800; }
 .sidebar-tip { display: flex; gap: 7px; margin: 22px 4px 2px; padding: 12px; border-radius: 14px; color: var(--text-dim); background: var(--pink-bg); font-size: 11px; line-height: 1.6; }
 .sidebar-tip svg { width: 15px; height: 15px; color: var(--pink); flex-shrink: 0; margin-top: 1px; }
 

@@ -476,7 +476,7 @@ html.dark .hero-dot {
 }
 
 .h1-accent {
-  background: linear-gradient(135deg, #ff5ea0, #b07cf0);
+  background: var(--gradient-brand);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -521,7 +521,7 @@ html.dark .hero-left p {
 
 .primary-btn {
   border: none;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   color: white;
   box-shadow: 0 6px 20px rgba(255, 107, 157, 0.2);
 }
@@ -855,7 +855,7 @@ html.dark .hero-side {
 .hero-rank-avatar {
   width: 40px;
   height: 40px;
-  border-radius: 14px;
+  border-radius: 50%;
   overflow: hidden;
   flex-shrink: 0;
   background: var(--gradient-tag);

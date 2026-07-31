@@ -4,6 +4,7 @@ import type { UserInfo } from '@/api/user'
 
 interface StoredUserInfo extends UserInfo {
   id?: string
+  role?: string
 }
 
 export const useUserStore = defineStore('user', () => {
@@ -17,6 +18,7 @@ export const useUserStore = defineStore('user', () => {
   const pendingCircleId = ref<number | null>(null)
 
   const isLoggedIn = computed(() => !!token.value)
+  const isAdmin = computed(() => userInfo.value?.role === 'admin')
 
   function openLoginModal() {
     showLoginModal.value = true
@@ -43,5 +45,5 @@ export const useUserStore = defineStore('user', () => {
     localStorage.removeItem('userInfo')
   }
 
-  return { token, userInfo, isLoggedIn, showLoginModal, creatorActiveNav, creatorFansTab, pendingCircleId, openLoginModal, closeLoginModal, setToken, setUserInfo, clearAuth }
+  return { token, userInfo, isLoggedIn, isAdmin, showLoginModal, creatorActiveNav, creatorFansTab, pendingCircleId, openLoginModal, closeLoginModal, setToken, setUserInfo, clearAuth }
 })

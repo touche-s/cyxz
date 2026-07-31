@@ -76,10 +76,10 @@
             @click="goToPost"
           />
         </div>
-        <EmptyState v-else-if="!postLoading" :title="searchKeyword ? '没有匹配的作品' : '还没有发布任何作品'" :hint="isSelf ? '快去发布你的第一篇帖子吧~' : ''">
-          <template v-if="isSelf" #actions>
-            <button class="guide-btn guide-btn-primary" @click="goToCreatePost">
-              <Icon icon="ph:pencil-simple" class="btn-icon" />发布帖子
+        <EmptyState v-else-if="!postLoading" :title="searchKeyword ? '没有匹配的作品' : '还没有发布任何作品'" :hint="isSelf ? '快去创作你的第一篇帖子吧~' : ''">
+          <template #actions>
+            <button v-if="isSelf" class="guide-btn guide-btn-primary" @click="goToCreatePost">
+              <Icon icon="ph:pencil-simple" class="btn-icon" />去创作
             </button>
           </template>
         </EmptyState>
@@ -354,7 +354,7 @@ function goToPost(post: PostVO) {
   width: 96px;
   height: 96px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -515,7 +515,7 @@ function goToPost(post: PostVO) {
   border: none;
 }
 .guide-btn-primary {
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   color: var(--white);
   box-shadow: var(--shadow);
 }

@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@iconify/vue": "^5.0.1",
+    "@kangc/v-md-editor": "^2.3.18",
     "axios": "^1.18.1",
     "echarts": "^6.1.0",
     "element-plus": "^2.14.2",
@@ -27,14 +28,14 @@
     "@iconify-json/ri": "^1.2.10",
     "@types/node": "^24.13.2",
     "@vitejs/plugin-vue": "^6.0.7",
+    "@vue/test-utils": "^2.4.6",
     "@vue/tsconfig": "^0.9.1",
+    "jsdom": "^27.0.1",
     "typescript": "~6.0.2",
     "unplugin-icons": "^23.0.1",
     "unplugin-vue-components": "^32.1.0",
     "vite": "^8.1.1",
     "vitest": "^3.2.4",
-    "@vue/test-utils": "^2.4.6",
-    "jsdom": "^27.0.1",
     "vue-tsc": "^3.3.5"
   }
 }

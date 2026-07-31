@@ -14,7 +14,7 @@
               v-model="editor.form.value.title"
               type="text"
               class="form-input"
-              placeholder="分享你的故事，给帖子起个吸引人的标题吧~"
+              placeholder="给你的长文起个吸引人的标题吧~"
               maxlength="100"
               required
             />
@@ -22,64 +22,20 @@
           </div>
         </div>
 
-        <!-- 图片 -->
-        <div class="form-section">
-          <label class="form-label">
-            <Icon icon="ph:image" class="label-icon pink-icon" />
-            <span>图片</span>
-            <span class="label-required">*</span>
-          </label>
-          <div class="images-grid">
-            <div
-              v-for="(img, index) in editor.form.value.images"
-              :key="index"
-              class="image-item"
-            >
-              <img :src="img" class="image-preview" />
-              <button type="button" class="image-crop-btn" @click.stop="openImageCropper(img, index)" title="裁剪图片">
-                <Icon icon="ph:crop" class="image-crop-icon" />
-              </button>
-              <button type="button" class="image-remove" @click="removeImage(index)">
-                <Icon icon="ph:x" />
-              </button>
-            </div>
-            <div
-              v-if="editor.form.value.images.length < 9"
-              class="add-image-btn"
-              :class="{ uploading: imgLoading }"
-              @click="triggerImageUpload"
-              @dragover.prevent
-              @drop.prevent="handleImageDrop"
-            >
-              <template v-if="imgLoading">
-                <span class="upload-spinner"></span>
-                <span>上传中...</span>
-              </template>
-              <template v-else>
-                <Icon icon="ph:plus" />
-                <span>添加图片</span>
-              </template>
-            </div>
-          </div>
-          <input ref="imageInput" type="file" accept="image/*" multiple class="hidden-input" @change="handleImageChange" />
-          <span class="field-hint">最多上传 9 张图片</span>
-        </div>
-
-        <!-- 正文 -->
+        <!-- Markdown 编辑器 -->
         <div class="form-section">
           <label class="form-label">
             <Icon icon="ph:pencil-simple" class="label-icon pink-icon" />
             <span>正文内容</span>
             <span class="label-required">*</span>
           </label>
-          <div class="textarea-wrapper">
-            <textarea
+          <div class="md-editor-wrapper">
+            <v-md-editor
               v-model="editor.form.value.content"
-              class="form-textarea"
-              placeholder="写下你想分享的内容吧，支持换行哦~"
-              rows="10"
-              required
-            ></textarea>
+              height="460px"
+              placeholder="使用 Markdown 语法编写长文…"
+              @upload-image="handleMdImageUpload"
+            ></v-md-editor>
           </div>
         </div>
 
@@ -171,16 +127,6 @@
             <span>{{ editor.isEditMode.value ? '保存草稿' : '保存为草稿' }}</span>
           </button>
           <button
-            type="button"
-            class="action-btn check-btn"
-            :disabled="checkingSensitive"
-            @click="handleCheckSensitive"
-          >
-            <LoadingSpinner v-if="checkingSensitive" inline text="" />
-            <Icon v-else icon="ph:shield-check" />
-            <span>{{ checkingSensitive ? '检测中...' : '敏感词检测' }}</span>
-          </button>
-          <button
             type="submit"
             class="action-btn publish-btn"
             :disabled="editor.submitLoading.value"
@@ -192,51 +138,32 @@
         </div>
       </form>
     </div>
-
-    <ImageCropper
-      ref="imageCropperRef"
-      :visible="showImageCropper"
-      title="裁剪图片"
-      :aspect-ratio="currentCropAspectRatio"
-      :circular="false"
-      :ratio-options="cropperRatioOptions"
-      @crop="onImageCrop"
-      @cancel="onImageCropCancel"
-      @update:aspect-ratio="currentCropAspectRatio = $event"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import { Icon } from '@iconify/vue'
 import { ElMessage } from 'element-plus'
 import { usePostEditor } from '@/composables/usePostEditor'
 import { watch } from 'vue'
-import { useApi } from '@/composables/useApi'
-import { uploadPostImage, deleteUploadedFile } from '@/api/upload'
+import { uploadPostImage } from '@/api/upload'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
-import ImageCropper from '@/components/ImageCropper.vue'
+import VMdEditor from '@kangc/v-md-editor/lib/base-editor'
+import githubTheme from '@kangc/v-md-editor/lib/theme/github.js'
 
-const props = defineProps<{
-  initialImages?: string[]
-}>()
+VMdEditor.use(githubTheme)
+VMdEditor.lang.use('zh-CN')
 
 const emit = defineEmits<{
   goBack: [wasEditingDraft?: boolean]
   publishSuccess: []
 }>()
 
-const editor = usePostEditor('NORMAL')
+const editor = usePostEditor('ARTICLE')
 
-/**
- * 选择圈子后：
- * 1. 清空已选板块（不同圈子的板块配置不同，不能沿用之前的板块 ID）
- * 2. 加载新圈子已启用的板块列表
- */
 const selectCircle = (circleId: number) => {
   editor.form.value.circleId = circleId
-  editor.form.value.sectionId = null  // 切圈子时清空已选板块，避免引用其他圈子的板块 ID
+  editor.form.value.sectionId = null  // 切圈子时清空已选板块
   editor.loadSectionsForCircle(circleId)
 }
 
@@ -247,110 +174,15 @@ watch(() => editor.form.value.circleId, (newId) => {
   }
 })
 
-const imageInput = ref<HTMLInputElement | null>(null)
-const { loading: imgLoading, run: upload } = useApi()
-
-const imageCropperRef = ref<InstanceType<typeof ImageCropper> | null>(null)
-const showImageCropper = ref(false)
-const currentCropImageUrl = ref('')
-const currentCropImageIndex = ref(-1)
-const currentCropAspectRatio = ref(4 / 3)
-
-const cropperRatioOptions = [
-  { label: '16:9', value: 16 / 9 },
-  { label: '4:3', value: 4 / 3 },
-  { label: '3:2', value: 3 / 2 },
-  { label: '1:1', value: 1 },
-  { label: '自由', value: 0 },
-]
-
-// 初始化图片（从 PostSelect 传入的）
-if (props.initialImages && props.initialImages.length > 0 && !editor.isEditMode.value) {
-  editor.form.value.images = [...props.initialImages]
-  editor.form.value.cover = props.initialImages[0]
-}
-
-const triggerImageUpload = () => {
-  imageInput.value?.click()
-}
-
-const handleImageChange = async (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const files = target.files
-  if (files) {
-    const remainingSlots = 9 - editor.form.value.images.length
-    const filesToAdd = Array.from(files).slice(0, remainingSlots)
-    for (const file of filesToAdd) {
-      await uploadImage(file)
-    }
-  }
-  target.value = ''
-}
-
-const handleImageDrop = async (event: DragEvent) => {
-  const files = event.dataTransfer?.files
-  if (files) {
-    const remainingSlots = 9 - editor.form.value.images.length
-    const filesToAdd = Array.from(files)
-      .filter(f => f.type.startsWith('image/'))
-      .slice(0, remainingSlots)
-    for (const file of filesToAdd) {
-      await uploadImage(file)
-    }
-  }
-}
-
-function openImageCropper(url: string, index: number) {
-  currentCropImageUrl.value = url
-  currentCropImageIndex.value = index
-  currentCropAspectRatio.value = 4 / 3
-  imageCropperRef.value?.setImageUrl(url)
-  showImageCropper.value = true
-}
-
-async function onImageCrop(blob: Blob) {
-  showImageCropper.value = false
-  const file = new File([blob], 'post-image.jpg', { type: 'image/jpeg' })
-  if (currentCropImageIndex.value >= 0) {
-    await uploadAndReplace(currentCropImageIndex.value, file)
-  }
-  currentCropImageIndex.value = -1
-  currentCropImageUrl.value = ''
-}
-
-function onImageCropCancel() {
-  showImageCropper.value = false
-  currentCropImageIndex.value = -1
-  currentCropImageUrl.value = ''
-}
-
-async function uploadAndReplace(index: number, file: File) {
-  const oldUrl = editor.form.value.images[index]
-  await upload(async () => {
-    const newUrl = await uploadPostImage(file)
-    editor.form.value.images[index] = newUrl
-    if (editor.form.value.cover === oldUrl) editor.form.value.cover = newUrl
-    deleteUploadedFile(oldUrl).catch(() => {})
-    ElMessage.success('裁剪完成')
-  }, { onError: () => ElMessage.error('图片上传失败') })
-}
-
-const uploadImage = async (file: File) => {
-  await upload(async () => {
+const handleMdImageUpload = async (_event: any, insertImage: Function, files: File[]) => {
+  const file = files[0]
+  if (!file) return
+  try {
     const url = await uploadPostImage(file)
-    editor.form.value.images.push(url)
-    if (editor.form.value.images.length === 1 && !editor.form.value.cover) {
-      editor.form.value.cover = url
-    }
-  }, { onError: () => ElMessage.error('图片上传失败') })
-}
-
-const removeImage = (index: number) => {
-  const removed = editor.form.value.images[index]
-  editor.form.value.images.splice(index, 1)
-  deleteUploadedFile(removed).catch(() => {})
-  if (editor.form.value.cover === removed) {
-    editor.form.value.cover = editor.form.value.images[0] || ''
+    insertImage({ url, desc: '' })
+    ElMessage.success('图片已插入')
+  } catch {
+    ElMessage.error('图片上传失败')
   }
 }
 
@@ -363,8 +195,6 @@ const handleSubmit = async () => {
   }
 }
 
-const checkingSensitive = ref(false)
-
 const saveDraft = async () => {
   const ok = await editor.saveDraftOnly()
   if (!ok) return
@@ -374,35 +204,12 @@ const saveDraft = async () => {
   }
 }
 
-const handleCheckSensitive = async () => {
-  checkingSensitive.value = true
-  try {
-    const { run } = useApi()
-    const data = await run<Set<string>>('/post/check-sensitive', {
-      method: 'POST',
-      body: JSON.stringify({
-        title: editor.form.value.title,
-        content: editor.form.value.content,
-      }),
-    })
-    if (data && data.length > 0) {
-      ElMessage.warning('检测到敏感词：' + [...data].join('、'))
-    } else {
-      ElMessage.success('未检测到敏感词，内容安全')
-    }
-  } catch {
-    ElMessage.error('检测失败，请稍后重试')
-  } finally {
-    checkingSensitive.value = false
-  }
-}
-
 defineExpose({ dirty: editor.dirty, confirmLeave: editor.confirmLeave })
 </script>
 
 <style scoped>
 .page-inner {
-  max-width: 760px;
+  max-width: 820px;
   margin: 0 auto;
   padding: 0;
 }
@@ -475,125 +282,23 @@ defineExpose({ dirty: editor.dirty, confirmLeave: editor.confirmLeave })
   color: var(--text-dim);
 }
 
-.images-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-}
-
-.image-item {
-  position: relative;
-  aspect-ratio: 1;
+.md-editor-wrapper {
+  border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
+  transition: border-color 0.22s ease-out;
+  background: var(--card);
 }
 
-.image-preview {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.image-remove {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.5);
-  color: var(--white);
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.22s ease-out;
-}
-
-.image-remove svg {
-  width: 12px;
-  height: 12px;
-}
-
-.image-remove:hover {
-  background: rgba(255, 71, 87, 0.9);
-}
-
-.image-crop-btn {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.5);
-  color: var(--white);
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.22s ease-out;
-}
-
-.image-crop-btn svg {
-  width: 12px;
-  height: 12px;
-}
-
-.image-crop-btn:hover {
-  background: rgba(255, 107, 157, 0.9);
-}
-
-.add-image-btn {
-  aspect-ratio: 1;
-  border-radius: 10px;
-  border: 1px dashed var(--border);
-  background: var(--pink-bg);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  cursor: pointer;
-  color: var(--text-dim);
-  transition: all 0.22s ease-out;
-}
-
-.add-image-btn svg {
-  width: 20px;
-  height: 20px;
-}
-
-.add-image-btn span {
-  font-size: 11px;
-}
-
-.add-image-btn:hover {
+.md-editor-wrapper:focus-within {
   border-color: var(--pink);
-  background: var(--pink-bg);
-  color: var(--pink);
+  box-shadow: 0 0 0 3px var(--pink-bg);
 }
 
-.add-image-btn.uploading {
-  border-color: var(--pink);
-  color: var(--pink);
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-.upload-spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--border);
-  border-top-color: var(--pink);
-  border-radius: 50%;
-  animation: uploadSpin 0.6s linear infinite;
-}
-
-@keyframes uploadSpin {
-  to { transform: rotate(360deg); }
+.md-editor-wrapper :deep(.v-md-editor) {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .section-selector,
@@ -627,35 +332,6 @@ defineExpose({ dirty: editor.dirty, confirmLeave: editor.confirmLeave })
   background: var(--pink-bg-hover);
   border-color: var(--pink);
   color: var(--pink);
-}
-
-.textarea-wrapper {
-  position: relative;
-}
-
-.form-textarea {
-  width: 100%;
-  padding: 14px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  font-size: 14px;
-  color: var(--text);
-  transition: all 0.22s ease-out;
-  background: var(--card);
-  resize: vertical;
-  font-family: inherit;
-  line-height: 1.7;
-  min-height: 200px;
-}
-
-.form-textarea:focus {
-  outline: none;
-  border-color: var(--pink);
-  box-shadow: 0 0 0 3px var(--pink-bg);
-}
-
-.form-textarea::placeholder {
-  color: var(--text-dim);
 }
 
 .tags-container {
@@ -798,21 +474,6 @@ defineExpose({ dirty: editor.dirty, confirmLeave: editor.confirmLeave })
   background: var(--purple-bg);
 }
 
-.check-btn {
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--success, #67c23a);
-  border: 1.5px solid var(--success, #67c23a);
-}
-
-.check-btn:hover:not(:disabled) {
-  background: rgba(103, 194, 58, 0.1);
-}
-
-.check-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
 .publish-btn {
   background: var(--gradient-brand);
   color: var(--white);
@@ -829,10 +490,6 @@ defineExpose({ dirty: editor.dirty, confirmLeave: editor.confirmLeave })
   cursor: not-allowed;
 }
 
-.hidden-input {
-  display: none;
-}
-
 html.dark .draft-btn,
 html.dark .back-btn {
   background: rgba(30, 26, 50, 0.85);
@@ -847,10 +504,6 @@ html.dark .back-btn {
     padding: 20px;
   }
 
-  .images-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
   .form-actions {
     flex-wrap: wrap;
   }
@@ -862,18 +515,6 @@ html.dark .back-btn {
   .action-btn {
     flex: 1 1 auto;
     justify-content: center;
-  }
-
-  .section-btn,
-  .circle-btn {
-    padding: 8px 16px;
-    font-size: 13px;
-  }
-}
-
-@media (max-width: 480px) {
-  .images-grid {
-    grid-template-columns: repeat(2, 1fr);
   }
 }
 </style>

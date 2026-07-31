@@ -25,6 +25,17 @@ export const deleteUploadedFile = (url: string) => {
   return request.delete('/upload/file', { params: { url } })
 }
 
+/** 上传圈子资源（头像或封面） */
+export const uploadCircleResource = (file: File, circleId: number, type: 'avatar' | 'cover') => {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('circleId', String(circleId))
+  formData.append('type', type)
+  return request.post('/upload/circle-resource', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+}
+
 /** 获取用户历史头像列表 */
 export const getAvatarHistory = () => {
   return request.get('/upload/avatar-history')

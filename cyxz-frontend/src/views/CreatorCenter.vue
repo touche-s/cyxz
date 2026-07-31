@@ -9,7 +9,7 @@
         <div class="nav-section">
         <button class="nav-item nav-item-primary" :class="{ active: activeNav === 'publish' }" @click="switchNav('publish')">
           <Icon icon="ph:pencil-simple" class="nav-icon pink-icon" />
-          <span class="nav-text">发布</span>
+          <span class="nav-text">创作</span>
         </button>
         <button class="nav-item" :class="{ active: activeNav === 'home' }" @click="switchNav('home')">
           <Icon icon="ph:house" class="nav-icon pink-icon" />
@@ -64,7 +64,7 @@
     </aside>
 
     <main class="main-content">
-      <PostCreate ref="postCreateRef" v-if="activeNav === 'publish'" @go-back="goHome" @publish-success="handlePublishSuccess" />
+      <PublishFlow ref="publishFlowRef" v-if="activeNav === 'publish'" @go-back="goHome" @publish-success="handlePublishSuccess" />
       <CreatorHome v-else-if="activeNav === 'home'" @go-create="goCreate" @go-data="switchNav('data')" @go-content="goContent" @go-interaction="switchNav('interaction')" @go-fans="switchNav('fans')" @edit-post="editPost" />
       <CreatorContent ref="contentRef" v-else-if="activeNav === 'content'" @edit="editPost" @view="viewPost" @create-post="goCreate" @publish="publishPost" @restore="restorePost" @delete="handleDeletePost" @preview="openPreview" />
       <CreatorData v-else-if="activeNav === 'data'" @go-post="viewPost" />
@@ -91,7 +91,7 @@
       v-model:visible="showPublishModal"
       title="确认发布"
       :post-title="postToPublish?.title"
-      hint="发布后帖子将公开显示，所有用户均可查看。"
+      hint="发布后将进入审核，审核通过后公开显示。"
       confirm-text="确认发布"
       @confirm="doPublish"
       @cancel="cancelPublish"
@@ -145,8 +145,8 @@
             </div>
 
             <div class="preview-dialog-body" v-if="previewPost">
-              <div class="preview-category" v-if="previewPost.categoryName">
-                <span class="preview-category-tag">{{ previewPost.categoryName }}</span>
+              <div class="preview-section" v-if="previewPost.sectionName">
+                <span class="preview-section-tag">{{ previewPost.sectionName }}</span>
               </div>
 
               <h2 class="preview-title">{{ previewPost.title }}</h2>
@@ -184,7 +184,7 @@ import type { PostVO } from '@/api/post'
 import { useUserStore } from '@/stores/user'
 import type { CommentVO } from '@/api/comment'
 import { deleteComment } from '@/api/comment'
-import PostCreate from '@/views/PostCreate.vue'
+import PublishFlow from '@/views/PublishFlow.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import ImageCarousel from '@/components/ImageCarousel.vue'
 import { isDeleted, statusText, canPublish } from '@/utils/postStatus'
@@ -209,7 +209,7 @@ const { loading: permDeleteLoading, run: runPermDelete } = useApi()
 const { loading: commentDeleteLoading, run: runCommentDelete } = useApi()
 
 const activeNav = ref<'home' | 'content' | 'data' | 'fans' | 'interaction' | 'magic' | 'agreement' | 'publish'>('home')
-const postCreateRef = ref<InstanceType<typeof PostCreate>>()
+const publishFlowRef = ref<InstanceType<typeof PublishFlow>>()
 const contentRef = ref<InstanceType<typeof CreatorContent>>()
 
 const displayName = computed(() => {
@@ -255,8 +255,8 @@ const closePreview = () => {
 }
 
 const switchNav = async (nav: typeof activeNav.value) => {
-  if (activeNav.value === 'publish' && nav !== 'publish' && postCreateRef.value) {
-    const canLeave = await postCreateRef.value.confirmLeave()
+  if (activeNav.value === 'publish' && nav !== 'publish' && publishFlowRef.value) {
+    const canLeave = await publishFlowRef.value.confirmLeave()
     if (!canLeave) return
   }
   if (activeNav.value === 'publish' && nav !== 'publish') {
@@ -316,7 +316,7 @@ const doPublish = async () => {
   if (!postToPublish.value || publishLoading.value) return
   if (!canPublish(postToPublish.value)) {
     showPublishModal.value = false
-    ElMessage.warning('请先完善标题、分类、正文和图片后再发布')
+    ElMessage.warning('请先完善标题、板块、正文和图片后再发布')
     await editPost(postToPublish.value.id)
     postToPublish.value = null
     return
@@ -324,7 +324,7 @@ const doPublish = async () => {
   await runPublish(async () => {
     await updatePost({
       id: postToPublish.value!.id,
-      categoryId: postToPublish.value!.categoryId,
+      sectionId: postToPublish.value!.sectionId,
       title: postToPublish.value!.title,
       content: postToPublish.value!.content,
       images: postToPublish.value!.images,
@@ -531,20 +531,20 @@ watch(activeNav, (val) => {
 }
 
 .nav-item-primary {
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   color: var(--white);
   margin-bottom: 6px;
   font-weight: 700;
 }
 
 .nav-item-primary:hover {
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   color: var(--white);
   opacity: 0.92;
 }
 
 .nav-item-primary.active {
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   color: var(--white);
 }
 
@@ -576,7 +576,7 @@ watch(activeNav, (val) => {
 .create-btn {
   padding: 12px 32px;
   border-radius: 25px;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   color: var(--white);
   font-size: 15px;
   font-weight: 600;
@@ -598,13 +598,23 @@ watch(activeNav, (val) => {
 }
 
 .status-1 {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(37, 99, 235, 0.12));
+  color: #3b82f6;
+}
+
+.status-2 {
   background: linear-gradient(135deg, rgba(76, 175, 80, 0.12), rgba(56, 142, 60, 0.12));
   color: var(--success);
 }
 
-.status-2 {
+.status-3 {
   background: linear-gradient(135deg, rgba(244, 67, 54, 0.12), rgba(211, 47, 47, 0.12));
   color: var(--error);
+}
+
+.status-4 {
+  background: linear-gradient(135deg, rgba(158, 158, 158, 0.12), rgba(117, 117, 117, 0.12));
+  color: #9e9e9e;
 }
 
 /* ===== 预览弹窗 ===== */
@@ -689,11 +699,11 @@ watch(activeNav, (val) => {
   padding: 24px;
 }
 
-.preview-category {
+.preview-section {
   margin-bottom: 12px;
 }
 
-.preview-category-tag {
+.preview-section-tag {
   display: inline-block;
   font-size: 13px;
   color: var(--pink);
@@ -869,17 +879,27 @@ watch(activeNav, (val) => {
 }
 
 .comment-post-option-status.status-0 {
-  color: #8b5cf6;
-  background: rgba(139, 92, 246, 0.12);
+  color: var(--warning);
+  background: rgba(255, 152, 0, 0.12);
 }
 
 .comment-post-option-status.status-1 {
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.comment-post-option-status.status-2 {
   color: var(--success);
   background: rgba(22, 163, 74, 0.12);
 }
 
-.comment-post-option-status.status-2 {
+.comment-post-option-status.status-3 {
   color: var(--error);
   background: rgba(239, 68, 68, 0.12);
+}
+
+.comment-post-option-status.status-4 {
+  color: #9e9e9e;
+  background: rgba(158, 158, 158, 0.12);
 }
 </style>

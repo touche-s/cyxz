@@ -138,7 +138,7 @@
               <span>账号安全</span>
             </div>
             <div class="setting-rows">
-              <div class="setting-row" v-for="item in accountItems" :key="item.label">
+              <div class="setting-row" v-for="item in accountItems" :key="item.label" @click="item.action?.()" :class="{ 'setting-row-clickable': item.action }">
                 <div class="setting-row-left">
                   <Icon :icon="item.icon" class="setting-row-icon" />
                   <span class="setting-row-name">{{ item.label }}</span>
@@ -347,6 +347,38 @@
       @crop="onAvatarCrop"
       @cancel="showAvatarCropper = false"
     />
+
+    <!-- 修改密码弹窗 -->
+    <Teleport to="body">
+      <div class="modal-overlay" v-if="showPasswordModal" @click.self="closePasswordModal">
+        <div class="modal-card">
+          <div class="modal-header">
+            <h3>修改密码</h3>
+            <button class="modal-close" @click="closePasswordModal">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div class="password-field">
+              <label>旧密码</label>
+              <input v-model="passwordForm.oldPassword" type="password" class="form-input" placeholder="输入当前密码" />
+            </div>
+            <div class="password-field">
+              <label>新密码</label>
+              <input v-model="passwordForm.newPassword" type="password" class="form-input" placeholder="6-20位新密码" maxlength="20" />
+            </div>
+            <div class="password-field">
+              <label>确认新密码</label>
+              <input v-model="passwordForm.confirmPassword" type="password" class="form-input" placeholder="再次输入新密码" maxlength="20" />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="cancel-btn" @click="closePasswordModal">取消</button>
+            <button class="submit-btn" @click="submitPassword" :disabled="passwordSaving">
+              {{ passwordSaving ? '保存中...' : '确认修改' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -463,7 +495,7 @@ const notifDesc: Record<string, string> = {
 }
 
 const accountItems = [
-  { icon: 'ph:lock-key', label: '修改密码', pending: true },
+  { icon: 'ph:lock-key', label: '修改密码', action: openPasswordModal },
   { icon: 'ph:device-mobile', label: '绑定手机号', pending: true },
   { icon: 'ph:envelope', label: '绑定邮箱', pending: true },
   { icon: 'ph:info', label: '关于次元小站', value: 'v1.0.0' },
@@ -485,6 +517,55 @@ onMounted(async () => {
     ElMessage.error('加载用户信息失败')
   }
 })
+
+// ===== 修改密码 =====
+const showPasswordModal = ref(false)
+const passwordSaving = ref(false)
+const passwordForm = reactive({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: '',
+})
+
+function openPasswordModal() {
+  passwordForm.oldPassword = ''
+  passwordForm.newPassword = ''
+  passwordForm.confirmPassword = ''
+  showPasswordModal.value = true
+}
+
+function closePasswordModal() {
+  showPasswordModal.value = false
+}
+
+async function submitPassword() {
+  if (!passwordForm.oldPassword) {
+    ElMessage.warning('请输入旧密码')
+    return
+  }
+  if (!passwordForm.newPassword || passwordForm.newPassword.length < 6) {
+    ElMessage.warning('新密码至少6位')
+    return
+  }
+  if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+    ElMessage.warning('两次输入的新密码不一致')
+    return
+  }
+  passwordSaving.value = true
+  try {
+    await changePassword({
+      oldPassword: passwordForm.oldPassword,
+      newPassword: passwordForm.newPassword,
+      confirmPassword: passwordForm.confirmPassword,
+    })
+    ElMessage.success('密码修改成功')
+    closePasswordModal()
+  } catch {
+    ElMessage.error('密码修改失败')
+  } finally {
+    passwordSaving.value = false
+  }
+}
 
 watch(activeTab, (tab) => {
   if (tab === 'avatar' && avatarHistory.value.length === 0) {
@@ -658,7 +739,7 @@ html.dark .uc-sidebar {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -953,7 +1034,7 @@ html.dark .profile-summary {
   width: 72px;
   height: 72px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1255,7 +1336,7 @@ html.dark :deep(.ff-date .el-input__wrapper) {
 }
 
 .gender-seg-btn.active {
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   color: #fff;
   box-shadow: 0 2px 10px rgba(255, 107, 157, 0.2);
 }
@@ -1328,6 +1409,108 @@ html.dark .form-sticky {
   height: 16px;
 }
 
+/* ===== 改密弹窗 ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-card {
+  background: var(--card);
+  border-radius: 16px;
+  width: 420px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.modal-header h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: var(--text-dim);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.modal-body {
+  padding: 20px 24px;
+}
+
+.password-field {
+  margin-bottom: 16px;
+}
+
+.password-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-light);
+}
+
+.cancel-btn {
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-dim);
+  font-family: inherit;
+}
+
+.submit-btn {
+  padding: 8px 24px;
+  border-radius: 8px;
+  background: var(--gradient-brand);
+  color: var(--white);
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.setting-row-clickable {
+  cursor: pointer;
+}
+
+.setting-row-clickable:hover {
+  background: rgba(255, 107, 157, 0.04);
+}
+
 .spin {
   animation: spin 1s linear infinite;
 }
@@ -1356,7 +1539,7 @@ html.dark .form-sticky {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   box-shadow:
     0 0 0 4px rgba(255, 255, 255, 0.8),
     0 0 0 6px rgba(255, 107, 157, 0.08),
@@ -1394,7 +1577,7 @@ html.dark .avatar-ring {
   font-size: 11px;
   font-weight: 700;
   color: #fff;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   padding: 3px 14px;
   border-radius: 10px;
   white-space: nowrap;
@@ -1434,7 +1617,7 @@ html.dark .avatar-ring {
   gap: 8px;
   padding: 11px 26px;
   border-radius: 12px;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   color: #fff;
   font-size: 14px;
   font-weight: 700;

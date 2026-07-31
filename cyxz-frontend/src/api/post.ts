@@ -7,8 +7,9 @@ export interface PostVO {
   userId: string
   authorName: string
   authorAvatar: string
-  categoryId: number
-  categoryName: string
+  postType: string
+  sectionId: number
+  sectionName: string
   circleId: number
   circleName: string
   title: string
@@ -29,17 +30,10 @@ export interface PostVO {
   updateTime: string
 }
 
-/** 分类 VO */
-export interface CategoryVO {
-  id: number
-  name: string
-  description: string
-  sortOrder: number
-}
-
 /** 保存草稿请求 */
 export interface SaveDraftRequest {
-  categoryId?: number
+  postType?: string
+  sectionId?: number
   circleId?: number
   title?: string
   content?: string
@@ -48,9 +42,10 @@ export interface SaveDraftRequest {
   tags?: string[]
 }
 
-/** 发布帖子请求（标题、分类、正文、图片必填） */
+/** 发布帖子请求 */
 export interface PublishPostRequest {
-  categoryId: number
+  postType?: string
+  sectionId?: number
   circleId: number
   title: string
   content: string
@@ -62,7 +57,8 @@ export interface PublishPostRequest {
 /** 更新帖子请求 */
 export interface UpdatePostRequest {
   id: string
-  categoryId?: number
+  postType?: string
+  sectionId?: number
   circleId?: number
   title?: string
   content?: string
@@ -72,8 +68,8 @@ export interface UpdatePostRequest {
   status?: number
 }
 
-/** 查询帖子列表（仅已发布，可按分类、圈子筛选，支持排序） */
-export const getPostList = (params: { categoryId?: number; circleId?: number; sortBy?: string; page?: number; size?: number }): Promise<PageResult<PostVO>> => {
+/** 查询帖子列表（仅已发布，可按板块、圈子筛选，支持排序） */
+export const getPostList = (params: { sectionId?: number; circleId?: number; sortBy?: string; page?: number; size?: number }): Promise<PageResult<PostVO>> => {
   return request.get('/post/list', { params })
 }
 
@@ -127,12 +123,20 @@ export const getUserFavorites = (targetUserId: string, params: { page?: number; 
   return request.get(`/post/user/${targetUserId}/favorites`, { params })
 }
 
-/** 查询分类列表 */
-export const getCategoryList = (): Promise<CategoryVO[]> => {
-  return request.get('/category/list')
+/** 数据中心板块分布 */
+export interface SectionDistributionVO {
+  name: string
+  count: number
 }
 
-/** 点赞帖子 */
+/** 数据中心仪表盘 */
+export interface DashboardVO {
+  summary: PostStatsVO
+  monthlyTrends: MonthlyTrendVO[]
+  dailyTrends: DailyTrendVO[]
+  sectionDistribution: SectionDistributionVO[]
+  topPosts: PostVO[]
+}
 export const likePost = (postId: string) => {
   return request.put(`/post/${postId}/like`)
 }
@@ -217,8 +221,8 @@ export interface DailyTrendVO {
   likes: number
 }
 
-/** 数据中心分类分布 */
-export interface CategoryDistributionVO {
+/** 数据中心板块分布 */
+export interface SectionDistributionVO {
   name: string
   count: number
 }
@@ -228,7 +232,7 @@ export interface DashboardVO {
   summary: PostStatsVO
   monthlyTrends: MonthlyTrendVO[]
   dailyTrends: DailyTrendVO[]
-  categoryDistribution: CategoryDistributionVO[]
+  sectionDistribution: SectionDistributionVO[]
   topPosts: PostVO[]
 }
 
@@ -262,4 +266,21 @@ export const unpinPost = (postId: string) => {
 /** 批量操作帖子 */
 export const batchOperate = (data: { postIds: string[]; action: string }) => {
   return request.post('/post/batch', data)
+}
+
+// ===== 管理后台审核 =====
+
+/** 待审核帖子列表 */
+export const listPendingReview = (params: { page?: number; size?: number }): Promise<PageResult<PostVO>> => {
+  return request.get('/post/admin/review/pending', { params })
+}
+
+/** 审核通过 */
+export const approvePost = (postId: string) => {
+  return request.put(`/post/admin/review/${postId}/approve`)
+}
+
+/** 审核拒绝 */
+export const rejectPost = (postId: string, reason: string) => {
+  return request.put(`/post/admin/review/${postId}/reject`, { reason })
 }

@@ -28,7 +28,7 @@
         <div class="circle-actions">
           <button class="btn-publish" @click="goPublish">
             <Icon icon="ph:pencil-simple" />
-            圈内发布
+            圈内创作
           </button>
           <button class="btn-join" :class="{ joined: circle.joined }" :disabled="joinLoading" @click="toggleJoin">
             {{ circle.joined ? '已加入' : '加入' }}
@@ -37,8 +37,24 @@
       </div>
     </div>
 
+    <!-- 推荐发布方向 -->
+    <div class="recommend-bar">
+      <div class="recommend-left">
+        <Icon icon="ph:compass" class="recommend-icon" />
+        <span class="recommend-label">板块：</span>
+        <button
+          v-for="s in sections"
+          :key="s.id"
+          class="recommend-cat-btn"
+          @click="sectionTab = String(s.id)"
+        >
+          {{ s.name }}
+        </button>
+      </div>
+    </div>
+
     <!-- 板块筛选 -->
-    <PillTabs v-model="categoryTab" :tabs="categoryTabs" />
+    <PillTabs v-model="sectionTab" :tabs="sectionTabs" />
 
     <!-- 排序切换 -->
     <UnderlineTabs v-model="sortBy" :tabs="sortTabs" />
@@ -76,10 +92,10 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
-import { getCircleDetail, joinCircle, leaveCircle } from '@/api/circle'
-import type { CircleVO } from '@/api/circle'
-import { getPostList, getCategoryList, likePost, unlikePost, collectPost, uncollectPost } from '@/api/post'
-import type { PostVO, CategoryVO } from '@/api/post'
+import { getCircleDetail, joinCircle, leaveCircle, getCircleSections } from '@/api/circle'
+import type { CircleVO, CircleSectionVO } from '@/api/circle'
+import { getPostList, likePost, unlikePost, collectPost, uncollectPost } from '@/api/post'
+import type { PostVO } from '@/api/post'
 import { useNavigate } from '@/composables/useNavigate'
 import { useAuth } from '@/composables/useAuth'
 import { useUserStore } from '@/stores/user'
@@ -97,6 +113,7 @@ const { requireLogin } = useAuth()
 const userStore = useUserStore()
 
 const circleId = Number(route.params.id)
+
 const circle = ref<CircleVO | null>(null)
 const posts = ref<PostVO[]>([])
 const loading = ref(false)
@@ -106,17 +123,21 @@ const sortTabs = [
   { key: 'hot', label: '热门', icon: 'ph:fire' },
   { key: 'latest', label: '最新', icon: 'ph:clock' },
 ]
-const categories = ref<CategoryVO[]>([])
-const selectedCategoryId = ref<number | null>(null)
+// 板块数据：从当前圈子 API 获取已启用的板块列表
+const sections = ref<CircleSectionVO[]>([])
+// selectedSectionId: 实际传给 API 的板块筛选参数，null 表示不筛选（全部板块）
+// sectionTab: PillTabs 组件的绑定值，'all' 或板块 id 的字符串形式
+const selectedSectionId = ref<number | null>(null)
 
-const categoryTab = ref('all')
-const categoryTabs = computed(() => [
+const sectionTab = ref('all')
+const sectionTabs = computed(() => [
   { key: 'all', label: '全部' },
-  ...categories.value.map(c => ({ key: String(c.id), label: c.name })),
+  ...sections.value.map(s => ({ key: String(s.id), label: s.name })),
 ])
 
-watch(categoryTab, (val) => {
-  selectedCategoryId.value = val === 'all' ? null : Number(val)
+// 板块 tab 切换时同步 selectedSectionId 并重新加载帖子
+watch(sectionTab, (val) => {
+  selectedSectionId.value = val === 'all' ? null : Number(val)
   loadPosts()
 })
 
@@ -128,11 +149,11 @@ async function loadCircle() {
   }
 }
 
-async function loadCategories() {
+async function loadSections() {
   try {
-    categories.value = await getCategoryList()
+    sections.value = await getCircleSections(circleId)
   } catch (e) {
-    console.error('加载分类失败:', e)
+    console.error('加载板块失败:', e)
   }
 }
 
@@ -140,8 +161,8 @@ async function loadPosts() {
   loading.value = true
   try {
     const params: any = { circleId, sortBy: sortBy.value, page: 1, size: 12 }
-    if (selectedCategoryId.value !== null) {
-      params.categoryId = selectedCategoryId.value
+    if (selectedSectionId.value !== null) {
+      params.sectionId = selectedSectionId.value
     }
     const data = await getPostList(params)
     posts.value = data.records || []
@@ -220,7 +241,7 @@ watch(sortBy, () => loadPosts())
 
 onMounted(() => {
   loadCircle()
-  loadCategories()
+  loadSections()
   loadPosts()
 })
 </script>
@@ -296,8 +317,8 @@ onMounted(() => {
 .circle-avatar {
   width: 80px;
   height: 80px;
-  border-radius: 20px;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  border-radius: 50%;
+  background: var(--gradient-brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -357,7 +378,7 @@ onMounted(() => {
   padding: 10px 22px;
   border-radius: 14px;
   border: none;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   color: white;
   font-size: 13px;
   font-weight: 700;
@@ -430,10 +451,81 @@ onMounted(() => {
   margin-bottom: 32px;
 }
 
+/* ===== Recommend Bar ===== */
+.recommend-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  margin-bottom: 20px;
+  background: var(--card);
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  gap: 16px;
+}
+
+.recommend-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.recommend-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--pink);
+  flex-shrink: 0;
+}
+
+.recommend-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.recommend-cat-btn {
+  padding: 6px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--pink);
+  background: var(--pink-bg);
+  color: var(--pink);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.recommend-cat-btn:hover {
+  background: var(--pink);
+  color: white;
+}
+
+.recommend-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.recommend-tag {
+  color: var(--text-dim);
+}
+
+.tag-dot {
+  color: var(--border);
+}
+
 @media (max-width: 768px) {
   .circle-cover { height: 120px; }
   .circle-header-body { flex-direction: column; gap: 16px; align-items: flex-start; padding: 0 16px 18px; margin-top: -28px; }
   .circle-avatar { width: 64px; height: 64px; }
+  .recommend-bar { flex-direction: column; align-items: flex-start; }
+  .recommend-right { display: none; }
 }
 
 /* ===== Dark mode overrides ===== */
