@@ -70,6 +70,15 @@
             <groupId>com.cyxz</groupId>
             <artifactId>cyxz-common</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.cyxz</groupId>
+            <artifactId>cyxz-circle-api</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.cyxz</groupId>
+            <artifactId>cyxz-post-api</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.projectlombok</groupId>

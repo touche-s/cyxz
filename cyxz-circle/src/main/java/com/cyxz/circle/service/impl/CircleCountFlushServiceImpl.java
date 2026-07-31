@@ -2,67 +2,58 @@ package com.cyxz.circle.service.impl;
 
 import com.cyxz.circle.mapper.CircleMapper;
 import com.cyxz.circle.service.CircleCountFlushService;
-import com.cyxz.common.constant.CacheKeyConstants;
+import com.cyxz.common.base.Result;
+import com.cyxz.post.feign.PostFeignClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.HashOperations;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
+/**
+ * 圈子计数定时校验：从 post 服务批量查询已发布帖子数，覆盖写入 circle.post_count
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class CircleCountFlushServiceImpl implements CircleCountFlushService {
 
-    private final StringRedisTemplate stringRedisTemplate;
     private final CircleMapper circleMapper;
+    private final PostFeignClient postFeignClient;
 
     @Override
     public int flushPostCounts() {
-        return flushDelta(CacheKeyConstants.CIRCLE_POST_DELTA,
-                (circleId, delta) -> {
-                    if (delta == 0) return;
-                    circleMapper.updatePostCount(circleId, delta);
-                });
-    }
+        // 获取所有圈子 ID
+        List<Long> allCircleIds = circleMapper.selectList(null).stream()
+                .map(c -> c.getId())
+                .collect(Collectors.toList());
+        if (allCircleIds.isEmpty()) {
+            return 0;
+        }
 
-    private int flushDelta(String deltaKey, DeltaUpdater updater) {
-        HashOperations<String, Object, Object> hashOps = stringRedisTemplate.opsForHash();
-        Map<Object, Object> deltas = hashOps.entries(deltaKey);
-        if (deltas == null || deltas.isEmpty()) {
+        // 批量查帖子数
+        Result<Map<Long, Integer>> result = postFeignClient.batchCountByCircle(Set.copyOf(allCircleIds));
+        if (result == null || result.getData() == null) {
+            log.warn("批量查询圈子帖子数失败");
             return 0;
         }
 
         int success = 0;
-        for (Map.Entry<Object, Object> entry : deltas.entrySet()) {
-            String idStr = String.valueOf(entry.getKey());
-            String deltaStr = String.valueOf(entry.getValue());
+        for (Map.Entry<Long, Integer> entry : result.getData().entrySet()) {
             try {
-                Long circleId = Long.valueOf(idStr);
-                int delta = Integer.parseInt(deltaStr);
-                updater.apply(circleId, delta);
-                Long remaining = hashOps.increment(deltaKey, idStr, -delta);
-                if (remaining != null && remaining <= 0) {
-                    hashOps.delete(deltaKey, idStr);
-                }
+                circleMapper.setPostCount(entry.getKey(), entry.getValue());
                 success++;
-            } catch (NumberFormatException e) {
-                log.warn("增量格式异常，跳过: key={}, id={}, delta={}", deltaKey, idStr, deltaStr);
-                hashOps.delete(deltaKey, idStr);
             } catch (Exception e) {
-                log.error("刷库失败，保留增量等下次重试: key={}, id={}, delta={}", deltaKey, idStr, deltaStr, e);
+                log.error("更新圈子帖子数失败: circleId={}, count={}", entry.getKey(), entry.getValue(), e);
             }
         }
+
         if (success > 0) {
-            log.info("刷库完成: key={}, 成功 {} 条", deltaKey, success);
+            log.info("圈子帖子数定时校验完成: {} 个圈子", success);
         }
         return success;
-    }
-
-    @FunctionalInterface
-    private interface DeltaUpdater {
-        void apply(Long entityId, int delta);
     }
 }

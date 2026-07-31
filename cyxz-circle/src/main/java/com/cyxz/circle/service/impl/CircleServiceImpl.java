@@ -11,6 +11,7 @@ import com.cyxz.circle.entity.CircleMemberPO;
 import com.cyxz.circle.entity.CirclePO;
 import com.cyxz.circle.mapper.CircleMapper;
 import com.cyxz.circle.mapper.CircleMemberMapper;
+import com.cyxz.circle.service.CircleSectionService;
 import com.cyxz.circle.service.CircleService;
 import com.cyxz.circle.vo.CircleVO;
 import com.cyxz.circle.vo.PublishableResult;
@@ -18,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -25,6 +27,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * 圈子服务实现
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -32,6 +37,7 @@ public class CircleServiceImpl implements CircleService {
 
     private final CircleMapper circleMapper;
     private final CircleMemberMapper circleMemberMapper;
+    private final CircleSectionService circleSectionService;
 
     @Override
     public List<CircleVO> listAll(Long currentUserId) {
@@ -145,6 +151,51 @@ public class CircleServiceImpl implements CircleService {
         }
         return circleMapper.selectBatchIds(circleIds).stream()
                 .collect(Collectors.toMap(CirclePO::getId, CirclePO::getName));
+    }
+
+    @Override
+    public void updateCircle(Long circleId, String name, String intro, String avatar, String cover) {
+        CirclePO po = circleMapper.selectById(circleId);
+        if (po == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "圈子不存在");
+        }
+        if (StringUtils.hasText(name)) po.setName(name);
+        if (intro != null) po.setIntro(intro);
+        if (StringUtils.hasText(avatar)) po.setAvatar(avatar);
+        if (StringUtils.hasText(cover)) po.setCover(cover);
+        circleMapper.updateById(po);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public CircleVO createCircle(String name, String intro, String avatar, String cover) {
+        if (!StringUtils.hasText(name)) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "圈子名称不能为空");
+        }
+        CirclePO po = new CirclePO();
+        po.setName(name);
+        po.setSlug(name.toLowerCase().replaceAll("[^a-z0-9\\u4e00-\\u9fa5]+", "-"));
+        po.setIntro(intro != null ? intro : "");
+        po.setAvatar(avatar);
+        po.setCover(cover);
+        po.setStatus(CommonStatus.ACTIVE);
+        po.setSortOrder(0);
+        po.setPostCount(0);
+        po.setMemberCount(0);
+        circleMapper.insert(po);
+        circleSectionService.initDefaultSections(po.getId());
+        return toVO(po, null);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteCircle(Long circleId) {
+        CirclePO po = circleMapper.selectById(circleId);
+        if (po == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "圈子不存在");
+        }
+        po.setStatus(CommonStatus.DELETED);
+        circleMapper.updateById(po);
     }
 
     private List<CircleVO> toVOList(List<CirclePO> circles, Long currentUserId) {

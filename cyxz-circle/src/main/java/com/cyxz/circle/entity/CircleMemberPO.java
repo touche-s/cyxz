@@ -9,6 +9,9 @@ import lombok.Data;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
+/**
+ * 圈子成员关系实体，对应 circle_member 表
+ */
 @Data
 @TableName("circle_member")
 public class CircleMemberPO implements Serializable {

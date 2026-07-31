@@ -2,6 +2,9 @@ package com.cyxz.circle.vo;
 
 import lombok.Data;
 
+/**
+ * 圈子展示 VO
+ */
 @Data
 public class CircleVO {
 

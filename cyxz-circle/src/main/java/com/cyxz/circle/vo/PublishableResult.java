@@ -2,6 +2,9 @@ package com.cyxz.circle.vo;
 
 import lombok.Data;
 
+/**
+ * 圈子发布权限校验结果
+ */
 @Data
 public class PublishableResult {
 
