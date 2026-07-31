@@ -1,7 +1,7 @@
 <template>
   <div class="creator-data">
     <h2 class="page-title">数据中心</h2>
-    <p class="page-desc">基于已发布作品的统计趋势、分类分布与排行分析</p>
+    <p class="page-desc">基于已发布作品的统计趋势、板块分布与排行分析</p>
 
     <!-- 趋势分析 -->
     <div class="section-block">
@@ -28,19 +28,19 @@
     <!-- 分布与排行 -->
     <div class="section-block">
       <div class="charts-row">
-        <!-- 分类分布 -->
+        <!-- 板块分布 -->
         <div class="chart-card">
           <div class="chart-header">
-            <h3 class="chart-title">分类分布</h3>
+            <h3 class="chart-title">板块分布</h3>
           </div>
           <v-chart v-if="pieChartOption" :option="pieChartOption" :autoresize="true" class="chart" />
-          <div class="chart-insight" v-if="bestCategory">
+          <div class="chart-insight" v-if="bestSection">
             <Icon icon="ph:lightbulb" class="insight-icon" />
-            <span>作品最多发布于「{{ bestCategory }}」分类</span>
+            <span>作品最多发布于「{{ bestSection }}」板块</span>
           </div>
           <div v-if="!pieChartOption" class="chart-empty">
             <Icon icon="ph:chart-pie" class="empty-icon" width="36" height="36" />
-            <span>发布作品后，分类分布会在这里呈现</span>
+            <span>发布作品后，板块分布会在这里呈现</span>
           </div>
         </div>
 
@@ -243,9 +243,9 @@ const trendInsight = computed(() => {
   return parts.join('，')
 })
 
-// ---- 分类洞察 ----
-const bestCategory = computed(() => {
-  const dist = dashboard.value?.categoryDistribution
+// ---- 板块洞察 ----
+const bestSection = computed(() => {
+  const dist = dashboard.value?.sectionDistribution
   if (!dist?.length) return ''
   const best = dist.reduce((a, b) => a.count > b.count ? a : b)
   return best.name
@@ -307,9 +307,9 @@ const barChartOption = computed(() => {
   }
 })
 
-// ---- 分类分布饼图 ----
+// ---- 板块分布饼图 ----
 const pieChartOption = computed(() => {
-  const dist = dashboard.value?.categoryDistribution
+  const dist = dashboard.value?.sectionDistribution
   if (!dist?.length) return null
   const isDark = document.documentElement.classList.contains('dark')
   return {

@@ -116,7 +116,7 @@ onUnmounted(() => {
   position: absolute;
   inset: 0 0 auto 0;
   height: 4px;
-  background: linear-gradient(90deg, #ff7eb6, #c084fc);
+  background: var(--gradient-brand);
 }
 
 .modal-topbar.is-danger {
@@ -132,7 +132,7 @@ onUnmounted(() => {
   width: 48px;
   height: 48px;
   border-radius: 14px;
-  background: linear-gradient(135deg, rgba(255, 126, 182, 0.10), rgba(192, 132, 252, 0.10));
+  background: var(--gradient-brand); opacity: 0.1;
   display: flex;
   align-items: center;
   justify-content: center;

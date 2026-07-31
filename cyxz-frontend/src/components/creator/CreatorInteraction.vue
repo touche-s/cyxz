@@ -228,7 +228,7 @@ onMounted(() => {
 
 .page-container .page-header h1 {
   font-size: 24px;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -349,13 +349,23 @@ onMounted(() => {
 }
 
 .comment-post-option-status.status-1 {
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.comment-post-option-status.status-2 {
   color: var(--success);
   background: rgba(22, 163, 74, 0.12);
 }
 
-.comment-post-option-status.status-2 {
+.comment-post-option-status.status-3 {
   color: var(--error);
   background: rgba(239, 68, 68, 0.12);
+}
+
+.comment-post-option-status.status-4 {
+  color: #9e9e9e;
+  background: rgba(158, 158, 158, 0.12);
 }
 
 /* ===== 排序按钮组 ===== */
@@ -396,7 +406,6 @@ onMounted(() => {
 .search-bar {
   margin-top: 16px;
   margin-bottom: 20px;
-  max-width: 360px;
 }
 
 /* ===== 评论列表（扁平布局） ===== */

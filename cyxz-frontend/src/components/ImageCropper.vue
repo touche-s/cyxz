@@ -315,7 +315,7 @@ defineExpose({ loadImage, setImageUrl })
 
 .crop-confirm {
   color: white;
-  background: linear-gradient(135deg, #ff8ac8 0%, #d98bff 52%, #b484ff 100%);
+  background: var(--gradient-brand);
   box-shadow: 0 12px 28px rgba(232, 124, 196, 0.28);
 }
 

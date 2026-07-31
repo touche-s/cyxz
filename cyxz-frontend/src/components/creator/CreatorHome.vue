@@ -8,7 +8,7 @@
         </div>
         <button class="hero-publish-btn" @click="$emit('goCreate')">
           <Icon icon="ph:pencil-simple" class="btn-icon" />
-          <span>发布新作品</span>
+          <span>去创作</span>
         </button>
       </div>
     </div>
@@ -274,7 +274,7 @@ html.dark .home-hero {
   gap: 8px;
   padding: 12px 24px;
   border-radius: 14px;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   color: var(--white);
   font-size: 14px;
   font-weight: 700;
@@ -553,7 +553,7 @@ html.dark .home-hero {
   font-size: 34px;
   font-weight: 800;
   line-height: 1;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

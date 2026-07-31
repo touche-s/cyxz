@@ -175,7 +175,7 @@ onMounted(() => {
 
 .page-header h1 {
   font-size: 24px;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -243,6 +243,7 @@ html.dark .tab-badge {
 
 .search-bar {
   margin-top: 20px;
+  margin-bottom: 20px;
 }
 
 .fans-list {
@@ -255,13 +256,14 @@ html.dark .tab-badge {
   gap: 16px;
   padding: 16px;
   border-radius: 12px;
-  background: var(--pink-bg);
-  border: 1.5px solid transparent;
+  background: var(--card);
+  border: 1.5px solid var(--border-light, transparent);
   transition: all 0.22s ease-out;
   margin-bottom: 12px;
 }
 
 .fan-item:hover {
+  background: var(--pink-bg);
   border-color: var(--border);
 }
 

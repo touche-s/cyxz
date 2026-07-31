@@ -44,7 +44,7 @@ defineEmits<{ toggle: [] }>()
   border-radius: 14px;
   font-size: 12px;
   font-weight: 600;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   color: var(--white);
   box-shadow: 0 2px 8px var(--shadow);
 }

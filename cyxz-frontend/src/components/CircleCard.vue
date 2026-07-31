@@ -165,7 +165,7 @@ defineEmits<{
 .circle-avatar {
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: 50%;
   background: linear-gradient(135deg, #f9a8d4, #c4b5fd);
   display: flex;
   align-items: center;
@@ -230,7 +230,7 @@ defineEmits<{
   flex-shrink: 0;
   padding: 4px 10px;
   border-radius: 8px;
-  background: rgba(255, 107, 157, 0.08);
+  background: var(--pink-bg);
   color: var(--pink);
   font-size: 11px;
   font-weight: 600;
@@ -257,7 +257,7 @@ defineEmits<{
 }
 
 .join-btn.joined {
-  background: rgba(255, 107, 157, 0.04);
+  background: var(--pink-bg);
   border-color: var(--border);
   color: var(--text-dim);
 }

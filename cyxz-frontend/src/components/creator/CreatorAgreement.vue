@@ -226,7 +226,7 @@ import { Icon } from '@iconify/vue'
   content: '';
   width: 4px;
   height: 18px;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   border-radius: 2px;
 }
 

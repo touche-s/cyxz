@@ -256,9 +256,9 @@ async function handleSubmit() {
       ElMessage.success('登录成功')
       try {
         const pdata = await getMyProfile()
-        userStore.setUserInfo({ ...pdata, userId: data.userId })
+        userStore.setUserInfo({ ...pdata, userId: data.userId, role: data.role })
       } catch {
-        userStore.setUserInfo({ userId: data.userId, nickname: form.username } as any)
+        userStore.setUserInfo({ userId: data.userId, nickname: form.username, role: data.role } as any)
       }
       emit('update:visible', false)
       to(`/user/${data.userId}`)
@@ -560,7 +560,7 @@ async function handleSubmit() {
   font-size: 16px;
   font-weight: 700;
   letter-spacing: 4px;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   border: none;
   box-shadow: 0 4px 20px rgba(255,107,157,0.3);
   margin-top: 8px;

@@ -35,7 +35,8 @@
   --gradient-card: linear-gradient(135deg, #fde8f5, #f0e6ff);
   --gradient-card-hover: linear-gradient(135deg, #fbd0e8, #e8d5ff);
   --gradient-tag: linear-gradient(135deg, #f9a8d4, #c4b5fd);
-  --gradient-brand: linear-gradient(135deg, #ff6b9d, #c084fc);
+  --gradient-brand: linear-gradient(135deg, #ff6b9d 0%, #f472b6 100%);
+  --gradient-brand-hover: linear-gradient(135deg, #ff7db0 0%, #f68bc2 100%);
   --gradient-hero: linear-gradient(145deg, #fef6fb 0%, #fff2f8 38%, #faf2ff 100%);
   --radius: 18px;
   --radius-sm: 12px;
@@ -76,7 +77,8 @@ html.dark {
   --gradient-card: linear-gradient(135deg, #2a2840, #282840);
   --gradient-card-hover: linear-gradient(135deg, #323050, #2e2e48);
   --gradient-tag: linear-gradient(135deg, #c084fc33, #a78bfa33);
-  --gradient-brand: linear-gradient(135deg, #ff6b9d, #c084fc);
+  --gradient-brand: linear-gradient(135deg, #ff6b9d 0%, #f472b6 100%);
+  --gradient-brand-hover: linear-gradient(135deg, #ff7db0 0%, #f68bc2 100%);
   --gradient-hero: linear-gradient(145deg, #1e1e38 0%, #222040 38%, #1e1c38 100%);
 }
 

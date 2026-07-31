@@ -100,6 +100,7 @@ defineEmits<{
 
 /* ===== variant: inline ===== */
 .search-input--inline {
+  max-width: 360px;
   background: var(--bg);
   border: 1.5px solid var(--border);
   border-radius: 12px;
@@ -115,6 +116,7 @@ defineEmits<{
   height: 16px;
 }
 .search-input--inline input {
+  flex: 0 0 auto;
   font-size: 13px;
   padding: 8px 10px;
   width: 180px;

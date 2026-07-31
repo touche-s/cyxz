@@ -13,10 +13,10 @@
     </div>
     <nav class="nav">
       <router-link to="/" :class="{ active: $route.path === '/' }">首页</router-link>
-      <router-link to="/square" :class="{ active: $route.path === '/square' }">广场</router-link>
+      <router-link to="/discover" :class="{ active: $route.path === '/discover' }">次元街</router-link>
       <router-link to="/following" :class="{ active: $route.path === '/following' }">关注</router-link>
-      <router-link to="/discover" :class="{ active: $route.path === '/discover' }">发现</router-link>
       <a href="javascript:;" :class="{ active: $route.path === '/creator' }" @click="goCreator">创作中心</a>
+      <a v-if="userStore.isAdmin" href="javascript:;" :class="{ active: $route.path.startsWith('/admin') }" @click="to('/admin')">管理</a>
     </nav>
     <div class="header-right">
       <div v-if="userStore.isLoggedIn">
@@ -85,7 +85,7 @@
       </div>
       <button class="btn-create" @click="goPublish">
         <Icon icon="ph:pencil-simple" class="btn-iconify" />
-        发布
+        创作
       </button>
     </div>
   </header>
@@ -359,24 +359,26 @@ html.dark .header-bar {
   padding: 9px 20px;
   border-radius: 14px;
   border: none;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   color: white;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(255, 107, 157, 0.25);
-  transition: all 0.22s ease-out;
+  box-shadow: 0 4px 12px rgba(255, 107, 157, 0.28);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
 .btn-create:hover {
-  transform: scale(1.04);
-  box-shadow: 0 6px 24px rgba(180, 132, 255, 0.35);
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+  box-shadow: 0 6px 16px rgba(255, 107, 157, 0.34);
 }
 .btn-create:active {
-  transform: scale(0.97);
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(255, 107, 157, 0.24);
 }
 .btn-iconify {
   width: 16px;
@@ -484,7 +486,7 @@ html.dark .header-bar {
   cursor: pointer;
   overflow: hidden;
   border: 2px solid rgba(255, 255, 255, 0.95);
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -663,7 +665,7 @@ html.dark .user-dropdown.open .avatar-trigger {
   height: 18px;
   padding: 0 5px;
   border-radius: 9px;
-  background: linear-gradient(135deg, #ff4d6a, #ff6b9d);
+  background: var(--gradient-brand);
   color: white;
   font-size: 10px;
   font-weight: 700;
