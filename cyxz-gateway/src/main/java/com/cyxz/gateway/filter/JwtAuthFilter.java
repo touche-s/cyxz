@@ -51,7 +51,6 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             "/api/auth/captcha/**",
             "/api/auth/refresh",
             "/api/post/list/**",
-            "/api/category/**",
             "/api/circle/**"
     );
 
@@ -75,10 +74,13 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             String token = TokenUtil.extractBearerToken(request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION));
             if (token != null && jwtUtil.validateToken(token)) {
                 Long userId = jwtUtil.getUserId(token);
+                String role = jwtUtil.getRole(token);
                 ServerHttpRequest mutatedRequest = request.mutate()
                         .headers(headers -> {
                             headers.remove("X-User-Id");
                             headers.set("X-User-Id", String.valueOf(userId));
+                            headers.remove("X-User-Role");
+                            headers.set("X-User-Role", role);
                         })
                         .build();
                 return chain.filter(exchange.mutate().request(mutatedRequest).build());
@@ -100,10 +102,13 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         }
 
         Long userId = jwtUtil.getUserId(token);
+        String role = jwtUtil.getRole(token);
         ServerHttpRequest mutatedRequest = request.mutate()
                 .headers(headers -> {
                     headers.remove("X-User-Id");
                     headers.set("X-User-Id", String.valueOf(userId));
+                    headers.remove("X-User-Role");
+                    headers.set("X-User-Role", role);
                 })
                 .build();
 
