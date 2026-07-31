@@ -27,4 +27,7 @@ public class AuthResponse {
 
     /** 用户名 */
     private String username;
+
+    /** 角色：admin / user */
+    private String role;
 }

@@ -34,7 +34,11 @@ public class SecurityConfig {
                                 "/auth/logout",
                                 "/auth/refresh"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.PUT,
+                                "/auth/password"
+                        ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/auth/captcha/**").permitAll()
+                        .requestMatchers("/auth/admin/**").permitAll()
                         .anyRequest().denyAll()
                 )
                 .anonymous(Customizer.withDefaults());

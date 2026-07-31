@@ -79,12 +79,24 @@ public class JwtUtil {
      * @return JWT Token 字符串
      */
     public String generateToken(Long userId) {
+        return generateToken(userId, "user");
+    }
+
+    /**
+     * 生成 JWT Token（含角色）
+     *
+     * @param userId 用户 ID
+     * @param role   用户角色
+     * @return JWT Token 字符串
+     */
+    public String generateToken(Long userId, String role) {
         String jti = UUID.randomUUID().toString().replace("-", "");
         Date now = new Date();
         Date expiration = new Date(now.getTime() + expirationSeconds * 1000);
 
         return Jwts.builder()
                 .subject(String.valueOf(userId))
+                .claim("role", role)
                 .id(jti)
                 .issuedAt(now)
                 .expiration(expiration)
@@ -115,6 +127,18 @@ public class JwtUtil {
     public Long getUserId(String token) {
         Claims claims = parseToken(token);
         return Long.parseLong(claims.getSubject());
+    }
+
+    /**
+     * 从 Token 中提取用户角色
+     *
+     * @param token JWT Token
+     * @return 角色字符串，默认 "user"
+     */
+    public String getRole(String token) {
+        Claims claims = parseToken(token);
+        String role = claims.get("role", String.class);
+        return role != null ? role : "user";
     }
 
     /**

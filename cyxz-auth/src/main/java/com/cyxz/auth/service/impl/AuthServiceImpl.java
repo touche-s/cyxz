@@ -2,6 +2,7 @@ package com.cyxz.auth.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cyxz.auth.dto.AuthResponse;
+import com.cyxz.auth.dto.ChangePasswordRequest;
 import com.cyxz.auth.dto.LoginRequest;
 import com.cyxz.auth.dto.RegisterRequest;
 import com.cyxz.auth.entity.SysUserPO;
@@ -62,11 +63,12 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException(ErrorCode.PASSWORD_ERROR, "账号或密码错误");
         }
 
-        String token = jwtUtil.generateToken(user.getId());
+        String role = user.getRole() != null ? user.getRole() : "user";
+        String token = jwtUtil.generateToken(user.getId(), role);
         long expiresIn = jwtUtil.getExpirationSeconds();
 
-        log.info("用户登录成功: userId={}, username={}", user.getId(), user.getUsername());
-        return new AuthResponse(token, "Bearer", expiresIn, user.getId(), user.getUsername());
+        log.info("用户登录成功: userId={}, username={}, role={}", user.getId(), user.getUsername(), role);
+        return new AuthResponse(token, "Bearer", expiresIn, user.getId(), user.getUsername(), role);
     }
 
     /**
@@ -123,6 +125,45 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
+     * 修改密码
+     * <p>1. 校验旧密码正确 2. 校验新密码与确认一致 3. 校验新旧密码不同 4. BCrypt 加密更新
+     *
+     * @param userId  当前登录用户 ID
+     * @param request 改密请求（旧密码 + 新密码 + 确认密码）
+     */
+    @Override
+    public void changePassword(Long userId, ChangePasswordRequest request) {
+        // 校验两次新密码一致
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "两次输入的新密码不一致");
+        }
+
+        SysUserPO user = sysUserMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        // 校验旧密码
+        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+            throw new BusinessException(ErrorCode.PASSWORD_ERROR, "旧密码错误");
+        }
+
+        // 新旧密码不能相同
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "新密码不能与旧密码相同");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        sysUserMapper.updateById(user);
+        log.info("用户修改密码成功: userId={}", userId);
+    }
+
+    @Override
+    public Long extractUserId(String token) {
+        return jwtUtil.getUserId(token);
+    }
+
+    /**
      * 刷新 Token
      * <p>校验旧 Token 有效后签发新 Token，旧 Token 同时失效。
      *
@@ -144,9 +185,10 @@ public class AuthServiceImpl implements AuthService {
 
         jwtUtil.blacklistToken(oldToken);
 
-        String newToken = jwtUtil.generateToken(userId);
+        String role = user.getRole() != null ? user.getRole() : "user";
+        String newToken = jwtUtil.generateToken(userId, role);
         long expiresIn = jwtUtil.getExpirationSeconds();
-        return new AuthResponse(newToken, "Bearer", expiresIn, userId, user.getUsername());
+        return new AuthResponse(newToken, "Bearer", expiresIn, userId, user.getUsername(), role);
     }
 
     /**
