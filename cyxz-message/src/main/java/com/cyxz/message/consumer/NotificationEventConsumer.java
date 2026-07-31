@@ -1,5 +1,6 @@
 package com.cyxz.message.consumer;
 
+import com.cyxz.message.api.constant.NotificationConstants;
 import com.cyxz.message.api.event.NotificationEvent;
 import com.cyxz.message.service.impl.NotificationServiceImpl;
 import com.rabbitmq.client.Channel;
@@ -19,7 +20,7 @@ public class NotificationEventConsumer {
 
     private final NotificationServiceImpl notificationService;
 
-    @RabbitListener(queues = "cyxz.notification.queue", ackMode = "MANUAL")
+    @RabbitListener(queues = NotificationConstants.QUEUE, ackMode = "MANUAL")
     public void onEvent(NotificationEvent event, Channel channel, @Header(AmqpHeaders.DELIVERY_TAG) long tag) throws IOException {
         try {
             boolean ok = notificationService.createByEvent(event);

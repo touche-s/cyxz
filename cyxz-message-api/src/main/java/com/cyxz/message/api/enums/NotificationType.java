@@ -13,7 +13,9 @@ public enum NotificationType {
     POST_COMMENTED("评论了你的帖子", "comment"),
     COMMENT_REPLIED("回复了你的评论", "reply"),
     POST_COLLECTED("收藏了你的帖子", "collect"),
-    USER_FOLLOWED("关注了你", "follow");
+    USER_FOLLOWED("关注了你", "follow"),
+    POST_APPROVED("你的帖子审核通过", "system"),
+    POST_REJECTED("你的帖子未通过审核", "system");
 
     /** 动作文案（前端展示用） */
     private final String actionText;
