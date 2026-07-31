@@ -74,6 +74,16 @@ public class UploadServiceImpl implements UploadService {
     }
 
     @Override
+    public String uploadCircleResource(MultipartFile file, Long circleId, String type) {
+        validateImage(file, "圈子" + ("avatar".equals(type) ? "头像" : "封面"));
+        if (!"avatar".equals(type) && !"cover".equals(type)) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "不支持的资源类型");
+        }
+        String objectName = "circle/" + circleId + "/" + type + "/" + generateFileName(file);
+        return upload(file, objectName);
+    }
+
+    @Override
     public List<String> listAvatarHistory(Long userId) {
         String prefix = "avatar/" + userId + "/";
         List<String> urls = new ArrayList<>();

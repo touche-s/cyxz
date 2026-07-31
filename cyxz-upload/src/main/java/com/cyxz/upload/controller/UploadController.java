@@ -1,6 +1,7 @@
 package com.cyxz.upload.controller;
 
 import com.cyxz.common.base.Result;
+import com.cyxz.common.web.AdminUser;
 import com.cyxz.common.web.CurrentUser;
 import com.cyxz.upload.config.MinioConfig;
 import com.cyxz.upload.service.UploadService;
@@ -79,6 +80,25 @@ public class UploadController {
 
         uploadService.deleteFile(objectName);
         return Result.success("操作成功", null);
+    }
+
+    /**
+     * 上传圈子资源（头像或封面）
+     *
+     * @param file     图片文件
+     * @param circleId 圈子 ID
+     * @param type     资源类型：avatar 或 cover
+     * @param userId   当前登录用户 ID（由 Gateway 注入）
+     * @return 文件访问 URL
+     */
+    @PostMapping("/circle-resource")
+    public Result<String> uploadCircleResource(@RequestParam("file") MultipartFile file,
+                                                @RequestParam("circleId") Long circleId,
+                                                @RequestParam("type") String type,
+                                                @CurrentUser Long userId,
+                                                @AdminUser Object admin) {
+        String url = uploadService.uploadCircleResource(file, circleId, type);
+        return Result.success("操作成功", url);
     }
 
     @GetMapping("/avatar-history")

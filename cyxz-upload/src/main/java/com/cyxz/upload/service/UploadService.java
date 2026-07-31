@@ -35,6 +35,16 @@ public interface UploadService {
     void deleteFile(String objectName);
 
     /**
+     * 上传圈子资源（头像或封面）
+     *
+     * @param file     图片文件
+     * @param circleId 圈子 ID
+     * @param type     资源类型：avatar 或 cover
+     * @return 文件访问 URL
+     */
+    String uploadCircleResource(MultipartFile file, Long circleId, String type);
+
+    /**
      * 列出用户历史头像
      *
      * @param userId 用户 ID
