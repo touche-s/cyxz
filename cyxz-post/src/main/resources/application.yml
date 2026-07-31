@@ -35,6 +35,11 @@ spring:
       password: ${RABBITMQ_PASSWORD:guest}
       virtual-host: ${RABBITMQ_VHOST:/}
 
+ai:
+  review:
+    url: ${AI_REVIEW_URL:http://127.0.0.1:8000/review}
+    image-url: ${AI_REVIEW_IMAGE_URL:http://127.0.0.1:8000/review/image}
+
 mybatis-plus:
   mapper-locations: classpath*:mapper/**/*.xml
   type-aliases-package: com.cyxz.post.entity

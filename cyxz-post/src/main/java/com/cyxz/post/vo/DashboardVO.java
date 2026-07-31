@@ -6,7 +6,7 @@ import java.util.List;
 
 /**
  * 数据中心仪表盘 VO
- * <p>包含概览统计、月度趋势、分类分布和 Top 作品。
+ * <p>包含概览统计、月度趋势、板块分布和 Top 作品。
  */
 @Data
 public class DashboardVO {
@@ -20,8 +20,8 @@ public class DashboardVO {
     /** 每日趋势（近 30 天按日聚合） */
     private List<DailyTrendVO> dailyTrends;
 
-    /** 分类分布（各分类下的已发布作品数） */
-    private List<CategoryDistributionVO> categoryDistribution;
+    /** 板块分布 */
+    private List<SectionDistributionVO> sectionDistribution;
 
     /** 浏览量 Top 5 作品 */
     private List<PostVO> topPosts;
@@ -51,10 +51,10 @@ public class DashboardVO {
     }
 
     @Data
-    public static class CategoryDistributionVO {
-        /** 分类名称 */
+    public static class SectionDistributionVO {
+        /** 板块名称 */
         private String name;
-        /** 该分类下的作品数 */
+        /** 该板块下的作品数 */
         private int count;
     }
 }

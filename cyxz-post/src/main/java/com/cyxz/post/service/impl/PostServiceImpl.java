@@ -9,6 +9,11 @@ import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.constant.PageConstants;
+import com.cyxz.message.api.constant.NotificationConstants;
+import com.cyxz.message.api.event.NotificationEvent;
+import com.cyxz.post.service.AiReviewService;
+import com.cyxz.post.service.AiReviewService.AiReviewResult;
+import com.cyxz.post.service.SensitiveWordService;
 import com.cyxz.post.vo.*;
 import com.cyxz.comment.feign.CommentFeignClient;
 import com.cyxz.circle.feign.CircleFeignClient;
@@ -16,20 +21,20 @@ import com.cyxz.user.feign.UserFeignClient;
 import com.cyxz.user.utils.UserFeignHelper;
 import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
-import com.cyxz.post.entity.CategoryPO;
 import com.cyxz.post.entity.PostCollectPO;
 import com.cyxz.post.entity.PostLikePO;
 import com.cyxz.post.entity.PostPO;
 import com.cyxz.post.mapper.PostCollectMapper;
 import com.cyxz.post.mapper.PostLikeMapper;
 import com.cyxz.post.mapper.PostMapper;
-import com.cyxz.post.service.CategoryService;
 import com.cyxz.post.service.PostService;
 import com.cyxz.user.vo.UserProfileVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -48,28 +53,36 @@ import java.util.stream.Collectors;
 public class PostServiceImpl implements PostService {
 
     private final PostMapper postMapper;
-    private final CategoryService categoryService;
     private final CircleFeignClient circleFeignClient;
     private final PostLikeMapper postLikeMapper;
     private final PostCollectMapper postCollectMapper;
     private final CommentFeignClient commentFeignClient;
     private final UserFeignClient userFeignClient;
+    private final SensitiveWordService sensitiveWordService;
+    private final AiReviewService aiReviewService;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final RabbitTemplate rabbitTemplate;
 
     /** 帖子详情缓存 TTL（分钟），默认 30 */
     @Value("${spring.data.redis.cache-ttl-minutes:30}")
     private long cacheTtlMinutes;
 
     // ==================== 帖子状态常量与流转规则 ====================
+    // 0=草稿  1=待审核  2=已通过(公开)  3=拒绝  4=已删除
+    // 流转链：草稿→待审→通过/拒绝；通过→删除；拒绝→草稿(重编重新发布)
 
     public static final int STATUS_DRAFT = 0;
-    public static final int STATUS_PUBLISHED = 1;
-    public static final int STATUS_DELETED = 2;
+    public static final int STATUS_PENDING = 1;
+    public static final int STATUS_APPROVED = 2;
+    public static final int STATUS_REJECTED = 3;
+    public static final int STATUS_DELETED = 4;
 
     /** 合法的状态流转表：当前状态 → 允许迁入的目标状态列表 */
     private static final Map<Integer, Set<Integer>> ALLOWED_TRANSITIONS = Map.of(
-            STATUS_DRAFT, Set.of(STATUS_PUBLISHED, STATUS_DELETED),
-            STATUS_PUBLISHED, Set.of(STATUS_DELETED),
+            STATUS_DRAFT, Set.of(STATUS_PENDING, STATUS_DELETED),
+            STATUS_PENDING, Set.of(STATUS_APPROVED, STATUS_REJECTED, STATUS_DRAFT),
+            STATUS_APPROVED, Set.of(STATUS_DELETED),
+            STATUS_REJECTED, Set.of(STATUS_DRAFT),
             STATUS_DELETED, Set.of(STATUS_DRAFT)
     );
 
@@ -77,7 +90,9 @@ public class PostServiceImpl implements PostService {
 
     private static final Map<Integer, String> STATUS_LABEL = Map.of(
             STATUS_DRAFT, "草稿",
-            STATUS_PUBLISHED, "已发布",
+            STATUS_PENDING, "待审核",
+            STATUS_APPROVED, "已通过",
+            STATUS_REJECTED, "拒绝",
             STATUS_DELETED, "已删除"
     );
 
@@ -90,14 +105,14 @@ public class PostServiceImpl implements PostService {
         return STATUS_LABEL.getOrDefault(status, "未知");
     }
 
-    /** 帖子是否公开可见（非作者也可看） */
+    /** 帖子是否公开可见（非作者也可看）—— status=2 已通过 */
     private boolean isPublicVisible(PostPO po) {
-        return po != null && po.getStatus() == STATUS_PUBLISHED;
+        return po != null && po.getStatus() == STATUS_APPROVED;
     }
 
     /** 帖子是否仅作者可见 */
     private boolean isAuthorOnly(PostPO po) {
-        return po != null && po.getStatus() != STATUS_PUBLISHED;
+        return po != null && po.getStatus() != STATUS_APPROVED;
     }
 
     /** 帖子是否允许互动（点赞、收藏、评论） */
@@ -117,15 +132,20 @@ public class PostServiceImpl implements PostService {
     @Override
     public Long createPost(Long userId, CreatePostRequest request) {
         if (request.getStatus() != null && request.getStatus() == 1) {
-            validatePublishFields(request.getTitle(), request.getCategoryId(),
-                    request.getCircleId(), request.getContent(), request.getImages());
+            validatePublishFields(request.getTitle(),
+                    request.getCircleId(), request.getContent(), request.getImages(), request.getPostType(), userId);
+            // 发布时检测敏感词，命中直接拒绝
+            Set<String> hits = sensitiveWordService.check(request.getTitle(), request.getContent());
+            if (!hits.isEmpty()) {
+                throw new BusinessException(ErrorCode.PARAM_ERROR, "内容包含敏感词：" + String.join("、", hits));
+            }
         } else {
             validateDraftHasContent(request);
         }
         PostPO po = new PostPO();
         po.setUserId(userId);
-        po.setCategoryId(request.getCategoryId());
         po.setCircleId(request.getCircleId());
+        po.setSectionId(request.getSectionId());
         po.setTitle(request.getTitle());
         po.setContent(request.getContent());
         po.setCover(request.getCover());
@@ -135,12 +155,29 @@ public class PostServiceImpl implements PostService {
         if (request.getTags() != null && !request.getTags().isEmpty()) {
             po.setTags(String.join(",", request.getTags()));
         }
+        String postType = request.getPostType() != null ? request.getPostType() : "NORMAL";
+        po.setPostType(postType);
         po.setStatus(request.getStatus() != null ? request.getStatus() : 0);
         po.setLikes(0);
         po.setComments(0);
         po.setViews(0);
         po.setCollections(0);
         postMapper.insert(po);
+        if (po.getStatus() == STATUS_PENDING) {
+            // 异步调 AI 审核，审核结果在本服务内处理
+            final Long postId = po.getId();
+            final String postTitle = po.getTitle();
+            final String postContent = po.getContent();
+            final List<String> images = request.getImages();
+            CompletableFuture.runAsync(() -> {
+                try {
+                    AiReviewResult result = aiReviewService.review(postId, postTitle, postContent, images);
+                    handleReviewResult(postId, userId, postTitle, result);
+                } catch (Exception e) {
+                    log.error("AI 审核调用失败，转人工审核: postId={}, error={}", postId, e.getMessage());
+                }
+            });
+        }
         log.info("创建帖子成功: postId={}, userId={}", po.getId(), userId);
         return po.getId();
     }
@@ -168,16 +205,24 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
 
+
         // 发布动作：仅校验请求体完整性，前端必须传完整发布数据
         boolean isPublishAction = request.getStatus() != null && request.getStatus() == 1;
         if (isPublishAction) {
+            Long targetCircleId = request.getCircleId() != null ? request.getCircleId() : po.getCircleId();
             validatePublishFields(
                     request.getTitle(),
-                    request.getCategoryId(),
-                    request.getCircleId(),
+                    targetCircleId,
                     request.getContent(),
-                    request.getImages()
+                    request.getImages(),
+                    request.getPostType(),
+                    userId
             );
+            // 敏感词检测
+            Set<String> hits = sensitiveWordService.check(request.getTitle(), request.getContent());
+            if (!hits.isEmpty()) {
+                throw new BusinessException(ErrorCode.PARAM_ERROR, "内容包含敏感词：" + String.join("、", hits));
+            }
         }
 
         applyContentUpdate(po, request);
@@ -192,6 +237,7 @@ public class PostServiceImpl implements PostService {
 
         postMapper.updateById(po);
         evictDetailCache(po.getId());
+
         log.info("{}帖子成功: postId={}, userId={}", isPublishAction ? "发布" : "更新", po.getId(), userId);
     }
 
@@ -199,8 +245,9 @@ public class PostServiceImpl implements PostService {
      * 将请求中的非 null 字段应用到实体
      */
     private void applyContentUpdate(PostPO po, UpdatePostRequest request) {
-        if (request.getCategoryId() != null) po.setCategoryId(request.getCategoryId());
+        if (request.getPostType() != null) po.setPostType(request.getPostType());
         if (request.getCircleId() != null) po.setCircleId(request.getCircleId());
+        if (request.getSectionId() != null) po.setSectionId(request.getSectionId());
         if (StringUtils.hasText(request.getTitle())) po.setTitle(request.getTitle());
         if (request.getContent() != null) po.setContent(request.getContent());
         if (request.getCover() != null) po.setCover(request.getCover());
@@ -281,7 +328,7 @@ public class PostServiceImpl implements PostService {
      *
      * @param postId        帖子 ID
      * @param currentUserId 当前登录用户 ID（可为 null）
-     * @return 帖子视图对象（含作者信息、分类名称）
+     * @return 帖子视图对象（含作者信息、板块名称）
      */
     @Override
     public PostVO getById(Long postId, Long currentUserId) {
@@ -305,11 +352,11 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
         Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, Set.of(po.getUserId()));
-        Map<Long, CategoryPO> categoryMap = categoryService.getByIds(extractCategoryIds(List.of(po)));
         Map<Long, String> circleNameMap = extractCircleNameMap(List.of(po));
+        Map<Long, String> sectionNameMap = extractSectionNameMap(List.of(po));
         Set<Long> likedPostIds = getLikedPostIds(currentUserId, Set.of(postId));
         Set<Long> collectedPostIds = getCollectedPostIds(currentUserId, Set.of(postId));
-        PostVO vo = convertToVO(po, userMap, categoryMap, circleNameMap, likedPostIds, collectedPostIds);
+        PostVO vo = convertToVO(po, userMap, circleNameMap, sectionNameMap, likedPostIds, collectedPostIds);
 
         redisTemplate.opsForValue().set(cacheKey, vo, Duration.ofMinutes(cacheTtlMinutes));
         return vo;
@@ -317,9 +364,9 @@ public class PostServiceImpl implements PostService {
 
     /**
      * 分页查询帖子列表（仅已发布）
-     * <p>支持按分类、圈子筛选和排序。
+     * <p>支持按板块、圈子筛选和排序。
      *
-     * @param categoryId    分类 ID（可为 null，null 时查全部分类）
+     * @param sectionId    板块 ID（可为 null，null 时查全部板块）
      * @param circleId      圈子 ID（可为 null）
      * @param sortBy        排序方式：latest 按创建时间倒序，hot 按热度倒序，非法值降级为 latest
      * @param page          页码（从 1 开始）
@@ -328,12 +375,12 @@ public class PostServiceImpl implements PostService {
      * @return 帖子视图列表
      */
     @Override
-    public PageResult<PostVO> listPosts(Long categoryId, Long circleId, String sortBy, int page, int size, Long currentUserId) {
+    public PageResult<PostVO> listPosts(Long sectionId, Long circleId, String sortBy, int page, int size, Long currentUserId) {
         Page<PostPO> pageParam = PageConstants.pageOf(page, size);
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PostPO::getStatus, CommonStatus.ACTIVE);
-        if (categoryId != null) {
-            wrapper.eq(PostPO::getCategoryId, categoryId);
+        wrapper.eq(PostPO::getStatus, STATUS_APPROVED);
+        if (sectionId != null) {
+            wrapper.eq(PostPO::getSectionId, sectionId);
         }
         if (circleId != null) {
             wrapper.eq(PostPO::getCircleId, circleId);
@@ -378,14 +425,14 @@ public class PostServiceImpl implements PostService {
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
 
         Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, result.getRecords().stream().map(PostPO::getUserId).collect(Collectors.toSet()));
-        Map<Long, CategoryPO> categoryMap = categoryService.getByIds(extractCategoryIds(result.getRecords()));
         Map<Long, String> circleNameMap = extractCircleNameMap(result.getRecords());
+        Map<Long, String> sectionNameMap = extractSectionNameMap(result.getRecords());
         Set<Long> postIds = result.getRecords().stream().map(PostPO::getId).collect(Collectors.toSet());
         Set<Long> likedPostIds = getLikedPostIds(userId, postIds);
         Set<Long> collectedPostIds = getCollectedPostIds(userId, postIds);
 
         List<PostVO> vos = result.getRecords().stream()
-                .map(po -> convertToVO(po, userMap, categoryMap, circleNameMap, likedPostIds, collectedPostIds))
+                .map(po -> convertToVO(po, userMap, circleNameMap, sectionNameMap, likedPostIds, collectedPostIds))
                 .collect(Collectors.toList());
         return PageResult.of(vos, result.getTotal(), page, size);
     }
@@ -405,7 +452,7 @@ public class PostServiceImpl implements PostService {
         Page<PostPO> pageParam = PageConstants.pageOf(page, size);
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostPO::getUserId, targetUserId);
-        wrapper.eq(PostPO::getStatus, CommonStatus.ACTIVE);
+        wrapper.eq(PostPO::getStatus, STATUS_APPROVED);
         wrapper.last("ORDER BY is_pinned DESC, pinned_time DESC, create_time DESC");
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
 
@@ -443,7 +490,7 @@ public class PostServiceImpl implements PostService {
 
         // 批量查询帖子，过滤掉已删除和未发布的
         List<PostPO> posts = postMapper.selectBatchIds(postIds).stream()
-                .filter(po -> po.getStatus() == 1)
+                .filter(po -> po.getStatus() == STATUS_APPROVED)
                 .collect(Collectors.toList());
 
         return PageResult.of(fillPostVOList(posts, currentUserId), collectPage.getTotal(), page, size);
@@ -451,7 +498,7 @@ public class PostServiceImpl implements PostService {
 
     /**
      * 批量填充帖子 VO 列表
-     * <p>并行查询用户信息、分类、圈子、点赞/收藏状态，减少串行等待时间。
+     * <p>并行查询用户信息、板块、圈子、点赞/收藏状态，减少串行等待时间。
      *
      * @param posts         帖子实体列表
      * @param currentUserId 当前登录用户 ID（可为 null）
@@ -463,54 +510,59 @@ public class PostServiceImpl implements PostService {
         }
 
         Set<Long> userIds = posts.stream().map(PostPO::getUserId).collect(Collectors.toSet());
-        Set<Long> categoryIds = extractCategoryIds(posts);
         Set<Long> postIds = posts.stream().map(PostPO::getId).collect(Collectors.toSet());
 
-        // 5 个独立查询并行执行
         CompletableFuture<Map<Long, UserProfileVO>> userFuture =
                 CompletableFuture.supplyAsync(() -> UserFeignHelper.batchGetUsers(userFeignClient, userIds));
-        CompletableFuture<Map<Long, CategoryPO>> categoryFuture =
-                CompletableFuture.supplyAsync(() -> categoryService.getByIds(categoryIds));
         CompletableFuture<Map<Long, String>> circleFuture =
                 CompletableFuture.supplyAsync(() -> extractCircleNameMap(posts));
+        CompletableFuture<Map<Long, String>> sectionFuture =
+                CompletableFuture.supplyAsync(() -> extractSectionNameMap(posts));
         CompletableFuture<Set<Long>> likedIdFuture =
                 CompletableFuture.supplyAsync(() -> getLikedPostIds(currentUserId, postIds));
         CompletableFuture<Set<Long>> collectedIdFuture =
                 CompletableFuture.supplyAsync(() -> getCollectedPostIds(currentUserId, postIds));
 
-        CompletableFuture.allOf(userFuture, categoryFuture, circleFuture, likedIdFuture, collectedIdFuture).join();
+        CompletableFuture.allOf(userFuture, circleFuture, sectionFuture, likedIdFuture, collectedIdFuture).join();
 
         Map<Long, UserProfileVO> userMap = userFuture.join();
-        Map<Long, CategoryPO> categoryMap = categoryFuture.join();
         Map<Long, String> circleNameMap = circleFuture.join();
+        Map<Long, String> sectionNameMap = sectionFuture.join();
         Set<Long> likedPostIds = likedIdFuture.join();
         Set<Long> collectedPostIds = collectedIdFuture.join();
 
         return posts.stream()
-                .map(po -> convertToVO(po, userMap, categoryMap, circleNameMap, likedPostIds, collectedPostIds))
+                .map(po -> convertToVO(po, userMap, circleNameMap, sectionNameMap, likedPostIds, collectedPostIds))
                 .collect(Collectors.toList());
     }
 
     /**
      * 将帖子实体转换为视图对象
-     * <p>作者信息和分类名称均从预查 map 中获取，避免 N+1 查询。
+     * <p>作者信息和板块名称均从预查 map 中获取，避免 N+1 查询。
      *
-     * @param po            帖子实体
-     * @param userMap       预查的用户信息映射
-     * @param categoryMap   预查的分类信息映射
-     * @param circleNameMap 预查的圈子名称映射
-     * @param likedPostIds  当前用户已点赞的帖子 ID 集合（可为空）
+     * @param po              帖子实体
+     * @param userMap         预查的用户信息映射
+     * @param circleNameMap   预查的圈子名称映射
+     * @param likedPostIds    当前用户已点赞的帖子 ID 集合（可为空）
      * @param collectedPostIds 当前用户已收藏的帖子 ID 集合（可为空）
      * @return 帖子视图对象
      */
     private PostVO convertToVO(PostPO po, Map<Long, UserProfileVO> userMap,
-                                Map<Long, CategoryPO> categoryMap, Map<Long, String> circleNameMap,
+                                Map<Long, String> circleNameMap,
+                                Set<Long> likedPostIds, Set<Long> collectedPostIds) {
+        return convertToVO(po, userMap, circleNameMap, Collections.emptyMap(), likedPostIds, collectedPostIds);
+    }
+
+    private PostVO convertToVO(PostPO po, Map<Long, UserProfileVO> userMap,
+                                Map<Long, String> circleNameMap,
+                                Map<Long, String> sectionNameMap,
                                 Set<Long> likedPostIds, Set<Long> collectedPostIds) {
         PostVO vo = new PostVO();
         vo.setId(po.getId());
         vo.setUserId(po.getUserId());
-        vo.setCategoryId(po.getCategoryId());
+        vo.setPostType(po.getPostType() != null ? po.getPostType() : "NORMAL");
         vo.setCircleId(po.getCircleId());
+        vo.setSectionId(po.getSectionId());
         vo.setTitle(po.getTitle());
         vo.setContent(po.getContent());
         vo.setCover(po.getCover());
@@ -525,6 +577,7 @@ public class PostServiceImpl implements PostService {
             vo.setTags(Collections.emptyList());
         }
         vo.setStatus(po.getStatus());
+        vo.setReviewReason(po.getReviewReason());
         vo.setLikes(po.getLikes());
         vo.setLiked(likedPostIds.contains(po.getId()));
         vo.setComments(po.getComments());
@@ -542,13 +595,6 @@ public class PostServiceImpl implements PostService {
             vo.setAuthorAvatar(author.getAvatar());
         }
 
-        if (po.getCategoryId() != null) {
-            CategoryPO category = categoryMap.get(po.getCategoryId());
-            if (category != null) {
-                vo.setCategoryName(category.getName());
-            }
-        }
-
         if (po.getCircleId() != null && circleNameMap != null) {
             String circleName = circleNameMap.get(po.getCircleId());
             if (circleName != null) {
@@ -556,17 +602,14 @@ public class PostServiceImpl implements PostService {
             }
         }
 
-        return vo;
-    }
+        if (po.getSectionId() != null && sectionNameMap != null) {
+            String sectionName = sectionNameMap.get(po.getSectionId());
+            if (sectionName != null) {
+                vo.setSectionName(sectionName);
+            }
+        }
 
-    /**
-     * 从帖子列表中提取分类 ID 集合
-     */
-    private Set<Long> extractCategoryIds(List<PostPO> posts) {
-        return posts.stream()
-                .map(PostPO::getCategoryId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
+        return vo;
     }
 
     /**
@@ -581,6 +624,25 @@ public class PostServiceImpl implements PostService {
             return Collections.emptyMap();
         }
         Result<Map<Long, String>> result = circleFeignClient.batchGetNames(circleIds);
+        if (result == null || result.getData() == null) {
+            return Collections.emptyMap();
+        }
+        return result.getData();
+    }
+
+
+    /**
+     * 从帖子列表中提取板块 ID 集合并批量查名称
+     */
+    private Map<Long, String> extractSectionNameMap(List<PostPO> posts) {
+        Set<Long> sectionIds = posts.stream()
+                .map(PostPO::getSectionId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (sectionIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Result<Map<Long, String>> result = circleFeignClient.batchGetSectionNames(sectionIds);
         if (result == null || result.getData() == null) {
             return Collections.emptyMap();
         }
@@ -667,8 +729,9 @@ public class PostServiceImpl implements PostService {
         }
         Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, topPosts.stream().map(PostPO::getUserId).collect(Collectors.toSet()));
         Map<Long, String> circleNameMap = extractCircleNameMap(topPosts);
+        Map<Long, String> sectionNameMap = extractSectionNameMap(topPosts);
         return topPosts.stream()
-                .map(po -> convertToVO(po, userMap, Collections.emptyMap(), circleNameMap, Collections.emptySet(), Collections.emptySet()))
+                .map(po -> convertToVO(po, userMap, circleNameMap, sectionNameMap, Collections.emptySet(), Collections.emptySet()))
                 .collect(Collectors.toList());
     }
 
@@ -698,7 +761,7 @@ public class PostServiceImpl implements PostService {
 
     /**
      * 获取数据中心仪表盘数据
-     * <p>并行查询概览统计、月度趋势、分类分布和 Top 5 作品，
+     * <p>并行查询概览统计、月度趋势、板块分布和 Top 5 作品，
      * 组装为 DashboardVO 返回。
      *
      * @param userId 当前用户 ID
@@ -718,17 +781,13 @@ public class PostServiceImpl implements PostService {
         if (dailyTrends == null) {
             dailyTrends = Collections.emptyList();
         }
-        List<DashboardVO.CategoryDistributionVO> distribution = postMapper.selectCategoryDistribution(userId);
-        if (distribution == null) {
-            distribution = Collections.emptyList();
-        }
         List<PostVO> topPosts = getTopPosts(userId, 5);
 
         DashboardVO dashboard = new DashboardVO();
         dashboard.setSummary(summary);
         dashboard.setMonthlyTrends(trends);
         dashboard.setDailyTrends(dailyTrends);
-        dashboard.setCategoryDistribution(distribution);
+        dashboard.setSectionDistribution(Collections.emptyList());
         dashboard.setTopPosts(topPosts);
         return dashboard;
     }
@@ -840,7 +899,7 @@ public class PostServiceImpl implements PostService {
         String likeKeyword = "%" + keyword.trim() + "%";
         Page<PostPO> pageParam = PageConstants.pageOf(page, size);
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PostPO::getStatus, CommonStatus.ACTIVE)
+        wrapper.eq(PostPO::getStatus, STATUS_APPROVED)
                 .and(w -> w.like(PostPO::getTitle, likeKeyword).or().like(PostPO::getContent, likeKeyword));
         wrapper.orderByDesc(PostPO::getCreateTime);
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
@@ -848,14 +907,11 @@ public class PostServiceImpl implements PostService {
     }
 
     /**
-     * 校验发布必填项：标题、分类、正文、图片缺一不可
+     * 校验发布必填项：标题、板块、正文、图片 + 圈子发布权限 Feign 校验
      */
-    private void validatePublishFields(String title, Long categoryId, Long circleId, String content, List<String> images) {
+    private void validatePublishFields(String title, Long circleId, String content, List<String> images, String postType, Long userId) {
         if (title == null || title.isBlank()) {
             throw new BusinessException(ErrorCode.PARAM_MISSING, "发布时标题不能为空");
-        }
-        if (categoryId == null) {
-            throw new BusinessException(ErrorCode.PARAM_MISSING, "发布时分类不能为空");
         }
         if (circleId == null) {
             throw new BusinessException(ErrorCode.PARAM_MISSING, "发布时圈子不能为空");
@@ -863,8 +919,19 @@ public class PostServiceImpl implements PostService {
         if (content == null || content.isBlank()) {
             throw new BusinessException(ErrorCode.PARAM_MISSING, "发布时正文不能为空");
         }
-        if (images == null || images.isEmpty()) {
-            throw new BusinessException(ErrorCode.PARAM_MISSING, "发布时至少需要一张图片");
+        if (!"ARTICLE".equals(postType) && (images == null || images.isEmpty())) {
+            throw new BusinessException(ErrorCode.PARAM_MISSING, "图文帖发布时至少需要一张图片");
+        }
+        Result<Map<String, Object>> r = circleFeignClient.checkPublishable(circleId, userId);
+        Map<String, Object> data = r != null ? r.getData() : null;
+        if (data == null || !Boolean.TRUE.equals(data.get("publishable"))) {
+            if (data != null && !Boolean.TRUE.equals(data.get("exists"))) {
+                throw new BusinessException(ErrorCode.PARAM_ERROR, "圈子不存在");
+            }
+            if (data != null && !Boolean.TRUE.equals(data.get("enabled"))) {
+                throw new BusinessException(ErrorCode.PARAM_ERROR, "该圈子已停用，暂不可发布");
+            }
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "请先加入该圈子再发布");
         }
     }
 
@@ -873,7 +940,6 @@ public class PostServiceImpl implements PostService {
      */
     private void validateDraftHasContent(CreatePostRequest request) {
         boolean hasContent = (request.getTitle() != null && !request.getTitle().isBlank())
-                || request.getCategoryId() != null
                 || (request.getContent() != null && !request.getContent().isBlank())
                 || (request.getImages() != null && !request.getImages().isEmpty());
         if (!hasContent) {
@@ -890,7 +956,7 @@ public class PostServiceImpl implements PostService {
         if (!po.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
-        if (po.getStatus() != STATUS_PUBLISHED) {
+        if (po.getStatus() != STATUS_APPROVED) {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "仅已发布帖子可置顶");
         }
         int pinnedCount = postMapper.countPinnedPosts(userId);
@@ -927,14 +993,27 @@ public class PostServiceImpl implements PostService {
                 if (po.getStatus() != STATUS_DRAFT) continue;
                 // 草稿转发布需校验必填字段
                 if (po.getTitle() == null || po.getTitle().isBlank()
-                        || po.getCategoryId() == null
                         || po.getContent() == null || po.getContent().isBlank()
                         || po.getImages() == null || po.getImages().isBlank()) {
                     log.warn("草稿缺少必填字段，跳过: postId={}", postId);
                     continue;
                 }
+                // 异步 AI 审核
+                final Long pid = postId;
+                final String title = po.getTitle();
+                final String content = po.getContent();
+                List<String> imgs = po.getImages() != null && !po.getImages().isBlank()
+                        ? Arrays.asList(po.getImages().split(",")) : Collections.emptyList();
+                CompletableFuture.runAsync(() -> {
+                    try {
+                        AiReviewResult result = aiReviewService.review(pid, title, content, imgs);
+                        handleReviewResult(pid, userId, title, result);
+                    } catch (Exception e) {
+                        log.error("批量发布 AI 审核失败: postId={}, error={}", pid, e.getMessage());
+                    }
+                });
             }
-            postMapper.batchUpdateStatus(userId, postIds, STATUS_PUBLISHED);
+            postMapper.batchUpdateStatus(userId, postIds, STATUS_PENDING);
         } else if ("delete".equals(action)) {
             postMapper.batchUpdateStatus(userId, postIds, STATUS_DELETED);
         } else {
@@ -955,7 +1034,7 @@ public class PostServiceImpl implements PostService {
 
         Page<PostPO> pageParam = PageConstants.pageOf(page, size);
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PostPO::getStatus, CommonStatus.ACTIVE);
+        wrapper.eq(PostPO::getStatus, STATUS_APPROVED);
         wrapper.in(PostPO::getUserId, followingUserIds);
         wrapper.orderByDesc(PostPO::getCreateTime);
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
@@ -972,6 +1051,121 @@ public class PostServiceImpl implements PostService {
     private void evictDetailCache(Long postId) {
         String key = CacheKeyConstants.getPostDetailKey(postId);
         redisTemplate.delete(key);
+    }
+
+    @Override
+    public void approvePost(Long postId) {
+        PostPO po = postMapper.selectById(postId);
+        if (po == null) throw new BusinessException(ErrorCode.POST_NOT_FOUND);
+        if (po.getStatus() != STATUS_PENDING) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "该帖子不在待审核状态");
+        }
+        if (!canTransition(po.getStatus(), STATUS_APPROVED)) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR,
+                    "不允许从 " + statusLabel(po.getStatus()) + " 直接变更为 " + statusLabel(STATUS_APPROVED));
+        }
+        po.setStatus(STATUS_APPROVED);
+        po.setReviewReason(null);
+        postMapper.updateById(po);
+        evictDetailCache(postId);
+        log.info("帖子审核通过: postId={}", postId);
+    }
+
+    @Override
+    public void rejectPost(Long postId, String reason) {
+        PostPO po = postMapper.selectById(postId);
+        if (po == null) throw new BusinessException(ErrorCode.POST_NOT_FOUND);
+        if (po.getStatus() != STATUS_PENDING) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "该帖子不在待审核状态");
+        }
+        if (!canTransition(po.getStatus(), STATUS_REJECTED)) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR,
+                    "不允许从 " + statusLabel(po.getStatus()) + " 直接变更为 " + statusLabel(STATUS_REJECTED));
+        }
+        po.setStatus(STATUS_REJECTED);
+        po.setReviewReason(reason);
+        postMapper.updateById(po);
+        evictDetailCache(postId);
+        log.info("帖子审核拒绝: postId={}, reason={}", postId, reason);
+    }
+
+    /**
+     * 处理 AI 审核结果
+     * <p>通过：更新状态为已通过，清除缓存，发通知
+     * <p>拒绝：更新状态为拒绝并记录原因，清除缓存，发通知
+     */
+    private void handleReviewResult(Long postId, Long authorId, String title, AiReviewResult result) {
+        PostPO po = postMapper.selectById(postId);
+        if (po == null || po.getStatus() != STATUS_PENDING) {
+            log.info("帖子 {} 状态已变更，跳过审核结果处理", postId);
+            return;
+        }
+        if (result.isPassed()) {
+            po.setStatus(STATUS_APPROVED);
+            po.setReviewReason(null);
+            postMapper.updateById(po);
+            evictDetailCache(postId);
+            sendReviewNotify(authorId, "POST_APPROVED", null, postId, title);
+            log.info("AI 审核通过: postId={}", postId);
+        } else {
+            po.setStatus(STATUS_REJECTED);
+            po.setReviewReason(result.getReason());
+            postMapper.updateById(po);
+            evictDetailCache(postId);
+            sendReviewNotify(authorId, "POST_REJECTED", result.getReason(), postId, title);
+            log.warn("AI 审核拒绝: postId={}, reason={}", postId, result.getReason());
+        }
+    }
+
+    private void sendReviewNotify(Long receiverId, String type, String reason, Long postId, String title) {
+        try {
+            String content = "POST_APPROVED".equals(type)
+                    ? "你的帖子《" + title + "》审核通过，已公开发布"
+                    : "你的帖子《" + title + "》未通过审核" + (reason != null ? "：" + reason : "");
+            NotificationEvent event = NotificationEvent.builder()
+                    .receiverId(receiverId)
+                    .senderId(0L)
+                    .type(type)
+                    .title("审核结果")
+                    .content(content)
+                    .targetType("post")
+                    .targetId(postId)
+                    .createTime(System.currentTimeMillis())
+                    .build();
+            rabbitTemplate.convertAndSend(NotificationConstants.EXCHANGE, NotificationConstants.ROUTING_KEY, event);
+        } catch (Exception e) {
+            log.error("发送审核通知失败: postId={}, receiverId={}", postId, receiverId, e);
+        }
+    }
+
+    @Override
+    public PageResult<PostVO> listPendingReview(int page, int size) {
+        Page<PostPO> pageParam = PageConstants.pageOf(page, size);
+        LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PostPO::getStatus, STATUS_PENDING);
+        wrapper.orderByAsc(PostPO::getCreateTime);
+        Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
+        List<PostVO> vos = fillPostVOList(result.getRecords(), null);
+        return PageResult.of(vos, result.getTotal(), page, size);
+    }
+
+    @Override
+    public Map<Long, Integer> batchCountByCircle(Set<Long> circleIds) {
+        if (circleIds == null || circleIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        List<Map<String, Object>> rows = postMapper.batchCountByCircleIds(circleIds);
+        Map<Long, Integer> result = new HashMap<>();
+        for (Map<String, Object> row : rows) {
+            Long circleId = ((Number) row.get("circle_id")).longValue();
+            Integer cnt = ((Number) row.get("cnt")).intValue();
+            result.put(circleId, cnt);
+        }
+        // 没有帖子的圈子返回 0
+        for (Long circleId : circleIds) {
+            result.putIfAbsent(circleId, 0);
+        }
+        return result;
     }
 
 }

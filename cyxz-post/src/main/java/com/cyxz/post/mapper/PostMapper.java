@@ -12,6 +12,8 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * 帖子 Mapper
@@ -66,7 +68,7 @@ public interface PostMapper extends BaseMapper<PostPO> {
             "COALESCE(SUM(views), 0) AS totalViews, " +
             "COALESCE(SUM(likes), 0) AS totalLikes, " +
             "COALESCE(SUM(collections), 0) AS totalCollections " +
-            "FROM post WHERE user_id = #{userId} AND status = 1")
+            "FROM post WHERE user_id = #{userId} AND status = 2")
     PostStatsVO selectStatsByUserId(@Param("userId") Long userId);
 
     /**
@@ -77,7 +79,7 @@ public interface PostMapper extends BaseMapper<PostPO> {
      * @param limit  返回条数
      * @return 帖子 PO 列表
      */
-    @Select("SELECT * FROM post WHERE user_id = #{userId} AND status = 1 " +
+    @Select("SELECT * FROM post WHERE user_id = #{userId} AND status = 2 " +
             "ORDER BY views DESC LIMIT #{limit}")
     List<PostPO> selectTopPostsByViews(@Param("userId") Long userId, @Param("limit") int limit);
 
@@ -92,7 +94,7 @@ public interface PostMapper extends BaseMapper<PostPO> {
             "COUNT(*) AS posts, " +
             "COALESCE(SUM(views), 0) AS views, " +
             "COALESCE(SUM(likes), 0) AS likes " +
-            "FROM post WHERE user_id = #{userId} AND status = 1 " +
+            "FROM post WHERE user_id = #{userId} AND status = 2 " +
             "GROUP BY DATE_FORMAT(create_time, '%Y-%m') " +
             "ORDER BY month ASC")
     List<DashboardVO.MonthlyTrendVO> selectMonthlyTrends(@Param("userId") Long userId);
@@ -108,25 +110,11 @@ public interface PostMapper extends BaseMapper<PostPO> {
             "COUNT(*) AS posts, " +
             "COALESCE(SUM(views), 0) AS views, " +
             "COALESCE(SUM(likes), 0) AS likes " +
-            "FROM post WHERE user_id = #{userId} AND status = 1 " +
+            "FROM post WHERE user_id = #{userId} AND status = 2 " +
             "AND create_time >= DATE_SUB(NOW(), INTERVAL 30 DAY) " +
             "GROUP BY DATE_FORMAT(create_time, '%m-%d') " +
             "ORDER BY date ASC")
     List<DashboardVO.DailyTrendVO> selectDailyTrends(@Param("userId") Long userId);
-
-    /**
-     * 按分类聚合用户已发布作品数量
-     * <p>JOIN category 表获取分类名，按作品数降序。
-     *
-     * @param userId 用户 ID
-     * @return 分类分布列表
-     */
-    @Select("SELECT c.name, COUNT(*) AS count " +
-            "FROM post p JOIN category c ON p.category_id = c.id " +
-            "WHERE p.user_id = #{userId} AND p.status = 1 " +
-            "GROUP BY c.id, c.name " +
-            "ORDER BY count DESC")
-    List<DashboardVO.CategoryDistributionVO> selectCategoryDistribution(@Param("userId") Long userId);
 
     /**
      * 查询今日新增互动统计
@@ -169,4 +157,14 @@ public interface PostMapper extends BaseMapper<PostPO> {
             "<foreach collection='postIds' item='id' open='(' separator=',' close=')'>#{id}</foreach>" +
             "</script>")
     int batchUpdateStatus(@Param("userId") Long userId, @Param("postIds") List<Long> postIds, @Param("status") int status);
+
+    /**
+     * 统计各圈子的已发布帖子数
+     */
+    @Select("<script>" +
+            "SELECT circle_id, COUNT(*) AS cnt FROM post WHERE circle_id IN " +
+            "<foreach collection='circleIds' item='id' open='(' separator=',' close=')'>#{id}</foreach>" +
+            " AND status = 2 GROUP BY circle_id" +
+            "</script>")
+    List<Map<String, Object>> batchCountByCircleIds(@Param("circleIds") Set<Long> circleIds);
 }

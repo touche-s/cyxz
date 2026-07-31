@@ -9,6 +9,7 @@ import com.cyxz.common.utils.IpUtil;
 import com.cyxz.common.utils.StatusUpdateHelper;
 import com.cyxz.message.api.dto.CreateNotificationRequest;
 import com.cyxz.message.api.enums.NotificationType;
+import com.cyxz.message.api.constant.NotificationConstants;
 import com.cyxz.message.api.event.NotificationEvent;
 import com.cyxz.message.api.feign.MessageFeignClient;
 import com.cyxz.post.entity.PostCollectPO;
@@ -269,8 +270,8 @@ public class PostInteractionServiceImpl implements PostInteractionService {
     private void sendLikeNotification(Long postId, Long userId, PostPO po) {
         try {
             rabbitTemplate.convertAndSend(
-                "cyxz.notification.exchange",
-                "notification.create",
+                NotificationConstants.EXCHANGE,
+                NotificationConstants.ROUTING_KEY,
                 NotificationEvent.builder()
                     .receiverId(po.getUserId())
                     .senderId(userId)

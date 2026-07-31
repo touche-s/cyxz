@@ -3,11 +3,13 @@ package com.cyxz.post.controller;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.PageConstants;
+import com.cyxz.common.web.AdminUser;
 import com.cyxz.common.web.CurrentUser;
 import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
 import com.cyxz.post.service.PostInteractionService;
 import com.cyxz.post.service.PostService;
+import com.cyxz.post.service.SensitiveWordService;
 import com.cyxz.post.vo.TodayStatsVO;
 import com.cyxz.post.vo.PostInfoVO;
 import com.cyxz.post.vo.PostStatsVO;
@@ -33,6 +35,7 @@ public class PostController {
 
     private final PostService postService;
     private final PostInteractionService postInteractionService;
+    private final SensitiveWordService sensitiveWordService;
 
     /**
      * 创建帖子（发布）
@@ -113,7 +116,7 @@ public class PostController {
      *
      * @param postId        帖子 ID
      * @param currentUserId 当前登录用户 ID（由 Gateway 注入，游客为 null）
-     * @return 帖子详情（含作者信息、分类名称）
+     * @return 帖子详情（含作者信息、板块名称）
      */
     @GetMapping("/{postId}")
     public Result<PostVO> getById(@PathVariable("postId") Long postId,
@@ -124,7 +127,7 @@ public class PostController {
     /**
      * 分页查询帖子列表（仅已发布）
      *
-     * @param categoryId    分类 ID（可选，null 时查全部分类）
+     * @param sectionId     板块 ID（可选）
      * @param circleId      圈子 ID（可选）
      * @param sortBy        排序方式：latest/hot，默认 latest
      * @param page          页码（从 1 开始，默认 1）
@@ -133,13 +136,13 @@ public class PostController {
      * @return 帖子列表
      */
     @GetMapping("/list")
-    public Result<PageResult<PostVO>> list(@RequestParam(value = "categoryId", required = false) Long categoryId,
+    public Result<PageResult<PostVO>> list(@RequestParam(value = "sectionId", required = false) Long sectionId,
                                      @RequestParam(value = "circleId", required = false) Long circleId,
                                      @RequestParam(value = "sortBy", defaultValue = "latest") String sortBy,
                                      @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
                                      @RequestParam(value = "size", defaultValue = PageConstants.DEFAULT_SIZE_STR) int size,
                                      @CurrentUser(required = false) Long currentUserId) {
-        return Result.success(postService.listPosts(categoryId, circleId, sortBy, page, size, currentUserId));
+        return Result.success(postService.listPosts(sectionId, circleId, sortBy, page, size, currentUserId));
     }
 
     /**
@@ -304,7 +307,7 @@ public class PostController {
 
     /**
      * 获取数据中心仪表盘数据
-     * <p>包含概览统计、月度趋势、分类分布和 Top 作品排行。
+     * <p>包含概览统计、月度趋势、板块分布和 Top 作品排行。
      *
      * @param userId 当前登录用户 ID（由 Gateway 注入）
      * @return 仪表盘数据
@@ -373,6 +376,14 @@ public class PostController {
     }
 
     /**
+     * 批量统计各圈子的已发布帖子数（内部接口，供 circle 服务定时刷新）
+     */
+    @GetMapping("/internal/batch-circle-post-count")
+    public Result<Map<Long, Integer>> batchCountByCircle(@RequestParam("circleIds") Set<Long> circleIds) {
+        return Result.success(postService.batchCountByCircle(circleIds));
+    }
+
+    /**
      * 查询用户收到的点赞列表
      *
      * @param userId 当前登录用户 ID（由 Gateway 注入）
@@ -432,5 +443,40 @@ public class PostController {
         String action = (String) body.get("action");
         postService.batchOperate(userId, postIds, action);
         return Result.success("批量操作成功");
+    }
+
+    // ===== 审核接口（管理员） =====
+
+    /** 待审核帖子列表 */
+    @GetMapping("/admin/review/pending")
+    public Result<PageResult<PostVO>> listPendingReview(@AdminUser Object admin,
+                                                         @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
+                                                         @RequestParam(value = "size", defaultValue = PageConstants.DEFAULT_SIZE_STR) int size) {
+        return Result.success(postService.listPendingReview(page, size));
+    }
+
+    /** 审核通过 */
+    @PutMapping("/admin/review/{postId}/approve")
+    public Result<Void> approvePost(@AdminUser Object admin, @PathVariable Long postId) {
+        postService.approvePost(postId);
+        return Result.success("审核通过");
+    }
+
+    /** 审核拒绝 */
+    @PutMapping("/admin/review/{postId}/reject")
+    public Result<Void> rejectPost(@AdminUser Object admin, @PathVariable Long postId, @RequestBody Map<String, String> body) {
+        postService.rejectPost(postId, body.get("reason"));
+        return Result.success("已拒绝");
+    }
+
+    /**
+     * 敏感词手动检测
+     * <p>用户发布前自行检测标题和正文，返回命中的敏感词列表。为空表示通过。
+     */
+    @PostMapping("/check-sensitive")
+    public Result<Set<String>> checkSensitive(@RequestBody Map<String, String> body) {
+        String title = body.getOrDefault("title", "");
+        String content = body.getOrDefault("content", "");
+        return Result.success(sensitiveWordService.check(title, content));
     }
 }

@@ -26,11 +26,12 @@ public class PostPO implements Serializable {
     /** 作者 ID */
     private Long userId;
 
-    /** 分类 ID */
-    private Long categoryId;
-
     /** 圈子 ID */
     private Long circleId;
+    private Long sectionId;
+
+    /** 帖子类型：NORMAL/ARTICLE */
+    private String postType;
 
     /** 标题 */
     private String title;
@@ -47,8 +48,14 @@ public class PostPO implements Serializable {
     /** 标签 JSON 数组 */
     private String tags;
 
-    /** 状态：0=草稿 1=已发布 2=已删除 */
+    /**
+     * 帖子状态：0=草稿 1=待审核 2=已通过(公开) 3=拒绝 4=已删除
+     * <p>状态流转链：草稿(0)→待审(1)→通过(2)/拒绝(3)；通过(2)→删除(4)；拒绝(3)→草稿(0)重新编辑
+     */
     private Integer status;
+
+    /** 拒绝原因（仅 status=3 时有值） */
+    private String reviewReason;
 
     /** 点赞数 */
     private Integer likes;

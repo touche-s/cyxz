@@ -10,11 +10,11 @@ import java.util.List;
 @Data
 public class CreatePostRequest {
 
-    /** 分类 ID */
-    private Long categoryId;
-
     /** 圈子 ID */
     private Long circleId;
+
+    /** 板块 ID */
+    private Long sectionId;
 
     /** 标题（草稿时可为空，发布时必填） */
     private String title;
@@ -30,6 +30,9 @@ public class CreatePostRequest {
 
     /** 标签列表 */
     private List<String> tags;
+
+    /** 帖子类型：NORMAL / ARTICLE，默认 NORMAL */
+    private String postType;
 
     /** 状态：0=草稿 1=发布 */
     private Integer status;

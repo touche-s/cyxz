@@ -66,15 +66,15 @@ public interface PostService {
      *
      * @param postId        帖子 ID
      * @param currentUserId 当前登录用户 ID（可为 null，游客访问）
-     * @return 帖子视图对象（含作者信息、分类名称）
+     * @return 帖子视图对象（含作者信息、板块名称）
      */
     PostVO getById(Long postId, Long currentUserId);
 
     /**
      * 分页查询帖子列表（仅已发布）
-     * <p>支持按分类、圈子筛选和排序。
+     * <p>支持按板块、圈子筛选和排序。
      *
-     * @param categoryId    分类 ID（可为 null）
+     * @param sectionId     板块 ID（可为 null）
      * @param circleId      圈子 ID（可为 null）
      * @param sortBy        排序方式：latest 按创建时间倒序，hot 按热度（点赞→评论→收藏→浏览）倒序
      * @param page          页码（从 1 开始）
@@ -82,7 +82,7 @@ public interface PostService {
      * @param currentUserId 当前登录用户 ID（可为 null，用于查询点赞状态）
      * @return 分页结果（含总条数）
      */
-    PageResult<PostVO> listPosts(Long categoryId, Long circleId, String sortBy, int page, int size, Long currentUserId);
+    PageResult<PostVO> listPosts(Long sectionId, Long circleId, String sortBy, int page, int size, Long currentUserId);
 
     /**
      * 查询当前用户的帖子列表
@@ -188,7 +188,7 @@ public interface PostService {
 
     /**
      * 获取数据中心仪表盘数据
-     * <p>包含概览统计、月度趋势、分类分布和 Top 5 作品排行。
+     * <p>包含概览统计、月度趋势、板块分布和 Top 5 作品排行。
      *
      * @param userId 当前用户 ID
      * @return 仪表盘 VO
@@ -241,4 +241,25 @@ public interface PostService {
      * @param action  操作类型（publish / delete）
      */
     void batchOperate(Long userId, List<Long> postIds, String action);
+
+    /**
+     * 审核通过帖子
+     */
+    void approvePost(Long postId);
+
+    /**
+     * 审核拒绝帖子
+     */
+    void rejectPost(Long postId, String reason);
+
+    /**
+     * 查询待审核帖子列表
+     */
+    PageResult<PostVO> listPendingReview(int page, int size);
+
+    /**
+     * 批量统计各圈子的已发布帖子数（内部接口）
+     * <p>供 circle 服务定时刷新帖子数。
+     */
+    Map<Long, Integer> batchCountByCircle(Set<Long> circleIds);
 }

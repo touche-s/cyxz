@@ -45,6 +45,11 @@ public class PostFeignClientFallbackFactory implements FallbackFactory<PostFeign
             public Result<List<PostInfoVO>> batchGetPostInfo(Set<Long> postIds) {
                 return Result.success(Collections.emptyList());
             }
+
+            @Override
+            public Result<Map<Long, Integer>> batchCountByCircle(Set<Long> circleIds) {
+                return Result.success(Collections.emptyMap());
+            }
         };
     }
 }

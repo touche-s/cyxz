@@ -15,11 +15,14 @@ public class UpdatePostRequest {
     @NotBlank(message = "帖子ID不能为空")
     private String id;
 
-    /** 分类 ID */
-    private Long categoryId;
+    /** 帖子类型：NORMAL / ARTICLE */
+    private String postType;
 
     /** 圈子 ID */
     private Long circleId;
+
+    /** 板块 ID */
+    private Long sectionId;
 
     /** 标题 */
     private String title;

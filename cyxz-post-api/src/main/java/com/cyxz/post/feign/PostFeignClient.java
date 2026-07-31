@@ -47,4 +47,14 @@ public interface PostFeignClient {
      */
     @GetMapping("/internal/batch-info")
     Result<List<PostInfoVO>> batchGetPostInfo(@RequestParam("postIds") Set<Long> postIds);
+
+    /**
+     * 批量统计各圈子的已发布帖子数（内部接口）
+     * <p>供 circle 服务定时汇总，key=circleId, value=已发布帖子数。
+     *
+     * @param circleIds 圈子 ID 集合
+     * @return 圈子 ID → 帖子数
+     */
+    @GetMapping("/internal/batch-circle-post-count")
+    Result<Map<Long, Integer>> batchCountByCircle(@RequestParam("circleIds") Set<Long> circleIds);
 }
