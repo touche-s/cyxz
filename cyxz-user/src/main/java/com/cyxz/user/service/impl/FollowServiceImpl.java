@@ -8,6 +8,7 @@ import com.cyxz.common.base.PageResult;
 import com.cyxz.common.utils.StatusUpdateHelper;
 import com.cyxz.message.api.dto.CreateNotificationRequest;
 import com.cyxz.message.api.enums.NotificationType;
+import com.cyxz.message.api.constant.NotificationConstants;
 import com.cyxz.message.api.event.NotificationEvent;
 import com.cyxz.message.api.feign.MessageFeignClient;
 import com.cyxz.user.entity.UserFollowPO;
@@ -72,8 +73,8 @@ public class FollowServiceImpl implements FollowService {
                 // 发送关注通知 — MQ 异步
                 try {
                     rabbitTemplate.convertAndSend(
-                        "cyxz.notification.exchange",
-                        "notification.create",
+                        NotificationConstants.EXCHANGE,
+                        NotificationConstants.ROUTING_KEY,
                         NotificationEvent.builder()
                             .receiverId(targetUserId)
                             .senderId(userId)

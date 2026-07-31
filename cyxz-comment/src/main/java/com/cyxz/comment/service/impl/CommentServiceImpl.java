@@ -17,6 +17,7 @@ import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.constant.PageConstants;
 import com.cyxz.message.api.dto.CreateNotificationRequest;
+import com.cyxz.message.api.constant.NotificationConstants;
 import com.cyxz.message.api.enums.NotificationType;
 import com.cyxz.message.api.event.NotificationEvent;
 import com.cyxz.message.api.feign.MessageFeignClient;
@@ -89,8 +90,8 @@ public class CommentServiceImpl implements CommentService {
         if (!userId.equals(po.getPostAuthorId())) {
             try {
                 rabbitTemplate.convertAndSend(
-                    "cyxz.notification.exchange",
-                    "notification.create",
+                    NotificationConstants.EXCHANGE,
+                    NotificationConstants.ROUTING_KEY,
                     NotificationEvent.builder()
                         .receiverId(po.getPostAuthorId())
                         .senderId(userId)
@@ -111,8 +112,8 @@ public class CommentServiceImpl implements CommentService {
         if (po.getReplyToUserId() != null && !userId.equals(po.getReplyToUserId())) {
             try {
                 rabbitTemplate.convertAndSend(
-                    "cyxz.notification.exchange",
-                    "notification.create",
+                    NotificationConstants.EXCHANGE,
+                    NotificationConstants.ROUTING_KEY,
                     NotificationEvent.builder()
                         .receiverId(po.getReplyToUserId())
                         .senderId(userId)

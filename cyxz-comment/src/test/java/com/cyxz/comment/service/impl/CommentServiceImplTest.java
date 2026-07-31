@@ -6,6 +6,7 @@ import com.cyxz.comment.mapper.CommentLikeMapper;
 import com.cyxz.comment.mapper.CommentMapper;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.CacheKeyConstants;
+import com.cyxz.message.api.constant.NotificationConstants;
 import com.cyxz.message.api.enums.NotificationType;
 import com.cyxz.message.api.event.NotificationEvent;
 import com.cyxz.message.api.feign.MessageFeignClient;
@@ -69,8 +70,8 @@ class CommentServiceImplTest {
             commentService.createComment(1L, request);
 
             verify(rabbitTemplate).convertAndSend(
-                    eq("cyxz.notification.exchange"),
-                    eq("notification.create"),
+                    eq(NotificationConstants.EXCHANGE),
+                    eq(NotificationConstants.ROUTING_KEY),
                     argThat((NotificationEvent e) ->
                             e.getReceiverId().equals(200L) &&
                             e.getSenderId().equals(1L) &&
@@ -94,8 +95,8 @@ class CommentServiceImplTest {
             commentService.createComment(1L, request);
 
             verify(rabbitTemplate, never()).convertAndSend(
-                    eq("cyxz.notification.exchange"),
-                    eq("notification.create"),
+                    eq(NotificationConstants.EXCHANGE),
+                    eq(NotificationConstants.ROUTING_KEY),
                     argThat((NotificationEvent e) ->
                             NotificationType.COMMENT_REPLIED.name().equals(e.getType())
                     )
@@ -115,8 +116,8 @@ class CommentServiceImplTest {
             commentService.createComment(1L, request);
 
             verify(rabbitTemplate, never()).convertAndSend(
-                    eq("cyxz.notification.exchange"),
-                    eq("notification.create"),
+                    eq(NotificationConstants.EXCHANGE),
+                    eq(NotificationConstants.ROUTING_KEY),
                     argThat((NotificationEvent e) ->
                             NotificationType.COMMENT_REPLIED.name().equals(e.getType())
                     )
