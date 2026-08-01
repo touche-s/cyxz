@@ -8,7 +8,9 @@ import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.common.constant.CommonStatus;
+import com.cyxz.common.constant.EsSyncConstants;
 import com.cyxz.common.constant.PageConstants;
+import com.cyxz.common.event.PostEsSyncEvent;
 import com.cyxz.message.api.constant.NotificationConstants;
 import com.cyxz.message.api.event.NotificationEvent;
 import com.cyxz.post.service.AiReviewService;
@@ -237,6 +239,7 @@ public class PostServiceImpl implements PostService {
 
         postMapper.updateById(po);
         evictDetailCache(po.getId());
+        syncPostToEs(po);
 
         log.info("{}帖子成功: postId={}, userId={}", isPublishAction ? "发布" : "更新", po.getId(), userId);
     }
@@ -275,6 +278,7 @@ public class PostServiceImpl implements PostService {
         po.setStatus(STATUS_DELETED);
         postMapper.updateById(po);
         evictDetailCache(postId);
+        syncPostToEs(po);
         log.info("软删除帖子成功: postId={}, userId={}", postId, userId);
     }
 
@@ -319,6 +323,8 @@ public class PostServiceImpl implements PostService {
         // 4. 删除帖子主表
         postMapper.deleteById(postId);
         evictDetailCache(postId);
+        // ES 同步删除
+        syncPostToEsDelete(postId);
         log.info("彻底删除帖子成功: postId={}, userId={}", postId, userId);
     }
 
@@ -1110,6 +1116,7 @@ public class PostServiceImpl implements PostService {
             po.setReviewReason(null);
             postMapper.updateById(po);
             evictDetailCache(postId);
+            syncPostToEs(po);
             sendReviewNotify(authorId, "POST_APPROVED", null, postId, title);
             log.info("AI 审核通过: postId={}", postId);
         } else {
@@ -1120,6 +1127,54 @@ public class PostServiceImpl implements PostService {
             sendReviewNotify(authorId, "POST_REJECTED", result.getReason(), postId, title);
             log.warn("AI 审核拒绝: postId={}, reason={}", postId, result.getReason());
         }
+    }
+
+    /**
+     * 同步帖子到 ES：APPROVED 状态写入，其他状态删除
+     */
+    private void syncPostToEs(PostPO po) {
+        try {
+            String action = po.getStatus() != null && po.getStatus() == STATUS_APPROVED ? "CREATE" : "DELETE";
+            PostEsSyncEvent event = buildSyncEvent(po, action);
+            rabbitTemplate.convertAndSend(EsSyncConstants.EXCHANGE, EsSyncConstants.ROUTING_KEY, event);
+        } catch (Exception e) {
+            log.error("ES 同步消息发送失败: postId={}", po.getId(), e);
+        }
+    }
+
+    private void syncPostToEsDelete(Long postId) {
+        try {
+            PostEsSyncEvent event = PostEsSyncEvent.builder()
+                    .action("DELETE")
+                    .postId(postId)
+                    .build();
+            rabbitTemplate.convertAndSend(EsSyncConstants.EXCHANGE, EsSyncConstants.ROUTING_KEY, event);
+        } catch (Exception e) {
+            log.error("ES 同步删除消息发送失败: postId={}", postId, e);
+        }
+    }
+
+    private PostEsSyncEvent buildSyncEvent(PostPO po, String action) {
+        return PostEsSyncEvent.builder()
+                .action(action)
+                .postId(po.getId())
+                .userId(po.getUserId())
+                .circleId(po.getCircleId())
+                .sectionId(po.getSectionId())
+                .postType(po.getPostType())
+                .title(po.getTitle())
+                .content(po.getContent())
+                .cover(po.getCover())
+                .tags(po.getTags())
+                .status(po.getStatus())
+                .likes(po.getLikes())
+                .comments(po.getComments())
+                .views(po.getViews())
+                .collections(po.getCollections())
+                .createTime(po.getCreateTime() != null
+                        ? po.getCreateTime().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                        : System.currentTimeMillis())
+                .build();
     }
 
     private void sendReviewNotify(Long receiverId, String type, String reason, Long postId, String title) {
