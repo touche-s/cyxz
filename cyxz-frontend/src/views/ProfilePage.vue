@@ -32,6 +32,15 @@
                 variant="profile"
                 @toggle="toggleFollow"
               />
+              <button
+                class="pc-dm-btn"
+                :class="{ disabled: !mutualFollowing }"
+                :title="mutualFollowing ? '发私信' : '互相关注后可私信'"
+                @click="goPrivateChat"
+              >
+                <Icon icon="ph:chat-circle-text" class="pc-dm-icon" />
+                <span>私信</span>
+              </button>
             </template>
           </div>
         </div>
@@ -119,6 +128,7 @@ import type { PostVO } from '@/api/post'
 import { usePostStats } from '@/composables/usePostStats'
 import { useUserStore } from '@/stores/user'
 import { useFollow } from '@/composables/useFollow'
+import { isMutualFollowing } from '@/api/chat'
 import PostCard from '@/components/PostCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import FollowButton from '@/components/FollowButton.vue'
@@ -134,6 +144,7 @@ const { stats: postStats, loadUserStats: loadPostStats } = usePostStats()
 const profile = ref<UserInfo | null>(null)
 const loading = ref(true)
 const activeTab = ref('works')
+const mutualFollowing = ref(false)
 
 const posts = ref<PostVO[]>([])
 const favorites = ref<PostVO[]>([])
@@ -171,9 +182,10 @@ onMounted(async () => {
     await loadFavorites(userId)
     // 加载帖子统计（获赞、浏览）
     await loadPostStats(userId)
-    // 非本人时查询关注状态
+    // 非本人时查询关注状态 + 互相关注状态
     if (!isSelf.value) {
       await checkFollowing(userId)
+      await loadMutualFollowing(userId)
     }
   } catch {
     ElMessage.error('加载用户信息失败')
@@ -219,13 +231,28 @@ function onTabChange(tab: string) {
 }
 
 function toggleFollow() {
-  doFollow(String(route.params.id), (nowFollowing) => {
+  doFollow(String(route.params.id), async (nowFollowing) => {
     if (profile.value) {
       profile.value.followerCount = nowFollowing
         ? (profile.value.followerCount || 0) + 1
         : Math.max((profile.value.followerCount || 0) - 1, 0)
     }
+    // 关注状态变化后重新拉取互相关注
+    await loadMutualFollowing(String(route.params.id))
   })
+}
+
+async function loadMutualFollowing(userId: string) {
+  try {
+    mutualFollowing.value = (await isMutualFollowing(userId)) === true
+  } catch {
+    mutualFollowing.value = false
+  }
+}
+
+function goPrivateChat() {
+  if (!mutualFollowing.value) return
+  to(`/messages/chat?peerId=${route.params.id}`)
 }
 
 function goToCreatePost() {
@@ -323,7 +350,12 @@ function goToPost(post: PostVO) {
 }
 
 /* right actions */
-.pc-right { flex-shrink: 0; }
+.pc-right {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 .pc-action-btn {
   padding: 8px 24px;
   border-radius: 8px;
@@ -338,6 +370,42 @@ function goToPost(post: PostVO) {
 .pc-action-btn:hover {
   background: rgba(255,255,255,0.35);
   transform: translateY(-1px);
+}
+
+/* 私信按钮：与 FollowButton 协调的粉紫色系 */
+.pc-dm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 14px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  background: var(--card);
+  color: var(--pink);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px var(--shadow);
+  flex-shrink: 0;
+}
+.pc-dm-btn:hover:not(.disabled) {
+  transform: scale(1.05);
+  border-color: var(--pink);
+  background: var(--pink-bg);
+  box-shadow: 0 4px 16px var(--shadow-lg);
+}
+.pc-dm-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  color: var(--text-dim);
+  background: var(--card);
+  border-color: var(--border-light);
+  box-shadow: none;
+}
+.pc-dm-icon {
+  width: 14px;
+  height: 14px;
 }
 
 /* avatar */

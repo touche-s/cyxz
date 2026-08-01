@@ -10,31 +10,40 @@
           <p class="pm-side-sub">和同好聊聊吧</p>
           <div class="pm-search">
             <Icon icon="ph:magnifying-glass" class="pm-search-icon" />
-            <input type="text" class="pm-search-input" placeholder="搜索对话..." />
+            <input v-model="searchKeyword" type="text" class="pm-search-input" placeholder="搜索对话..." />
           </div>
         </div>
         <div class="pm-side-label">最近消息</div>
         <div class="pm-conv-list">
           <div
-            v-for="conv in conversations"
+            v-for="conv in filteredConversations"
             :key="conv.id"
             class="pm-conv-item"
             :class="{ active: selectedId === conv.id }"
-            @click="selectConv(conv.id)"
+            @click="selectConv(conv)"
           >
-            <div class="pm-conv-avatar" :style="{ background: conv.avatarGrad }">
-              {{ conv.avatarChar }}
+            <img
+              v-if="conv.peerAvatar"
+              :src="avatarUrl(conv.peerAvatar)"
+              alt="avatar"
+              class="pm-conv-avatar pm-conv-avatar--img"
+            />
+            <div v-else class="pm-conv-avatar" :style="{ background: avatarGrad(conv.peerName) }">
+              {{ (conv.peerName || 'U').charAt(0) }}
             </div>
             <div class="pm-conv-main">
               <div class="pm-conv-top">
-                <span class="pm-conv-name">{{ conv.name }}</span>
-                <span class="pm-conv-time">{{ conv.time }}</span>
+                <span class="pm-conv-name">{{ conv.peerName }}</span>
+                <span class="pm-conv-time">{{ formatTime(conv.lastMessageAt) }}</span>
               </div>
               <div class="pm-conv-bottom">
                 <span class="pm-conv-preview">{{ conv.lastMessage }}</span>
-                <span v-if="conv.unread > 0" class="pm-conv-badge">{{ conv.unread > 99 ? '99+' : conv.unread }}</span>
+                <span v-if="conv.unreadCount > 0" class="pm-conv-badge">{{ conv.unreadCount > 99 ? '99+' : conv.unreadCount }}</span>
               </div>
             </div>
+          </div>
+          <div v-if="!loadingConvs && filteredConversations.length === 0" class="pm-conv-empty">
+            还没有私信对话
           </div>
         </div>
       </div>
@@ -45,15 +54,17 @@
             <button v-if="isMobile" class="pm-chat-back" @click="showChat = false">
               <Icon icon="ph:arrow-left" />
             </button>
-            <div class="pm-chat-avatar-sm" :style="{ background: selectedConv.avatarGrad }">
-              {{ selectedConv.avatarChar }}
+            <img
+              v-if="selectedConv.peerAvatar"
+              :src="avatarUrl(selectedConv.peerAvatar)"
+              alt="avatar"
+              class="pm-chat-avatar-sm pm-chat-avatar-sm--img"
+            />
+            <div v-else class="pm-chat-avatar-sm" :style="{ background: avatarGrad(selectedConv.peerName) }">
+              {{ (selectedConv.peerName || 'U').charAt(0) }}
             </div>
             <div class="pm-chat-hd-info">
-              <span class="pm-chat-hd-name">{{ selectedConv.name }}</span>
-              <span class="pm-chat-hd-status">
-                <span class="pm-status-dot"></span>
-                {{ selectedConv.status }}
-              </span>
+              <span class="pm-chat-hd-name">{{ selectedConv.peerName }}</span>
             </div>
             <div class="pm-chat-hd-actions">
               <button class="pm-hd-btn"><Icon icon="ph:magnifying-glass" /></button>
@@ -62,17 +73,17 @@
           </div>
 
           <div class="pm-chat-body" ref="chatBody">
-            <div class="pm-time-sep"><span>{{ selectedConv.timeLabel }}</span></div>
+            <div v-if="messages.length > 0" class="pm-time-sep"><span>{{ formatDateLabel(messages[0].createTime) }}</span></div>
             <div
-              v-for="msg in selectedConv.messages"
+              v-for="msg in messages"
               :key="msg.id"
               class="pm-msg"
-              :class="{ 'pm-msg--self': msg.sender === 'self' }"
+              :class="{ 'pm-msg--self': isSelfMessage(msg) }"
             >
               <div class="pm-msg-bubble">
                 {{ msg.content }}
               </div>
-              <span class="pm-msg-time">{{ msg.time }}</span>
+              <span class="pm-msg-time">{{ formatMsgTime(msg.createTime) }}</span>
             </div>
           </div>
 
@@ -87,12 +98,12 @@
                 type="text"
                 class="pm-ft-input"
                 placeholder="发一条友善的消息吧~"
-                @keydown.enter="sendMessage"
+                @keydown.enter="handleSend"
               />
               <button
                 class="pm-ft-send"
-                :class="{ disabled: !newMessage.trim() }"
-                @click="sendMessage"
+                :class="{ disabled: !newMessage.trim() || sending }"
+                @click="handleSend"
               >
                 发送
               </button>
@@ -113,151 +124,108 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
+import { ElMessage } from 'element-plus'
+import {
+  getConversations,
+  getMessages,
+  sendMessage as apiSendMessage,
+  markRead,
+} from '@/api/chat'
+import type { ConversationVO, ChatMessageVO } from '@/api/chat'
+import { useChatWebSocket } from '@/composables/useChatWebSocket'
+import { useUserStore } from '@/stores/user'
+import { avatarUrl } from '@/utils/avatar'
+import { formatTime } from '@/utils/format'
 
-interface Message {
-  id: number
-  sender: 'self' | 'other'
-  content: string
-  time: string
-}
-
-interface Conversation {
-  id: number
-  name: string
-  avatarChar: string
-  avatarGrad: string
-  lastMessage: string
-  time: string
-  timeLabel: string
-  unread: number
-  status: string
-  messages: Message[]
-}
+const route = useRoute()
+const userStore = useUserStore()
+const { onMessage } = useChatWebSocket()
 
 const chatBody = ref<HTMLElement>()
 
-const conversations = ref<Conversation[]>([
-  {
-    id: 1,
-    name: '星野爱',
-    avatarChar: '星',
-    avatarGrad: 'linear-gradient(135deg, #f9a8d4, #c4b5fd)',
-    lastMessage: '那个新番的作画真的太绝了！逐帧都是壁纸级别',
-    time: '2分钟前',
-    timeLabel: '今天 14:32',
-    unread: 2,
-    status: '正在浏览圈子',
-    messages: [
-      { id: 1, sender: 'other', content: '你看这季度的《星屑幻想》了吗？', time: '14:20' },
-      { id: 2, sender: 'self', content: '看了看了！第一集就被震撼到了，那个星空场景美到窒息 😭', time: '14:22' },
-      { id: 3, sender: 'other', content: '对吧对吧！而且 BGM 也超神，我已经循环 OST 了', time: '14:24' },
-      { id: 4, sender: 'self', content: '制作组是真的下了功夫，每个角色的微表情都画得好细腻', time: '14:26' },
-      { id: 5, sender: 'other', content: '下集预告里那个新角色也好期待！好像是千夏配的音', time: '14:28' },
-      { id: 6, sender: 'self', content: '啊真的吗？！千夏的声音确实很适合这种温柔系角色', time: '14:30' },
-      { id: 7, sender: 'other', content: '那个新番的作画真的太绝了！逐帧都是壁纸级别', time: '14:32' },
-    ],
-  },
-  {
-    id: 2,
-    name: '千夏',
-    avatarChar: '千',
-    avatarGrad: 'linear-gradient(135deg, #a5f3fc, #c4b5fd)',
-    lastMessage: '我也超喜欢这个角色的，尤其是她那种不服输的性格',
-    time: '12分钟前',
-    timeLabel: '今天 14:18',
-    unread: 1,
-    status: '在线',
-    messages: [
-      { id: 1, sender: 'other', content: '你推的那个角色我也开始喜欢了！', time: '14:10' },
-      { id: 2, sender: 'self', content: '哈哈我就说吧，她塑造得太有层次感了', time: '14:12' },
-      { id: 3, sender: 'other', content: '我也超喜欢这个角色的，尤其是她那种不服输的性格', time: '14:18' },
-    ],
-  },
-  {
-    id: 3,
-    name: '阿澈',
-    avatarChar: '澈',
-    avatarGrad: 'linear-gradient(135deg, #fde68a, #f9a8d4)',
-    lastMessage: '周末一起去漫展吗？听说有超多限定周边',
-    time: '1小时前',
-    timeLabel: '今天 13:45',
-    unread: 0,
-    status: '离线',
-    messages: [
-      { id: 1, sender: 'self', content: '最近有啥好看的番推荐吗？', time: '13:30' },
-      { id: 2, sender: 'other', content: '强推《幻境旅人》！剧情反转超精彩，我一天刷完了', time: '13:35' },
-      { id: 3, sender: 'self', content: '听起来不错，正好周末没事，安排上', time: '13:40' },
-      { id: 4, sender: 'other', content: '周末一起去漫展吗？听说有超多限定周边', time: '13:45' },
-    ],
-  },
-  {
-    id: 4,
-    name: '小原好美推',
-    avatarChar: '推',
-    avatarGrad: 'linear-gradient(135deg, #f9a8d4, #fda4af)',
-    lastMessage: '谢谢你推荐的那部番！我已经看到第五集了',
-    time: '3小时前',
-    timeLabel: '今天 11:20',
-    unread: 3,
-    status: '正在写同人文',
-    messages: [
-      { id: 1, sender: 'other', content: '你有没有那种看完之后久久走不出来的番？', time: '11:00' },
-      { id: 2, sender: 'self', content: '必须有！《星屑幻想》前身的那部《银河少年》就是，结尾那段我哭了好久', time: '11:05' },
-      { id: 3, sender: 'other', content: '啊啊啊我知道那部！导演的叙事手法太厉害了，当年拿奖拿了一堆', time: '11:10' },
-      { id: 4, sender: 'self', content: '对对对，而且配乐是梶浦由记做的，每一首都值得单曲循环', time: '11:15' },
-      { id: 5, sender: 'other', content: '谢谢你推荐的那部番！我已经看到第五集了', time: '11:20' },
-    ],
-  },
-  {
-    id: 5,
-    name: '次元速报',
-    avatarChar: '速',
-    avatarGrad: 'linear-gradient(135deg, #c084fc, #a78bfa)',
-    lastMessage: '本周热门话题：「新番推荐」大家最期待哪部？',
-    time: '昨天',
-    timeLabel: '昨天 20:30',
-    unread: 0,
-    status: '官方账号',
-    messages: [
-      { id: 1, sender: 'other', content: '🎉 本周热门圈子已更新！快来看看有没有你喜欢的作品上榜', time: '20:00' },
-      { id: 2, sender: 'other', content: '🏆 本周 Top 3：1. 星屑幻想 2. 幻境旅人 3. 魔法少女养成记', time: '20:05' },
-      { id: 3, sender: 'other', content: '本周热门话题：「新番推荐」大家最期待哪部？', time: '20:30' },
-    ],
-  },
-])
-
-const selectedId = ref(1)
+const conversations = ref<ConversationVO[]>([])
+const messages = ref<ChatMessageVO[]>([])
+const selectedId = ref<number | null>(null)
 const newMessage = ref('')
+const sending = ref(false)
+const loadingConvs = ref(false)
+const searchKeyword = ref('')
 const isMobile = ref(false)
 const showChat = ref(false)
 
-const selectedConv = computed(() => conversations.value.find(c => c.id === selectedId.value))
+let mqListener: ((e: MediaQueryListEvent) => void) | null = null
+let wsOff: (() => void) | null = null
 
-function selectConv(id: number) {
-  selectedId.value = id
-  if (isMobile.value) showChat.value = true
-  nextTick(() => scrollToBottom())
+const currentUserId = computed(() =>
+  String(userStore.userInfo?.id || userStore.userInfo?.userId || '')
+)
+
+const filteredConversations = computed(() => {
+  const kw = searchKeyword.value.trim().toLowerCase()
+  if (!kw) return conversations.value
+  return conversations.value.filter(
+    (c) =>
+      (c.peerName || '').toLowerCase().includes(kw) ||
+      (c.lastMessage || '').toLowerCase().includes(kw)
+  )
+})
+
+const selectedConv = computed(
+  () => conversations.value.find((c) => c.id === selectedId.value) || null
+)
+
+function isSelfMessage(msg: ChatMessageVO): boolean {
+  return String(msg.senderId) === currentUserId.value
 }
 
-function sendMessage() {
-  const text = newMessage.value.trim()
-  if (!text || !selectedConv.value) return
+function formatMsgTime(time: string): string {
+  if (!time) return ''
+  const d = new Date(time)
+  const h = String(d.getHours()).padStart(2, '0')
+  const m = String(d.getMinutes()).padStart(2, '0')
+  return `${h}:${m}`
+}
+
+function formatDateLabel(time: string): string {
+  if (!time) return ''
+  const d = new Date(time)
   const now = new Date()
-  const h = String(now.getHours()).padStart(2, '0')
-  const m = String(now.getMinutes()).padStart(2, '0')
-  const timeStr = `${h}:${m}`
-  selectedConv.value.messages.push({
-    id: Date.now(),
-    sender: 'self',
-    content: text,
-    time: timeStr,
-  })
-  selectedConv.value.lastMessage = text
-  selectedConv.value.time = '刚刚'
-  newMessage.value = ''
-  nextTick(() => scrollToBottom())
+  const isToday =
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  if (isToday) return '今天'
+  const yest = new Date(now)
+  yest.setDate(now.getDate() - 1)
+  const isYesterday =
+    d.getFullYear() === yest.getFullYear() &&
+    d.getMonth() === yest.getMonth() &&
+    d.getDate() === yest.getDate()
+  if (isYesterday) return '昨天'
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${m}-${day}`
+}
+
+// 粉紫色系字母头像渐变（peerAvatar 缺省时使用）
+const AVATAR_GRADIENTS = [
+  'linear-gradient(135deg, #f9a8d4, #c4b5fd)',
+  'linear-gradient(135deg, #a5f3fc, #c4b5fd)',
+  'linear-gradient(135deg, #fde68a, #f9a8d4)',
+  'linear-gradient(135deg, #f9a8d4, #fda4af)',
+  'linear-gradient(135deg, #c084fc, #a78bfa)',
+  'linear-gradient(135deg, #ff8ac8, #c084fc)',
+]
+function avatarGrad(name: string): string {
+  if (!name) return AVATAR_GRADIENTS[0]
+  let hash = 0
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash * 31 + name.charCodeAt(i)) >>> 0
+  }
+  return AVATAR_GRADIENTS[hash % AVATAR_GRADIENTS.length]
 }
 
 function scrollToBottom() {
@@ -266,11 +234,147 @@ function scrollToBottom() {
   }
 }
 
-onMounted(() => {
+async function loadConversations(): Promise<ConversationVO[]> {
+  loadingConvs.value = true
+  try {
+    const list = await getConversations()
+    conversations.value = Array.isArray(list) ? list : []
+  } catch {
+    ElMessage.error('加载会话列表失败')
+    conversations.value = []
+  } finally {
+    loadingConvs.value = false
+  }
+  return conversations.value
+}
+
+async function loadMessages(convId: number) {
+  try {
+    const data = await getMessages(convId, { page: 1, size: 50 })
+    messages.value = (data?.records || []).reverse()
+  } catch {
+    messages.value = []
+  }
+  nextTick(() => scrollToBottom())
+}
+
+async function selectConv(conv: ConversationVO) {
+  if (!conv) return
+  selectedId.value = conv.id
+  if (isMobile.value) showChat.value = true
+  await loadMessages(conv.id)
+  // 进入会话后标记已读
+  if (conv.unreadCount > 0) {
+    try {
+      await markRead(conv.id)
+      conv.unreadCount = 0
+    } catch { /* ignore */ }
+  }
+}
+
+async function handleSend() {
+  const text = newMessage.value.trim()
+  if (!text || sending.value || !selectedConv.value) return
+  sending.value = true
+  const conv = selectedConv.value
+  const tempId = Date.now()
+  // 乐观插入
+  const optimistic: ChatMessageVO = {
+    id: tempId,
+    conversationId: conv.id,
+    senderId: currentUserId.value,
+    receiverId: conv.peerId,
+    content: text,
+    read: false,
+    createTime: new Date().toISOString(),
+  }
+  messages.value.push(optimistic)
+  conv.lastMessage = text
+  conv.lastMessageAt = optimistic.createTime
+  newMessage.value = ''
+  nextTick(() => scrollToBottom())
+  try {
+    const saved = await apiSendMessage({ receiverId: conv.peerId, content: text })
+    if (saved) {
+      const idx = messages.value.findIndex((m) => m.id === tempId)
+      if (idx >= 0) messages.value.splice(idx, 1, saved)
+    }
+  } catch {
+    ElMessage.error('发送失败，请稍后重试')
+    const idx = messages.value.findIndex((m) => m.id === tempId)
+    if (idx >= 0) messages.value.splice(idx, 1)
+    newMessage.value = text
+  } finally {
+    sending.value = false
+  }
+}
+
+function findConvByPeerId(peerId: string): ConversationVO | undefined {
+  return conversations.value.find((c) => String(c.peerId) === String(peerId))
+}
+
+/** WebSocket 推送处理：当前会话窗口 append + markRead；其它会话未读 +1 */
+function handleWsMessage(msg: ChatMessageVO) {
+  if (!msg) return
+  const convId = msg.conversationId
+  const conv = conversations.value.find((c) => c.id === convId)
+  // 更新会话最后消息
+  if (conv) {
+    conv.lastMessage = msg.content
+    conv.lastMessageAt = msg.createTime
+  }
+  if (selectedId.value === convId) {
+    // 当前正在该会话窗口
+    const exists = messages.value.some((m) => m.id === msg.id)
+    if (!exists) {
+      messages.value.push(msg)
+    }
+    nextTick(() => scrollToBottom())
+    if (!isSelfMessage(msg)) {
+      markRead(convId).catch(() => {})
+      if (conv) conv.unreadCount = 0
+    }
+  } else if (conv && !isSelfMessage(msg)) {
+    conv.unreadCount = (conv.unreadCount || 0) + 1
+  }
+  // 会话列表里没有这条会话（新会话），重新拉取列表
+  if (!conv) {
+    loadConversations()
+  }
+}
+
+onMounted(async () => {
   const mq = window.matchMedia('(max-width: 768px)')
   isMobile.value = mq.matches
-  mq.addEventListener('change', (e) => { isMobile.value = e.matches })
-  nextTick(() => scrollToBottom())
+  mqListener = (e) => { isMobile.value = e.matches }
+  mq.addEventListener('change', mqListener)
+
+  await loadConversations()
+
+  // URL query 参数 peerId 优先打开该用户的会话
+  const peerIdParam = route.query.peerId
+  if (peerIdParam) {
+    const target = findConvByPeerId(String(peerIdParam))
+    if (target) {
+      await selectConv(target)
+    } else if (conversations.value.length === 0) {
+      ElMessage.info('暂无与该用户的会话记录')
+    }
+  } else if (conversations.value.length > 0) {
+    await selectConv(conversations.value[0])
+  }
+
+  // 启动 WebSocket
+  wsOff = onMessage(handleWsMessage)
+  connect()
+})
+
+onUnmounted(() => {
+  if (mqListener) {
+    window.matchMedia('(max-width: 768px)').removeEventListener('change', mqListener)
+    mqListener = null
+  }
+  if (wsOff) { wsOff(); wsOff = null }
 })
 </script>
 
@@ -422,6 +526,19 @@ onMounted(() => {
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
+.pm-conv-avatar--img {
+  object-fit: cover;
+  color: transparent;
+  font-size: 0;
+}
+
+.pm-conv-empty {
+  padding: 40px 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
 .pm-conv-main {
   flex: 1;
   min-width: 0;
@@ -536,6 +653,12 @@ onMounted(() => {
   font-weight: 800;
   flex-shrink: 0;
   box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+.pm-chat-avatar-sm--img {
+  object-fit: cover;
+  color: transparent;
+  font-size: 0;
 }
 
 .pm-chat-hd-info {
