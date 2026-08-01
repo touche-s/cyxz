@@ -1,5 +1,41 @@
 <template>
-  <div class="card" :class="{ 'card--small': size === 'small' }" @click="$emit('click', post)">
+  <!-- 长文卡片：水平布局 -->
+  <div v-if="post.postType === 'ARTICLE'" class="card article-card" :class="{ 'card--small': size === 'small' }" @click="handleClick">
+    <div class="article-card-inner">
+      <div class="article-cover" v-if="post.cover">
+        <img :src="post.cover" class="article-cover-img" alt="cover" />
+      </div>
+      <div class="article-body">
+        <div class="article-title-row">
+          <span class="card-type-badge">长文</span>
+          <span class="article-title">{{ post.title }}</span>
+        </div>
+        <p class="article-summary">{{ articleSummary }}</p>
+        <div class="article-meta">
+          <div class="card-author">
+            <img :src="avatarUrl(post.authorAvatar)" class="card-avatar clickable" alt="avatar" @click.stop="goToAuthor" />
+            <span class="card-author-name clickable" @click.stop="goToAuthor">{{ post.authorName || '匿名用户' }}</span>
+          </div>
+          <div class="card-stats">
+            <button
+              v-if="showLike"
+              class="like-btn"
+              :class="{ active: post.liked, popping: likePopping[post.id] }"
+              @click.stop="handleLike(post)"
+            >
+              <Icon icon="ph:heart" class="stat-icon pink-icon" v-show="!post.liked" />
+              <Icon icon="ph:heart-fill" class="stat-icon pink-icon" v-show="post.liked" />
+              {{ formatNumber(post.likes) }}
+            </button>
+            <span><Icon icon="ph:eye" class="stat-icon pink-icon" />{{ formatNumber(post.views) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 图文卡片：原有布局 -->
+  <div v-else class="card" :class="{ 'card--small': size === 'small' }" @click="$emit('click', post)">
     <div class="card-cover">
       <img v-if="post.cover" :src="post.cover" class="img" alt="cover" />
       <div v-else class="img" :style="{ background: getGradient(post.id) }"></div>
@@ -15,10 +51,7 @@
       </button>
     </div>
     <div class="card-body">
-      <div class="card-title">
-        <span class="card-type-badge" v-if="post.postType === 'ARTICLE'">长文</span>
-        {{ post.title }}
-      </div>
+      <div class="card-title">{{ post.title }}</div>
       <div class="card-tags">
         <span class="card-tag" v-for="tag in (post.tags || []).slice(0, 3)" :key="tag">{{ tag }}</span>
       </div>
@@ -46,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { PostVO } from '@/api/post'
 import { formatNumber } from '@/utils/format'
@@ -63,17 +96,42 @@ const props = defineProps<{
 
 const { open } = useNavigate()
 
-function goToAuthor() {
-  if (props.post.userId) {
-    open(`/user/${props.post.userId}`)
-  }
-}
-
 const emit = defineEmits<{
   click: [post: PostVO]
   like: [post: PostVO]
   collect: [post: PostVO]
 }>()
+
+// 长文摘要：去除 Markdown 语法后截取
+const articleSummary = computed(() => {
+  const raw = props.post.content || ''
+  // 去除 Markdown 标题、加粗、链接、图片等语法
+  const plain = raw
+    .replace(/#{1,6}\s+/g, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    .replace(/!\[.*?\]\(.*?\)/g, '')
+    .replace(/\[([^\]]+)\]\(.*?\)/g, '$1')
+    .replace(/`{1,3}[^`]*`{1,3}/g, '')
+    .replace(/~~(.+?)~~/g, '$1')
+    .replace(/^[>\s-]+/gm, '')
+    .replace(/\n+/g, ' ')
+    .trim()
+  return plain.length > 140 ? plain.slice(0, 140) + '...' : plain
+})
+
+function handleClick() {
+  // 长文跳转到 /article/:id
+  open(`/article/${props.post.id}`)
+}
+
+function goToAuthor() {
+  if (props.post.userId) {
+    open(`/user/${props.post.userId}`)
+  }
+}
 
 const likePopping = reactive<Record<string, boolean>>({})
 const collectPopping = reactive<Record<string, boolean>>({})
@@ -421,5 +479,100 @@ const getGradient = (id: string | number) => {
 
 .card-save.popping .collect-icon {
   animation: collectPop 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===== 长文卡片 ===== */
+.article-card {
+  cursor: pointer;
+}
+
+.article-card-inner {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  align-items: stretch;
+}
+
+.article-cover {
+  flex-shrink: 0;
+  width: 160px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.article-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s;
+}
+
+.article-card:hover .article-cover-img {
+  transform: scale(1.04);
+}
+
+.article-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.article-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.article-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.article-summary {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  flex: 1;
+}
+
+.article-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+}
+
+/* small 尺寸长文卡 */
+.card--small .article-card-inner {
+  padding: 12px;
+  gap: 12px;
+}
+
+.card--small .article-cover {
+  width: 120px;
+}
+
+.card--small .article-title {
+  font-size: 13px;
+}
+
+.card--small .article-summary {
+  font-size: 12px;
+  -webkit-line-clamp: 2;
 }
 </style>
