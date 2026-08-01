@@ -31,12 +31,6 @@
     </aside>
 
     <main class="admin-main">
-      <!-- 统一工具栏 -->
-      <div class="toolbar">
-        <SearchInput v-model="searchKeyword" variant="inline" :placeholder="searchPlaceholder" />
-        <button class="toolbar-btn" @click="refreshCurrentTab" title="刷新"><Icon icon="ph:arrows-clockwise" /></button>
-      </div>
-
       <!-- 圈子管理 -->
       <section v-if="activeTab === 'circles'" class="admin-section">
         <div class="section-head">
@@ -44,10 +38,14 @@
             <h2>圈子管理</h2>
             <p class="section-desc">共 {{ filteredCircles.length }} 个圈子</p>
           </div>
-          <button class="create-btn" @click="openCreateCircle">
-            <Icon icon="ph:plus" />
-            新建圈子
-          </button>
+          <div class="section-head-right">
+            <SearchInput v-model="searchKeyword" variant="inline" :placeholder="searchPlaceholder" />
+            <button class="toolbar-btn" @click="refreshCurrentTab" title="刷新"><Icon icon="ph:arrows-clockwise" /></button>
+            <button class="create-btn" @click="openCreateCircle">
+              <Icon icon="ph:plus" />
+              新建圈子
+            </button>
+          </div>
         </div>
 
         <LoadingSpinner v-if="circleLoading && circles.length === 0" />
@@ -94,10 +92,14 @@
             <h2>板块模板管理</h2>
             <p class="section-desc">共 {{ sectionTemplates.length }} 个模板</p>
           </div>
-          <button class="create-btn" @click="showSectionTemplateForm = true" v-if="!showSectionTemplateForm">
-            <Icon icon="ph:plus" />
-            新建模板
-          </button>
+          <div class="section-head-right">
+            <SearchInput v-model="searchKeyword" variant="inline" :placeholder="searchPlaceholder" />
+            <button class="toolbar-btn" @click="refreshCurrentTab" title="刷新"><Icon icon="ph:arrows-clockwise" /></button>
+            <button class="create-btn" @click="showSectionTemplateForm = true" v-if="!showSectionTemplateForm">
+              <Icon icon="ph:plus" />
+              新建模板
+            </button>
+          </div>
         </div>
 
         <div v-if="showSectionTemplateForm" class="form-card">
@@ -168,6 +170,10 @@
             <h2>内容审核</h2>
             <p class="section-desc">共 {{ reviewPosts.length }} 条待审核</p>
           </div>
+          <div class="section-head-right">
+            <SearchInput v-model="searchKeyword" variant="inline" :placeholder="searchPlaceholder" />
+            <button class="toolbar-btn" @click="refreshCurrentTab" title="刷新"><Icon icon="ph:arrows-clockwise" /></button>
+          </div>
         </div>
         <LoadingSpinner v-if="reviewLoading && reviewPosts.length === 0" />
         <div v-else class="table-wrap">
@@ -206,6 +212,10 @@
           <div>
             <h2>用户管理</h2>
             <p class="section-desc">共 {{ users.length }} 个用户</p>
+          </div>
+          <div class="section-head-right">
+            <SearchInput v-model="searchKeyword" variant="inline" :placeholder="searchPlaceholder" />
+            <button class="toolbar-btn" @click="refreshCurrentTab" title="刷新"><Icon icon="ph:arrows-clockwise" /></button>
           </div>
         </div>
         <LoadingSpinner v-if="userLoading" />
@@ -818,6 +828,12 @@ onMounted(() => {
   margin: 6px 0 0;
 }
 
+.section-head-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .create-btn {
   display: flex;
   align-items: center;
@@ -835,14 +851,6 @@ onMounted(() => {
 }
 
 .create-btn:hover { opacity: 0.9; transform: translateY(-1px); }
-
-/* ===== 工具栏 ===== */
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 12px;
-}
 
 .toolbar-btn {
   width: 36px;
