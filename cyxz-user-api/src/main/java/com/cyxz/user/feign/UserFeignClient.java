@@ -50,4 +50,15 @@ public interface UserFeignClient {
      */
     @GetMapping("/user/internal/following-ids")
     Result<List<Long>> getFollowingUserIds(@RequestParam("userId") Long userId);
+
+    /**
+     * 查询两个用户是否互相关注（内部接口，供私信服务调用）
+     *
+     * @param userId       当前用户 ID
+     * @param targetUserId 目标用户 ID
+     * @return true=互相关注
+     */
+    @GetMapping("/user/internal/follow/mutual")
+    Result<Boolean> isMutualFollowing(@RequestParam("userId") Long userId,
+                                      @RequestParam("targetUserId") Long targetUserId);
 }

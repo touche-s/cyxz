@@ -51,6 +51,11 @@ public class UserFeignClientFallbackFactory implements FallbackFactory<UserFeign
             public Result<List<Long>> getFollowingUserIds(Long userId) {
                 return Result.success(Collections.emptyList());
             }
+
+            @Override
+            public Result<Boolean> isMutualFollowing(Long userId, Long targetUserId) {
+                return Result.success(false);
+            }
         };
     }
 }

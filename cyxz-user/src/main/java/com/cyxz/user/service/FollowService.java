@@ -38,6 +38,15 @@ public interface FollowService {
     boolean isFollowing(Long userId, Long targetUserId);
 
     /**
+     * 查询两个用户是否互相关注
+     *
+     * @param userId       当前用户 ID
+     * @param targetUserId 目标用户 ID
+     * @return true=互相关注
+     */
+    boolean isMutualFollowing(Long userId, Long targetUserId);
+
+    /**
      * 统计当前用户的关注数
      *
      * @param userId 用户 ID

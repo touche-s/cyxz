@@ -48,6 +48,8 @@ public class RouteConfig {
                         .and().not(p -> p.path("/api/*/internal/**"))
                         .filters(f -> f.stripPrefix(1))
                         .uri("lb://cyxz-upload"))
+                .route("chat-ws", r -> r.path("/ws/message/**")
+                        .uri("lb://cyxz-message"))
                 .build();
     }
 }

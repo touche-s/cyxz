@@ -158,6 +158,14 @@ public class FollowServiceImpl implements FollowService {
     }
 
     /**
+     * 查询两个用户是否互相关注
+     */
+    @Override
+    public boolean isMutualFollowing(Long userId, Long targetUserId) {
+        return isFollowing(userId, targetUserId) && isFollowing(targetUserId, userId);
+    }
+
+    /**
      * 统计当前用户的关注数
      *
      * @param userId 用户 ID

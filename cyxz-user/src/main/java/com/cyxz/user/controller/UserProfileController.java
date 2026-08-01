@@ -131,6 +131,20 @@ public class UserProfileController {
     }
 
     /**
+     * 查询两个用户是否互相关注
+     * <p>前端 ProfilePage 私信按钮判断用。
+     *
+     * @param targetUserId 目标用户 ID
+     * @param userId       当前登录用户 ID（由 Gateway 注入）
+     * @return 是否互相关注
+     */
+    @GetMapping("/{targetUserId}/is-mutual-following")
+    public Result<Boolean> isMutualFollowing(@PathVariable("targetUserId") Long targetUserId,
+                                              @CurrentUser Long userId) {
+        return Result.success(followService.isMutualFollowing(userId, targetUserId));
+    }
+
+    /**
      * 查询当前用户的关注列表
      *
      * @param userId 当前登录用户 ID（由 Gateway 注入）

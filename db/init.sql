@@ -283,3 +283,30 @@ CREATE TABLE IF NOT EXISTS notification (
     INDEX idx_receiver_type (receiver_id, type, create_time),
     UNIQUE INDEX uk_dedup (receiver_id, sender_id, type, target_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='通知表';
+
+CREATE TABLE IF NOT EXISTS conversation (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '会话 ID',
+    user_id_1 BIGINT NOT NULL COMMENT '用户 ID（较小值，保证 user_id_1 < user_id_2）',
+    user_id_2 BIGINT NOT NULL COMMENT '用户 ID（较大值）',
+    last_message TEXT COMMENT '最后一条消息内容（冗余，会话列表预览用）',
+    last_message_at DATETIME COMMENT '最后消息时间（排序用）',
+    unread_count_1 INT NOT NULL DEFAULT 0 COMMENT '用户1的未读消息数',
+    unread_count_2 INT NOT NULL DEFAULT 0 COMMENT '用户2的未读消息数',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE INDEX uk_users (user_id_1, user_id_2),
+    INDEX idx_user1_time (user_id_1, last_message_at),
+    INDEX idx_user2_time (user_id_2, last_message_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='私信会话表';
+
+CREATE TABLE IF NOT EXISTS private_message (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '消息 ID',
+    conversation_id BIGINT NOT NULL COMMENT '所属会话 ID',
+    sender_id BIGINT NOT NULL COMMENT '发送者用户 ID',
+    receiver_id BIGINT NOT NULL COMMENT '接收者用户 ID',
+    content TEXT NOT NULL COMMENT '消息内容',
+    is_read TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否已读：0=未读 1=已读',
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发送时间',
+    INDEX idx_conversation_time (conversation_id, create_time),
+    INDEX idx_receiver_read (receiver_id, is_read)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='私信消息表';
