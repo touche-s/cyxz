@@ -22,10 +22,11 @@ public interface UploadService {
     /**
      * 上传帖子图片
      *
-     * @param file 图片文件
+     * @param file   图片文件
+     * @param userId 当前用户 ID（用于路径归属校验）
      * @return 文件访问 URL
      */
-    String uploadPostImage(MultipartFile file);
+    String uploadPostImage(MultipartFile file, Long userId);
 
     /**
      * 删除文件

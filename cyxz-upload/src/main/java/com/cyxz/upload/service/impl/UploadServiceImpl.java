@@ -50,10 +50,11 @@ public class UploadServiceImpl implements UploadService {
     }
 
     @Override
-    public String uploadPostImage(MultipartFile file) {
+    public String uploadPostImage(MultipartFile file, Long userId) {
         validateImage(file, "帖子图片");
         String datePath = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM"));
-        String objectName = "post/image/" + datePath + "/" + generateFileName(file);
+        // 路径含 userId 用于删除时校验归属，防止越权删除他人图片
+        String objectName = "post/image/" + userId + "/" + datePath + "/" + generateFileName(file);
         return upload(file, objectName);
     }
 

@@ -44,8 +44,9 @@ public class UploadController {
      * @return 文件访问 URL
      */
     @PostMapping("/post-image")
-    public Result<String> uploadPostImage(@RequestParam("file") MultipartFile file) {
-        String url = uploadService.uploadPostImage(file);
+    public Result<String> uploadPostImage(@RequestParam("file") MultipartFile file,
+                                          @CurrentUser Long userId) {
+        String url = uploadService.uploadPostImage(file, userId);
         return Result.success("操作成功", url);
     }
 
@@ -66,9 +67,10 @@ public class UploadController {
         }
         String objectName = url.substring(prefix.length());
 
-        // 头像文件校验归属：avatar/{userId}/...
-        if (objectName.startsWith("avatar/")) {
-            String remaining = objectName.substring("avatar/".length());
+        // 校验文件归属：avatar/{userId}/... 和 post/image/{userId}/...
+        if (objectName.startsWith("avatar/") || objectName.startsWith("post/image/")) {
+            String pathPrefix = objectName.startsWith("avatar/") ? "avatar/" : "post/image/";
+            String remaining = objectName.substring(pathPrefix.length());
             int slashIdx = remaining.indexOf('/');
             if (slashIdx > 0) {
                 String ownerIdStr = remaining.substring(0, slashIdx);

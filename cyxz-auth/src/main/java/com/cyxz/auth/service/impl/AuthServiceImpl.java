@@ -8,7 +8,7 @@ import com.cyxz.auth.dto.RegisterRequest;
 import com.cyxz.auth.entity.SysUserPO;
 import com.cyxz.auth.mapper.SysUserMapper;
 import com.cyxz.auth.service.AuthService;
-import com.cyxz.auth.util.JwtUtil;
+import com.cyxz.auth.utils.JwtUtil;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
@@ -181,6 +181,10 @@ public class AuthServiceImpl implements AuthService {
         SysUserPO user = sysUserMapper.selectById(userId);
         if (user == null) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
+        // 刷新时校验用户状态，禁用用户不能无限刷新 Token
+        if (user.getStatus() != null && user.getStatus() != 1) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "账号已被禁用");
         }
 
         jwtUtil.blacklistToken(oldToken);
