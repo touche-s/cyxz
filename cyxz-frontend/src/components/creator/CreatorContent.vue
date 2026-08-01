@@ -306,7 +306,8 @@ const handleBatchPublish = async () => {
     loadPosts()
   } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error(error?.message || '批量发布失败')
+      const msg = error?.response?.data?.msg || '批量发布失败'
+      ElMessage.error(msg)
     }
   }
 }

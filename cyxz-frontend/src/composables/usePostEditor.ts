@@ -42,7 +42,7 @@ export function usePostEditor(postType: PostType) {
   const circles = ref<CircleVO[]>([])
   const joinedCircleIds = ref<Set<number>>(new Set())
 
-  // 只展示已加入的圈子
+  // 仅显示当前用户已加入的圈子
   const sortedCircles = computed(() => {
     return circles.value.filter(c => joinedCircleIds.value.has(c.id))
   })
@@ -153,6 +153,16 @@ export function usePostEditor(postType: PostType) {
   }
 
   /**
+   * 草稿保存前校验：标题和圈子必填，正文或图片至少有一项
+   */
+  const validateDraftForm = (): string | null => {
+    if (!form.value.title || !form.value.title.trim()) return '草稿也需要写标题哦'
+    if (!form.value.circleId) return '请先选择圈子'
+    if (!form.value.content && form.value.images.length === 0) return '请至少填写正文或上传图片'
+    return null
+  }
+
+  /**
    * 发布前校验：标题、圈子、正文必填，图文帖至少一张图片
    */
   const validateForm = (): string | null => {
@@ -206,7 +216,10 @@ export function usePostEditor(postType: PostType) {
 
       dirty.value = false
       return true
-    }, { onError: () => ElMessage.error(isEditingPublished.value ? '更新失败' : '发布失败') })
+    }, { onError: (e: any) => {
+      const msg = e?.response?.data?.msg || (isEditingPublished.value ? '更新失败' : '发布失败')
+      ElMessage.error(msg)
+    }})
 
     return result ?? false
   }
@@ -215,8 +228,9 @@ export function usePostEditor(postType: PostType) {
    * 保存草稿：至少一项有内容即可保存，不校验完整性
    */
   const saveDraftOnly = async (): Promise<boolean> => {
-    if (!hasDraftContent()) {
-      ElMessage.warning('请至少填写一项内容后再保存草稿')
+    const error = validateDraftForm()
+    if (error) {
+      ElMessage.warning(error)
       return false
     }
 
@@ -309,6 +323,7 @@ export function usePostEditor(postType: PostType) {
     sections,
     circles,
     sortedCircles,
+    joinedCircleIds,
     tagInput,
     addTag,
     removeTag,

@@ -939,11 +939,16 @@ public class PostServiceImpl implements PostService {
      * 校验草稿至少有一项内容
      */
     private void validateDraftHasContent(CreatePostRequest request) {
-        boolean hasContent = (request.getTitle() != null && !request.getTitle().isBlank())
-                || (request.getContent() != null && !request.getContent().isBlank())
+        if (request.getTitle() == null || request.getTitle().isBlank()) {
+            throw new BusinessException(ErrorCode.PARAM_MISSING, "草稿标题不能为空");
+        }
+        if (request.getCircleId() == null) {
+            throw new BusinessException(ErrorCode.PARAM_MISSING, "草稿圈子不能为空");
+        }
+        boolean hasContent = (request.getContent() != null && !request.getContent().isBlank())
                 || (request.getImages() != null && !request.getImages().isEmpty());
         if (!hasContent) {
-            throw new BusinessException(ErrorCode.PARAM_MISSING, "草稿至少需要填写一项内容");
+            throw new BusinessException(ErrorCode.PARAM_MISSING, "草稿至少需要正文或图片");
         }
     }
 
