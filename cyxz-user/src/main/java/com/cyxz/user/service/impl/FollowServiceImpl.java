@@ -5,7 +5,6 @@ import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
-import com.cyxz.common.utils.StatusUpdateHelper;
 import com.cyxz.message.api.dto.CreateNotificationRequest;
 import com.cyxz.message.api.enums.NotificationType;
 import com.cyxz.message.api.constant.NotificationConstants;
@@ -18,7 +17,6 @@ import com.cyxz.user.vo.FollowUserVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,14 +39,12 @@ public class FollowServiceImpl implements FollowService {
 
     /**
      * 关注目标用户（幂等，并发安全）
-     * <p>目标：设为 status=1。并发安全策略：
-     * <ol>
-     *   <li>不存在记录 → 尝试插入，冲突时捕获 DuplicateKeyException 重查真实状态</li>
-     *   <li>存在且 status=0 → 条件更新为 1</li>
-     *   <li>存在且 status=1 → 幂等忽略</li>
-     * </ol>
-     * 唯一索引 uk_user_follow 作为数据库最终兜底。
-     * 不允许关注自己。
+     * <p>使用 UPSERT（ON DUPLICATE KEY UPDATE）一条 SQL 完成：
+     * <ul>
+     *   <li>rows=1 → 新关注，发送通知</li>
+     *   <li>rows=2 → 恢复关注（0→1）</li>
+     *   <li>rows=0 → 幂等忽略</li>
+     * </ul>
      *
      * @param userId       当前登录用户 ID
      * @param targetUserId 目标用户 ID
@@ -60,62 +56,35 @@ public class FollowServiceImpl implements FollowService {
             throw new BusinessException(ErrorCode.FORBIDDEN, "不能关注自己");
         }
 
-        UserFollowPO exist = queryFollow(userId, targetUserId);
+        int rows = followMapper.upsertFollow(userId, targetUserId);
 
-        if (exist == null) {
+        if (rows == 1) {
+            log.info("关注用户: userId={}, followUserId={}", userId, targetUserId);
             try {
-                UserFollowPO newFollow = new UserFollowPO();
-                newFollow.setUserId(userId);
-                newFollow.setFollowUserId(targetUserId);
-                newFollow.setStatus(CommonStatus.ACTIVE);
-                followMapper.insert(newFollow);
-                log.info("关注用户: userId={}, followUserId={}", userId, targetUserId);
-                // 发送关注通知 — MQ 异步
-                try {
-                    rabbitTemplate.convertAndSend(
-                        NotificationConstants.EXCHANGE,
-                        NotificationConstants.ROUTING_KEY,
-                        NotificationEvent.builder()
-                            .receiverId(targetUserId)
-                            .senderId(userId)
-                            .type(NotificationType.USER_FOLLOWED.name())
-                            .title("有人关注了你")
-                            .targetType("user")
-                            .targetId(targetUserId)
-                            .createTime(System.currentTimeMillis())
-                            .build()
-                    );
-                } catch (Exception e2) {
-                    log.warn("MQ 发布关注通知失败: userId={}, targetUserId={}", userId, targetUserId, e2);
-                }
-            } catch (DuplicateKeyException e) {
-                // 并发冲突：另一请求已插入，重查真实状态
-                UserFollowPO conflict = queryFollow(userId, targetUserId);
-                if (conflict.getStatus() == 1) {
-                    return; // 已被置为已关注
-                }
-                boolean updated = StatusUpdateHelper.updateStatus(followMapper, conflict.getId(), 0, 1);
-                if (updated) {
-                    log.info("关注用户(并发恢复): userId={}, followUserId={}", userId, targetUserId);
-                }
+                rabbitTemplate.convertAndSend(
+                    NotificationConstants.EXCHANGE,
+                    NotificationConstants.ROUTING_KEY,
+                    NotificationEvent.builder()
+                        .receiverId(targetUserId)
+                        .senderId(userId)
+                        .type(NotificationType.USER_FOLLOWED.name())
+                        .title("有人关注了你")
+                        .targetType("user")
+                        .targetId(targetUserId)
+                        .createTime(System.currentTimeMillis())
+                        .build()
+                );
+            } catch (Exception e2) {
+                log.warn("MQ 发布关注通知失败: userId={}, targetUserId={}", userId, targetUserId, e2);
             }
-            return;
+        } else if (rows == 2) {
+            log.info("恢复关注: userId={}, followUserId={}", userId, targetUserId);
         }
-
-        if (exist.getStatus() == 0) {
-            boolean updated = StatusUpdateHelper.updateStatus(followMapper, exist.getId(), 0, 1);
-            if (updated) {
-                log.info("恢复关注: userId={}, followUserId={}", userId, targetUserId);
-            }
-            return;
-        }
-
-        log.debug("关注用户(幂等忽略): userId={}, followUserId={}", userId, targetUserId);
     }
 
     /**
      * 取消关注目标用户（幂等，并发安全）
-     * <p>目标：设为 status=0。仅在 status=1 时执行条件更新。
+     * <p>条件 UPDATE：仅 status=1 时更新为 0，一条 SQL 搞定。
      *
      * @param userId       当前登录用户 ID
      * @param targetUserId 目标用户 ID
@@ -123,22 +92,10 @@ public class FollowServiceImpl implements FollowService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void unfollow(Long userId, Long targetUserId) {
-        UserFollowPO exist = queryFollow(userId, targetUserId);
-        if (exist == null || exist.getStatus() == 0) {
-            return;
-        }
-
-        boolean updated = StatusUpdateHelper.updateStatus(followMapper, exist.getId(), 1, 0);
-        if (updated) {
+        int rows = followMapper.deactivateFollow(userId, targetUserId);
+        if (rows > 0) {
             log.info("取消关注: userId={}, followUserId={}", userId, targetUserId);
         }
-    }
-
-    private UserFollowPO queryFollow(Long userId, Long targetUserId) {
-        LambdaQueryWrapper<UserFollowPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserFollowPO::getUserId, userId)
-                .eq(UserFollowPO::getFollowUserId, targetUserId);
-        return followMapper.selectOne(wrapper);
     }
 
     /**

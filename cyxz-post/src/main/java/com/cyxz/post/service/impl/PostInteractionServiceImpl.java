@@ -1,19 +1,14 @@
 package com.cyxz.post.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.constant.CacheKeyConstants;
-import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.utils.IpUtil;
-import com.cyxz.common.utils.StatusUpdateHelper;
 import com.cyxz.message.api.dto.CreateNotificationRequest;
 import com.cyxz.message.api.enums.NotificationType;
 import com.cyxz.message.api.constant.NotificationConstants;
 import com.cyxz.message.api.event.NotificationEvent;
 import com.cyxz.message.api.feign.MessageFeignClient;
-import com.cyxz.post.entity.PostCollectPO;
-import com.cyxz.post.entity.PostLikePO;
 import com.cyxz.post.entity.PostPO;
 import com.cyxz.post.mapper.PostCollectMapper;
 import com.cyxz.post.mapper.PostLikeMapper;
@@ -23,7 +18,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,17 +41,16 @@ public class PostInteractionServiceImpl implements PostInteractionService {
     private final MessageFeignClient messageFeignClient;
     private final RabbitTemplate rabbitTemplate;
 
-    /** 帖子是否允许互动（仅已发布） */
+    /** 帖子是否允许互动（仅已发布 status=2） */
     private boolean isInteractable(PostPO po) {
-        return po != null && po.getStatus() == 1;
+        return po != null && po.getStatus() == 2;
     }
 
     // ==================== 点赞 ====================
 
     /**
      * 点赞帖子（幂等，并发安全）
-     * <p>先查关系表，不存在则插入并记增量；已存在且状态为删除则恢复。
-     * 并发下 DuplicateKeyException 回退到 CAS 更新状态。
+     * <p>UPSERT 一条 SQL 完成：rows=1 新增(发通知), rows=2 恢复, rows=0 幂等。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -67,47 +60,20 @@ public class PostInteractionServiceImpl implements PostInteractionService {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
 
-        PostLikePO exist = queryPostLike(userId, postId);
-
-        if (exist == null) {
-            try {
-                PostLikePO newLike = new PostLikePO();
-                newLike.setPostId(postId);
-                newLike.setUserId(userId);
-                newLike.setStatus(CommonStatus.ACTIVE);
-                postLikeMapper.insert(newLike);
-                incrementLikeDelta(postId, 1);
-                log.info("点赞帖子: postId={}, userId={}", postId, userId);
-                sendLikeNotification(postId, userId, po);
-            } catch (DuplicateKeyException e) {
-                PostLikePO conflict = queryPostLike(userId, postId);
-                if (conflict.getStatus() == 1) {
-                    return;
-                }
-                boolean updated = StatusUpdateHelper.updateStatus(postLikeMapper, conflict.getId(), 0, 1);
-                if (updated) {
-                    incrementLikeDelta(postId, 1);
-                    log.info("点赞帖子(并发恢复): postId={}, userId={}", postId, userId);
-                }
-            }
-            return;
+        int rows = postLikeMapper.upsertLike(postId, userId);
+        if (rows == 1) {
+            incrementLikeDelta(postId, 1);
+            log.info("点赞帖子: postId={}, userId={}", postId, userId);
+            sendLikeNotification(postId, userId, po);
+        } else if (rows == 2) {
+            incrementLikeDelta(postId, 1);
+            log.info("点赞帖子(恢复): postId={}, userId={}", postId, userId);
         }
-
-        if (exist.getStatus() == 0) {
-            boolean updated = StatusUpdateHelper.updateStatus(postLikeMapper, exist.getId(), 0, 1);
-            if (updated) {
-                incrementLikeDelta(postId, 1);
-                log.info("点赞帖子(恢复): postId={}, userId={}", postId, userId);
-            }
-            return;
-        }
-
-        log.debug("点赞帖子(幂等忽略): postId={}, userId={}", postId, userId);
     }
 
     /**
      * 取消点赞帖子（幂等，并发安全）
-     * <p>CAS 将关系表状态 1→0，成功则记 -1 增量。
+     * <p>条件 UPDATE：仅 status=1 时更新为 0，一条 SQL 搞定。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -117,13 +83,8 @@ public class PostInteractionServiceImpl implements PostInteractionService {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
 
-        PostLikePO exist = queryPostLike(userId, postId);
-        if (exist == null || exist.getStatus() == 0) {
-            return;
-        }
-
-        boolean updated = StatusUpdateHelper.updateStatus(postLikeMapper, exist.getId(), 1, 0);
-        if (updated) {
+        int rows = postLikeMapper.deactivateLike(postId, userId);
+        if (rows > 0) {
             incrementLikeDelta(postId, -1);
             log.info("取消点赞帖子: postId={}, userId={}", postId, userId);
         }
@@ -133,7 +94,7 @@ public class PostInteractionServiceImpl implements PostInteractionService {
 
     /**
      * 收藏帖子（幂等，并发安全）
-     * <p>逻辑同点赞：先查 → 不存在插入 → 冲突 CAS 恢复。
+     * <p>UPSERT 一条 SQL 完成：rows=1 新增, rows=2 恢复, rows=0 幂等。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -143,46 +104,16 @@ public class PostInteractionServiceImpl implements PostInteractionService {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
 
-        PostCollectPO exist = queryPostCollect(userId, postId);
-
-        if (exist == null) {
-            try {
-                PostCollectPO newCollect = new PostCollectPO();
-                newCollect.setPostId(postId);
-                newCollect.setUserId(userId);
-                newCollect.setStatus(CommonStatus.ACTIVE);
-                postCollectMapper.insert(newCollect);
-                incrementCollectDelta(postId, 1);
-                log.info("收藏帖子: postId={}, userId={}", postId, userId);
-            } catch (DuplicateKeyException e) {
-                PostCollectPO conflict = queryPostCollect(userId, postId);
-                if (conflict.getStatus() == 1) {
-                    return;
-                }
-                boolean updated = StatusUpdateHelper.updateStatus(postCollectMapper, conflict.getId(), 0, 1);
-                if (updated) {
-                    incrementCollectDelta(postId, 1);
-                    log.info("收藏帖子(并发恢复): postId={}, userId={}", postId, userId);
-                }
-            }
-            return;
+        int rows = postCollectMapper.upsertCollect(postId, userId);
+        if (rows > 0) {
+            incrementCollectDelta(postId, 1);
+            log.info("收藏帖子{}: postId={}, userId={}", rows == 1 ? "" : "(恢复)", postId, userId);
         }
-
-        if (exist.getStatus() == 0) {
-            boolean updated = StatusUpdateHelper.updateStatus(postCollectMapper, exist.getId(), 0, 1);
-            if (updated) {
-                incrementCollectDelta(postId, 1);
-                log.info("收藏帖子(恢复): postId={}, userId={}", postId, userId);
-            }
-            return;
-        }
-
-        log.debug("收藏帖子(幂等忽略): postId={}, userId={}", postId, userId);
     }
 
     /**
      * 取消收藏帖子（幂等，并发安全）
-     * <p>CAS 将关系表状态 1→0，成功则记 -1 增量。
+     * <p>条件 UPDATE：仅 status=1 时更新为 0，一条 SQL 搞定。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -192,13 +123,8 @@ public class PostInteractionServiceImpl implements PostInteractionService {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
 
-        PostCollectPO exist = queryPostCollect(userId, postId);
-        if (exist == null || exist.getStatus() == 0) {
-            return;
-        }
-
-        boolean updated = StatusUpdateHelper.updateStatus(postCollectMapper, exist.getId(), 1, 0);
-        if (updated) {
+        int rows = postCollectMapper.deactivateCollect(postId, userId);
+        if (rows > 0) {
             incrementCollectDelta(postId, -1);
             log.info("取消收藏帖子: postId={}, userId={}", postId, userId);
         }
@@ -213,7 +139,8 @@ public class PostInteractionServiceImpl implements PostInteractionService {
     @Override
     public void recordView(Long postId, Long userId, HttpServletRequest request) {
         PostPO po = postMapper.selectById(postId);
-        if (po == null || po.getStatus() != 1) {
+        // status=2 已发布才计浏览量
+        if (po == null || po.getStatus() != 2) {
             return;
         }
 
@@ -239,22 +166,6 @@ public class PostInteractionServiceImpl implements PostInteractionService {
     private void incrementCollectDelta(Long postId, int delta) {
         stringRedisTemplate.opsForHash()
                 .increment(CacheKeyConstants.POST_COLLECT_DELTA, postId.toString(), delta);
-    }
-
-    // ==================== 辅助查询 ====================
-
-    private PostLikePO queryPostLike(Long userId, Long postId) {
-        LambdaQueryWrapper<PostLikePO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PostLikePO::getUserId, userId)
-                .eq(PostLikePO::getPostId, postId);
-        return postLikeMapper.selectOne(wrapper);
-    }
-
-    private PostCollectPO queryPostCollect(Long userId, Long postId) {
-        LambdaQueryWrapper<PostCollectPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PostCollectPO::getUserId, userId)
-                .eq(PostCollectPO::getPostId, postId);
-        return postCollectMapper.selectOne(wrapper);
     }
 
     // ==================== 通知辅助方法 ====================

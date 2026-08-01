@@ -75,41 +75,21 @@ public class CircleServiceImpl implements CircleService {
         if (circle == null || circle.getStatus() != CommonStatus.ACTIVE) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "圈子不存在");
         }
-        LambdaQueryWrapper<CircleMemberPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(CircleMemberPO::getCircleId, circleId)
-                .eq(CircleMemberPO::getUserId, userId);
-        CircleMemberPO member = circleMemberMapper.selectOne(wrapper);
-
-        if (member == null) {
-            member = new CircleMemberPO();
-            member.setCircleId(circleId);
-            member.setUserId(userId);
-            member.setStatus(CommonStatus.ACTIVE);
-            circleMemberMapper.insert(member);
+        int rows = circleMemberMapper.upsertMember(circleId, userId);
+        if (rows > 0) {
             circleMapper.updateMemberCount(circleId, 1);
-        } else if (member.getStatus() != CommonStatus.ACTIVE) {
-            member.setStatus(CommonStatus.ACTIVE);
-            circleMemberMapper.updateById(member);
-            circleMapper.updateMemberCount(circleId, 1);
-        } else {
-            return;
+            log.info("{}圈子: userId={}, circleId={}", rows == 1 ? "加入" : "恢复", userId, circleId);
         }
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void leaveCircle(Long userId, Long circleId) {
-        LambdaQueryWrapper<CircleMemberPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(CircleMemberPO::getCircleId, circleId)
-                .eq(CircleMemberPO::getUserId, userId)
-                .eq(CircleMemberPO::getStatus, CommonStatus.ACTIVE);
-        CircleMemberPO member = circleMemberMapper.selectOne(wrapper);
-        if (member == null) {
-            return;
+        int rows = circleMemberMapper.deactivateMember(circleId, userId);
+        if (rows > 0) {
+            circleMapper.updateMemberCount(circleId, -1);
+            log.info("退出圈子: userId={}, circleId={}", userId, circleId);
         }
-        member.setStatus(CommonStatus.DELETED);
-        circleMemberMapper.updateById(member);
-        circleMapper.updateMemberCount(circleId, -1);
     }
 
     @Override
