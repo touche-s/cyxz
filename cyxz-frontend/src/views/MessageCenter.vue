@@ -71,6 +71,9 @@
                       />
                     </div>
                   </div>
+                  <div v-else-if="msg.isSystem" class="msg-avatar system-avatar">
+                    <Icon icon="ph:bell-simple-fill" />
+                  </div>
                   <div class="msg-avatar" v-else @click.stop="goUser(msg.senderId)">
                     <img :src="avatarUrl(msg.senderAvatar)" alt="" />
                   </div>
@@ -84,7 +87,7 @@
                         <span class="msg-action" v-if="msg.actionText">{{ msg.actionText }}</span>
                       </template>
                       <template v-else>
-                        <span class="msg-username" @click.stop="goUser(msg.senderId)">{{ msg.senderName }}</span>
+                        <span class="msg-username" :class="{ 'system-username': msg.isSystem }" @click.stop="!msg.isSystem && goUser(msg.senderId)">{{ msg.senderName }}</span>
                         <span class="msg-action" v-if="msg.actionText">{{ msg.actionText }}</span>
                       </template>
                     </div>
@@ -271,16 +274,18 @@ async function loadNotifications() {
   }
 }
 
-function mapNotification(n: NotificationVO): NotificationVO & { timeText: string } {
+function mapNotification(n: NotificationVO): NotificationVO & { timeText: string; isSystem: boolean } {
   const cfg = typeConfig[n.type] || { label: '与你互动', frontType: 'system' }
+  const isSystem = cfg.frontType === 'system'
   return {
     ...n,
     actionText: cfg.label,
-    senderName: n.senderName || '用户',
-    senderAvatar: n.senderAvatar || '',
+    senderName: isSystem ? '系统通知' : (n.senderName || '用户'),
+    senderAvatar: isSystem ? '' : (n.senderAvatar || ''),
     isRead: n.isRead,
     timeText: formatTime(n.createTime),
     type: cfg.frontType as any,
+    isSystem,
   } as any
 }
 
@@ -582,6 +587,24 @@ onMounted(async () => {
   opacity: 0.84;
 }
 
+.msg-avatar.system-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(255, 107, 157, 0.12), rgba(180, 132, 255, 0.16));
+  color: var(--pink);
+  cursor: default;
+}
+
+.msg-avatar.system-avatar:hover {
+  opacity: 1;
+}
+
+.msg-avatar.system-avatar :deep(svg) {
+  width: 18px;
+  height: 18px;
+}
+
 .msg-avatar:not(.merged-avatar) img {
   width: 100%;
   height: 100%;
@@ -658,6 +681,14 @@ onMounted(async () => {
 
 .msg-username:hover {
   color: var(--pink);
+}
+
+.msg-username.system-username {
+  cursor: default;
+}
+
+.msg-username.system-username:hover {
+  color: var(--text);
 }
 
 .msg-action {
