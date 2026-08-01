@@ -43,7 +43,8 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useNavigate } from '@/composables/useNavigate'
-import { searchPosts } from '@/api/post'
+import { searchPostsEs } from '@/api/search'
+import type { PostSearchVO } from '@/api/search'
 import type { PostVO } from '@/api/post'
 import PostCard from '@/components/PostCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -60,6 +61,37 @@ const loading = ref(false)
 const results = ref<PostVO[]>([])
 const total = ref(0)
 
+/** ES 搜索结果 → PostCard 兼容格式 */
+function mapToPostVO(r: PostSearchVO): PostVO {
+  return {
+    id: String(r.id),
+    userId: String(r.userId || ''),
+    authorName: '',
+    authorAvatar: '',
+    postType: r.postType || 'NORMAL',
+    sectionId: r.sectionId || 0,
+    sectionName: '',
+    circleId: r.circleId || 0,
+    circleName: '',
+    title: r.title || '',
+    content: r.content || '',
+    cover: r.cover || '',
+    images: [],
+    tags: r.tags || [],
+    status: r.status || 0,
+    likes: r.likes || 0,
+    comments: r.comments || 0,
+    views: r.views || 0,
+    collections: r.collections || 0,
+    liked: false,
+    collected: false,
+    pinned: false,
+    pinnedTime: '',
+    createTime: r.createTime ? String(r.createTime) : '',
+    updateTime: '',
+  }
+}
+
 async function doSearch() {
   const kw = keyword.value.trim()
   if (!kw) return
@@ -68,8 +100,8 @@ async function doSearch() {
   loading.value = true
   searched.value = true
   try {
-    const data = await searchPosts({ keyword: kw, page: 1, size: 30 })
-    results.value = data.records || []
+    const data = await searchPostsEs({ keyword: kw, page: 1, size: 30 })
+    results.value = (data.records || []).map(mapToPostVO)
     total.value = data.total || 0
   } catch {
     results.value = []
