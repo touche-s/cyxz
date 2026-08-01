@@ -49,6 +49,10 @@ public class SearchController {
             return PageResult.empty(page, size);
         }
 
+        // 分页参数防御：page 最小 1，size 限制 1~50 防止拉取过多数据
+        page = Math.max(page, 1);
+        size = Math.min(Math.max(size, 1), 50);
+
         // 构建高亮
         HighlightQuery highlightQuery = new HighlightQuery(
                 new Highlight(List.of(
@@ -69,9 +73,9 @@ public class SearchController {
                 ? Sort.by(Sort.Direction.DESC, "likes")
                 : Sort.by(Sort.Direction.DESC, "createTime");
 
-        CriteriaQuery query = new CriteriaQuery(criteria)
-                .setPageable(PageRequest.of(page - 1, size, sort))
-                .setHighlightQuery(highlightQuery);
+        CriteriaQuery query = new CriteriaQuery(criteria);
+        query.setPageable(PageRequest.of(page - 1, size, sort));
+        query.setHighlightQuery(highlightQuery);
 
         SearchHits<PostDocument> hits = esOps.search(query, PostDocument.class);
 

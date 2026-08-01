@@ -50,7 +50,8 @@ public class NotificationServiceImpl implements NotificationService {
         po.setReceiverId(request.getReceiverId());
         po.setSenderId(request.getSenderId());
         po.setType(request.getType());
-        po.setTargetId(request.getTargetId());
+        // targetId 为 null 时用 0 占位，保证唯一索引去重生效（NULL ≠ NULL 会导致幂等失效）
+        po.setTargetId(request.getTargetId() != null ? request.getTargetId() : 0L);
         po.setTargetType(request.getTargetType());
         po.setRelatedId(request.getRelatedId());
         po.setContent(request.getContent() != null && request.getContent().length() > 200
@@ -73,7 +74,7 @@ public class NotificationServiceImpl implements NotificationService {
         po.setReceiverId(event.getReceiverId());
         po.setSenderId(event.getSenderId() != null ? event.getSenderId() : 0L);
         po.setType(event.getType());
-        po.setTargetId(event.getTargetId());
+        po.setTargetId(event.getTargetId() != null ? event.getTargetId() : 0L);
         po.setTargetType(event.getTargetType());
         po.setRelatedId(event.getRelatedId());
         po.setContent(event.getContent() != null && event.getContent().length() > 200

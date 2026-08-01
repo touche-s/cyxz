@@ -241,6 +241,21 @@ public class PostServiceImpl implements PostService {
         evictDetailCache(po.getId());
         syncPostToEs(po);
 
+        if (isPublishAction) {
+            final Long postId = po.getId();
+            final String postTitle = po.getTitle();
+            final String postContent = po.getContent();
+            final List<String> images = request.getImages();
+            CompletableFuture.runAsync(() -> {
+                try {
+                    AiReviewResult result = aiReviewService.review(postId, postTitle, postContent, images);
+                    handleReviewResult(postId, userId, postTitle, result);
+                } catch (Exception e) {
+                    log.error("AI 审核调用失败，转人工审核: postId={}, error={}", postId, e.getMessage());
+                }
+            });
+        }
+
         log.info("{}帖子成功: postId={}, userId={}", isPublishAction ? "发布" : "更新", po.getId(), userId);
     }
 
@@ -364,6 +379,8 @@ public class PostServiceImpl implements PostService {
         Set<Long> collectedPostIds = getCollectedPostIds(currentUserId, Set.of(postId));
         PostVO vo = convertToVO(po, userMap, circleNameMap, sectionNameMap, likedPostIds, collectedPostIds);
 
+        vo.setLiked(false);
+        vo.setCollected(false);
         redisTemplate.opsForValue().set(cacheKey, vo, Duration.ofMinutes(cacheTtlMinutes));
         return vo;
     }
@@ -424,7 +441,8 @@ public class PostServiceImpl implements PostService {
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostPO::getUserId, userId);
 
-        String field = (sortField != null && ALLOWED_SORT_FIELDS.contains(sortField)) ? sortField : "createTime";
+        // 回退字段用数据库列名 create_time（非驼峰）
+        String field = (sortField != null && ALLOWED_SORT_FIELDS.contains(sortField)) ? sortField : "create_time";
         boolean asc = "asc".equalsIgnoreCase(sortOrder);
         wrapper.last("ORDER BY is_pinned DESC, pinned_time DESC, " + field + (asc ? " ASC" : " DESC"));
 
@@ -1079,6 +1097,7 @@ public class PostServiceImpl implements PostService {
         po.setReviewReason(null);
         postMapper.updateById(po);
         evictDetailCache(postId);
+        syncPostToEs(po);
         log.info("帖子审核通过: postId={}", postId);
     }
 
