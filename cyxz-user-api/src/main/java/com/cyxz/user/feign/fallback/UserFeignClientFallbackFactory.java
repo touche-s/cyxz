@@ -1,6 +1,7 @@
-package com.cyxz.user.feign;
+package com.cyxz.user.feign.fallback;
 
 import com.cyxz.common.base.Result;
+import com.cyxz.user.feign.UserFeignClient;
 import com.cyxz.user.vo.UserProfileVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;

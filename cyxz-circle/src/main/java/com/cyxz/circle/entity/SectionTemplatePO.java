@@ -1,13 +1,9 @@
 package com.cyxz.circle.entity;
 
-import com.baomidou.mybatisplus.annotation.FieldFill;
-import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.cyxz.common.base.BaseEntity;
 import lombok.Data;
-
-import java.io.Serializable;
-import java.time.LocalDateTime;
 
 /**
  * 板块模板实体，对应 section_template 表
@@ -15,9 +11,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("section_template")
-public class SectionTemplatePO implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class SectionTemplatePO extends BaseEntity {
 
     @TableId
     private Long id;
@@ -30,10 +24,4 @@ public class SectionTemplatePO implements Serializable {
     private String description;
     /** 排序值，数字越小越靠前 */
     private Integer sortOrder;
-
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createTime;
-
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updateTime;
 }

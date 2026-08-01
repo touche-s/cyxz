@@ -1,22 +1,16 @@
 package com.cyxz.circle.entity;
 
-import com.baomidou.mybatisplus.annotation.FieldFill;
-import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.cyxz.common.base.BaseEntity;
 import lombok.Data;
-
-import java.io.Serializable;
-import java.time.LocalDateTime;
 
 /**
  * 圈子实体，对应 circle 表
  */
 @Data
 @TableName("circle")
-public class CirclePO implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class CirclePO extends BaseEntity {
 
     @TableId
     private Long id;
@@ -38,10 +32,4 @@ public class CirclePO implements Serializable {
     private Integer postCount;
 
     private Integer memberCount;
-
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createTime;
-
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updateTime;
 }

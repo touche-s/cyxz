@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.constant.CommonStatus;
-import com.cyxz.circle.dto.SectionConfigDTO;
+import com.cyxz.circle.dto.SectionConfigRequest;
 import com.cyxz.circle.entity.CircleSectionPO;
 import com.cyxz.circle.entity.SectionTemplatePO;
 import com.cyxz.circle.mapper.CircleSectionMapper;
@@ -82,9 +82,9 @@ public class CircleSectionServiceImpl implements CircleSectionService {
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void configureSections(Long circleId, List<SectionConfigDTO> configs) {
+    public void configureSections(Long circleId, List<SectionConfigRequest> configs) {
         List<Long> templateIds = configs.stream()
-                .map(SectionConfigDTO::getTemplateId)
+                .map(SectionConfigRequest::getTemplateId)
                 .collect(Collectors.toList());
         List<SectionTemplatePO> templates = sectionTemplateMapper.selectBatchIds(templateIds);
         if (templates.size() != templateIds.size()) {
@@ -98,7 +98,7 @@ public class CircleSectionServiceImpl implements CircleSectionService {
 
         // 全部重新插入
         List<CircleSectionPO> newSections = new ArrayList<>();
-        for (SectionConfigDTO config : configs) {
+        for (SectionConfigRequest config : configs) {
             CircleSectionPO section = new CircleSectionPO();
             section.setCircleId(circleId);
             section.setTemplateId(config.getTemplateId());

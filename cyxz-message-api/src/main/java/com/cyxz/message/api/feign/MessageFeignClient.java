@@ -2,6 +2,7 @@ package com.cyxz.message.api.feign;
 
 import com.cyxz.common.base.Result;
 import com.cyxz.message.api.dto.CreateNotificationRequest;
+import com.cyxz.message.api.feign.fallback.MessageFeignClientFallbackFactory;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;

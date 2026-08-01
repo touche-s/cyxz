@@ -1,13 +1,9 @@
 package com.cyxz.circle.entity;
 
-import com.baomidou.mybatisplus.annotation.FieldFill;
-import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.cyxz.common.base.BaseEntity;
 import lombok.Data;
-
-import java.io.Serializable;
-import java.time.LocalDateTime;
 
 /**
  * 圈子板块关联实体，对应 circle_section 表
@@ -15,9 +11,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("circle_section")
-public class CircleSectionPO implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class CircleSectionPO extends BaseEntity {
 
     @TableId
     private Long id;
@@ -32,10 +26,4 @@ public class CircleSectionPO implements Serializable {
     private Integer sortOrder;
     /** 状态：1=启用，0=禁用 */
     private Integer status;
-
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createTime;
-
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updateTime;
 }

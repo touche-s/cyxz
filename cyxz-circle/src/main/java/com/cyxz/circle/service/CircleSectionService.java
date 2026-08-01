@@ -1,6 +1,6 @@
 package com.cyxz.circle.service;
 
-import com.cyxz.circle.dto.SectionConfigDTO;
+import com.cyxz.circle.dto.SectionConfigRequest;
 import com.cyxz.circle.vo.CircleSectionVO;
 
 import java.util.List;
@@ -30,7 +30,7 @@ public interface CircleSectionService {
      * @param circleId 圈子 ID
      * @param configs 板块配置列表，一个模板一条配置
      */
-    void configureSections(Long circleId, List<SectionConfigDTO> configs);
+    void configureSections(Long circleId, List<SectionConfigRequest> configs);
 
     /**
      * 获取圈子的默认板块

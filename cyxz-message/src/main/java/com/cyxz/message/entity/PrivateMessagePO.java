@@ -1,10 +1,8 @@
 package com.cyxz.message.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.cyxz.common.base.BaseEntity;
 import lombok.Data;
-
-import java.io.Serializable;
-import java.time.LocalDateTime;
 
 /**
  * 私信消息实体
@@ -12,9 +10,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("private_message")
-public class PrivateMessagePO implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class PrivateMessagePO extends BaseEntity {
 
     @TableId
     private Long id;
@@ -29,7 +25,4 @@ public class PrivateMessagePO implements Serializable {
 
     /** 是否已读：0=未读 1=已读 */
     private Integer isRead;
-
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createTime;
 }

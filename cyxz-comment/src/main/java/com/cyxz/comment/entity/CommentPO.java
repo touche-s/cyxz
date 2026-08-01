@@ -1,13 +1,9 @@
 package com.cyxz.comment.entity;
 
-import com.baomidou.mybatisplus.annotation.FieldFill;
-import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.cyxz.common.base.BaseEntity;
 import lombok.Data;
-
-import java.io.Serializable;
-import java.time.LocalDateTime;
 
 /**
  * 评论实体
@@ -15,9 +11,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("comment")
-public class CommentPO implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class CommentPO extends BaseEntity {
 
     /** 评论 ID（雪花算法） */
     @TableId
@@ -46,12 +40,4 @@ public class CommentPO implements Serializable {
 
     /** 状态：0=已删除 1=正常 */
     private Integer status;
-
-    /** 创建时间 */
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createTime;
-
-    /** 更新时间 */
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updateTime;
 }

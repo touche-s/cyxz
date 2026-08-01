@@ -1,4 +1,4 @@
-package com.cyxz.auth.util;
+package com.cyxz.auth.utils;
 
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;

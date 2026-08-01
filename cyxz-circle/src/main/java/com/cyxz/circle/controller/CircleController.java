@@ -5,7 +5,7 @@ import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.web.AdminUser;
 import com.cyxz.common.web.CurrentUser;
-import com.cyxz.circle.dto.SectionConfigDTO;
+import com.cyxz.circle.dto.SectionConfigRequest;
 import com.cyxz.circle.service.CircleSectionService;
 import com.cyxz.circle.service.CircleService;
 import com.cyxz.circle.vo.CircleSectionVO;
@@ -147,7 +147,7 @@ public class CircleController {
      */
     @PutMapping("/{circleId}/sections")
     public Result<Void> configureSections(@PathVariable Long circleId,
-                                          @RequestBody List<SectionConfigDTO> configs,
+                                          @RequestBody List<SectionConfigRequest> configs,
                                           @AdminUser Object admin) {
         circleSectionService.configureSections(circleId, configs);
         return Result.success("配置成功");

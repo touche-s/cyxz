@@ -2,6 +2,7 @@ package com.cyxz.post.feign;
 
 import com.cyxz.common.base.Result;
 import com.cyxz.post.vo.PostInfoVO;
+import com.cyxz.post.feign.fallback.PostFeignClientFallbackFactory;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;

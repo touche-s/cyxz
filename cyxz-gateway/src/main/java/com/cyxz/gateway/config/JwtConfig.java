@@ -1,6 +1,6 @@
 package com.cyxz.gateway.config;
 
-import com.cyxz.auth.util.JwtUtil;
+import com.cyxz.auth.utils.JwtUtil;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;

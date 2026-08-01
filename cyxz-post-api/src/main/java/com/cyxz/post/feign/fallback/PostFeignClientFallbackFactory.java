@@ -1,6 +1,7 @@
-package com.cyxz.post.feign;
+package com.cyxz.post.feign.fallback;
 
 import com.cyxz.common.base.Result;
+import com.cyxz.post.feign.PostFeignClient;
 import com.cyxz.post.vo.PostInfoVO;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;

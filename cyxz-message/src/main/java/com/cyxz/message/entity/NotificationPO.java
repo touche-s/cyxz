@@ -1,10 +1,8 @@
 package com.cyxz.message.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.cyxz.common.base.BaseEntity;
 import lombok.Data;
-
-import java.io.Serializable;
-import java.time.LocalDateTime;
 
 /**
  * 通知实体
@@ -12,9 +10,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("notification")
-public class NotificationPO implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class NotificationPO extends BaseEntity {
 
     /** 主键 */
     @TableId
@@ -43,12 +39,4 @@ public class NotificationPO implements Serializable {
 
     /** 是否已读：0=未读 1=已读 */
     private Integer isRead;
-
-    /** 创建时间 */
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createTime;
-
-    /** 更新时间 */
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updateTime;
 }

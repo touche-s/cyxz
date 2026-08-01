@@ -2,14 +2,12 @@ package com.cyxz.circle.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.cyxz.circle.entity.CirclePO;
-import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Update;
 
 /**
  * 圈子 Mapper，提供帖子数和成员数的原子更新
  */
-@Mapper
 public interface CircleMapper extends BaseMapper<CirclePO> {
 
     /**

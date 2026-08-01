@@ -1,9 +1,9 @@
 package com.cyxz.message.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.cyxz.common.base.BaseEntity;
 import lombok.Data;
 
-import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
@@ -13,9 +13,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("conversation")
-public class ConversationPO implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class ConversationPO extends BaseEntity {
 
     @TableId
     private Long id;
@@ -37,10 +35,4 @@ public class ConversationPO implements Serializable {
 
     /** 用户2的未读消息数 */
     private Integer unreadCount2;
-
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createTime;
-
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updateTime;
 }

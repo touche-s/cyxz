@@ -2,6 +2,7 @@ package com.cyxz.user.feign;
 
 import com.cyxz.common.base.Result;
 import com.cyxz.user.vo.UserProfileVO;
+import com.cyxz.user.feign.fallback.UserFeignClientFallbackFactory;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.*;
 

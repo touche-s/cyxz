@@ -1,6 +1,7 @@
 package com.cyxz.comment.feign;
 
 import com.cyxz.common.base.Result;
+import com.cyxz.comment.feign.fallback.CommentFeignClientFallbackFactory;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;

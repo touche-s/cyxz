@@ -2,7 +2,7 @@ package com.cyxz.circle.controller;
 
 import com.cyxz.common.base.Result;
 import com.cyxz.common.web.AdminUser;
-import com.cyxz.circle.dto.SectionTemplateDTO;
+import com.cyxz.circle.dto.SectionTemplateRequest;
 import com.cyxz.circle.service.SectionTemplateService;
 import com.cyxz.circle.vo.SectionTemplateVO;
 import lombok.RequiredArgsConstructor;
@@ -29,13 +29,13 @@ public class SectionTemplateController {
 
     /** 创建板块模板 */
     @PostMapping
-    public Result<SectionTemplateVO> create(@RequestBody SectionTemplateDTO dto, @AdminUser Object admin) {
+    public Result<SectionTemplateVO> create(@RequestBody SectionTemplateRequest dto, @AdminUser Object admin) {
         return Result.success(sectionTemplateService.create(dto));
     }
 
     /** 更新板块模板 */
     @PutMapping("/{id}")
-    public Result<SectionTemplateVO> update(@PathVariable Long id, @RequestBody SectionTemplateDTO dto, @AdminUser Object admin) {
+    public Result<SectionTemplateVO> update(@PathVariable Long id, @RequestBody SectionTemplateRequest dto, @AdminUser Object admin) {
         return Result.success(sectionTemplateService.update(id, dto));
     }
 

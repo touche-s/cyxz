@@ -4,11 +4,11 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 /**
- * 板块模板创建/更新 DTO
+ * 板块模板创建/更新请求
  * <p>模板是标准化定义，所有圈子共享同一套模板名称
  */
 @Data
-public class SectionTemplateDTO {
+public class SectionTemplateRequest {
 
     @NotBlank(message = "板块名称不能为空")
     private String name;

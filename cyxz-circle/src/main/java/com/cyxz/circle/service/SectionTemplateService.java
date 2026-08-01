@@ -1,6 +1,6 @@
 package com.cyxz.circle.service;
 
-import com.cyxz.circle.dto.SectionTemplateDTO;
+import com.cyxz.circle.dto.SectionTemplateRequest;
 import com.cyxz.circle.vo.SectionTemplateVO;
 
 import java.util.List;
@@ -22,7 +22,7 @@ public interface SectionTemplateService {
      * @param dto 模板信息，applicableType 不填默认 ALL
      * @return 创建后的模板 VO
      */
-    SectionTemplateVO create(SectionTemplateDTO dto);
+    SectionTemplateVO create(SectionTemplateRequest dto);
 
     /**
      * 更新板块模板
@@ -31,7 +31,7 @@ public interface SectionTemplateService {
      * @return 更新后的模板 VO
      * @throws BusinessException 模板不存在时
      */
-    SectionTemplateVO update(Long id, SectionTemplateDTO dto);
+    SectionTemplateVO update(Long id, SectionTemplateRequest dto);
 
     /**
      * 删除板块模板

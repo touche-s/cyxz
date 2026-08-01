@@ -1,5 +1,6 @@
-package com.cyxz.comment.feign;
+package com.cyxz.comment.feign.fallback;
 
+import com.cyxz.comment.feign.CommentFeignClient;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
 import lombok.extern.slf4j.Slf4j;

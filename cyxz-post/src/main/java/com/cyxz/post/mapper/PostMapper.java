@@ -6,7 +6,6 @@ import com.cyxz.post.vo.DashboardVO;
 import com.cyxz.post.vo.PostStatsVO;
 import com.cyxz.post.vo.PostVO;
 import com.cyxz.post.vo.TodayStatsVO;
-import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
@@ -18,7 +17,6 @@ import java.util.Set;
 /**
  * 帖子 Mapper
  */
-@Mapper
 public interface PostMapper extends BaseMapper<PostPO> {
 
     /**

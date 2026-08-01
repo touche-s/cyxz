@@ -1,14 +1,11 @@
 package com.cyxz.user.entity;
 
-import com.baomidou.mybatisplus.annotation.FieldFill;
-import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.cyxz.common.base.BaseEntity;
 import lombok.Data;
 
-import java.io.Serializable;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 /**
  * 用户资料实体
@@ -16,9 +13,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("user_profile")
-public class UserProfilePO implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class UserProfilePO extends BaseEntity {
 
     /** 用户 ID（关联 sys_user.id） */
     @TableId
@@ -38,12 +33,4 @@ public class UserProfilePO implements Serializable {
 
     /** 生日 */
     private LocalDate birthday;
-
-    /** 创建时间 */
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createTime;
-
-    /** 更新时间 */
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updateTime;
 }

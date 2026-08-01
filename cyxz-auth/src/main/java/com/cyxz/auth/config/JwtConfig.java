@@ -1,6 +1,6 @@
 package com.cyxz.auth.config;
 
-import com.cyxz.auth.util.JwtUtil;
+import com.cyxz.auth.utils.JwtUtil;
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;

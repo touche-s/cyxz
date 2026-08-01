@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.constant.CommonStatus;
-import com.cyxz.circle.dto.SectionTemplateDTO;
+import com.cyxz.circle.dto.SectionTemplateRequest;
 import com.cyxz.circle.entity.SectionTemplatePO;
 import com.cyxz.circle.mapper.SectionTemplateMapper;
 import com.cyxz.circle.service.SectionTemplateService;
@@ -36,7 +36,7 @@ public class SectionTemplateServiceImpl implements SectionTemplateService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public SectionTemplateVO create(SectionTemplateDTO dto) {
+    public SectionTemplateVO create(SectionTemplateRequest dto) {
         SectionTemplatePO po = new SectionTemplatePO();
         BeanUtils.copyProperties(dto, po);
         // 未指定类型默认通用模板
@@ -53,7 +53,7 @@ public class SectionTemplateServiceImpl implements SectionTemplateService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public SectionTemplateVO update(Long id, SectionTemplateDTO dto) {
+    public SectionTemplateVO update(Long id, SectionTemplateRequest dto) {
         SectionTemplatePO po = sectionTemplateMapper.selectById(id);
         if (po == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "板块模板不存在");

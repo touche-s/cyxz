@@ -1,12 +1,10 @@
 package com.cyxz.post.entity;
 
-import com.baomidou.mybatisplus.annotation.FieldFill;
-import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.cyxz.common.base.BaseEntity;
 import lombok.Data;
 
-import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
@@ -15,9 +13,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("post")
-public class PostPO implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class PostPO extends BaseEntity {
 
     /** 帖子 ID（雪花算法） */
     @TableId
@@ -28,6 +24,7 @@ public class PostPO implements Serializable {
 
     /** 圈子 ID */
     private Long circleId;
+    /** 板块 ID（circle_section 主键） */
     private Long sectionId;
 
     /** 帖子类型：NORMAL/ARTICLE */
@@ -74,12 +71,4 @@ public class PostPO implements Serializable {
 
     /** 置顶时间 */
     private LocalDateTime pinnedTime;
-
-    /** 创建时间 */
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createTime;
-
-    /** 更新时间 */
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updateTime;
 }

@@ -3,11 +3,11 @@ package com.cyxz.circle.dto;
 import lombok.Data;
 
 /**
- * 圈子板块配置 DTO，管理员为圈子配置板块时使用
+ * 圈子板块配置请求，管理员为圈子配置板块时使用
  * <p>采用全量替换策略：提交的 configs 列表即最终状态，先删后插
  */
 @Data
-public class SectionConfigDTO {
+public class SectionConfigRequest {
 
     /** 板块模板 ID */
     private Long templateId;

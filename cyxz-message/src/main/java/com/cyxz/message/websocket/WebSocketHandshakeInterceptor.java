@@ -1,6 +1,6 @@
 package com.cyxz.message.websocket;
 
-import com.cyxz.auth.util.JwtUtil;
+import com.cyxz.auth.utils.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
