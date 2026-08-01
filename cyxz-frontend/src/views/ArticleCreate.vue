@@ -39,6 +39,29 @@
           </div>
         </div>
 
+        <!-- 圈子 -->
+        <div class="form-section">
+          <label class="form-label">
+            <Icon icon="ph:circles-three-plus" class="label-icon pink-icon" />
+            <span>圈子</span>
+            <span class="label-required">*</span>
+          </label>
+          <div v-if="editor.sortedCircles.value.length" class="circle-selector">
+            <button
+              v-for="c in editor.sortedCircles.value"
+              :key="c.id"
+              type="button"
+              class="circle-btn"
+              :class="{ active: editor.form.value.circleId === c.id }"
+              @click="selectCircle(c.id)"
+            >
+              {{ c.name }}
+            </button>
+          </div>
+          <span v-if="editor.sortedCircles.value.length" class="field-hint">仅显示你已加入的圈子</span>
+          <span v-else class="field-hint">你还没有加入任何圈子，请先前往圈子页加入后再发布</span>
+        </div>
+
         <!-- 板块 -->
         <div class="form-section">
           <label class="form-label">
@@ -55,27 +78,6 @@
               @click="editor.form.value.sectionId = s.id"
             >
               {{ s.name }}
-            </button>
-          </div>
-        </div>
-
-        <!-- 圈子 -->
-        <div class="form-section">
-          <label class="form-label">
-            <Icon icon="ph:circles-three-plus" class="label-icon pink-icon" />
-            <span>圈子</span>
-            <span class="label-required">*</span>
-          </label>
-          <div class="circle-selector">
-            <button
-              v-for="c in editor.sortedCircles.value"
-              :key="c.id"
-              type="button"
-              class="circle-btn"
-              :class="{ active: editor.form.value.circleId === c.id }"
-              @click="selectCircle(c.id)"
-            >
-              {{ c.name }}
             </button>
           </div>
         </div>
@@ -127,6 +129,22 @@
             <span>{{ editor.isEditMode.value ? '保存草稿' : '保存为草稿' }}</span>
           </button>
           <button
+            type="button"
+            class="action-btn check-btn"
+            :class="{ 'check-pass': sensitiveResult === 'pass', 'check-fail': sensitiveResult === 'fail' }"
+            :disabled="checkingSensitive"
+            @click="handleCheckSensitive"
+          >
+            <LoadingSpinner v-if="checkingSensitive" inline text="" />
+            <Icon v-else-if="sensitiveResult === 'pass'" icon="ph:check-circle" />
+            <Icon v-else-if="sensitiveResult === 'fail'" icon="ph:warning-circle" />
+            <Icon v-else icon="ph:shield-check" />
+            <span v-if="checkingSensitive">检测中...</span>
+            <span v-else-if="sensitiveResult === 'pass'">检测通过</span>
+            <span v-else-if="sensitiveResult === 'fail'">{{ sensitiveHitCount }} 个敏感词</span>
+            <span v-else>敏感词检测</span>
+          </button>
+          <button
             type="submit"
             class="action-btn publish-btn"
             :disabled="editor.submitLoading.value"
@@ -145,8 +163,10 @@
 import { Icon } from '@iconify/vue'
 import { ElMessage } from 'element-plus'
 import { usePostEditor } from '@/composables/usePostEditor'
-import { watch } from 'vue'
+import { watch, ref } from 'vue'
 import { uploadPostImage } from '@/api/upload'
+import { useApi } from '@/composables/useApi'
+import { checkSensitive } from '@/api/post'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import VMdEditor from '@kangc/v-md-editor/lib/base-editor'
 import githubTheme from '@kangc/v-md-editor/lib/theme/github.js'
@@ -161,6 +181,44 @@ const emit = defineEmits<{
 
 const editor = usePostEditor('ARTICLE')
 
+// 敏感词检测
+const checkingSensitive = ref(false)
+const sensitiveResult = ref<'pass' | 'fail' | null>(null)
+const sensitiveHitCount = ref(0)
+
+const resetSensitiveResult = () => {
+  sensitiveResult.value = null
+  sensitiveHitCount.value = 0
+}
+
+const handleCheckSensitive = async () => {
+  if (!editor.form.value.title && !editor.form.value.content) {
+    ElMessage.warning('请先填写标题或正文')
+    return
+  }
+  checkingSensitive.value = true
+  sensitiveResult.value = null
+  try {
+    const { run } = useApi()
+    const data = await run(() => checkSensitive({
+      title: editor.form.value.title,
+      content: editor.form.value.content,
+    }))
+    if (data && data.length > 0) {
+      sensitiveResult.value = 'fail'
+      sensitiveHitCount.value = data.length
+      ElMessage.warning('检测到敏感词：' + data.join('、'))
+    } else {
+      sensitiveResult.value = 'pass'
+      ElMessage.success('未检测到敏感词，内容安全')
+    }
+  } catch {
+    ElMessage.error('检测失败，请稍后重试')
+  } finally {
+    checkingSensitive.value = false
+  }
+}
+
 const selectCircle = (circleId: number) => {
   editor.form.value.circleId = circleId
   editor.form.value.sectionId = null  // 切圈子时清空已选板块
@@ -173,6 +231,9 @@ watch(() => editor.form.value.circleId, (newId) => {
     editor.loadSectionsForCircle(newId)
   }
 })
+
+// 标题或正文改动时重置敏感词检测结果
+watch(() => [editor.form.value.title, editor.form.value.content], resetSensitiveResult)
 
 const handleMdImageUpload = async (_event: any, insertImage: Function, files: File[]) => {
   const file = files[0]
@@ -488,6 +549,35 @@ defineExpose({ dirty: editor.dirty, confirmLeave: editor.confirmLeave })
 .publish-btn:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+/* 敏感词检测按钮 */
+.check-btn {
+  border-color: var(--border);
+  background: var(--card);
+  color: var(--text-secondary);
+}
+
+.check-btn:hover:not(:disabled) {
+  border-color: var(--text-dim);
+  color: var(--text);
+}
+
+.check-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.check-btn.check-pass {
+  color: #16a34a;
+  border-color: #16a34a;
+  background: rgba(22, 163, 74, 0.08);
+}
+
+.check-btn.check-fail {
+  color: #ef4444;
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
 }
 
 html.dark .draft-btn,

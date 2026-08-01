@@ -284,3 +284,8 @@ export const approvePost = (postId: string) => {
 export const rejectPost = (postId: string, reason: string) => {
   return request.put(`/post/admin/review/${postId}/reject`, { reason })
 }
+
+/** 敏感词检测，返回命中的敏感词列表 */
+export const checkSensitive = (data: { title: string; content: string }): Promise<string[]> => {
+  return request.post('/post/check-sensitive', data)
+}
