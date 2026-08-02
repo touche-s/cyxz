@@ -1,4 +1,5 @@
 import base64
+from urllib.parse import urlparse
 
 import httpx
 
@@ -6,6 +7,24 @@ from app.config import (
     LLM_API_URL, LLM_API_KEY, LLM_MODEL, AUTO_PASS_WITHOUT_KEY,
     QWEN_VL_API_URL, QWEN_VL_API_KEY, QWEN_VL_MODEL,
 )
+
+# 图片下载安全限制
+MAX_IMAGE_BYTES = 10 * 1024 * 1024  # 10MB，防大文件耗尽内存
+BLOCKED_HOSTS = {"169.254.169.254", "metadata.google.internal", "metadata"}
+
+
+def _validate_image_url(url: str) -> str | None:
+    """校验图片 URL 安全性（防 SSRF），通过返回 None，否则返回错误信息"""
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return "图片地址格式错误"
+    if parsed.scheme not in ("http", "https"):
+        return "仅支持 http/https 图片地址"
+    host = (parsed.hostname or "").lower()
+    if not host or host in BLOCKED_HOSTS:
+        return "图片地址不合法"
+    return None
 
 IMAGE_PROMPT = """你是二次元社区的AI图片审核员。判断此图是否违规。
 
@@ -75,11 +94,18 @@ async def review_image(image_url: str) -> tuple[bool, str]:
     if not QWEN_VL_API_KEY:
         return (True, "") if AUTO_PASS_WITHOUT_KEY else (False, "图像审核服务未配置")
 
-    # 下载图片并转 base64
+    # SSRF 防护：校验图片地址
+    err = _validate_image_url(image_url)
+    if err:
+        return False, err
+
+    # 下载图片并转 base64，限制大小防耗尽内存
     async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
         img_resp = await client.get(image_url)
         img_resp.raise_for_status()
         img_bytes = img_resp.content
+        if len(img_bytes) > MAX_IMAGE_BYTES:
+            return False, "图片过大"
 
     mime = "image/jpeg"
     if img_bytes[:4] == b"\x89PNG":
