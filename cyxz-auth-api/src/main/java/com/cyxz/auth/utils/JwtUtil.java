@@ -41,6 +41,8 @@ public class JwtUtil {
         this.redisTemplate = redisTemplate;
     }
 
+    private static final int MIN_KEY_BYTES = 32;
+
     /**
      * 初始化 secret 和 token 过期时间（供 auth 服务调用）
      *
@@ -48,6 +50,7 @@ public class JwtUtil {
      * @param expirationSeconds Token 过期时间（秒）
      */
     public void init(String secret, long expirationSeconds) {
+        checkKeyLength(secret);
         this.secret = secret;
         this.expirationSeconds = expirationSeconds;
     }
@@ -58,7 +61,16 @@ public class JwtUtil {
      * @param secret JWT 签名密钥
      */
     public void init(String secret) {
+        checkKeyLength(secret);
         this.secret = secret;
+    }
+
+    private void checkKeyLength(String secret) {
+        int bytes = secret.getBytes(StandardCharsets.UTF_8).length;
+        if (bytes < MIN_KEY_BYTES) {
+            throw new IllegalArgumentException(
+                "JWT 密钥长度不足: " + bytes + " 字节, HMAC-SHA256 要求至少 " + MIN_KEY_BYTES + " 字节");
+        }
     }
 
     /**
