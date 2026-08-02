@@ -12,8 +12,8 @@ import com.cyxz.common.constant.EsSyncConstants;
 import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.constant.PostStatus;
 import com.cyxz.common.event.PostEsSyncEvent;
-import com.cyxz.message.api.constant.NotificationConstants;
-import com.cyxz.message.api.event.NotificationEvent;
+import com.cyxz.message.constant.NotificationConstants;
+import com.cyxz.message.event.NotificationEvent;
 import com.cyxz.post.service.AiReviewService;
 import com.cyxz.post.service.AiReviewService.AiReviewResult;
 import com.cyxz.post.service.SensitiveWordService;
@@ -286,27 +286,38 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "仅回收站中的帖子可彻底删除");
         }
 
-        // 1. 删除帖子下的评论和评论点赞（Feign 调 comment 服务）
-        Result<Void> commentResult = commentFeignClient.deleteByPostId(postId);
-        if (commentResult == null || !commentResult.isSuccess()) {
-            log.warn("删除帖子关联评论失败: postId={}, result={}", postId, commentResult);
-        }
-
-        // 2. 删除帖子点赞
+        // 本地事务：仅删除本服务数据，保证原子性
+        // 1. 删除帖子点赞
         postLikeMapper.delete(
                 new LambdaQueryWrapper<PostLikePO>()
                     .eq(PostLikePO::getPostId, postId));
 
-        // 3. 删除帖子收藏
+        // 2. 删除帖子收藏
         postCollectMapper.delete(
                 new LambdaQueryWrapper<PostCollectPO>()
                     .eq(PostCollectPO::getPostId, postId));
 
-        // 4. 删除帖子主表
+        // 3. 删除帖子主表
         postMapper.deleteById(postId);
         evictDetailCache(postId);
         // ES 同步删除
         syncPostToEsDelete(postId);
+
+        // 跨服务调用（评论清理）放到事务提交后执行，避免长事务持有 DB 连接
+        // 失败时仅记日志，由人工或对账补偿（与原逻辑一致，但不再阻塞事务）
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    Result<Void> commentResult = commentFeignClient.deleteByPostId(postId);
+                    if (commentResult == null || !commentResult.isSuccess()) {
+                        log.warn("删除帖子关联评论失败: postId={}, result={}", postId, commentResult);
+                    }
+                } catch (Exception e) {
+                    log.error("删除帖子关联评论异常: postId={}", postId, e);
+                }
+            }
+        });
         log.info("彻底删除帖子成功: postId={}, userId={}", postId, userId);
     }
 
@@ -983,19 +994,22 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "请选择要操作的帖子");
         }
         if ("publish".equals(action)) {
-            for (Long postId : postIds) {
-                PostPO po = postMapper.selectById(postId);
-                if (po == null || !po.getUserId().equals(userId)) continue;
+            // 批量查询替代循环 selectById，避免 N+1
+            List<PostPO> posts = postMapper.selectBatchIds(postIds);
+            List<Long> validPostIds = new ArrayList<>();
+            for (PostPO po : posts) {
+                if (!po.getUserId().equals(userId)) continue;
                 if (po.getStatus() != PostStatus.DRAFT) continue;
                 // 草稿转发布需校验必填字段
                 if (po.getTitle() == null || po.getTitle().isBlank()
                         || po.getContent() == null || po.getContent().isBlank()
                         || po.getImages() == null || po.getImages().isBlank()) {
-                    log.warn("草稿缺少必填字段，跳过: postId={}", postId);
+                    log.warn("草稿缺少必填字段，跳过: postId={}", po.getId());
                     continue;
                 }
+                validPostIds.add(po.getId());
                 // 异步 AI 审核（事务提交后派发，避免读到旧状态）
-                final Long pid = postId;
+                final Long pid = po.getId();
                 final String title = po.getTitle();
                 final String content = po.getContent();
                 List<String> imgs = po.getImages() != null && !po.getImages().isBlank()
@@ -1014,8 +1028,10 @@ public class PostServiceImpl implements PostService {
                     }
                 });
             }
-            // 仅草稿(DRAFT)帖子可转发布，防止已发布帖被打回 PENDING
-            postMapper.batchUpdateStatus(userId, postIds, PostStatus.PENDING, PostStatus.DRAFT);
+            if (!validPostIds.isEmpty()) {
+                // 仅草稿(DRAFT)帖子可转发布，防止已发布帖被打回 PENDING
+                postMapper.batchUpdateStatus(userId, validPostIds, PostStatus.PENDING, PostStatus.DRAFT);
+            }
         } else if ("delete".equals(action)) {
             postMapper.batchUpdateStatus(userId, postIds, PostStatus.DELETED, null);
         } else {
