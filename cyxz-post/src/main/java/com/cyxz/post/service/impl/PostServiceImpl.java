@@ -10,6 +10,7 @@ import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.constant.EsSyncConstants;
 import com.cyxz.common.constant.PageConstants;
+import com.cyxz.common.constant.PostStatus;
 import com.cyxz.common.event.PostEsSyncEvent;
 import com.cyxz.message.api.constant.NotificationConstants;
 import com.cyxz.message.api.event.NotificationEvent;
@@ -39,6 +40,8 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.time.Duration;
@@ -69,52 +72,16 @@ public class PostServiceImpl implements PostService {
     @Value("${spring.data.redis.cache-ttl-minutes:30}")
     private long cacheTtlMinutes;
 
-    // ==================== 帖子状态常量与流转规则 ====================
-    // 0=草稿  1=待审核  2=已通过(公开)  3=拒绝  4=已删除
-    // 流转链：草稿→待审→通过/拒绝；通过→删除；拒绝→草稿(重编重新发布)
-
-    public static final int STATUS_DRAFT = 0;
-    public static final int STATUS_PENDING = 1;
-    public static final int STATUS_APPROVED = 2;
-    public static final int STATUS_REJECTED = 3;
-    public static final int STATUS_DELETED = 4;
-
-    /** 合法的状态流转表：当前状态 → 允许迁入的目标状态列表 */
-    private static final Map<Integer, Set<Integer>> ALLOWED_TRANSITIONS = Map.of(
-            STATUS_DRAFT, Set.of(STATUS_PENDING, STATUS_DELETED),
-            STATUS_PENDING, Set.of(STATUS_APPROVED, STATUS_REJECTED, STATUS_DRAFT),
-            STATUS_APPROVED, Set.of(STATUS_DELETED),
-            STATUS_REJECTED, Set.of(STATUS_DRAFT),
-            STATUS_DELETED, Set.of(STATUS_DRAFT)
-    );
-
     private static final Set<String> ALLOWED_SORT_FIELDS = Set.of("create_time", "views", "likes", "collections");
 
-    private static final Map<Integer, String> STATUS_LABEL = Map.of(
-            STATUS_DRAFT, "草稿",
-            STATUS_PENDING, "待审核",
-            STATUS_APPROVED, "已通过",
-            STATUS_REJECTED, "拒绝",
-            STATUS_DELETED, "已删除"
-    );
-
-    private boolean canTransition(int from, int to) {
-        if (from == to) return true;
-        return ALLOWED_TRANSITIONS.getOrDefault(from, Set.of()).contains(to);
-    }
-
-    private String statusLabel(int status) {
-        return STATUS_LABEL.getOrDefault(status, "未知");
-    }
-
-    /** 帖子是否公开可见（非作者也可看）—— status=2 已通过 */
+    /** 帖子是否公开可见（非作者也可看）—— PostStatus.APPROVED 已通过 */
     private boolean isPublicVisible(PostPO po) {
-        return po != null && po.getStatus() == STATUS_APPROVED;
+        return po != null && po.getStatus() == PostStatus.APPROVED;
     }
 
     /** 帖子是否仅作者可见 */
     private boolean isAuthorOnly(PostPO po) {
-        return po != null && po.getStatus() != STATUS_APPROVED;
+        return po != null && po.getStatus() != PostStatus.APPROVED;
     }
 
     /** 帖子是否允许互动（点赞、收藏、评论） */
@@ -133,7 +100,7 @@ public class PostServiceImpl implements PostService {
      */
     @Override
     public Long createPost(Long userId, CreatePostRequest request) {
-        if (request.getStatus() != null && request.getStatus() == 1) {
+        if (request.getStatus() != null && request.getStatus() == PostStatus.PENDING) {
             validatePublishFields(request.getTitle(),
                     request.getCircleId(), request.getContent(), request.getImages(), request.getPostType(), userId);
             // 发布时检测敏感词，命中直接拒绝
@@ -159,13 +126,13 @@ public class PostServiceImpl implements PostService {
         }
         String postType = request.getPostType() != null ? request.getPostType() : "NORMAL";
         po.setPostType(postType);
-        po.setStatus(request.getStatus() != null ? request.getStatus() : 0);
+        po.setStatus(request.getStatus() != null ? request.getStatus() : PostStatus.DRAFT);
         po.setLikes(0);
         po.setComments(0);
         po.setViews(0);
         po.setCollections(0);
         postMapper.insert(po);
-        if (po.getStatus() == STATUS_PENDING) {
+        if (po.getStatus() == PostStatus.PENDING) {
             // 异步调 AI 审核，审核结果在本服务内处理
             final Long postId = po.getId();
             final String postTitle = po.getTitle();
@@ -176,7 +143,7 @@ public class PostServiceImpl implements PostService {
                     AiReviewResult result = aiReviewService.review(postId, postTitle, postContent, images);
                     handleReviewResult(postId, userId, postTitle, result);
                 } catch (Exception e) {
-                    log.error("AI 审核调用失败，转人工审核: postId={}, error={}", postId, e.getMessage());
+                    handleReviewFailure(postId, e);
                 }
             });
         }
@@ -189,7 +156,7 @@ public class PostServiceImpl implements PostService {
      * <p>支持三种业务动作：
      * <ul>
      *   <li>保存草稿：仅更新内容字段，不触发发布校验</li>
-     *   <li>草稿转发布 / 更新已发布：更新内容 + status=1，强制执行发布完整性校验</li>
+     *   <li>草稿转发布 / 更新已发布：更新内容 + status=PostStatus.PENDING，强制执行发布完整性校验</li>
      *   <li>状态迁移（转草稿、恢复）：仅变更 status 字段</li>
      * </ul>
      * 校验帖子归属权，非作者本人无权修改。
@@ -209,7 +176,7 @@ public class PostServiceImpl implements PostService {
 
 
         // 发布动作：仅校验请求体完整性，前端必须传完整发布数据
-        boolean isPublishAction = request.getStatus() != null && request.getStatus() == 1;
+        boolean isPublishAction = request.getStatus() != null && request.getStatus() == PostStatus.PENDING;
         if (isPublishAction) {
             Long targetCircleId = request.getCircleId() != null ? request.getCircleId() : po.getCircleId();
             validatePublishFields(
@@ -230,9 +197,9 @@ public class PostServiceImpl implements PostService {
         applyContentUpdate(po, request);
 
         if (request.getStatus() != null) {
-            if (!canTransition(po.getStatus(), request.getStatus())) {
+            if (!PostStatus.canTransition(po.getStatus(), request.getStatus())) {
                 throw new BusinessException(ErrorCode.PARAM_ERROR,
-                        "不允许从 " + statusLabel(po.getStatus()) + " 直接变更为 " + statusLabel(request.getStatus()));
+                        "不允许从 " + PostStatus.label(po.getStatus()) + " 直接变更为 " + PostStatus.label(request.getStatus()));
             }
             po.setStatus(request.getStatus());
         }
@@ -251,7 +218,7 @@ public class PostServiceImpl implements PostService {
                     AiReviewResult result = aiReviewService.review(postId, postTitle, postContent, images);
                     handleReviewResult(postId, userId, postTitle, result);
                 } catch (Exception e) {
-                    log.error("AI 审核调用失败，转人工审核: postId={}, error={}", postId, e.getMessage());
+                    handleReviewFailure(postId, e);
                 }
             });
         }
@@ -275,7 +242,7 @@ public class PostServiceImpl implements PostService {
 
     /**
      * 删除帖子（逻辑删除）
-     * <p>仅将帖子状态改为 2（已删除），不物理删除数据，可在回收站恢复。
+     * <p>仅将帖子状态改为 PostStatus.DELETED（已删除），不物理删除数据，可在回收站恢复。
      * 校验帖子归属权，非作者本人无权删除。
      *
      * @param userId 当前登录用户 ID
@@ -290,7 +257,7 @@ public class PostServiceImpl implements PostService {
         if (!po.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
-        po.setStatus(STATUS_DELETED);
+        po.setStatus(PostStatus.DELETED);
         postMapper.updateById(po);
         evictDetailCache(postId);
         syncPostToEs(po);
@@ -299,7 +266,7 @@ public class PostServiceImpl implements PostService {
 
     /**
      * 彻底删除帖子（物理删除 + 级联清理关联数据）
-     * <p>仅允许删除 status=2 的帖子（已在回收站中），
+     * <p>仅允许删除 PostStatus.DELETED 的帖子（已在回收站中），
      * 同时通过 Feign 清理评论和评论点赞，本地清理帖子点赞、帖子收藏。
      *
      * @param userId 当前登录用户 ID
@@ -315,7 +282,7 @@ public class PostServiceImpl implements PostService {
         if (!po.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
-        if (po.getStatus() != STATUS_DELETED) {
+        if (po.getStatus() != PostStatus.DELETED) {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "仅回收站中的帖子可彻底删除");
         }
 
@@ -401,7 +368,7 @@ public class PostServiceImpl implements PostService {
     public PageResult<PostVO> listPosts(Long sectionId, Long circleId, String sortBy, int page, int size, Long currentUserId) {
         Page<PostPO> pageParam = PageConstants.pageOf(page, size);
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PostPO::getStatus, STATUS_APPROVED);
+        wrapper.eq(PostPO::getStatus, PostStatus.APPROVED);
         if (sectionId != null) {
             wrapper.eq(PostPO::getSectionId, sectionId);
         }
@@ -463,7 +430,7 @@ public class PostServiceImpl implements PostService {
 
     /**
      * 查询指定用户的已发布帖子列表
-     * <p>个人空间使用，仅返回 status=1 的帖子，按创建时间倒序。
+     * <p>个人空间使用，仅返回 PostStatus.APPROVED 的帖子，按创建时间倒序。
      *
      * @param targetUserId    目标用户 ID
      * @param currentUserId   当前登录用户 ID（可为 null）
@@ -476,7 +443,7 @@ public class PostServiceImpl implements PostService {
         Page<PostPO> pageParam = PageConstants.pageOf(page, size);
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostPO::getUserId, targetUserId);
-        wrapper.eq(PostPO::getStatus, STATUS_APPROVED);
+        wrapper.eq(PostPO::getStatus, PostStatus.APPROVED);
         wrapper.last("ORDER BY is_pinned DESC, pinned_time DESC, create_time DESC");
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
 
@@ -495,7 +462,7 @@ public class PostServiceImpl implements PostService {
      */
     @Override
     public PageResult<PostVO> listFavorites(Long targetUserId, Long currentUserId, int page, int size) {
-        // 从 post_collect 表获取目标用户收藏的帖子 ID（仅 status=1）
+        // 从 post_collect 表获取目标用户收藏的帖子 ID（仅 CommonStatus.ACTIVE）
         LambdaQueryWrapper<PostCollectPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostCollectPO::getUserId, targetUserId)
                 .eq(PostCollectPO::getStatus, CommonStatus.ACTIVE)
@@ -514,7 +481,7 @@ public class PostServiceImpl implements PostService {
 
         // 批量查询帖子，过滤掉已删除和未发布的
         List<PostPO> posts = postMapper.selectBatchIds(postIds).stream()
-                .filter(po -> po.getStatus() == STATUS_APPROVED)
+                .filter(po -> po.getStatus() == PostStatus.APPROVED)
                 .collect(Collectors.toList());
 
         return PageResult.of(fillPostVOList(posts, currentUserId), collectPage.getTotal(), page, size);
@@ -878,7 +845,7 @@ public class PostServiceImpl implements PostService {
 
     /**
      * 查询用户收到的点赞列表
-     * <p>通过 JOIN post 表过滤出当前用户的帖子，再查 post_like 表中 status=1 的记录，
+     * <p>通过 JOIN post 表过滤出当前用户的帖子，再查 post_like 表中 CommonStatus.ACTIVE 的记录，
      * 并批量 Feign 查询点赞用户的昵称和头像。
      *
      * @param userId 当前用户 ID
@@ -923,7 +890,7 @@ public class PostServiceImpl implements PostService {
         String likeKeyword = "%" + keyword.trim() + "%";
         Page<PostPO> pageParam = PageConstants.pageOf(page, size);
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PostPO::getStatus, STATUS_APPROVED)
+        wrapper.eq(PostPO::getStatus, PostStatus.APPROVED)
                 .and(w -> w.like(PostPO::getTitle, likeKeyword).or().like(PostPO::getContent, likeKeyword));
         wrapper.orderByDesc(PostPO::getCreateTime);
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
@@ -985,7 +952,7 @@ public class PostServiceImpl implements PostService {
         if (!po.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
-        if (po.getStatus() != STATUS_APPROVED) {
+        if (po.getStatus() != PostStatus.APPROVED) {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "仅已发布帖子可置顶");
         }
         int pinnedCount = postMapper.countPinnedPosts(userId);
@@ -1019,7 +986,7 @@ public class PostServiceImpl implements PostService {
             for (Long postId : postIds) {
                 PostPO po = postMapper.selectById(postId);
                 if (po == null || !po.getUserId().equals(userId)) continue;
-                if (po.getStatus() != STATUS_DRAFT) continue;
+                if (po.getStatus() != PostStatus.DRAFT) continue;
                 // 草稿转发布需校验必填字段
                 if (po.getTitle() == null || po.getTitle().isBlank()
                         || po.getContent() == null || po.getContent().isBlank()
@@ -1027,24 +994,30 @@ public class PostServiceImpl implements PostService {
                     log.warn("草稿缺少必填字段，跳过: postId={}", postId);
                     continue;
                 }
-                // 异步 AI 审核
+                // 异步 AI 审核（事务提交后派发，避免读到旧状态）
                 final Long pid = postId;
                 final String title = po.getTitle();
                 final String content = po.getContent();
                 List<String> imgs = po.getImages() != null && !po.getImages().isBlank()
                         ? Arrays.asList(po.getImages().split(",")) : Collections.emptyList();
-                CompletableFuture.runAsync(() -> {
-                    try {
-                        AiReviewResult result = aiReviewService.review(pid, title, content, imgs);
-                        handleReviewResult(pid, userId, title, result);
-                    } catch (Exception e) {
-                        log.error("批量发布 AI 审核失败: postId={}, error={}", pid, e.getMessage());
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        CompletableFuture.runAsync(() -> {
+                            try {
+                                AiReviewResult result = aiReviewService.review(pid, title, content, imgs);
+                                handleReviewResult(pid, userId, title, result);
+                            } catch (Exception e) {
+                                handleReviewFailure(pid, e);
+                            }
+                        });
                     }
                 });
             }
-            postMapper.batchUpdateStatus(userId, postIds, STATUS_PENDING);
+            // 仅草稿(DRAFT)帖子可转发布，防止已发布帖被打回 PENDING
+            postMapper.batchUpdateStatus(userId, postIds, PostStatus.PENDING, PostStatus.DRAFT);
         } else if ("delete".equals(action)) {
-            postMapper.batchUpdateStatus(userId, postIds, STATUS_DELETED);
+            postMapper.batchUpdateStatus(userId, postIds, PostStatus.DELETED, null);
         } else {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "不支持的操作类型: " + action);
         }
@@ -1063,7 +1036,7 @@ public class PostServiceImpl implements PostService {
 
         Page<PostPO> pageParam = PageConstants.pageOf(page, size);
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PostPO::getStatus, STATUS_APPROVED);
+        wrapper.eq(PostPO::getStatus, PostStatus.APPROVED);
         wrapper.in(PostPO::getUserId, followingUserIds);
         wrapper.orderByDesc(PostPO::getCreateTime);
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
@@ -1086,14 +1059,14 @@ public class PostServiceImpl implements PostService {
     public void approvePost(Long postId) {
         PostPO po = postMapper.selectById(postId);
         if (po == null) throw new BusinessException(ErrorCode.POST_NOT_FOUND);
-        if (po.getStatus() != STATUS_PENDING) {
+        if (po.getStatus() != PostStatus.PENDING) {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "该帖子不在待审核状态");
         }
-        if (!canTransition(po.getStatus(), STATUS_APPROVED)) {
+        if (!PostStatus.canTransition(po.getStatus(), PostStatus.APPROVED)) {
             throw new BusinessException(ErrorCode.PARAM_ERROR,
-                    "不允许从 " + statusLabel(po.getStatus()) + " 直接变更为 " + statusLabel(STATUS_APPROVED));
+                    "不允许从 " + PostStatus.label(po.getStatus()) + " 直接变更为 " + PostStatus.label(PostStatus.APPROVED));
         }
-        po.setStatus(STATUS_APPROVED);
+        po.setStatus(PostStatus.APPROVED);
         po.setReviewReason(null);
         postMapper.updateById(po);
         evictDetailCache(postId);
@@ -1105,14 +1078,11 @@ public class PostServiceImpl implements PostService {
     public void rejectPost(Long postId, String reason) {
         PostPO po = postMapper.selectById(postId);
         if (po == null) throw new BusinessException(ErrorCode.POST_NOT_FOUND);
-        if (po.getStatus() != STATUS_PENDING) {
-            throw new BusinessException(ErrorCode.PARAM_ERROR, "该帖子不在待审核状态");
-        }
-        if (!canTransition(po.getStatus(), STATUS_REJECTED)) {
+        if (!PostStatus.canTransition(po.getStatus(), PostStatus.REJECTED)) {
             throw new BusinessException(ErrorCode.PARAM_ERROR,
-                    "不允许从 " + statusLabel(po.getStatus()) + " 直接变更为 " + statusLabel(STATUS_REJECTED));
+                    "不允许从 " + PostStatus.label(po.getStatus()) + " 直接变更为 " + PostStatus.label(PostStatus.REJECTED));
         }
-        po.setStatus(STATUS_REJECTED);
+        po.setStatus(PostStatus.REJECTED);
         po.setReviewReason(reason);
         postMapper.updateById(po);
         evictDetailCache(postId);
@@ -1126,12 +1096,12 @@ public class PostServiceImpl implements PostService {
      */
     private void handleReviewResult(Long postId, Long authorId, String title, AiReviewResult result) {
         PostPO po = postMapper.selectById(postId);
-        if (po == null || po.getStatus() != STATUS_PENDING) {
+        if (po == null || po.getStatus() != PostStatus.PENDING) {
             log.info("帖子 {} 状态已变更，跳过审核结果处理", postId);
             return;
         }
         if (result.isPassed()) {
-            po.setStatus(STATUS_APPROVED);
+            po.setStatus(PostStatus.APPROVED);
             po.setReviewReason(null);
             postMapper.updateById(po);
             evictDetailCache(postId);
@@ -1139,7 +1109,7 @@ public class PostServiceImpl implements PostService {
             sendReviewNotify(authorId, "POST_APPROVED", null, postId, title);
             log.info("AI 审核通过: postId={}", postId);
         } else {
-            po.setStatus(STATUS_REJECTED);
+            po.setStatus(PostStatus.REJECTED);
             po.setReviewReason(result.getReason());
             postMapper.updateById(po);
             evictDetailCache(postId);
@@ -1149,11 +1119,29 @@ public class PostServiceImpl implements PostService {
     }
 
     /**
+     * AI 审核异常处理：帖子保持 PENDING，标记原因待人工审核
+     * <p>AI 服务异常时不放行也不拒绝，由管理员通过后台 PENDING 列表手动处理。
+     */
+    private void handleReviewFailure(Long postId, Exception e) {
+        try {
+            PostPO po = postMapper.selectById(postId);
+            if (po != null && po.getStatus() == PostStatus.PENDING) {
+                po.setReviewReason("AI审核服务异常，待人工审核");
+                postMapper.updateById(po);
+                evictDetailCache(postId);
+            }
+        } catch (Exception ex) {
+            log.error("标记人工审核失败: postId={}", postId, ex);
+        }
+        log.warn("AI 审核异常，转人工审核: postId={}, error={}", postId, e.getMessage());
+    }
+
+    /**
      * 同步帖子到 ES：APPROVED 状态写入，其他状态删除
      */
     private void syncPostToEs(PostPO po) {
         try {
-            String action = po.getStatus() != null && po.getStatus() == STATUS_APPROVED ? "CREATE" : "DELETE";
+            String action = po.getStatus() != null && po.getStatus() == PostStatus.APPROVED ? "CREATE" : "DELETE";
             PostEsSyncEvent event = buildSyncEvent(po, action);
             rabbitTemplate.convertAndSend(EsSyncConstants.EXCHANGE, EsSyncConstants.ROUTING_KEY, event);
         } catch (Exception e) {
@@ -1221,7 +1209,7 @@ public class PostServiceImpl implements PostService {
     public PageResult<PostVO> listPendingReview(int page, int size) {
         Page<PostPO> pageParam = PageConstants.pageOf(page, size);
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PostPO::getStatus, STATUS_PENDING);
+        wrapper.eq(PostPO::getStatus, PostStatus.PENDING);
         wrapper.orderByAsc(PostPO::getCreateTime);
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
         List<PostVO> vos = fillPostVOList(result.getRecords(), null);

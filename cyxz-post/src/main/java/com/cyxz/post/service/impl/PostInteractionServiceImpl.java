@@ -3,6 +3,7 @@ package com.cyxz.post.service.impl;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.constant.CacheKeyConstants;
+import com.cyxz.common.constant.PostStatus;
 import com.cyxz.common.utils.IpUtil;
 import com.cyxz.message.api.dto.CreateNotificationRequest;
 import com.cyxz.message.api.enums.NotificationType;
@@ -41,9 +42,9 @@ public class PostInteractionServiceImpl implements PostInteractionService {
     private final MessageFeignClient messageFeignClient;
     private final RabbitTemplate rabbitTemplate;
 
-    /** 帖子是否允许互动（仅已发布 status=2） */
+    /** 帖子是否允许互动（仅已发布 PostStatus.APPROVED） */
     private boolean isInteractable(PostPO po) {
-        return po != null && po.getStatus() == 2;
+        return po != null && po.getStatus() == PostStatus.APPROVED;
     }
 
     // ==================== 点赞 ====================
@@ -139,8 +140,8 @@ public class PostInteractionServiceImpl implements PostInteractionService {
     @Override
     public void recordView(Long postId, Long userId, HttpServletRequest request) {
         PostPO po = postMapper.selectById(postId);
-        // status=2 已发布才计浏览量
-        if (po == null || po.getStatus() != 2) {
+        // 已发布(APPROVED)才计浏览量
+        if (po == null || po.getStatus() != PostStatus.APPROVED) {
             return;
         }
 

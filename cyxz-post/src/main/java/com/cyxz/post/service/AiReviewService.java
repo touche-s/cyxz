@@ -1,8 +1,11 @@
 package com.cyxz.post.service;
 
 import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -18,6 +21,7 @@ import org.springframework.web.client.RestTemplate;
 /**
  * AI 审核服务（纯函数，只调 Python AI，不碰 DB/缓存/MQ）
  * <p>调用方负责处理审核结果：改状态、发通知等。
+ * <p>安全策略：fail-closed —— AI 返回空或序列化失败时拒绝，避免违规内容自动放行。
  */
 @Slf4j
 @Service
@@ -25,6 +29,7 @@ import org.springframework.web.client.RestTemplate;
 public class AiReviewService {
 
     private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
 
     @Value("${ai.review.url:http://127.0.0.1:8000/review}")
     private String reviewUrl;
@@ -55,32 +60,35 @@ public class AiReviewService {
     }
 
     private AiReviewResult callTextReview(Long postId, String title, String content) {
-        String body = String.format(
-                "{\"post_id\":%d,\"title\":\"%s\",\"content\":\"%s\"}",
-                postId, escape(title), escape(content)
-        );
-        return doPost(reviewUrl, body);
+        return doPost(reviewUrl, Map.of(
+                "post_id", postId,
+                "title", title != null ? title : "",
+                "content", content != null ? content : ""
+        ));
     }
 
     private AiReviewResult callImageReview(Long postId, String imageUrl) {
-        String body = String.format(
-                "{\"post_id\":%d,\"image_url\":\"%s\"}",
-                postId, escape(imageUrl)
-        );
-        return doPost(reviewImageUrl, body);
+        return doPost(reviewImageUrl, Map.of(
+                "post_id", postId,
+                "image_url", imageUrl != null ? imageUrl : ""
+        ));
     }
 
-    private AiReviewResult doPost(String url, String body) {
+    private AiReviewResult doPost(String url, Map<String, Object> payload) {
+        String body;
+        try {
+            body = objectMapper.writeValueAsString(payload);
+        } catch (JsonProcessingException e) {
+            log.error("AI 审核请求序列化失败: {}", e.getMessage());
+            return new AiReviewResult(false, "审核服务异常");
+        }
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> request = new HttpEntity<>(body, headers);
         var response = restTemplate.postForEntity(url, request, AiReviewResult.class);
-        return response.getBody() != null ? response.getBody() : new AiReviewResult(true, "");
-    }
-
-    private String escape(String s) {
-        if (s == null) return "";
-        return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n");
+        AiReviewResult result = response.getBody();
+        // fail-closed：AI 返回空时拒绝，避免违规内容自动放行
+        return result != null ? result : new AiReviewResult(false, "审核服务异常");
     }
 
     @Data

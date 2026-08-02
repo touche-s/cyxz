@@ -149,12 +149,16 @@ public interface PostMapper extends BaseMapper<PostPO> {
 
     /**
      * 批量更新帖子状态
+     *
+     * @param fromStatus 限制仅更新该状态的帖子，null 表示不限制（用于状态机校验）
      */
     @Update("<script>" +
             "UPDATE post SET status = #{status} WHERE user_id = #{userId} AND id IN " +
             "<foreach collection='postIds' item='id' open='(' separator=',' close=')'>#{id}</foreach>" +
+            "<if test='fromStatus != null'> AND status = #{fromStatus}</if>" +
             "</script>")
-    int batchUpdateStatus(@Param("userId") Long userId, @Param("postIds") List<Long> postIds, @Param("status") int status);
+    int batchUpdateStatus(@Param("userId") Long userId, @Param("postIds") List<Long> postIds,
+                          @Param("status") int status, @Param("fromStatus") Integer fromStatus);
 
     /**
      * 统计各圈子的已发布帖子数

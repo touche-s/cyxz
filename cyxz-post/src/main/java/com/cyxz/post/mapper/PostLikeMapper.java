@@ -47,7 +47,7 @@ public interface PostLikeMapper extends BaseMapper<PostLikePO> {
             "pl.user_id AS userId, pl.create_time AS createTime " +
             "FROM post_like pl " +
             "INNER JOIN post p ON pl.post_id = p.id " +
-            "WHERE p.user_id = #{userId} AND pl.status = 1 AND p.status = 2 " +
+            "WHERE p.user_id = #{userId} AND pl.status = 1 AND p.status = 2 /* PostStatus.APPROVED */ " +
             "ORDER BY pl.create_time DESC " +
             "LIMIT #{offset}, #{size}")
     List<ReceivedLikeVO> selectReceivedLikes(@Param("userId") Long userId,
@@ -63,6 +63,6 @@ public interface PostLikeMapper extends BaseMapper<PostLikePO> {
      */
     @Select("SELECT COUNT(*) FROM post_like pl " +
             "INNER JOIN post p ON pl.post_id = p.id " +
-            "WHERE p.user_id = #{userId} AND pl.status = 1 AND p.status = 2")
+            "WHERE p.user_id = #{userId} AND pl.status = 1 AND p.status = 2 /* PostStatus.APPROVED */")
     int countReceivedLikes(@Param("userId") Long userId);
 }
