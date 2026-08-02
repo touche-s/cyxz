@@ -42,3 +42,21 @@ export function formatDate(date: Date | string): string {
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
 }
+
+/** 估算帖子卡片高度，用于瀑布流最短列分配 */
+export function estimatePostHeight(post: { title?: string; tags?: string[] }): number {
+  const coverH = 180
+  const charsPerLine = 14
+  const lineH = 26
+  const titleLines = Math.max(1, Math.ceil((post.title?.length ?? 0) / charsPerLine))
+  const titleH = titleLines * lineH + 10
+  const tagsH = (post.tags?.length ?? 0) > 0 ? 30 : 0
+  const metaH = 52
+  return coverH + titleH + tagsH + metaH
+}
+
+/** 将帖子内容按换行拆分为段落，过滤空行 */
+export function splitParagraphs(content: string): string[] {
+  if (!content) return []
+  return content.split('\n').filter(p => p.trim())
+}

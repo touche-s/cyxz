@@ -2,6 +2,7 @@ package com.cyxz.user.controller;
 
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
+import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.web.CurrentUser;
 import com.cyxz.user.dto.UpdateProfileRequest;
 import com.cyxz.user.service.FollowService;
@@ -130,6 +131,20 @@ public class UserProfileController {
     }
 
     /**
+     * 查询两个用户是否互相关注
+     * <p>前端 ProfilePage 私信按钮判断用。
+     *
+     * @param targetUserId 目标用户 ID
+     * @param userId       当前登录用户 ID（由 Gateway 注入）
+     * @return 是否互相关注
+     */
+    @GetMapping("/{targetUserId}/is-mutual-following")
+    public Result<Boolean> isMutualFollowing(@PathVariable("targetUserId") Long targetUserId,
+                                              @CurrentUser Long userId) {
+        return Result.success(followService.isMutualFollowing(userId, targetUserId));
+    }
+
+    /**
      * 查询当前用户的关注列表
      *
      * @param userId 当前登录用户 ID（由 Gateway 注入）
@@ -139,8 +154,8 @@ public class UserProfileController {
      */
     @GetMapping("/following")
     public Result<PageResult<FollowUserVO>> listFollowing(@CurrentUser Long userId,
-                                                     @RequestParam(value = "page", defaultValue = "1") int page,
-                                                     @RequestParam(value = "size", defaultValue = "20") int size) {
+                                                     @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
+                                                     @RequestParam(value = "size", defaultValue = PageConstants.SIZE_20_STR) int size) {
         return Result.success(followService.listFollowing(userId, page, size));
     }
 
@@ -154,8 +169,8 @@ public class UserProfileController {
      */
     @GetMapping("/followers")
     public Result<PageResult<FollowUserVO>> listFollowers(@CurrentUser Long userId,
-                                                     @RequestParam(value = "page", defaultValue = "1") int page,
-                                                     @RequestParam(value = "size", defaultValue = "20") int size) {
+                                                     @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
+                                                     @RequestParam(value = "size", defaultValue = PageConstants.SIZE_20_STR) int size) {
         return Result.success(followService.listFollowers(userId, page, size));
     }
 
@@ -169,7 +184,16 @@ public class UserProfileController {
     public Result<Map<String, Integer>> getFollowStats(@CurrentUser Long userId) {
         return Result.success(Map.of(
                 "followingCount", followService.countFollowing(userId),
-                "followerCount", followService.countFollowers(userId)
+                "followerCount", followService.countFollowers(userId),
+                "newFollowerCount", followService.countNewFollowers(userId)
         ));
+    }
+
+    /**
+     * 查询关注用户 ID 列表（内部接口，供 post 服务拉取关注动态）
+     */
+    @GetMapping("/internal/following-ids")
+    public Result<List<Long>> listFollowingUserIds(@RequestParam("userId") Long userId) {
+        return Result.success(followService.listFollowingUserIds(userId));
     }
 }

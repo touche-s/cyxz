@@ -24,10 +24,14 @@ public class RouteConfig {
                         .and().not(p -> p.path("/api/*/internal/**"))
                         .filters(f -> f.stripPrefix(1))
                         .uri("lb://cyxz-user"))
-                .route("post", r -> r.path("/api/post/**", "/api/posts/**", "/api/category/**")
+                .route("post", r -> r.path("/api/post/**", "/api/posts/**")
                         .and().not(p -> p.path("/api/*/internal/**"))
                         .filters(f -> f.stripPrefix(1))
                         .uri("lb://cyxz-post"))
+                .route("circle", r -> r.path("/api/circle/**", "/api/section/**", "/api/admin/section-template/**")
+                        .and().not(p -> p.path("/api/*/internal/**"))
+                        .filters(f -> f.stripPrefix(1))
+                        .uri("lb://cyxz-circle"))
                 .route("comment", r -> r.path("/api/comment/**")
                         .and().not(p -> p.path("/api/*/internal/**"))
                         .filters(f -> f.stripPrefix(1))
@@ -44,6 +48,8 @@ public class RouteConfig {
                         .and().not(p -> p.path("/api/*/internal/**"))
                         .filters(f -> f.stripPrefix(1))
                         .uri("lb://cyxz-upload"))
+                .route("chat-ws", r -> r.path("/ws/message/**")
+                        .uri("lb://cyxz-message"))
                 .build();
     }
 }

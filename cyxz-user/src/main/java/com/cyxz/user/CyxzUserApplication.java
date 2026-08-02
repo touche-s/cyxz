@@ -1,9 +1,13 @@
 package com.cyxz.user;
 
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 
-@SpringBootApplication(scanBasePackages = {"com.cyxz.user", "com.cyxz.common"})
+@MapperScan("com.cyxz.user.mapper")
+@SpringBootApplication(scanBasePackages = {"com.cyxz.user", "com.cyxz.common", "com.cyxz.message.feign"})
+@EnableFeignClients(basePackages = {"com.cyxz.message.feign"})
 public class CyxzUserApplication {
 
     public static void main(String[] args) {

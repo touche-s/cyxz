@@ -2,6 +2,17 @@ import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import router from '@/router'
 
+export class ApiError extends Error {
+  code: number
+  constructor(code: number, message: string) {
+    super(message)
+    this.code = code
+    this.name = 'ApiError'
+  }
+}
+
+let handlingUnauthorized = false
+
 const request = axios.create({
   baseURL: '/api',
   timeout: 15000,
@@ -16,23 +27,48 @@ request.interceptors.request.use((config) => {
 })
 
 request.interceptors.response.use(
-  (res) => res,
-  (err) => {
+  (res) => {
+    const body = res.data
+    if (body && body.code === 200) {
+      return body.data
+    }
+    return Promise.reject(new ApiError(body?.code ?? -1, body?.message ?? '请求失败'))
+  },
+  async (err) => {
+    if (err instanceof ApiError) {
+      return Promise.reject(err)
+    }
     if (err.response?.status === 401) {
+      if (handlingUnauthorized) {
+        return Promise.reject(err)
+      }
+
+      handlingUnauthorized = true
+
       // 延迟导入避免 Pinia 未安装时调用
-      import('@/stores/user').then(({ useUserStore }) => {
-        useUserStore().clearAuth()
-      })
+      const { useUserStore } = await import('@/stores/user')
+      useUserStore().clearAuth()
       localStorage.removeItem('token')
       localStorage.removeItem('userInfo')
+
       const currentPath = router.currentRoute.value.path
       if (currentPath !== '/') {
         router.push('/')
       }
+
       ElMessage.error('登录已过期，请重新登录')
+
+      setTimeout(() => {
+        handlingUnauthorized = false
+      }, 1000)
     }
     return Promise.reject(err)
   }
 )
 
-export default request
+export default request as unknown as {
+  get<R = any>(url: string, config?: any): Promise<R>
+  post<R = any>(url: string, data?: any, config?: any): Promise<R>
+  put<R = any>(url: string, data?: any, config?: any): Promise<R>
+  delete<R = any>(url: string, config?: any): Promise<R>
+}

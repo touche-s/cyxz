@@ -8,10 +8,18 @@
 
         <div v-else-if="post" class="post-detail">
           <div class="post-main-card">
+            <button class="post-more-btn" @click.stop="showReportMenu = !showReportMenu">
+              <Icon icon="ph:dots-three-outline-vertical" />
+            </button>
+            <div v-if="showReportMenu" class="post-more-dropdown" @click.stop>
+              <button class="post-more-item" @click="handleReportFromMenu">
+                <Icon icon="ph:warning" class="more-item-icon" />
+                举报
+              </button>
+            </div>
             <div class="post-header">
               <div class="author-info">
-                <img v-if="post.authorAvatar" :src="post.authorAvatar" class="author-avatar clickable" @click="goToAuthor" />
-                <div v-else class="author-avatar-placeholder clickable" @click="goToAuthor"></div>
+                <img :src="avatarUrl(post.authorAvatar)" class="author-avatar clickable" @click="goToAuthor" />
                 <div class="author-meta">
                   <div class="author-name-row">
                     <span class="author-name clickable" @click="goToAuthor">{{ post.authorName || '匿名用户' }}</span>
@@ -29,17 +37,25 @@
             <h1 class="post-title">{{ post.title }}</h1>
 
             <div class="post-images" v-if="post.images && post.images.length > 0">
-              <div class="carousel-container">
+              <div class="carousel-container" :style="{ aspectRatio: carouselAspectRatio }">
                 <div class="carousel-track" :style="{ transform: `translateX(-${currentImage * 100}%)` }">
-                  <img v-for="(img, index) in post.images" :key="index" :src="img" :alt="`图片${index + 1}`" class="carousel-slide" />
+                  <img
+                    v-for="(img, index) in post.images"
+                    :key="index"
+                    :src="img"
+                    :alt="`图片${index + 1}`"
+                    class="carousel-slide"
+                    @load="(e) => onImageLoad(index, e)"
+                    @click.stop="openLightbox(index)"
+                  />
                 </div>
 
                 <!-- 左右箭头 -->
                 <button v-if="post.images.length > 1" class="carousel-arrow carousel-prev" @click="prevImage">
-                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                  <Icon icon="ph:caret-left" class="carousel-arrow-icon" />
                 </button>
                 <button v-if="post.images.length > 1" class="carousel-arrow carousel-next" @click="nextImage">
-                  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+                  <Icon icon="ph:caret-right" class="carousel-arrow-icon" />
                 </button>
 
                 <!-- 底部指示点 -->
@@ -49,7 +65,10 @@
               </div>
             </div>
 
-            <div class="post-content">
+            <div class="post-content" v-if="post.postType === 'ARTICLE'">
+              <v-md-preview :text="post.content" />
+            </div>
+            <div class="post-content" v-else>
               <p v-for="(paragraph, index) in contentParagraphs" :key="index" class="content-paragraph">
                 {{ paragraph }}
               </p>
@@ -61,27 +80,29 @@
           </div>
 
           <div class="post-action-bar">
-            <button class="action-btn" :class="{ active: liked, popping: likePopping }" @click="togglePostLike">
-              <img :src="liked ? likeIcon : likeOutlineIcon" alt="like" class="action-icon" />
+            <button class="action-btn" :class="{ active: post.liked, popping: likeInteraction.popping }" @click="likeInteraction.toggle">
+              <Icon icon="ph:heart" class="action-icon pink-icon" v-show="!post.liked" />
+              <Icon icon="ph:heart-fill" class="action-icon pink-icon" v-show="post.liked" />
               <span class="action-count">{{ formatNumber(post.likes) }}</span>
             </button>
-            <button class="action-btn" :class="{ active: collected, popping: collectPopping }" @click="toggleCollect">
-              <img :src="collected ? favoriteIcon : favoriteOutlineIcon" alt="favorite" class="action-icon" />
+            <button class="action-btn" :class="{ active: post.collected, popping: collectInteraction.popping }" @click="collectInteraction.toggle">
+              <Icon icon="ph:star" class="action-icon pink-icon" v-show="!post.collected" />
+              <Icon icon="ph:star-fill" class="action-icon pink-icon" v-show="post.collected" />
               <span class="action-count">{{ formatNumber(post.collections) }}</span>
             </button>
             <button class="action-btn" @click="handleShare">
-              <img :src="shareIcon" alt="share" class="action-icon" />
+              <Icon icon="ph:share-fat" class="action-icon pink-icon" />
               <span class="action-count">分享</span>
             </button>
             <button class="action-btn" @click="scrollToComment">
-              <img :src="commentIcon" alt="comment" class="action-icon" />
-              <span class="action-count">{{ commentTotal }}</span>
+              <Icon icon="ph:chat-circle-text" class="action-icon pink-icon" />
+              <span class="action-count">{{ post.comments ?? 0 }}</span>
             </button>
           </div>
 
           <div class="comment-section" ref="commentSection">
             <div class="section-header">
-              <h2>评论 ({{ commentTotal }})</h2>
+              <h2>评论 ({{ post.comments ?? 0 }})</h2>
             </div>
 
             <!-- 顶部评论框：始终显示，用于回复帖子 -->
@@ -163,15 +184,44 @@
         </EmptyState>
       </div>
     </main>
+
+    <!-- 图片放大预览 -->
+    <Teleport to="body">
+      <Transition name="lightbox-fade">
+        <div v-if="lightboxVisible" class="lightbox-overlay" @click.self="closeLightbox" @keydown="handleLightboxKeydown" tabindex="0" ref="lightboxOverlay">
+          <div class="lightbox-image-wrap">
+            <img :src="lightboxImages[lightboxIndex]" class="lightbox-image" alt="预览图片" />
+          </div>
+
+          <button class="lightbox-close" @click="closeLightbox">
+            <Icon icon="ph:x" class="lightbox-close-icon" />
+          </button>
+
+          <template v-if="lightboxImages.length > 1">
+            <button class="lightbox-arrow lightbox-prev" @click.stop="lightboxPrev">
+              <Icon icon="ph:caret-left" class="lightbox-arrow-icon" />
+            </button>
+            <button class="lightbox-arrow lightbox-next" @click.stop="lightboxNext">
+              <Icon icon="ph:caret-right" class="lightbox-arrow-icon" />
+            </button>
+          </template>
+
+          <div class="lightbox-counter" v-if="lightboxImages.length > 1">{{ lightboxIndex + 1 }} / {{ lightboxImages.length }}</div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, reactive } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, computed, onMounted, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
+import { useNavigate } from '@/composables/useNavigate'
 import { ElMessage } from 'element-plus'
-import { getPostDetail, togglePostLike as doPostLike, togglePostCollect as doPostCollect, recordPostView } from '@/api/post'
-import { formatNumber, formatTime, formatDateTime } from '@/utils/format'
+import { getPostDetail, likePost, unlikePost, collectPost, uncollectPost, recordPostView } from '@/api/post'
+import { isPublished } from '@/utils/postStatus'
+import { formatDateTime, formatNumber } from '@/utils/format'
+import { avatarUrl } from '@/utils/avatar'
 import {
   getCommentList,
   createComment,
@@ -185,36 +235,61 @@ import CommentItem from '@/components/CommentItem.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import FollowButton from '@/components/FollowButton.vue'
-import likeIcon from '@/assets/icons/like.svg'
-import likeOutlineIcon from '@/assets/icons/like-outline.svg'
-import favoriteIcon from '@/assets/icons/favorite.svg'
-import favoriteOutlineIcon from '@/assets/icons/favorite-outline.svg'
-import shareIcon from '@/assets/icons/share.svg'
-import commentIcon from '@/assets/icons/comment.svg'
+import { useToggleInteraction } from '@/composables/useToggleInteraction'
+import { Icon } from '@iconify/vue'
+import VMdPreview from '@kangc/v-md-editor/lib/preview'
+import githubTheme from '@kangc/v-md-editor/lib/theme/github.js'
+
+VMdPreview.use(githubTheme)
 
 const route = useRoute()
-const router = useRouter()
+const { open, to } = useNavigate()
 const userStore = useUserStore()
 const { requireLogin } = useAuth()
 const { following, followLoading, checkFollowing, toggleFollow: doFollow } = useFollow()
 
 const post = ref<PostVO | null>(null)
 const loading = ref(false)
-const liked = ref(false)
-const collected = ref(false)
 const commentInput = ref('')
 const commentSection = ref<HTMLElement | null>(null)
 const currentImage = ref(0)
+
+
+const likeInteraction = useToggleInteraction({
+  target: () => post.value,
+  likedField: 'liked',
+  countField: 'likes',
+  likeApi: (id) => likePost(id),
+  unlikeApi: (id) => unlikePost(id),
+  idGetter: (p) => String(p.id),
+})
+
+const collectInteraction = useToggleInteraction({
+  target: () => post.value,
+  likedField: 'collected',
+  countField: 'collections',
+  likeApi: (id) => collectPost(id),
+  unlikeApi: (id) => uncollectPost(id),
+  idGetter: (p) => String(p.id),
+})
+// ===== 图片轮播动态比例 =====
+const imageNaturalRatios = ref<number[]>([])
+function onImageLoad(index: number, e: Event) {
+  const img = e.target as HTMLImageElement
+  imageNaturalRatios.value[index] = img.naturalWidth / img.naturalHeight
+}
+const carouselAspectRatio = computed(() => {
+  const ratio = imageNaturalRatios.value[currentImage.value]
+  return ratio ? `${ratio}` : '4/3'
+})
+
 const replyTarget = ref<{ comment: CommentVO; parentId: string } | null>(null)
 const activeReplyId = ref<string | null>(null) // 哪个顶级评论下方显示回复框
 
-const likePopping = ref(false)
-const collectPopping = ref(false)
 
 // ===== 评论列表 =====
 const comments = ref<CommentVO[]>([])
 const commentPage = ref(1)
-const commentTotal = ref(0)
 const commentSize = 20
 const commentLoading = ref(false)
 const commentFinished = ref(false)
@@ -233,7 +308,7 @@ const contentParagraphs = computed(() => {
 
 function goToAuthor() {
   if (post.value?.userId) {
-    router.push(`/user/${post.value.userId}`)
+    open(`/user/${post.value.userId}`)
   }
 }
 
@@ -247,20 +322,59 @@ const nextImage = () => {
   }
 }
 
+// ===== 图片放大预览 =====
+const lightboxVisible = ref(false)
+const lightboxIndex = ref(0)
+const lightboxImages = computed(() => post.value?.images || [])
+const lightboxOverlay = ref<HTMLElement | null>(null)
+
+function openLightbox(index: number) {
+  lightboxIndex.value = index
+  lightboxVisible.value = true
+  nextTick(() => {
+    lightboxOverlay.value?.focus()
+  })
+}
+
+function closeLightbox() {
+  lightboxVisible.value = false
+}
+
+function lightboxPrev() {
+  if (lightboxIndex.value > 0) lightboxIndex.value--
+}
+
+function lightboxNext() {
+  if (lightboxIndex.value < lightboxImages.value.length - 1) lightboxIndex.value++
+}
+
+function handleLightboxKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') {
+    closeLightbox()
+  } else if (e.key === 'ArrowLeft') {
+    lightboxPrev()
+  } else if (e.key === 'ArrowRight') {
+    lightboxNext()
+  }
+}
+
 // ===== 帖子 =====
 const loadPost = async () => {
   const postId = String(route.params.id)
   loading.value = true
   try {
-    const res = await getPostDetail(postId)
-    if (res.data.code === 200) {
-      post.value = res.data.data as PostVO
-      liked.value = post.value.liked || false
-      collected.value = post.value.collected || false
-      // 非作者本人时查询关注状态
-      if (post.value.userId && String(post.value.userId) !== String(currentUserId.value)) {
-        await checkFollowing(String(post.value.userId))
-      }
+    const data = await getPostDetail(postId)
+    post.value = data as PostVO
+    // 非已发布内容不进详情页
+    if (!isPublished(post.value.status)) {
+      post.value = null
+      ElMessage.warning('该内容不可查看')
+      loading.value = false
+      return
+    }
+    // 非作者本人时查询关注状态
+    if (post.value.userId && String(post.value.userId) !== String(currentUserId.value)) {
+      await checkFollowing(String(post.value.userId))
     }
   } catch {
     ElMessage.error('加载失败')
@@ -269,66 +383,52 @@ const loadPost = async () => {
   }
 }
 
-const togglePostLike = async () => {
-  if (!requireLogin()) return
-  if (!post.value) return
-
-  const oldLiked = liked.value
-  const oldLikes = post.value.likes
-
-  liked.value = !oldLiked
-  post.value.likes = oldLiked ? Math.max(oldLikes - 1, 0) : oldLikes + 1
-  likePopping.value = true
-  setTimeout(() => { likePopping.value = false }, 450)
-
-  try {
-    const res = await doPostLike(String(post.value.id))
-    if (res.data.code === 200) {
-      post.value.likes = res.data.data
-    }
-  } catch {
-    liked.value = oldLiked
-    post.value.likes = oldLikes
-  }
-}
-
-const toggleCollect = async () => {
-  if (!requireLogin()) return
-  if (!post.value) return
-
-  const oldCollected = collected.value
-  const oldCollections = post.value.collections
-
-  collected.value = !oldCollected
-  post.value.collections = oldCollected ? Math.max(oldCollections - 1, 0) : oldCollections + 1
-  collectPopping.value = true
-  setTimeout(() => { collectPopping.value = false }, 450)
-
-  try {
-    const res = await doPostCollect(String(post.value.id))
-    if (res.data.code === 200) {
-      post.value.collections = res.data.data
-    }
-  } catch {
-    collected.value = oldCollected
-    post.value.collections = oldCollections
-  }
-}
 
 function toggleFollow() {
   if (!post.value?.userId) return
   doFollow(String(post.value.userId))
 }
 
-const handleShare = () => {
-  ElMessage.success('分享链接已复制')
+const handleShare = async () => {
+  try {
+    await navigator.clipboard.writeText(window.location.href)
+    ElMessage.success('链接已复制到剪贴板')
+  } catch {
+    ElMessage.error('复制失败，请手动复制')
+  }
 }
 
 const scrollToComment = () => {
   commentSection.value?.scrollIntoView({ behavior: 'smooth' })
 }
 
-// ===== 评论列表加载 =====
+const handleReport = () => {
+  ElMessage.info('举报功能即将上线。如遇违规内容，请联系管理员。')
+}
+
+const showReportMenu = ref(false)
+
+function handleReportFromMenu() {
+  showReportMenu.value = false
+  ElMessage.info('举报功能即将上线。如遇违规内容，请联系管理员。')
+}
+
+function onDocClick() {
+  showReportMenu.value = false
+}
+
+onMounted(() => {
+  document.addEventListener('click', onDocClick)
+})
+
+onMounted(async () => {
+  await loadPost()
+  if (post.value) {
+    loadComments(true)
+    recordPostView(String(route.params.id)).catch(() => {})
+  }
+})
+
 const loadComments = async (reset = false) => {
   if (!post.value) return
   if (commentLoading.value) return
@@ -343,23 +443,20 @@ const loadComments = async (reset = false) => {
 
   commentLoading.value = true
   try {
-    const res = await getCommentList({
+    const pageResult = await getCommentList({
       postId: String(post.value.id),
       page: commentPage.value,
       size: commentSize,
     })
-    const pageResult = res.data?.data
-    if (pageResult) {
-      const records = pageResult.records || []
-      if (reset) {
-        comments.value = records
-      } else {
-        comments.value.push(...records)
-      }
-      commentTotal.value = pageResult.total || 0
-      if (comments.value.length >= commentTotal.value) {
-        commentFinished.value = true
-      }
+    const records = pageResult.records || []
+    if (reset) {
+      comments.value = records
+    } else {
+      comments.value.push(...records)
+    }
+    if (post.value) post.value.comments = pageResult.total || 0
+    if (comments.value.length >= (pageResult.total || 0)) {
+      commentFinished.value = true
     }
   } catch {
     ElMessage.error('加载评论失败')
@@ -384,14 +481,12 @@ const submitTopComment = async () => {
       postId: String(post.value.id),
       content: commentInput.value.trim(),
     }
-    const res = await createComment(data)
-    if (res.data.code === 200) {
-      ElMessage.success('评论成功')
-      commentInput.value = ''
-      // 后端返回完整 CommentVO，直接插入列表第一条展示
-      comments.value.unshift(res.data.data)
-      commentTotal.value++
-    }
+    const newComment = await createComment(data)
+    ElMessage.success('评论成功')
+    commentInput.value = ''
+    // 后端返回完整 CommentVO，直接插入列表第一条展示
+    comments.value.unshift(newComment)
+    if (post.value) post.value.comments = (post.value.comments ?? 0) + 1
   } catch {
     ElMessage.error('评论失败')
   }
@@ -409,27 +504,24 @@ const submitComment = async () => {
       parentId: replyTarget.value.parentId,
       replyToUserId: replyTarget.value.comment.userId,
     }
-    const res = await createComment(data)
-    if (res.data.code === 200) {
-      ElMessage.success('回复成功')
-      commentInput.value = ''
-      const replyParentId = replyTarget.value.parentId
-      replyTarget.value = null
-      activeReplyId.value = null
-      // 局部更新：回复数 +1，同时把新回复插入当前展开的 children 列表
-      const idx = comments.value.findIndex(c => c.id === replyParentId)
-      if (idx !== -1) {
-        const updated = {
-          ...comments.value[idx],
-          totalReplies: (comments.value[idx].totalReplies || 0) + 1,
-        }
-        // 如果当前父评论的 children 已展开，把新回复追加到末尾
-        if (updated.children && updated.children.length > 0) {
-          const newReply = res.data.data
-          updated.children = [...updated.children, newReply]
-        }
-        comments.value[idx] = updated
+    const newComment = await createComment(data)
+    ElMessage.success('回复成功')
+    commentInput.value = ''
+    const replyParentId = replyTarget.value.parentId
+    replyTarget.value = null
+    activeReplyId.value = null
+    // 局部更新：回复数 +1，同时把新回复插入当前展开的 children 列表
+    const idx = comments.value.findIndex(c => c.id === replyParentId)
+    if (idx !== -1) {
+      const updated = {
+        ...comments.value[idx],
+        totalReplies: (comments.value[idx].totalReplies || 0) + 1,
       }
+      // 如果当前父评论的 children 已展开，把新回复追加到末尾
+      if (updated.children && updated.children.length > 0) {
+        updated.children = [...updated.children, newComment]
+      }
+      comments.value[idx] = updated
     }
   } catch {
     ElMessage.error('回复失败')
@@ -450,23 +542,17 @@ const cancelReply = () => {
 }
 
 const handleCommentDeleted = (commentId: string) => {
-  // 从列表中移除该评论
-  comments.value = comments.value.filter(c => c.id !== commentId)
-  commentTotal.value = Math.max(0, commentTotal.value - 1)
+  // 从顶级列表移除（如果是顶级评论）；子回复由 CommentItem 本地清理
+  const idx = comments.value.findIndex(c => c.id === commentId)
+  if (idx !== -1) {
+    comments.value.splice(idx, 1)
+  }
+  if (post.value) post.value.comments = Math.max(0, (post.value.comments ?? 1) - 1)
 }
 
 const goHome = () => {
-  router.push('/')
+  to('/')
 }
-
-onMounted(async () => {
-  await loadPost()
-  if (post.value) {
-    loadComments(true)
-    // 静默上报浏览，失败不影响展示
-    recordPostView(String(route.params.id)).catch(() => {})
-  }
-})
 </script>
 
 <style scoped>
@@ -509,8 +595,78 @@ onMounted(async () => {
   backdrop-filter: blur(10px);
   border-radius: 20px;
   padding: 24px;
-  box-shadow: 0 4px 30px rgba(255, 107, 157, 0.1);
+  box-shadow: var(--shadow);
   border: 1px solid rgba(255, 255, 255, 0.6);
+  position: relative;
+}
+
+.post-more-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  z-index: 10;
+  transition: all 0.2s ease;
+}
+
+.post-more-btn:hover {
+  background: var(--pink-bg);
+  color: var(--pink);
+}
+
+.post-more-dropdown {
+  position: absolute;
+  top: 58px;
+  right: 18px;
+  background: var(--card);
+  border-radius: 14px;
+  border: 1px solid var(--border-light);
+  box-shadow: 0 8px 28px rgba(255, 107, 157, 0.12);
+  min-width: 130px;
+  padding: 6px;
+  z-index: 20;
+}
+
+.post-more-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  font-family: inherit;
+}
+
+.post-more-item:hover {
+  background: var(--pink-bg);
+  color: var(--pink);
+}
+
+.more-item-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--text-dim);
+}
+
+.post-more-item:hover .more-item-icon {
+  color: var(--warning);
 }
 
 .post-header {
@@ -518,7 +674,7 @@ onMounted(async () => {
   align-items: center;
   margin-bottom: 24px;
   padding-bottom: 16px;
-  border-bottom: 1px solid rgba(255, 107, 157, 0.1);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .author-info {
@@ -532,17 +688,8 @@ onMounted(async () => {
   height: 56px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid white;
-  box-shadow: 0 2px 12px rgba(180, 132, 255, 0.25);
-}
-
-.author-avatar-placeholder {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  border: 2px solid white;
-  box-shadow: 0 2px 10px rgba(180, 132, 255, 0.2);
+  border: 2px solid var(--white);
+  box-shadow: var(--shadow-lg);
 }
 
 .author-meta {
@@ -594,23 +741,25 @@ onMounted(async () => {
 .carousel-container {
   position: relative;
   width: 100%;
-  aspect-ratio: 16/9;
+  max-height: 60vh;
   overflow: hidden;
-  background: #f5f5f5;
+  background: var(--card);
+  transition: height 0.35s ease, aspect-ratio 0.35s ease;
 }
 
 .carousel-track {
   display: flex;
-  transition: transform 0.3s ease;
   height: 100%;
+  transition: transform 0.3s ease;
 }
 
 .carousel-slide {
   min-width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
+  cursor: pointer;
   user-select: none;
-  pointer-events: none;
 }
 
 .carousel-arrow {
@@ -621,7 +770,7 @@ onMounted(async () => {
   height: 40px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.4);
-  color: white;
+  color: var(--white);
   border: none;
   cursor: pointer;
   display: flex;
@@ -663,7 +812,7 @@ onMounted(async () => {
 }
 
 .carousel-dot.active {
-  background: white;
+  background: var(--card);
 }
 
 .post-content {
@@ -690,7 +839,7 @@ onMounted(async () => {
 .tag-item {
   padding: 6px 14px;
   border-radius: 16px;
-  background: rgba(180, 132, 255, 0.1);
+  background: var(--purple-bg);
   color: var(--purple);
   font-size: 13px;
   font-weight: 500;
@@ -703,7 +852,7 @@ onMounted(async () => {
   backdrop-filter: blur(10px);
   border-radius: 16px;
   padding: 10px 20px;
-  box-shadow: 0 4px 30px rgba(255, 107, 157, 0.1);
+  box-shadow: var(--shadow);
   border: 1px solid rgba(255, 255, 255, 0.6);
 }
 
@@ -721,16 +870,18 @@ onMounted(async () => {
 }
 
 .action-btn:hover {
-  background: rgba(255, 107, 157, 0.08);
+  background: var(--pink-bg-hover);
 }
 
-.action-btn img {
+.action-btn img,
+.action-btn .action-icon {
   width: 24px;
   height: 24px;
   transition: transform 0.22s ease-out;
 }
 
-.action-btn:hover img {
+.action-btn:hover img,
+.action-btn:hover .action-icon {
   transform: scale(1.1);
 }
 
@@ -744,12 +895,14 @@ onMounted(async () => {
   color: var(--pink);
 }
 
+
+/* ===== 评论顶部输入框 ===== */
 .comment-section {
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(10px);
   border-radius: 16px;
   padding: 14px 20px;
-  box-shadow: 0 4px 30px rgba(255, 107, 157, 0.1);
+  box-shadow: var(--shadow);
   border: 1px solid rgba(255, 255, 255, 0.6);
 }
 
@@ -778,9 +931,9 @@ onMounted(async () => {
   margin-left: 68px;
   margin-bottom: 16px;
   padding: 12px;
-  background: rgba(180, 132, 255, 0.05);
+  background: var(--purple-bg);
   border-radius: 12px;
-  border: 1px solid rgba(180, 132, 255, 0.15);
+  border: 1px solid var(--border);
 }
 
 .input-row {
@@ -794,7 +947,7 @@ onMounted(async () => {
   justify-content: space-between;
   padding: 6px 12px;
   margin-bottom: 8px;
-  background: rgba(180, 132, 255, 0.08);
+  background: var(--purple-bg);
   border-radius: 8px;
   font-size: 13px;
   color: var(--purple);
@@ -833,7 +986,7 @@ onMounted(async () => {
 
 .comment-input:focus {
   border-color: var(--pink);
-  background: white;
+  background: var(--card);
 }
 
 .comment-input::placeholder {
@@ -843,8 +996,8 @@ onMounted(async () => {
 .send-btn {
   padding: 10px 24px;
   border-radius: 16px;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  color: white;
+  background: var(--gradient-brand);
+  color: var(--white);
   font-size: 14px;
   font-weight: 600;
   border: none;
@@ -854,7 +1007,7 @@ onMounted(async () => {
 }
 
 .send-btn:hover:not(:disabled) {
-  box-shadow: 0 4px 16px rgba(255, 107, 157, 0.35);
+  box-shadow: var(--shadow-lg);
 }
 
 .send-btn:disabled {
@@ -922,8 +1075,8 @@ onMounted(async () => {
 .back-btn {
   padding: 10px 32px;
   border-radius: 20px;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  color: white;
+  background: var(--gradient-brand);
+  color: var(--white);
   font-size: 14px;
   font-weight: 600;
   border: none;
@@ -932,7 +1085,147 @@ onMounted(async () => {
 }
 
 .back-btn:hover {
-  box-shadow: 0 4px 16px rgba(255, 107, 157, 0.35);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ===== 图片放大预览 Lightbox ===== */
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(18, 12, 27, 0.62);
+  backdrop-filter: blur(20px) saturate(140%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+}
+
+.lightbox-image-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 90vw;
+  max-height: 85vh;
+}
+
+.lightbox-image {
+  max-width: 90vw;
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 24px;
+  right: 28px;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(8px);
+  color: var(--white);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.24s ease;
+  z-index: 10;
+}
+
+.lightbox-close:hover {
+  background: rgba(255, 107, 157, 0.6);
+  border-color: rgba(255, 107, 157, 0.5);
+  transform: rotate(90deg) scale(1.05);
+}
+
+.lightbox-close-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.lightbox-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  color: var(--white);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.22s ease;
+  z-index: 10;
+}
+
+.lightbox-arrow:hover {
+  background: rgba(255, 107, 157, 0.45);
+  border-color: rgba(255, 107, 157, 0.4);
+  transform: translateY(-50%) scale(1.08);
+}
+
+.lightbox-arrow-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.lightbox-prev { left: 28px; }
+.lightbox-next { right: 28px; }
+
+.lightbox-counter {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(8px);
+  color: var(--white);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.lightbox-fade-enter-active,
+.lightbox-fade-leave-active {
+  transition: opacity 0.28s ease;
+}
+
+.lightbox-fade-enter-from,
+.lightbox-fade-leave-to {
+  opacity: 0;
+}
+
+@media (max-width: 768px) {
+  .lightbox-close {
+    top: 16px;
+    right: 16px;
+    width: 36px;
+    height: 36px;
+  }
+
+  .lightbox-arrow {
+    width: 40px;
+    height: 40px;
+  }
+
+  .lightbox-prev { left: 12px; }
+  .lightbox-next { right: 12px; }
+
+  .lightbox-image {
+    max-width: 95vw;
+    max-height: 80vh;
+  }
 }
 
 @media (max-width: 768px) {
@@ -976,5 +1269,44 @@ onMounted(async () => {
 
 .action-btn.popping img {
   animation: postLikePop 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===== Dark mode overrides ===== */
+html.dark .post-main-card {
+  background: rgba(30, 26, 50, 0.75);
+  border-color: rgba(255, 182, 215, 0.1);
+}
+
+html.dark .post-action-bar {
+  background: rgba(30, 26, 50, 0.75);
+  border-color: rgba(255, 182, 215, 0.1);
+}
+
+html.dark .comment-section {
+  background: rgba(30, 26, 50, 0.75);
+  border-color: rgba(255, 182, 215, 0.1);
+}
+
+html.dark .carousel-dot {
+  background: rgba(30, 26, 50, 0.5);
+}
+
+html.dark .comment-input {
+  background: rgba(30, 26, 50, 0.6);
+}
+
+html.dark .lightbox-close {
+  background: rgba(255, 107, 157, 0.04);
+  border-color: rgba(255, 107, 157, 0.06);
+}
+
+html.dark .lightbox-arrow {
+  background: rgba(255, 107, 157, 0.04);
+  border-color: rgba(255, 107, 157, 0.06);
+}
+
+html.dark .lightbox-counter {
+  background: rgba(255, 107, 157, 0.04);
+  border-color: rgba(255, 107, 157, 0.06);
 }
 </style>

@@ -1,156 +1,222 @@
-# 次元社区 (Cyxz)
+# 次元小站 (Cyxz)
 
-一个基于 Spring Cloud 微服务架构的二次元社区平台，支持用户注册登录、帖子发布与分类浏览、二级评论、点赞收藏、关注与粉丝管理、创作中心等核心功能。
+面向 ACGN 爱好者的轻量级社区平台，支持多圈子内容发布、社交互动与创作管理。采用 Spring Cloud 微服务架构，前后端分离，面向学习与个人项目展示。
 
 ## 技术栈
 
-| 层级 | 技术 | 版本 |
-|------|------|------|
-| 后端框架 | Spring Boot | 3.5.2 |
-| 微服务 | Spring Cloud + Alibaba | 2025.0.0 / 2023.0.3.2 |
-| 网关 | Spring Cloud Gateway | - |
-| 注册中心 | Nacos | - |
-| 数据库 | MySQL + MyBatis-Plus | - |
-| 缓存 | Redis | - |
-| 对象存储 | MinIO | - |
-| 服务调用 | OpenFeign + FallbackFactory | - |
-| 认证 | JWT + BCrypt | - |
-| 前端 | Vue 3 + TypeScript | - |
-| UI 框架 | Element Plus | 2.14 |
-| 构建工具 | Vite | 8.1 |
-| 状态管理 | Pinia | 3.0 |
+| 层级 | 技术 |
+|---|---|
+| 后端框架 | Spring Boot 3.5 + Spring Cloud 2025 |
+| 服务治理 | Nacos（注册发现 + 配置中心）、Spring Cloud Gateway |
+| 数据层 | MySQL 8 + MyBatis-Plus、Redis、MinIO |
+| 消息队列 | RabbitMQ（通知异步、ES 数据同步、死信队列） |
+| 搜索引擎 | Elasticsearch（全文检索、高亮） |
+| 实时通信 | WebSocket（私信推送、在线状态） |
+| AI 审核 | 独立 Python 服务（FastAPI） |
+| 前端 | Vue 3 + TypeScript + Vite 8 + Pinia |
+| 组件库 | Element Plus + Iconify |
+| CI | GitHub Actions |
+
+## 系统架构
+
+```mermaid
+graph TB
+    subgraph 前端
+        FE[Vue 3 前端]
+    end
+
+    subgraph 网关层
+        GW[Gateway<br/>路由 / JWT 鉴权 / CORS]
+    end
+
+    subgraph 业务服务
+        AUTH[认证服务]
+        USER[用户服务]
+        POST[帖子服务]
+        COMMENT[评论服务]
+        CIRCLE[圈子服务]
+        MESSAGE[消息服务]
+        SEARCH[搜索服务]
+        UPLOAD[上传服务]
+    end
+
+    subgraph 基础设施
+        MYSQL[(MySQL)]
+        REDIS[(Redis)]
+        ES[(Elasticsearch)]
+        MQ[[RabbitMQ]]
+        MINIO[(MinIO)]
+        NACOS[Nacos]
+        AI[AI 审核服务<br/>Python]
+    end
+
+    FE --> GW
+    GW --> AUTH & USER & POST & COMMENT & CIRCLE & MESSAGE & SEARCH & UPLOAD
+
+    POST -. Feign .-> USER & COMMENT & CIRCLE
+    POST -. 异步 MQ .-> MESSAGE & SEARCH
+    COMMENT -. Feign .-> USER
+    MESSAGE -. Feign .-> USER
+
+    AUTH --> MYSQL & REDIS & NACOS
+    USER --> MYSQL & REDIS & MQ & NACOS
+    POST --> MYSQL & REDIS & MQ & MINIO & AI & NACOS
+    COMMENT --> MYSQL & REDIS & MQ & NACOS
+    CIRCLE --> MYSQL & NACOS
+    MESSAGE --> MYSQL & REDIS & MQ & NACOS
+    SEARCH --> ES & MQ & NACOS
+    UPLOAD --> MINIO & NACOS
+```
+
+## 核心功能
+
+- **用户系统**：注册登录、JWT Token 鉴权、图形验证码、个人资料管理
+- **内容创作**：发帖（普通帖/文章帖）、草稿、发布前敏感词检测、AI 内容审核
+- **圈子体系**：多圈子、板块模板、圈子成员管理、圈子帖子计数
+- **社交互动**：点赞、评论（含楼中楼）、收藏、关注/粉丝
+- **消息通知**：点赞/评论/关注通知、未读数、WebSocket 实时推送
+- **私信系统**：一对一私信、会话列表、在线状态
+- **全文搜索**：ES 索引同步（MQ 异步）、关键词高亮
+- **创作中心**：作品数据统计、互动趋势、月度报表
+- **管理后台**：用户管理、帖子审核、圈子管理
 
 ## 项目结构
 
 ```
-cyxz
-├── cyxz-common          # 公共库：统一返回、异常处理、Redis/Feign 配置、@CurrentUser
-├── cyxz-gateway         # 网关服务：路由转发、JWT 鉴权、CORS（8080）
-├── cyxz-auth            # 认证服务：注册/登录/验证码、Token 签发
-├── cyxz-auth-api        # Auth Feign 接口
-├── cyxz-user            # 用户服务：资料管理、关注/取关
-├── cyxz-user-api        # User Feign 接口 + VO/DTO
-├── cyxz-post            # 帖子服务：CRUD、分类、点赞/收藏、浏览统计
-├── cyxz-post-api        # Post Feign 接口
-├── cyxz-comment         # 评论服务：二级评论、评论点赞
-├── cyxz-upload          # 上传服务：MinIO 文件上传
-├── cyxz-message         # 消息服务（规划中）
-├── cyxz-search          # 搜索服务（规划中）
-├── cyxz-frontend        # 前端：Vue 3 + Element Plus
-└── db/                  # 数据库初始化脚本
+cyxz/
+├── cyxz-gateway/        # API 网关（路由、JWT 鉴权、CORS）
+├── cyxz-auth/           # 认证服务（登录注册、Token、用户管理）
+├── cyxz-user/           # 用户服务（资料、关注关系）
+├── cyxz-post/           # 帖子服务（发布、审核、互动、AI 审核）
+├── cyxz-comment/        # 评论服务（评论、楼中楼、点赞）
+├── cyxz-circle/         # 圈子服务（圈子、板块、成员）
+├── cyxz-message/        # 消息服务（通知、私信、WebSocket）
+├── cyxz-search/         # 搜索服务（ES 索引、全文检索）
+├── cyxz-upload/         # 上传服务（MinIO 图床）
+├── cyxz-common/         # 公共模块（异常、配置、常量、工具）
+├── cyxz-auth-api/       # 认证 API（JwtUtil）
+├── cyxz-user-api/       # 用户 API（Feign + VO）
+├── cyxz-post-api/       # 帖子 API（Feign + VO）
+├── cyxz-comment-api/    # 评论 API（Feign）
+├── cyxz-circle-api/     # 圈子 API（Feign）
+├── cyxz-message-api/    # 消息 API（Feign + 事件 + 常量）
+├── cyxz-ai/             # AI 审核服务（Python / FastAPI）
+├── db/                  # 数据库初始化脚本
+├── docs/                # 设计文档
+└── cyxz-frontend/       # Vue 3 前端项目
 ```
 
-## 功能清单
+## 技术亮点
 
-### 用户模块
-- 注册/登录（验证码 + JWT）
-- 个人资料编辑（头像上传、昵称、简介等）
-- 个人空间（展示发帖、获赞、浏览量）
-- 关注/取关 + 粉丝管理
+> 以下为项目已落地的工程实践，持续迭代中。
 
-### 帖子模块
-- 发布/编辑/删除帖子（支持封面图）
-- 分类浏览（动漫/游戏/绘画/COS/漫展/同人/周边/闲聊/资源）
-- 点赞/收藏
-- 浏览统计（Redis 去重 + 定时落库）
+- **统一响应与异常处理**：`Result` + `BusinessException` + `GlobalExceptionHandler`，全局错误码管理，避免 try-catch 散落
+- **JWT 鉴权链路**：网关统一验签 + Redis 黑名单注销机制，自定义 `@CurrentUser` / `@AdminUser` 注解注入用户身份
+- **Redis 缓存策略**：帖子详情缓存 + 写后失效（Cache Aside），统一 key 命名规范（`CacheKeyConstants`）
+- **RabbitMQ 异步解耦**：通知发送、ES 索引同步走 MQ，死信队列兜底消费失败消息
+- **Feign 服务间调用**：`FallbackFactory` 统一降级，返回安全默认值，避免调用方异常处理模板
+- **帖子状态机**：`PostStatus` 流转规则表 + `canTransition` 校验，乐观锁条件更新防止并发覆盖
+- **跨服务最终一致性**：`TransactionSynchronizationManager.afterCommit` 事务提交后执行 Feign 调用，避免长事务持有 DB 连接
+- **MyBatis-Plus 自动填充**：`BaseEntity` 抽取公共字段 + `MyMetaObjectHandler` 自动填充创建/更新时间
+- **AI 内容审核**：独立 Python 服务（FastAPI），发帖后异步审核，失败转人工
+- **定时计数汇总**：帖子/评论/圈子计数异步累加 + 定时刷库，避免实时写压力
 
-### 评论模块
-- 两级评论（父评论 + 子回复）
-- 子回复按需加载（避免全表扫描）
-- 评论点赞
-- 创作中心 → 评论管理（按帖子筛选、删除评论）
+## 快速启动
 
-### 创作中心
-- 数据概览（作品数/总浏览量/获赞数/评论数）
-- 数字卡片滚动动画
-- 内容管理（帖子列表、编辑/删除）
-- 粉丝管理
+### 环境依赖
 
-### 其他
-- 首页发现流
-- 全局头像点击跳转个人空间
-- 点赞/收藏弹跳动效
-- 登录弹窗滑入动效
-- B 站风格 UI 设计
-
-## 数据库
-
-4 个数据库、9 张表：
-
-| 库 | 表 | 说明 |
-|----|----|------|
-| cyxz_auth | sys_user | 用户认证 |
-| cyxz_user | user_profile, user_follow | 用户资料、关注关系 |
-| cyxz_post | category, post, post_like, post_collect | 分类、帖子、点赞、收藏 |
-| cyxz_comment | comment, comment_like | 评论、评论点赞 |
-
-初始化脚本：[db/init.sql](db/init.sql)
-
-## 本地运行
-
-### 环境要求
-- JDK 17+
-- MySQL 8.0+
+- JDK 17
+- MySQL 8.0
 - Redis 7+
+- RabbitMQ 3.12+
+- Elasticsearch 8+
 - Nacos 2.x
 - MinIO
-- Node.js 20+
+- Python 3.10+（AI 审核服务，可选）
+- Node.js 20
 
-### 1. 初始化数据库
-
-执行 `db/init.sql` 创建数据库和表。
-
-### 2. 配置环境变量
-
-复制 `.env.example` 为 `.env`，修改数据库、Redis、MinIO 等连接信息：
+### 中间件启动
 
 ```bash
-cp .env.example .env
+# MySQL: 导入 db/init.sql
+# Redis / RabbitMQ / Elasticsearch / Nacos / MinIO: 按各官方文档启动
 ```
 
-### 3. 启动后端
-
-按顺序启动服务：
+### 后端服务
 
 ```bash
-# 1. 注册中心 (默认端口 8848)
-./nacos/bin/startup.cmd -m standalone
+cd cyxz
 
-# 2. 网关 + 各业务模块
-./mvnw spring-boot:run -pl cyxz-gateway
-./mvnw spring-boot:run -pl cyxz-auth
-./mvnw spring-boot:run -pl cyxz-user
-./mvnw spring-boot:run -pl cyxz-post
-./mvnw spring-boot:run -pl cyxz-comment
-./mvnw spring-boot:run -pl cyxz-upload
+# 按依赖顺序启动（建议在 IDEA 中配置多启动类一键运行）
+mvn spring-boot:run -pl cyxz-gateway      # 1. 网关
+mvn spring-boot:run -pl cyxz-auth         # 2. 认证
+mvn spring-boot:run -pl cyxz-user         # 3. 用户
+mvn spring-boot:run -pl cyxz-post         # 4. 帖子
+mvn spring-boot:run -pl cyxz-comment      # 5. 评论
+mvn spring-boot:run -pl cyxz-circle       # 6. 圈子
+mvn spring-boot:run -pl cyxz-message      # 7. 消息
+mvn spring-boot:run -pl cyxz-search       # 8. 搜索
+mvn spring-boot:run -pl cyxz-upload       # 9. 上传
 ```
 
-或使用 IDEA 同时启动所有模块。
+### AI 审核服务（可选）
 
-### 4. 启动前端
+```bash
+cd cyxz-ai
+pip install -r requirements.txt
+python main.py    # 默认 http://127.0.0.1:8000
+```
+
+### 前端
 
 ```bash
 cd cyxz-frontend
 npm install
-npm run dev
+npm run dev        # 开发模式，默认 http://localhost:3000
+npm run build      # 生产构建
 ```
 
-前端开发服务器默认运行在 `http://localhost:5173`，网关统一入口为 `http://localhost:8080`。
+### 测试
 
-## 设计亮点
+```bash
+# 后端单元测试
+mvn test -pl cyxz-post,cyxz-comment -am
 
-- **Feign 批量查询**：替代 N+1 查询，用户信息/帖子标题一次批量获取
-- **评论二级分页**：子回复按需加载，避免全表扫描和 OOM
-- **@CurrentUser 参数解析器**：自定义注解 + HandlerMethodArgumentResolver，Controller 无需手动解析 Token
-- **FallbackFactory**：Feign 调用降级兜底，区分"无数据"和"服务不可用"
-- **ID 全链路 String**：雪花 ID 转 String，防止前端 JavaScript 精度丢失
-- **Redis 浏览统计**：Hash 增量 + 定时批量落库，避免频繁写 MySQL
+# 前端测试
+cd cyxz-frontend
+npm test
+```
+
+## 截图预览
+
+> 截图待补充：首页、帖子详情、创作中心、私信、管理后台
+
+## CI/CD
+
+项目使用 GitHub Actions 进行持续集成（见 `.github/workflows/ci.yml`）：
+
+- **后端**：JDK 17 编译 + 单元测试（cyxz-post / cyxz-comment）
+- **前端**：Node 20 安装依赖 + 单元测试 + 生产构建
+
+## 设计文档
+
+项目根目录 `docs/` 下记录了关键架构决策与迭代思考，均基于代码核对，分"已实现/规划"两部分：
+
+### 产品设计（`docs/产品设计/`）
+- `产品设计.md` — 产品方向、用户画像、差异化定位与功能矩阵
+- `次元小站后续规划.md` — 已实现能力盘点与后续迭代路线图
+
+### 功能设计（`docs/功能设计/`）
+- `圈子化设计.md` — 圈子领域模型（模板 + 关联两层结构）与计数同步
+- `消息通知与关注动态方案.md` — MQ 异步通知 + WebSocket 实时推送 + 私信
+- `AI能力设计.md` — Python AI 审核服务（文本 + 图片多模态）与 fail-closed 策略
+- `管理后台设计.md` — 两段式管理员鉴权 + 帖子状态机审核流程
+- `社区氛围功能设计.md` — 互动反馈层已实现 + 签到/成就/排行规划
+- `多语言演进路线图.md` — 跨语言架构现状（Java + Python）与演进规划
+
+### 工程审查（`docs/工程审查/`）
+- `修复与优化.md` — 代码审查问题修复记录与待修项追踪
 
 ## License
 
-MIT
-<img width="1274" height="626" alt="image" src="https://github.com/user-attachments/assets/aa8b0273-c889-41b8-8fff-eb2e3fc51bcd" />
-<img width="1273" height="623" alt="image" src="https://github.com/user-attachments/assets/2142579a-544f-44a9-8775-68ab87006815" />
-<img width="1277" height="622" alt="image" src="https://github.com/user-attachments/assets/b92972bf-c97d-4d9e-aa0c-acf623b88ab4" />
-
-
+仅供学习与个人使用。

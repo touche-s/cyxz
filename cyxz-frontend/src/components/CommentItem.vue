@@ -1,14 +1,10 @@
 <template>
   <div class="comment-item" :class="{ 'is-reply': !isTopLevel }">
     <!-- 用户头像 -->
-    <img v-if="comment.userAvatar"
-         :src="comment.userAvatar"
+    <img :src="avatarUrl(comment.userAvatar)"
          class="comment-avatar"
          :class="{ clickable: comment.userId }"
          @click="comment.userId && goToUser()" />
-    <div v-else class="comment-avatar-placeholder"
-         :class="{ clickable: comment.userId }"
-         @click="comment.userId && goToUser()"></div>
 
     <div class="comment-body">
       <!-- 头部：用户名 + 内容（子评论时同行显示） -->
@@ -42,13 +38,10 @@
         <button
           class="comment-action-btn"
           :class="{ active: comment.liked }"
-          @click="handleToggleLike"
+          @click="likeInteraction.toggle"
         >
-          <img
-            :src="comment.liked ? likeIcon : likeOutlineIcon"
-            alt="like"
-            class="action-icon"
-          />
+          <Icon icon="ph:heart" class="action-icon pink-icon" v-show="!comment.liked" />
+          <Icon icon="ph:heart-fill" class="action-icon pink-icon" v-show="comment.liked" />
           <span>{{ comment.likes }}</span>
         </button>
         <button class="comment-action-btn" @click="handleReply">
@@ -57,6 +50,7 @@
         <button
           v-if="isOwner"
           class="comment-action-btn delete-btn"
+          :disabled="deleteLoading"
           @click="handleDelete"
         >
           <span>删除</span>
@@ -87,7 +81,7 @@
               :is-reply="true"
               @like="(c) => $emit('like', c)"
               @reply="(payload) => $emit('reply', payload)"
-              @deleted="(id) => $emit('deleted', id)"
+              @deleted="handleChildDeleted"
             />
           </div>
 
@@ -129,17 +123,17 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { toggleCommentLike, deleteComment, getCommentReplies } from '@/api/comment'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { likeComment, unlikeComment, deleteComment, getCommentReplies } from '@/api/comment'
 import type { CommentVO } from '@/api/comment'
 import { useUserStore } from '@/stores/user'
-import { useAuth } from '@/composables/useAuth'
-import likeIcon from '@/assets/icons/like.svg'
-import likeOutlineIcon from '@/assets/icons/like-outline.svg'
+import { useNavigate } from '@/composables/useNavigate'
+import { useToggleInteraction } from '@/composables/useToggleInteraction'
+import { Icon } from '@iconify/vue'
 import { formatDateTime } from '@/utils/format'
+import { avatarUrl } from '@/utils/avatar'
 
-const router = useRouter()
+const { open } = useNavigate()
 
 const props = defineProps<{
   comment: CommentVO
@@ -162,50 +156,65 @@ const handleReply = () => {
 
 function goToUser() {
   if (props.comment.userId) {
-    router.push(`/user/${props.comment.userId}`)
+    open(`/user/${props.comment.userId}`)
   }
 }
 
 const userStore = useUserStore()
-const { requireLogin } = useAuth()
 
 // ===== 点赞 =====
-const handleToggleLike = async () => {
-  if (!requireLogin()) return
-
-  const oldLiked = props.comment.liked
-  const oldLikes = props.comment.likes
-
-  props.comment.liked = !oldLiked
-  props.comment.likes = oldLiked ? Math.max(oldLikes - 1, 0) : oldLikes + 1
-
-  try {
-    const res = await toggleCommentLike(props.comment.id)
-    if (res.data.code === 200) {
-      props.comment.likes = res.data.data
-    }
-  } catch {
-    props.comment.liked = oldLiked
-    props.comment.likes = oldLikes
-  }
-}
+const likeInteraction = useToggleInteraction({
+  target: () => props.comment,
+  likedField: 'liked',
+  countField: 'likes',
+  likeApi: (id) => likeComment(id),
+  unlikeApi: (id) => unlikeComment(id),
+  idGetter: (c) => c.id,
+})
 
 // ===== 删除 =====
+const deleteLoading = ref(false)
+
 const isOwner = computed(() => {
   if (!props.currentUserId) return false
   return props.currentUserId === props.comment.userId
 })
 
 const handleDelete = async () => {
+  if (deleteLoading.value) return
   try {
-    const res = await deleteComment(props.comment.id)
-    if (res.data.code === 200) {
-      ElMessage.success('删除成功')
-      emit('deleted', props.comment.id)
+    deleteLoading.value = true
+    await ElMessageBox.confirm('确定要删除这条评论吗？', '删除评论', {
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    await deleteComment(props.comment.id)
+    ElMessage.success('删除成功')
+    emit('deleted', props.comment.id)
+  } catch (e: any) {
+    if (e !== 'cancel' && e !== 'close') {
+      ElMessage.error('删除失败')
     }
-  } catch {
-    ElMessage.error('删除失败')
+  } finally {
+    deleteLoading.value = false
   }
+}
+
+/** 子回复被删除时：清理本地缓存并通知父组件更新总数 */
+const handleChildDeleted = (childId: string) => {
+  // 从已加载的所有回复页中移除该条
+  for (let i = 0; i < replyPages.value.length; i++) {
+    if (replyPages.value[i]) {
+      replyPages.value[i] = replyPages.value[i].filter(c => c.id !== childId)
+    }
+  }
+  // 更新顶部显示的回复数
+  if (props.comment.totalReplies != null) {
+    props.comment.totalReplies = Math.max(0, props.comment.totalReplies - 1)
+  }
+  // 继续冒泡到 PostDetail 更新全局 commentTotal
+  emit('deleted', childId)
 }
 
 // ===== 子回复：分页加载 =====
@@ -247,7 +256,7 @@ const loadReplies = async () => {
       page: 1,
       size: replyPageSize,
     })
-    const pageResult = res.data?.data
+    const pageResult = res
     if (pageResult?.records?.length > 0) {
       replyPages.value[0] = pageResult.records
       replyLoaded.value = true
@@ -279,7 +288,7 @@ const goToReplyPage = async (page: number) => {
       page,
       size: replyPageSize,
     })
-    const pageResult = res.data?.data
+    const pageResult = res
     if (pageResult?.records) {
       replyPages.value[page - 1] = pageResult.records
       currentPage.value = page
@@ -307,7 +316,7 @@ watch(() => props.comment.totalReplies, async (newVal, oldVal) => {
         page: currentPage.value,
         size: replyPageSize,
       })
-      const pageResult = res.data?.data
+      const pageResult = res
       if (pageResult?.records) {
         replyPages.value[currentPage.value - 1] = pageResult.records
       }
@@ -339,8 +348,7 @@ watch(() => props.comment.totalReplies, async (newVal, oldVal) => {
 }
 
 /* 顶级评论头像 */
-.comment-item:not(.is-reply) .comment-avatar,
-.comment-item:not(.is-reply) .comment-avatar-placeholder {
+.comment-item:not(.is-reply) .comment-avatar {
   width: 48px;
   height: 48px;
 }
@@ -353,17 +361,8 @@ watch(() => props.comment.totalReplies, async (newVal, oldVal) => {
   flex-shrink: 0;
 }
 
-.comment-avatar-placeholder {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  flex-shrink: 0;
-}
-
 /* 子评论头像小一点 */
-.comment-item.is-reply .comment-avatar,
-.comment-item.is-reply .comment-avatar-placeholder {
+.comment-item.is-reply .comment-avatar {
   width: 24px;
   height: 24px;
 }
@@ -457,7 +456,7 @@ watch(() => props.comment.totalReplies, async (newVal, oldVal) => {
 }
 
 .comment-action-btn:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--pink-bg);
   color: var(--text);
 }
 
@@ -473,7 +472,7 @@ watch(() => props.comment.totalReplies, async (newVal, oldVal) => {
 }
 
 .delete-btn:hover {
-  color: #e74c3c;
+  color: var(--error);
   background: rgba(231, 76, 60, 0.08);
 }
 
@@ -517,7 +516,7 @@ watch(() => props.comment.totalReplies, async (newVal, oldVal) => {
 }
 
 .pagination-btn:hover {
-  background: rgba(180, 132, 255, 0.1);
+  background: var(--purple-bg);
 }
 
 .pagination-btn.active {

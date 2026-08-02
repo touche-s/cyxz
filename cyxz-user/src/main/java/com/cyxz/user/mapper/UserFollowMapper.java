@@ -3,14 +3,32 @@ package com.cyxz.user.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.cyxz.user.entity.UserFollowPO;
 import com.cyxz.user.vo.FollowUserVO;
-import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
 
-@Mapper
 public interface UserFollowMapper extends BaseMapper<UserFollowPO> {
+
+    /**
+     * UPSERT 关注记录：不存在则插入，存在则恢复为 status=1
+     *
+     * @return 1=新增, 2=恢复(0→1), 0=幂等(已是1)
+     */
+    @Insert("INSERT INTO user_follow(user_id, follow_user_id, status) " +
+            "VALUES(#{userId}, #{targetUserId}, 1) " +
+            "ON DUPLICATE KEY UPDATE status = 1")
+    int upsertFollow(@Param("userId") Long userId, @Param("targetUserId") Long targetUserId);
+
+    /**
+     * 条件取消关注：仅 status=1 时更新为 0
+     *
+     * @return 1=取消成功, 0=无需取消(不存在或已取消)
+     */
+    @Update("UPDATE user_follow SET status = 0 WHERE user_id = #{userId} AND follow_user_id = #{targetUserId} AND status = 1")
+    int deactivateFollow(@Param("userId") Long userId, @Param("targetUserId") Long targetUserId);
 
     @Select("SELECT COUNT(*) FROM user_follow WHERE user_id = #{userId} AND status = 1")
     int countFollowing(@Param("userId") Long userId);
@@ -49,4 +67,13 @@ public interface UserFollowMapper extends BaseMapper<UserFollowPO> {
      */
     @Select("SELECT follow_user_id FROM user_follow WHERE user_id = #{userId} AND status = 1")
     List<Long> selectFollowingIds(@Param("userId") Long userId);
+
+    /**
+     * 统计今日新增粉丝数（关注时间在今天及之后）
+     *
+     * @param userId 用户 ID
+     * @return 今日新增粉丝数
+     */
+    @Select("SELECT COUNT(*) FROM user_follow WHERE follow_user_id = #{userId} AND status = 1 AND create_time >= CURDATE()")
+    int countNewFollowers(@Param("userId") Long userId);
 }

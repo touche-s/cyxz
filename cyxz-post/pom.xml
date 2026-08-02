@@ -84,6 +84,29 @@
             <groupId>com.cyxz</groupId>
             <artifactId>cyxz-post-api</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.cyxz</groupId>
+            <artifactId>cyxz-comment-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.cyxz</groupId>
+            <artifactId>cyxz-message-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.cyxz</groupId>
+            <artifactId>cyxz-circle-api</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

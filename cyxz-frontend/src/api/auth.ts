@@ -28,3 +28,13 @@ export const register = (data: RegisterRequest) => request.post('/auth/register'
 
 /** 退出登录 */
 export const logout = () => request.post('/auth/logout')
+
+/** 修改密码请求 */
+export interface ChangePasswordRequest {
+  oldPassword: string
+  newPassword: string
+  confirmPassword: string
+}
+
+/** 修改密码 */
+export const changePassword = (data: ChangePasswordRequest) => request.put('/auth/password', data)

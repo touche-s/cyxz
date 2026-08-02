@@ -3,6 +3,8 @@ package com.cyxz.user.service;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.user.vo.FollowUserVO;
 
+import java.util.List;
+
 /**
  * 关注服务接口
  */
@@ -34,6 +36,15 @@ public interface FollowService {
      * @return true=已关注
      */
     boolean isFollowing(Long userId, Long targetUserId);
+
+    /**
+     * 查询两个用户是否互相关注
+     *
+     * @param userId       当前用户 ID
+     * @param targetUserId 目标用户 ID
+     * @return true=互相关注
+     */
+    boolean isMutualFollowing(Long userId, Long targetUserId);
 
     /**
      * 统计当前用户的关注数
@@ -71,4 +82,20 @@ public interface FollowService {
      * @return 粉丝用户列表（含 following 回关状态）
      */
     PageResult<FollowUserVO> listFollowers(Long userId, int page, int size);
+
+    /**
+     * 统计今日新增粉丝数
+     *
+     * @param userId 用户 ID
+     * @return 今日新增粉丝数
+     */
+    int countNewFollowers(Long userId);
+
+    /**
+     * 查询当前用户关注的用户 ID 列表（内部接口，供 post 服务拉取关注动态）
+     *
+     * @param userId 用户 ID
+     * @return 关注的用户 ID 列表
+     */
+    List<Long> listFollowingUserIds(Long userId);
 }

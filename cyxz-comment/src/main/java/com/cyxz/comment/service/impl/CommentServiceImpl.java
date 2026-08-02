@@ -13,12 +13,23 @@ import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
+import com.cyxz.common.constant.CacheKeyConstants;
+import com.cyxz.common.constant.CommonStatus;
+import com.cyxz.common.constant.PageConstants;
+import com.cyxz.message.dto.CreateNotificationRequest;
+import com.cyxz.message.constant.NotificationConstants;
+import com.cyxz.message.enums.NotificationType;
+import com.cyxz.message.event.NotificationEvent;
+import com.cyxz.message.feign.MessageFeignClient;
 import com.cyxz.post.feign.PostFeignClient;
 import com.cyxz.post.vo.PostInfoVO;
 import com.cyxz.user.feign.UserFeignClient;
+import com.cyxz.user.utils.UserFeignHelper;
 import com.cyxz.user.vo.UserProfileVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +48,9 @@ public class CommentServiceImpl implements CommentService {
     private final CommentLikeMapper commentLikeMapper;
     private final UserFeignClient userFeignClient;
     private final PostFeignClient postFeignClient;
+    private final StringRedisTemplate stringRedisTemplate;
+    private final MessageFeignClient messageFeignClient;
+    private final RabbitTemplate rabbitTemplate;
 
     /**
      * 发表评论
@@ -59,7 +73,18 @@ public class CommentServiceImpl implements CommentService {
         po.setParentId(request.getParentIdAsLong());
         po.setReplyToUserId(request.getReplyToUserIdAsLong());
         po.setLikes(0);
-        po.setStatus(1);
+        po.setStatus(CommonStatus.ACTIVE);
+
+        // 校验 parentId：非空时校验父评论存在且属于同一帖子
+        if (po.getParentId() != null) {
+            CommentPO parent = commentMapper.selectById(po.getParentId());
+            if (parent == null || parent.getStatus() == CommonStatus.DELETED) {
+                throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "父评论不存在");
+            }
+            if (!parent.getPostId().equals(po.getPostId())) {
+                throw new BusinessException(ErrorCode.PARAM_ERROR, "父评论不属于该帖子");
+            }
+        }
 
         Result<Long> result = postFeignClient.getPostAuthor(request.getPostIdAsLong());
         if (result != null && result.getData() != null) {
@@ -68,9 +93,57 @@ public class CommentServiceImpl implements CommentService {
         } else {
             log.warn("获取帖子作者返回为空: postId={}, resultCode={}",
                 request.getPostId(), result != null ? result.getCode() : "null");
+            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
 
         commentMapper.insert(po);
+        // 发送帖子被评论通知 — MQ 异步
+        if (!userId.equals(po.getPostAuthorId())) {
+            try {
+                rabbitTemplate.convertAndSend(
+                    NotificationConstants.EXCHANGE,
+                    NotificationConstants.ROUTING_KEY,
+                    NotificationEvent.builder()
+                        .receiverId(po.getPostAuthorId())
+                        .senderId(userId)
+                        .type(NotificationType.POST_COMMENTED.name())
+                        .title("有人评论了你的帖子")
+                        .targetType("comment")
+                        .targetId(po.getId())
+                        .relatedId(po.getPostId())
+                        .content(request.getContent())
+                        .createTime(System.currentTimeMillis())
+                        .build()
+                );
+            } catch (Exception e) {
+                log.warn("MQ 发布评论通知失败: commentId={}, postId={}", po.getId(), po.getPostId(), e);
+            }
+        }
+        // 发送回复通知 — MQ 异步
+        if (po.getReplyToUserId() != null && !userId.equals(po.getReplyToUserId())) {
+            try {
+                rabbitTemplate.convertAndSend(
+                    NotificationConstants.EXCHANGE,
+                    NotificationConstants.ROUTING_KEY,
+                    NotificationEvent.builder()
+                        .receiverId(po.getReplyToUserId())
+                        .senderId(userId)
+                        .type(NotificationType.COMMENT_REPLIED.name())
+                        .title("有人回复了你的评论")
+                        .targetType("comment")
+                        .targetId(po.getId())
+                        .relatedId(po.getPostId())
+                        .content(request.getContent())
+                        .createTime(System.currentTimeMillis())
+                        .build()
+                );
+            } catch (Exception e) {
+                log.warn("MQ 发布回复通知失败: commentId={}, replyToUserId={}", po.getId(), po.getReplyToUserId(), e);
+            }
+        }
+        // Redis 增量：帖子评论数 +1
+        stringRedisTemplate.opsForHash()
+                .increment(CacheKeyConstants.POST_COMMENT_DELTA, po.getPostId().toString(), 1);
         log.info("发表评论成功: commentId={}, postId={}, userId={}", po.getId(), po.getPostId(), userId);
 
         // 组装完整 VO 返回给前端，前端可直接插入列表展示
@@ -79,7 +152,7 @@ public class CommentServiceImpl implements CommentService {
         if (po.getReplyToUserId() != null) {
             userIds.add(po.getReplyToUserId());
         }
-        Map<Long, UserProfileVO> userMap = batchGetUsers(userIds);
+        Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, userIds);
         return toVO(po, userMap, Collections.emptySet()); // 刚创建，当前用户不可能已点赞
     }
 
@@ -103,9 +176,14 @@ public class CommentServiceImpl implements CommentService {
         if (!isCommentAuthor && !isPostAuthor) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
-        po.setStatus(0);
+        po.setStatus(CommonStatus.DELETED);
         commentMapper.updateById(po);
-        log.info("删除评论成功: commentId={}, userId={}", commentId, userId);
+        // 级联逻辑删除子回复
+        int replyCount = commentMapper.cascadeDeleteReplies(commentId);
+        // Redis 增量：帖子评论数 -(1 + 子回复数)
+        stringRedisTemplate.opsForHash()
+                .increment(CacheKeyConstants.POST_COMMENT_DELTA, po.getPostId().toString(), -(1 + replyCount));
+        log.info("删除评论成功: commentId={}, userId={}, 级联删除子回复={}", commentId, userId, replyCount);
     }
 
     /**
@@ -126,11 +204,11 @@ public class CommentServiceImpl implements CommentService {
         // Step 1: SQL 分页查顶级评论
         LambdaQueryWrapper<CommentPO> topWrapper = new LambdaQueryWrapper<>();
         topWrapper.eq(CommentPO::getPostId, postId)
-                .eq(CommentPO::getStatus, 1)
+                .eq(CommentPO::getStatus, CommonStatus.ACTIVE)
                 .isNull(CommentPO::getParentId)
                 .orderByAsc(CommentPO::getCreateTime);
         Page<CommentPO> topPage = commentMapper.selectPage(
-                new Page<>(page, size), topWrapper);
+                PageConstants.pageOf(page, size), topWrapper);
 
         List<CommentPO> topComments = topPage.getRecords();
         if (topComments.isEmpty()) {
@@ -148,7 +226,7 @@ public class CommentServiceImpl implements CommentService {
                 .collect(Collectors.toSet());
 
         // Step 4: 批量查用户信息 + 点赞状态
-        Map<Long, UserProfileVO> userMap = batchGetUsers(userIds);
+        Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, userIds);
         Set<Long> topCommentIds = topComments.stream()
                 .map(CommentPO::getId)
                 .collect(Collectors.toSet());
@@ -166,7 +244,7 @@ public class CommentServiceImpl implements CommentService {
 
         // Step 6: total 返回该帖子全部评论数（顶级 + 子回复），用于详情页展示
         LambdaQueryWrapper<CommentPO> countWrapper = new LambdaQueryWrapper<>();
-        countWrapper.eq(CommentPO::getPostId, postId).eq(CommentPO::getStatus, 1);
+        countWrapper.eq(CommentPO::getPostId, postId).eq(CommentPO::getStatus, CommonStatus.ACTIVE);
         Long totalComments = commentMapper.selectCount(countWrapper);
 
         return PageResult.of(result, totalComments, page, size);
@@ -181,7 +259,7 @@ public class CommentServiceImpl implements CommentService {
         }
         LambdaQueryWrapper<CommentPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.in(CommentPO::getParentId, parentIds)
-                .eq(CommentPO::getStatus, 1)
+                .eq(CommentPO::getStatus, CommonStatus.ACTIVE)
                 .select(CommentPO::getParentId, CommentPO::getId);
         List<CommentPO> replies = commentMapper.selectList(wrapper);
         return replies.stream()
@@ -204,10 +282,10 @@ public class CommentServiceImpl implements CommentService {
     public PageResult<CommentVO> listReplies(Long parentId, int page, int size, Long currentUserId) {
         LambdaQueryWrapper<CommentPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CommentPO::getParentId, parentId)
-                .eq(CommentPO::getStatus, 1)
+                .eq(CommentPO::getStatus, CommonStatus.ACTIVE)
                 .orderByAsc(CommentPO::getCreateTime);
         Page<CommentPO> replyPage = commentMapper.selectPage(
-                new Page<>(page, size), wrapper);
+                PageConstants.pageOf(page, size), wrapper);
 
         List<CommentPO> replies = replyPage.getRecords();
         if (replies.isEmpty()) {
@@ -217,7 +295,7 @@ public class CommentServiceImpl implements CommentService {
         // 收集 userId
         Set<Long> userIds = collectUserIds(replies);
 
-        Map<Long, UserProfileVO> userMap = batchGetUsers(userIds);
+        Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, userIds);
         Set<Long> replyCommentIds = replies.stream()
                 .map(CommentPO::getId)
                 .collect(Collectors.toSet());
@@ -225,57 +303,6 @@ public class CommentServiceImpl implements CommentService {
 
         List<CommentVO> vos = convertToVOList(replies, userMap, likedCommentIds);
         return PageResult.of(vos, (int) replyPage.getTotal(), page, size);
-    }
-
-    /**
-     * 点赞 / 取消点赞评论
-     * <p>使用 comment_like 表存储用户点赞关系（逻辑状态型）。
-     * 不存在则插入 status=1，已存在则切换 status，同时原子更新 comment.likes。
-     *
-     * @param userId    当前登录用户 ID
-     * @param commentId 评论 ID
-     * @return 操作后的点赞数
-     */
-    @Override
-    @Transactional(rollbackFor = Exception.class)
-    public int toggleLike(Long userId, Long commentId) {
-        CommentPO po = commentMapper.selectById(commentId);
-        if (po == null || po.getStatus() == 0) {
-            throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
-        }
-
-        // 查询是否已存在点赞关系
-        LambdaQueryWrapper<CommentLikePO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(CommentLikePO::getUserId, userId)
-                .eq(CommentLikePO::getCommentId, commentId);
-        CommentLikePO likePO = commentLikeMapper.selectOne(wrapper);
-
-        if (likePO == null) {
-            // 不存在 → 插入 status=1
-            CommentLikePO newLike = new CommentLikePO();
-            newLike.setCommentId(commentId);
-            newLike.setUserId(userId);
-            newLike.setStatus(1);
-            commentLikeMapper.insert(newLike);
-            commentMapper.updateLikes(commentId, 1);
-            log.info("点赞评论: commentId={}, userId={}", commentId, userId);
-        } else if (likePO.getStatus() == 0) {
-            // 已取消 → 恢复点赞
-            likePO.setStatus(1);
-            commentLikeMapper.updateById(likePO);
-            commentMapper.updateLikes(commentId, 1);
-            log.info("点赞评论(恢复): commentId={}, userId={}", commentId, userId);
-        } else {
-            // 已点赞 → 取消点赞
-            likePO.setStatus(0);
-            commentLikeMapper.updateById(likePO);
-            commentMapper.updateLikes(commentId, -1);
-            log.info("取消点赞评论: commentId={}, userId={}", commentId, userId);
-        }
-
-        // 查询最新点赞数
-        CommentPO updated = commentMapper.selectById(commentId);
-        return updated.getLikes();
     }
 
     /**
@@ -292,7 +319,7 @@ public class CommentServiceImpl implements CommentService {
         }
         LambdaQueryWrapper<CommentLikePO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(CommentLikePO::getUserId, userId)
-                .eq(CommentLikePO::getStatus, 1)
+                .eq(CommentLikePO::getStatus, CommonStatus.ACTIVE)
                 .in(CommentLikePO::getCommentId, commentIds)
                 .select(CommentLikePO::getCommentId);
         List<CommentLikePO> list = commentLikeMapper.selectList(wrapper);
@@ -327,7 +354,7 @@ public class CommentServiceImpl implements CommentService {
      * @return 评论 VO 列表
      */
     private List<CommentVO> fillCommentVOListWithPost(List<CommentPO> comments, Long currentUserId) {
-        Map<Long, UserProfileVO> userMap = batchGetUsers(collectUserIds(comments));
+        Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, collectUserIds(comments));
         Set<Long> commentIds = comments.stream()
                 .map(CommentPO::getId)
                 .collect(Collectors.toSet());
@@ -398,7 +425,7 @@ public class CommentServiceImpl implements CommentService {
     public PageResult<CommentVO> listReceivedComments(Long userId, Long currentUserId, int page, int size) {
         // 查"评论我的帖子"或"回复我的评论"，排除自己
         LambdaQueryWrapper<CommentPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(CommentPO::getStatus, 1)
+        wrapper.eq(CommentPO::getStatus, CommonStatus.ACTIVE)
                 .ne(CommentPO::getUserId, userId)
                 .and(w -> w
                         .eq(CommentPO::getPostAuthorId, userId)
@@ -408,7 +435,7 @@ public class CommentServiceImpl implements CommentService {
                 .orderByDesc(CommentPO::getCreateTime);
 
         Page<CommentPO> pageResult = commentMapper.selectPage(
-                new Page<>(page, size), wrapper);
+                PageConstants.pageOf(page, size), wrapper);
 
         List<CommentPO> comments = pageResult.getRecords();
         if (comments.isEmpty()) {
@@ -423,7 +450,7 @@ public class CommentServiceImpl implements CommentService {
                 userIds.add(comment.getReplyToUserId());
             }
         }
-        Map<Long, UserProfileVO> userMap = batchGetUsers(userIds);
+        Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, userIds);
 
         // 查当前用户在本页评论中已点赞的评论 ID
         Set<Long> commentIds = comments.stream()
@@ -483,7 +510,7 @@ public class CommentServiceImpl implements CommentService {
     @Override
     public PageResult<CommentVO> listManagedComments(Long currentUserId, Long postId, int page, int size, boolean sortAsc) {
         LambdaQueryWrapper<CommentPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(CommentPO::getStatus, 1)
+        wrapper.eq(CommentPO::getStatus, CommonStatus.ACTIVE)
                 .eq(CommentPO::getPostAuthorId, currentUserId);
         if (postId != null) {
             wrapper.eq(CommentPO::getPostId, postId);
@@ -495,7 +522,7 @@ public class CommentServiceImpl implements CommentService {
         }
 
         Page<CommentPO> pageResult = commentMapper.selectPage(
-                new Page<>(page, size), wrapper);
+                PageConstants.pageOf(page, size), wrapper);
 
         List<CommentPO> comments = pageResult.getRecords();
         if (comments.isEmpty()) {
@@ -506,16 +533,37 @@ public class CommentServiceImpl implements CommentService {
     }
 
     /**
-     * 批量查询用户资料（封装 Feign 调用结果处理）
+     * 删除指定帖子下的所有评论及评论点赞（物理删除）
+     * <p>先查帖子下所有评论 ID，再批量删 comment_like 和 comment，用于帖子彻底删除时的级联清理。
      *
-     * @param userIds 用户ID集合
-     * @return userId → UserProfileVO映射，降级时返回空Map
+     * @param postId 帖子 ID
      */
-    private Map<Long, UserProfileVO> batchGetUsers(Collection<Long> userIds) {
-        if (userIds == null || userIds.isEmpty()) {
-            return Collections.emptyMap();
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteCommentsByPostId(Long postId) {
+        List<Long> commentIds = commentMapper.selectList(
+                new LambdaQueryWrapper<CommentPO>()
+                    .eq(CommentPO::getPostId, postId)
+                    .select(CommentPO::getId))
+                .stream()
+                .map(CommentPO::getId)
+                .collect(Collectors.toList());
+
+        if (!commentIds.isEmpty()) {
+            commentLikeMapper.delete(
+                    new LambdaQueryWrapper<CommentLikePO>()
+                        .in(CommentLikePO::getCommentId, commentIds));
+            log.info("删除帖子关联评论点赞: postId={}, commentCount={}", postId, commentIds.size());
         }
-        Result<Map<Long, UserProfileVO>> result = userFeignClient.batchGetByIds(new ArrayList<>(userIds));
-        return result != null && result.getData() != null ? result.getData() : Collections.emptyMap();
+
+        commentMapper.delete(
+                new LambdaQueryWrapper<CommentPO>()
+                    .eq(CommentPO::getPostId, postId));
+        log.info("删除帖子关联评论: postId={}, count={}", postId, commentIds.size());
+    }
+
+    @Override
+    public int countTodayComments(Long postAuthorId) {
+        return commentMapper.countTodayComments(postAuthorId);
     }
 }

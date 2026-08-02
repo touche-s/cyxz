@@ -15,10 +15,7 @@ export function usePostStats() {
   async function loadMyStats() {
     loading.value = true
     try {
-      const res = await getPostStats()
-      if (res.data.code === 200) {
-        stats.value = res.data.data
-      }
+      stats.value = await getPostStats()
     } catch (error) {
       console.error('加载数据统计失败:', error)
     } finally {
@@ -29,8 +26,7 @@ export function usePostStats() {
   /** 加载指定用户的帖子统计（个人空间获赞/浏览） */
   async function loadUserStats(userId: string) {
     try {
-      const res = await getUserPostStats(userId)
-      const data = (res.data as any).data || res.data
+      const data = await getUserPostStats(userId)
       if (data) {
         stats.value = {
           totalPosts: Number(data.totalPosts) || 0,

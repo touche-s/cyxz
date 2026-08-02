@@ -2,14 +2,21 @@ package com.cyxz.user.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cyxz.common.base.BusinessException;
+import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
+import com.cyxz.message.dto.CreateNotificationRequest;
+import com.cyxz.message.enums.NotificationType;
+import com.cyxz.message.constant.NotificationConstants;
+import com.cyxz.message.event.NotificationEvent;
+import com.cyxz.message.feign.MessageFeignClient;
 import com.cyxz.user.entity.UserFollowPO;
 import com.cyxz.user.mapper.UserFollowMapper;
 import com.cyxz.user.service.FollowService;
 import com.cyxz.user.vo.FollowUserVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,11 +34,17 @@ import java.util.stream.Collectors;
 public class FollowServiceImpl implements FollowService {
 
     private final UserFollowMapper followMapper;
+    private final MessageFeignClient messageFeignClient;
+    private final RabbitTemplate rabbitTemplate;
 
     /**
-     * 关注目标用户（幂等）
-     * <p>不存在关注记录则插入 status=1，已存在且 status=0 则恢复关注，已关注则忽略。
-     * 不允许关注自己。
+     * 关注目标用户（幂等，并发安全）
+     * <p>使用 UPSERT（ON DUPLICATE KEY UPDATE）一条 SQL 完成：
+     * <ul>
+     *   <li>rows=1 → 新关注，发送通知</li>
+     *   <li>rows=2 → 恢复关注（0→1）</li>
+     *   <li>rows=0 → 幂等忽略</li>
+     * </ul>
      *
      * @param userId       当前登录用户 ID
      * @param targetUserId 目标用户 ID
@@ -43,28 +56,35 @@ public class FollowServiceImpl implements FollowService {
             throw new BusinessException(ErrorCode.FORBIDDEN, "不能关注自己");
         }
 
-        LambdaQueryWrapper<UserFollowPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserFollowPO::getUserId, userId)
-                .eq(UserFollowPO::getFollowUserId, targetUserId);
-        UserFollowPO exist = followMapper.selectOne(wrapper);
+        int rows = followMapper.upsertFollow(userId, targetUserId);
 
-        if (exist == null) {
-            UserFollowPO newFollow = new UserFollowPO();
-            newFollow.setUserId(userId);
-            newFollow.setFollowUserId(targetUserId);
-            newFollow.setStatus(1);
-            followMapper.insert(newFollow);
+        if (rows == 1) {
             log.info("关注用户: userId={}, followUserId={}", userId, targetUserId);
-        } else if (exist.getStatus() == 0) {
-            exist.setStatus(1);
-            followMapper.updateById(exist);
+            try {
+                rabbitTemplate.convertAndSend(
+                    NotificationConstants.EXCHANGE,
+                    NotificationConstants.ROUTING_KEY,
+                    NotificationEvent.builder()
+                        .receiverId(targetUserId)
+                        .senderId(userId)
+                        .type(NotificationType.USER_FOLLOWED.name())
+                        .title("有人关注了你")
+                        .targetType("user")
+                        .targetId(targetUserId)
+                        .createTime(System.currentTimeMillis())
+                        .build()
+                );
+            } catch (Exception e2) {
+                log.warn("MQ 发布关注通知失败: userId={}, targetUserId={}", userId, targetUserId, e2);
+            }
+        } else if (rows == 2) {
             log.info("恢复关注: userId={}, followUserId={}", userId, targetUserId);
         }
     }
 
     /**
-     * 取消关注目标用户（幂等）
-     * <p>已关注则将 status 设为 0，不存在或已取消则忽略。
+     * 取消关注目标用户（幂等，并发安全）
+     * <p>条件 UPDATE：仅 status=1 时更新为 0，一条 SQL 搞定。
      *
      * @param userId       当前登录用户 ID
      * @param targetUserId 目标用户 ID
@@ -72,14 +92,8 @@ public class FollowServiceImpl implements FollowService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void unfollow(Long userId, Long targetUserId) {
-        LambdaQueryWrapper<UserFollowPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(UserFollowPO::getUserId, userId)
-                .eq(UserFollowPO::getFollowUserId, targetUserId);
-        UserFollowPO exist = followMapper.selectOne(wrapper);
-
-        if (exist != null && exist.getStatus() == 1) {
-            exist.setStatus(0);
-            followMapper.updateById(exist);
+        int rows = followMapper.deactivateFollow(userId, targetUserId);
+        if (rows > 0) {
             log.info("取消关注: userId={}, followUserId={}", userId, targetUserId);
         }
     }
@@ -96,8 +110,16 @@ public class FollowServiceImpl implements FollowService {
         LambdaQueryWrapper<UserFollowPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(UserFollowPO::getUserId, userId)
                 .eq(UserFollowPO::getFollowUserId, targetUserId)
-                .eq(UserFollowPO::getStatus, 1);
+                .eq(UserFollowPO::getStatus, CommonStatus.ACTIVE);
         return followMapper.selectCount(wrapper) > 0;
+    }
+
+    /**
+     * 查询两个用户是否互相关注
+     */
+    @Override
+    public boolean isMutualFollowing(Long userId, Long targetUserId) {
+        return isFollowing(userId, targetUserId) && isFollowing(targetUserId, userId);
     }
 
     /**
@@ -168,5 +190,15 @@ public class FollowServiceImpl implements FollowService {
         records.forEach(vo -> vo.setFollowing(followingSet.contains(vo.getUserId())));
 
         return PageResult.of(records, total, page, size);
+    }
+
+    @Override
+    public int countNewFollowers(Long userId) {
+        return followMapper.countNewFollowers(userId);
+    }
+
+    @Override
+    public List<Long> listFollowingUserIds(Long userId) {
+        return followMapper.selectFollowingIds(userId);
     }
 }

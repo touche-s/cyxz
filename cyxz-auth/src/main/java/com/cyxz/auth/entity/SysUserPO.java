@@ -1,10 +1,8 @@
 package com.cyxz.auth.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.cyxz.common.base.BaseEntity;
 import lombok.Data;
-
-import java.io.Serializable;
-import java.time.LocalDateTime;
 
 /**
  * 系统用户实体
@@ -13,9 +11,7 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("sys_user")
-public class SysUserPO implements Serializable {
-
-    private static final long serialVersionUID = 1L;
+public class SysUserPO extends BaseEntity {
 
     @TableId(type = IdType.ASSIGN_ID)
     private Long id;
@@ -29,12 +25,9 @@ public class SysUserPO implements Serializable {
     /** 状态：1-正常 0-禁用 */
     private Integer status;
 
+    /** 角色：admin / user */
+    private String role;
+
     @TableLogic
     private Integer deleted;
-
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createTime;
-
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    private LocalDateTime updateTime;
 }

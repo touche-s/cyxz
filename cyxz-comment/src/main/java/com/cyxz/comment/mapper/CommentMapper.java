@@ -2,14 +2,13 @@ package com.cyxz.comment.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.cyxz.comment.entity.CommentPO;
-import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 /**
  * 评论 Mapper
  */
-@Mapper
 public interface CommentMapper extends BaseMapper<CommentPO> {
 
     /**
@@ -20,4 +19,22 @@ public interface CommentMapper extends BaseMapper<CommentPO> {
      */
     @Update("UPDATE comment SET likes = GREATEST(likes + #{delta}, 0) WHERE id = #{commentId}")
     void updateLikes(@Param("commentId") Long commentId, @Param("delta") int delta);
+
+    /**
+     * 统计今日某用户帖子收到的新评论数
+     *
+     * @param postAuthorId 帖子作者 ID
+     * @return 今日新增评论数
+     */
+    @Select("SELECT COUNT(*) FROM comment WHERE post_author_id = #{postAuthorId} AND status = 1 AND create_time >= CURDATE()")
+    int countTodayComments(@Param("postAuthorId") Long postAuthorId);
+
+    /**
+     * 级联逻辑删除子回复
+     *
+     * @param parentId 父评论 ID
+     * @return 受影响行数
+     */
+    @Update("UPDATE comment SET status = 0 WHERE parent_id = #{parentId} AND status = 1")
+    int cascadeDeleteReplies(@Param("parentId") Long parentId);
 }

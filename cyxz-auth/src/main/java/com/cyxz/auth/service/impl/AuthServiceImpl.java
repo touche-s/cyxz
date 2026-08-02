@@ -2,12 +2,13 @@ package com.cyxz.auth.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cyxz.auth.dto.AuthResponse;
+import com.cyxz.auth.dto.ChangePasswordRequest;
 import com.cyxz.auth.dto.LoginRequest;
 import com.cyxz.auth.dto.RegisterRequest;
 import com.cyxz.auth.entity.SysUserPO;
 import com.cyxz.auth.mapper.SysUserMapper;
 import com.cyxz.auth.service.AuthService;
-import com.cyxz.auth.util.JwtUtil;
+import com.cyxz.auth.utils.JwtUtil;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
@@ -62,11 +63,12 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException(ErrorCode.PASSWORD_ERROR, "账号或密码错误");
         }
 
-        String token = jwtUtil.generateToken(user.getId());
+        String role = user.getRole() != null ? user.getRole() : "user";
+        String token = jwtUtil.generateToken(user.getId(), role);
         long expiresIn = jwtUtil.getExpirationSeconds();
 
-        log.info("用户登录成功: userId={}, username={}", user.getId(), user.getUsername());
-        return new AuthResponse(token, "Bearer", expiresIn, user.getId(), user.getUsername());
+        log.info("用户登录成功: userId={}, username={}, role={}", user.getId(), user.getUsername(), role);
+        return new AuthResponse(token, "Bearer", expiresIn, user.getId(), user.getUsername(), role);
     }
 
     /**
@@ -105,7 +107,7 @@ public class AuthServiceImpl implements AuthService {
 
         // 初始化默认资料，失败不阻塞注册流程（降级由 FallbackFactory 处理）
         Result<Void> initResult = userFeignClient.initDefaultProfile(user.getId(), user.getUsername());
-        if (initResult == null || initResult.getCode() != 200) {
+        if (initResult == null || !initResult.isSuccess()) {
             log.error("初始化用户资料失败，需人工补偿: userId={}, username={}", user.getId(), user.getUsername());
         }
     }
@@ -120,6 +122,45 @@ public class AuthServiceImpl implements AuthService {
     public void logout(String token) {
         jwtUtil.blacklistToken(token);
         log.info("用户登出成功: userId={}", jwtUtil.getUserId(token));
+    }
+
+    /**
+     * 修改密码
+     * <p>1. 校验旧密码正确 2. 校验新密码与确认一致 3. 校验新旧密码不同 4. BCrypt 加密更新
+     *
+     * @param userId  当前登录用户 ID
+     * @param request 改密请求（旧密码 + 新密码 + 确认密码）
+     */
+    @Override
+    public void changePassword(Long userId, ChangePasswordRequest request) {
+        // 校验两次新密码一致
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "两次输入的新密码不一致");
+        }
+
+        SysUserPO user = sysUserMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        // 校验旧密码
+        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+            throw new BusinessException(ErrorCode.PASSWORD_ERROR, "旧密码错误");
+        }
+
+        // 新旧密码不能相同
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "新密码不能与旧密码相同");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        sysUserMapper.updateById(user);
+        log.info("用户修改密码成功: userId={}", userId);
+    }
+
+    @Override
+    public Long extractUserId(String token) {
+        return jwtUtil.getUserId(token);
     }
 
     /**
@@ -141,12 +182,17 @@ public class AuthServiceImpl implements AuthService {
         if (user == null) {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
+        // 刷新时校验用户状态，禁用用户不能无限刷新 Token
+        if (user.getStatus() != null && user.getStatus() != 1) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "账号已被禁用");
+        }
 
         jwtUtil.blacklistToken(oldToken);
 
-        String newToken = jwtUtil.generateToken(userId);
+        String role = user.getRole() != null ? user.getRole() : "user";
+        String newToken = jwtUtil.generateToken(userId, role);
         long expiresIn = jwtUtil.getExpirationSeconds();
-        return new AuthResponse(newToken, "Bearer", expiresIn, userId, user.getUsername());
+        return new AuthResponse(newToken, "Bearer", expiresIn, userId, user.getUsername(), role);
     }
 
     /**

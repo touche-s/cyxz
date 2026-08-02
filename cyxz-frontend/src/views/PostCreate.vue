@@ -2,237 +2,294 @@
   <div class="page-inner">
     <div class="post-card">
       <form class="post-form" @submit.prevent="handleSubmit">
-          <div class="form-section">
-            <label class="form-label">
-              <img src="@/assets/icons/heading.svg" alt="heading" class="label-icon" />
-              <span>标题</span>
-              <span class="label-required">*</span>
-            </label>
-            <div class="input-wrapper">
-              <input
-                v-model="form.title"
-                type="text"
-                class="form-input"
-                placeholder="分享你的故事，给帖子起个吸引人的标题吧~"
-                maxlength="100"
-                required
-              />
-              <span class="char-count">{{ form.title.length }}/100</span>
-            </div>
+        <!-- 标题 -->
+        <div class="form-section">
+          <label class="form-label">
+            <Icon icon="ph:text-t" class="label-icon pink-icon" />
+            <span>标题</span>
+            <span class="label-required">*</span>
+          </label>
+          <div class="input-wrapper">
+            <input
+              v-model="editor.form.value.title"
+              @input="resetSensitiveResult"
+              type="text"
+              class="form-input"
+              placeholder="分享你的故事，给帖子起个吸引人的标题吧~"
+              maxlength="100"
+              required
+            />
+            <span class="char-count">{{ editor.form.value.title.length }}/100</span>
           </div>
+        </div>
 
-          <div class="form-section">
-            <label class="form-label">
-              <img src="@/assets/icons/image.svg" alt="image" class="label-icon" />
-              <span>图片</span>
-              <span class="label-required">*</span>
-            </label>
-            <div class="images-grid">
-              <div
-                v-for="(img, index) in form.images"
-                :key="index"
-                class="image-item"
-              >
-                <img :src="img" class="image-preview" />
-                <button type="button" class="image-remove" @click="removeImage(index)">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                    <line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
-                </button>
-              </div>
-              <div
-                v-if="form.images.length < 9"
-                class="add-image-btn"
-                @click="triggerImageUpload"
-                @dragover.prevent
-                @drop.prevent="handleImageDrop"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <path d="M12 5v14M5 12h14"/>
-                </svg>
-                <span>添加图片</span>
-              </div>
-            </div>
-            <input ref="imageInput" type="file" accept="image/*" multiple class="hidden-input" @change="handleImageChange" />
-            <span class="field-hint">最多上传 9 张图片</span>
-          </div>
-
-          <div class="form-section">
-            <label class="form-label">
-              <img src="@/assets/icons/edit.svg" alt="edit" class="label-icon" />
-              <span>正文内容</span>
-              <span class="label-required">*</span>
-            </label>
-            <div class="textarea-wrapper">
-              <textarea
-                v-model="form.content"
-                class="form-textarea"
-                placeholder="写下你想分享的内容吧，支持换行哦~"
-                rows="10"
-                required
-              ></textarea>
-            </div>
-          </div>
-
-          <div class="form-section">
-            <label class="form-label">
-              <img src="@/assets/icons/category.svg" alt="category" class="label-icon" />
-              <span>分类</span>
-              <span class="label-required">*</span>
-            </label>
-            <div class="category-selector">
-              <button
-                v-for="cat in categories"
-                :key="cat.id"
-                type="button"
-                class="category-btn"
-                :class="{ active: form.categoryId === String(cat.id) }"
-                @click="form.categoryId = String(cat.id)"
-              >
-                {{ cat.name }}
+        <!-- 图片 -->
+        <div class="form-section">
+          <label class="form-label">
+            <Icon icon="ph:image" class="label-icon pink-icon" />
+            <span>图片</span>
+            <span class="label-required">*</span>
+          </label>
+          <div class="images-grid">
+            <div
+              v-for="(img, index) in editor.form.value.images"
+              :key="index"
+              class="image-item"
+            >
+              <img :src="img" class="image-preview" />
+              <button type="button" class="image-crop-btn" @click.stop="openImageCropper(img, index)" title="裁剪图片">
+                <Icon icon="ph:crop" class="image-crop-icon" />
+              </button>
+              <button type="button" class="image-remove" @click="removeImage(index)">
+                <Icon icon="ph:x" />
               </button>
             </div>
-            <select v-model="form.categoryId" class="hidden-select" required>
-              <option value="" disabled>请选择分类</option>
-              <option v-for="cat in categories" :key="cat.id" :value="cat.id">
-                {{ cat.name }}
-              </option>
-            </select>
-          </div>
-
-          <div class="form-section">
-            <label class="form-label">
-              <img src="@/assets/icons/tag.svg" alt="tag" class="label-icon" />
-              <span>标签</span>
-            </label>
-            <div class="tags-container">
-              <div v-for="(tag, index) in form.tags" :key="index" class="tag-chip">
-                <span class="tag-text">{{ tag }}</span>
-                <button type="button" class="tag-remove" @click="removeTag(index)">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18"/>
-                    <line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
-                </button>
-              </div>
-              <div v-if="form.tags.length < 5" class="add-tag-wrapper">
-                <input
-                  v-model="tagInput"
-                  type="text"
-                  class="tag-input"
-                  placeholder="输入标签，回车添加"
-                  @keydown.enter.prevent="addTag"
-                />
-                <span class="tag-separator">/</span>
-              </div>
+            <div
+              v-if="editor.form.value.images.length < 9"
+              class="add-image-btn"
+              :class="{ uploading: imgLoading }"
+              @click="triggerImageUpload"
+              @dragover.prevent
+              @drop.prevent="handleImageDrop"
+            >
+              <template v-if="imgLoading">
+                <span class="upload-spinner"></span>
+                <span>上传中...</span>
+              </template>
+              <template v-else>
+                <Icon icon="ph:plus" />
+                <span>添加图片</span>
+              </template>
             </div>
-            <span class="field-hint">最多添加 5 个标签</span>
           </div>
+          <input ref="imageInput" type="file" accept="image/*" multiple class="hidden-input" @change="handleImageChange" />
+          <span class="field-hint">最多上传 9 张图片</span>
+        </div>
 
-          <div class="form-actions">
-            <button type="button" class="action-btn draft-btn" @click="saveDraft">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                <polyline points="17 21 17 13 7 13 7 21"/>
-                <polyline points="7 3 7 8 15 8"/>
-              </svg>
-              <span>{{ isEditMode ? '保存草稿' : '保存为草稿' }}</span>
-            </button>
-            <button type="submit" class="action-btn publish-btn" :disabled="loading">
-              <LoadingSpinner v-if="loading" inline text="" />
-              <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="19" x2="12" y2="5"/>
-                <polyline points="5 12 12 5 19 12"/>
-              </svg>
-              <span>{{ loading ? '发布中...' : (isEditMode ? '更新帖子' : '发布帖子') }}</span>
+        <!-- 正文 -->
+        <div class="form-section">
+          <label class="form-label">
+            <Icon icon="ph:pencil-simple" class="label-icon pink-icon" />
+            <span>正文内容</span>
+            <span class="label-required">*</span>
+          </label>
+          <div class="textarea-wrapper">
+            <textarea
+              v-model="editor.form.value.content"
+              class="form-textarea"
+              placeholder="写下你想分享的内容吧，支持换行哦~"
+              rows="10"
+              required
+            ></textarea>
+          </div>
+        </div>
+
+        <!-- 圈子 -->
+        <div class="form-section">
+          <label class="form-label">
+            <Icon icon="ph:circles-three-plus" class="label-icon pink-icon" />
+            <span>圈子</span>
+            <span class="label-required">*</span>
+          </label>
+          <div v-if="editor.sortedCircles.value.length" class="circle-selector">
+            <button
+              v-for="c in editor.sortedCircles.value"
+              :key="c.id"
+              type="button"
+              class="circle-btn"
+              :class="{ active: editor.form.value.circleId === c.id }"
+              @click="selectCircle(c.id)"
+            >
+              {{ c.name }}
             </button>
           </div>
-        </form>
-      </div>
-    </div>
+          <span v-if="editor.sortedCircles.value.length" class="field-hint">仅显示你已加入的圈子</span>
+          <span v-else class="field-hint">你还没有加入任何圈子，请先前往圈子页加入后再发布</span>
+        </div>
 
-    <div v-if="showAgreement" class="agreement-modal" @click.self="showAgreement = false">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3><img src="@/assets/icons/info.svg" alt="info" class="title-icon" />社区公约</h3>
-          <button class="modal-close" @click="showAgreement = false">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
+        <!-- 板块 -->
+        <div class="form-section">
+          <label class="form-label">
+            <Icon icon="ph:stack" class="label-icon pink-icon" />
+            <span>板块</span>
+          </label>
+          <div class="section-selector">
+            <button
+              v-for="s in editor.sections.value"
+              :key="s.id"
+              type="button"
+              class="section-btn"
+              :class="{ active: editor.form.value.sectionId === s.id }"
+              @click="editor.form.value.sectionId = s.id"
+            >
+              {{ s.name }}
+            </button>
+          </div>
+        </div>
+
+        <!-- 标签 -->
+        <div class="form-section">
+          <label class="form-label">
+            <Icon icon="ph:tag" class="label-icon pink-icon" />
+            <span>标签</span>
+          </label>
+          <div class="tags-container">
+            <div v-for="(tag, index) in editor.form.value.tags" :key="index" class="tag-chip">
+              <span class="tag-text">{{ tag }}</span>
+              <button type="button" class="tag-remove" @click="editor.removeTag(index)">
+                <Icon icon="ph:x" />
+              </button>
+            </div>
+            <div v-if="editor.form.value.tags.length < 5" class="add-tag-wrapper">
+              <input
+                v-model="editor.tagInput.value"
+                type="text"
+                class="tag-input"
+                placeholder="输入标签，回车添加"
+                @keydown.enter.prevent="editor.addTag()"
+              />
+              <span class="tag-separator">/</span>
+            </div>
+          </div>
+          <span class="field-hint">最多添加 5 个标签</span>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="form-actions">
+          <button
+            type="button"
+            class="action-btn back-btn"
+            @click="$emit('goBack')"
+          >
+            <Icon icon="ph:arrow-left" />
+            <span>返回</span>
+          </button>
+          <button
+            v-if="!editor.isEditingPublished.value"
+            type="button"
+            class="action-btn draft-btn"
+            @click="saveDraft"
+          >
+            <Icon icon="ph:floppy-disk" />
+            <span>{{ editor.isEditMode.value ? '保存草稿' : '保存为草稿' }}</span>
+          </button>
+          <button
+            type="button"
+            class="action-btn check-btn"
+            :class="{ 'check-pass': sensitiveResult === 'pass', 'check-fail': sensitiveResult === 'fail' }"
+            :disabled="checkingSensitive"
+            @click="handleCheckSensitive"
+          >
+            <LoadingSpinner v-if="checkingSensitive" inline text="" />
+            <Icon v-else-if="sensitiveResult === 'pass'" icon="ph:check-circle" />
+            <Icon v-else-if="sensitiveResult === 'fail'" icon="ph:warning-circle" />
+            <Icon v-else icon="ph:shield-check" />
+            <span v-if="checkingSensitive">检测中...</span>
+            <span v-else-if="sensitiveResult === 'pass'">检测通过</span>
+            <span v-else-if="sensitiveResult === 'fail'">{{ sensitiveHitCount }} 个敏感词</span>
+            <span v-else>敏感词检测</span>
+          </button>
+          <button
+            type="submit"
+            class="action-btn publish-btn"
+            :disabled="editor.submitLoading.value"
+          >
+            <LoadingSpinner v-if="editor.submitLoading.value" inline text="" />
+            <Icon v-else icon="ph:paper-plane-right" />
+            <span>{{ editor.submitLoading.value ? '发布中...' : (editor.isEditingPublished.value ? '更新发布' : '发布帖子') }}</span>
           </button>
         </div>
-      </div>
+      </form>
     </div>
+
+    <ImageCropper
+      ref="imageCropperRef"
+      :visible="showImageCropper"
+      title="裁剪图片"
+      :aspect-ratio="currentCropAspectRatio"
+      :circular="false"
+      :ratio-options="cropperRatioOptions"
+      @crop="onImageCrop"
+      @cancel="onImageCropCancel"
+      @update:aspect-ratio="currentCropAspectRatio = $event"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref } from 'vue'
+import { Icon } from '@iconify/vue'
 import { ElMessage } from 'element-plus'
-import { createPost, updatePost, getPostDetail, getCategoryList } from '@/api/post'
-import { uploadPostImage } from '@/api/upload'
-import type { PostVO, CategoryVO } from '@/api/post'
+import { usePostEditor } from '@/composables/usePostEditor'
+import { watch } from 'vue'
+import { useApi } from '@/composables/useApi'
+import { uploadPostImage, deleteUploadedFile } from '@/api/upload'
+import { checkSensitive } from '@/api/post'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import ImageCropper from '@/components/ImageCropper.vue'
 
-const router = useRouter()
-const route = useRoute()
+const props = defineProps<{
+  initialImages?: string[]
+}>()
 
-const emit = defineEmits<{ goBack: [] }>()
+const emit = defineEmits<{
+  goBack: [wasEditingDraft?: boolean]
+  publishSuccess: []
+}>()
 
-const editPostId = computed(() => (route.query.edit as string) || undefined)
-const isEditMode = computed(() => !!(editPostId.value || route.params.id))
-const postId = computed(() => editPostId.value || (route.params.id as string))
-const isInCreatorCenter = computed(() => route.path.startsWith('/creator'))
+const editor = usePostEditor('NORMAL')
 
-const categories = ref<CategoryVO[]>([])
-const loading = ref(false)
-const showAgreement = ref(false)
-
-const form = ref({
-  title: '',
-  categoryId: '',
-  content: '',
-  cover: '',
-  images: [] as string[],
-  tags: [] as string[],
-})
-
-const tagInput = ref('')
-const imageInput = ref<HTMLInputElement | null>(null)
-
-const loadCategories = async () => {
-  try {
-    const res = await getCategoryList()
-    if (res.data.code === 200) {
-      categories.value = res.data.data
-    }
-  } catch (error) {
-    console.error('加载分类失败:', error)
-  }
+/**
+ * 选择圈子后：
+ * 1. 清空已选板块（不同圈子的板块配置不同，不能沿用之前的板块 ID）
+ * 2. 加载新圈子已启用的板块列表
+ */
+const selectCircle = (circleId: number) => {
+  editor.form.value.circleId = circleId
+  editor.form.value.sectionId = null  // 切圈子时清空已选板块，避免引用其他圈子的板块 ID
+  editor.loadSectionsForCircle(circleId)
 }
 
-const loadPostDetail = async () => {
-  if (!isEditMode.value) return
-  try {
-    const res = await getPostDetail(postId.value)
-    if (res.data.code === 200) {
-      const post = res.data.data as PostVO
-      form.value = {
-        title: post.title,
-        categoryId: String(post.categoryId),
-        content: post.content,
-        cover: post.cover,
-        images: post.images || [],
-        tags: post.tags || [],
-      }
-    }
-  } catch (error) {
-    console.error('加载帖子详情失败:', error)
-    ElMessage.error('帖子不存在或已删除')
-    router.push('/creator')
+// 圈子变化时自动加载该圈子的板块列表（含编辑模式回填）
+watch(() => editor.form.value.circleId, (newId) => {
+  if (newId) {
+    editor.loadSectionsForCircle(newId)
   }
+})
+
+// 敏感词检测状态
+const checkingSensitive = ref(false)
+const sensitiveResult = ref<'pass' | 'fail' | null>(null)
+const sensitiveHitCount = ref(0)
+const resetSensitiveResult = () => {
+  sensitiveResult.value = null
+  sensitiveHitCount.value = 0
+}
+
+// 标题或正文改动时重置敏感词检测结果
+watch(() => [editor.form.value.title, editor.form.value.content], resetSensitiveResult)
+
+const imageInput = ref<HTMLInputElement | null>(null)
+const { loading: imgLoading, run: upload } = useApi()
+
+const imageCropperRef = ref<InstanceType<typeof ImageCropper> | null>(null)
+const showImageCropper = ref(false)
+const currentCropImageUrl = ref('')
+const currentCropImageIndex = ref(-1)
+const currentCropAspectRatio = ref(4 / 3)
+
+const cropperRatioOptions = [
+  { label: '16:9', value: 16 / 9 },
+  { label: '4:3', value: 4 / 3 },
+  { label: '3:2', value: 3 / 2 },
+  { label: '1:1', value: 1 },
+  { label: '自由', value: 0 },
+]
+
+// 初始化图片（从 PostSelect 传入的）
+if (props.initialImages && props.initialImages.length > 0 && !editor.isEditMode.value) {
+  editor.form.value.images = [...props.initialImages]
+  editor.form.value.cover = props.initialImages[0]
 }
 
 const triggerImageUpload = () => {
@@ -243,158 +300,129 @@ const handleImageChange = async (event: Event) => {
   const target = event.target as HTMLInputElement
   const files = target.files
   if (files) {
-    const remainingSlots = 9 - form.value.images.length
-    const filesToUpload = Array.from(files).slice(0, remainingSlots)
-    for (const file of filesToUpload) {
+    const remainingSlots = 9 - editor.form.value.images.length
+    const filesToAdd = Array.from(files).slice(0, remainingSlots)
+    for (const file of filesToAdd) {
       await uploadImage(file)
     }
   }
   target.value = ''
 }
 
-const handleImageDrop = (event: DragEvent) => {
+const handleImageDrop = async (event: DragEvent) => {
   const files = event.dataTransfer?.files
   if (files) {
-    const remainingSlots = 9 - form.value.images.length
-    Array.from(files)
+    const remainingSlots = 9 - editor.form.value.images.length
+    const filesToAdd = Array.from(files)
       .filter(f => f.type.startsWith('image/'))
       .slice(0, remainingSlots)
-      .forEach(file => uploadImage(file))
+    for (const file of filesToAdd) {
+      await uploadImage(file)
+    }
   }
+}
+
+function openImageCropper(url: string, index: number) {
+  currentCropImageUrl.value = url
+  currentCropImageIndex.value = index
+  currentCropAspectRatio.value = 4 / 3
+  imageCropperRef.value?.setImageUrl(url)
+  showImageCropper.value = true
+}
+
+async function onImageCrop(blob: Blob) {
+  showImageCropper.value = false
+  const file = new File([blob], 'post-image.jpg', { type: 'image/jpeg' })
+  if (currentCropImageIndex.value >= 0) {
+    await uploadAndReplace(currentCropImageIndex.value, file)
+  }
+  currentCropImageIndex.value = -1
+  currentCropImageUrl.value = ''
+}
+
+function onImageCropCancel() {
+  showImageCropper.value = false
+  currentCropImageIndex.value = -1
+  currentCropImageUrl.value = ''
+}
+
+async function uploadAndReplace(index: number, file: File) {
+  const oldUrl = editor.form.value.images[index]
+  await upload(async () => {
+    const newUrl = await uploadPostImage(file)
+    editor.form.value.images[index] = newUrl
+    if (editor.form.value.cover === oldUrl) editor.form.value.cover = newUrl
+    deleteUploadedFile(oldUrl).catch(() => {})
+    ElMessage.success('裁剪完成')
+  }, { onError: () => ElMessage.error('图片上传失败') })
 }
 
 const uploadImage = async (file: File) => {
-  try {
-    const res = await uploadPostImage(file)
-    if (res.data.code === 200) {
-      form.value.images.push(res.data.data)
-      if (form.value.images.length === 1 && !form.value.cover) {
-        form.value.cover = res.data.data
-      }
+  await upload(async () => {
+    const url = await uploadPostImage(file)
+    editor.form.value.images.push(url)
+    if (editor.form.value.images.length === 1 && !editor.form.value.cover) {
+      editor.form.value.cover = url
     }
-  } catch (error) {
-    ElMessage.error('图片上传失败')
-    console.error('上传图片失败:', error)
-  }
+  }, { onError: () => ElMessage.error('图片上传失败') })
 }
 
 const removeImage = (index: number) => {
-  const removed = form.value.images[index]
-  form.value.images.splice(index, 1)
-  if (form.value.cover === removed) {
-    form.value.cover = form.value.images[0] || ''
+  const removed = editor.form.value.images[index]
+  editor.form.value.images.splice(index, 1)
+  deleteUploadedFile(removed).catch(() => {})
+  if (editor.form.value.cover === removed) {
+    editor.form.value.cover = editor.form.value.images[0] || ''
   }
-}
-
-const addTag = () => {
-  const tag = tagInput.value.trim()
-  if (tag && !form.value.tags.includes(tag) && form.value.tags.length < 5) {
-    form.value.tags.push(tag)
-    tagInput.value = ''
-  }
-}
-
-const removeTag = (index: number) => {
-  form.value.tags.splice(index, 1)
 }
 
 const handleSubmit = async () => {
-  if (!form.value.title || !form.value.categoryId || !form.value.content) {
-    ElMessage.warning('请填写必填项')
-    return
-  }
+  const ok = await editor.doSubmit()
+  if (!ok) return
 
-  if (form.value.images.length === 0) {
-    ElMessage.warning('请至少上传一张图片')
-    return
-  }
-
-  loading.value = true
-  try {
-    const data = {
-      ...(isEditMode.value && { id: postId.value }),
-      categoryId: Number(form.value.categoryId),
-      title: form.value.title,
-      content: form.value.content,
-      cover: form.value.cover || undefined,
-      images: form.value.images.length > 0 ? form.value.images : undefined,
-      tags: form.value.tags.length > 0 ? form.value.tags : undefined,
-      status: 1,
-    }
-
-    if (isEditMode.value) {
-      await updatePost(data as any)
-      ElMessage.success('更新成功')
-    } else {
-      await createPost(data as any)
-      ElMessage.success('发布成功')
-    }
-
-    if (isInCreatorCenter.value) {
-      emit('goBack')
-    } else {
-      router.push('/creator')
-    }
-  } catch (error) {
-    ElMessage.error(isEditMode.value ? '更新失败' : '发布失败')
-    console.error('提交失败:', error)
-  } finally {
-    loading.value = false
+  if (editor.isInCreatorCenter.value) {
+    emit('publishSuccess')
   }
 }
 
 const saveDraft = async () => {
-  if (!form.value.title) {
-    ElMessage.warning('请至少填写标题')
+  const ok = await editor.saveDraftOnly()
+  if (!ok) return
+
+  if (editor.isInCreatorCenter.value) {
+    emit('goBack', true)
+  }
+}
+
+const handleCheckSensitive = async () => {
+  if (!editor.form.value.title && !editor.form.value.content) {
+    ElMessage.warning('请先填写标题或正文')
     return
   }
-
-  loading.value = true
+  checkingSensitive.value = true
+  sensitiveResult.value = null
   try {
-    const data = {
-      ...(isEditMode.value && { id: postId.value }),
-      categoryId: form.value.categoryId ? Number(form.value.categoryId) : undefined,
-      title: form.value.title,
-      content: form.value.content || undefined,
-      cover: form.value.cover || undefined,
-      images: form.value.images.length > 0 ? form.value.images : undefined,
-      tags: form.value.tags.length > 0 ? form.value.tags : undefined,
-      status: 0,
-    }
-
-    if (isEditMode.value) {
-      await updatePost(data as any)
-      ElMessage.success('草稿保存成功')
+    const { run } = useApi()
+    const data = await run(() => checkSensitive({
+      title: editor.form.value.title,
+      content: editor.form.value.content,
+    }))
+    if (data && data.length > 0) {
+      sensitiveResult.value = 'fail'
+      sensitiveHitCount.value = data.length
+      ElMessage.warning('检测到敏感词：' + data.join('、'))
     } else {
-      await createPost(data as any)
-      ElMessage.success('草稿保存成功')
+      sensitiveResult.value = 'pass'
+      ElMessage.success('未检测到敏感词，内容安全')
     }
-
-    if (isInCreatorCenter.value) {
-      emit('goBack')
-    } else {
-      router.push('/creator')
-    }
-  } catch (error) {
-    ElMessage.error('保存失败')
-    console.error('保存草稿失败:', error)
+  } catch {
+    ElMessage.error('检测失败，请稍后重试')
   } finally {
-    loading.value = false
+    checkingSensitive.value = false
   }
 }
 
-const goBack = () => {
-  if (isInCreatorCenter.value) {
-    emit('goBack')
-  } else {
-    router.back()
-  }
-}
-
-onMounted(() => {
-  loadCategories()
-  loadPostDetail()
-})
+defineExpose({ dirty: editor.dirty, confirmLeave: editor.confirmLeave })
 </script>
 
 <style scoped>
@@ -405,11 +433,11 @@ onMounted(() => {
 }
 
 .post-card {
-  background: white;
+  background: var(--card);
   border-radius: 16px;
   padding: 28px;
   border: 1px solid var(--border);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow);
 }
 
 .form-section {
@@ -433,7 +461,7 @@ onMounted(() => {
 }
 
 .label-required {
-  color: #ff4d4f;
+  color: var(--error);
   font-size: 12px;
 }
 
@@ -450,13 +478,13 @@ onMounted(() => {
   font-size: 14px;
   color: var(--text);
   transition: all 0.22s ease-out;
-  background: white;
+  background: var(--card);
 }
 
 .form-input:focus {
   outline: none;
   border-color: var(--pink);
-  box-shadow: 0 0 0 3px rgba(255, 107, 157, 0.08);
+  box-shadow: 0 0 0 3px var(--pink-bg);
 }
 
 .form-input::placeholder {
@@ -469,68 +497,6 @@ onMounted(() => {
   top: 50%;
   transform: translateY(-50%);
   font-size: 12px;
-  color: var(--text-dim);
-}
-
-.category-selector {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.category-btn {
-  padding: 8px 18px;
-  border-radius: 16px;
-  font-size: 13px;
-  font-weight: 500;
-  border: 1px solid var(--border);
-  background: white;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.22s ease-out;
-}
-
-.category-btn:hover {
-  border-color: var(--pink);
-  color: var(--pink);
-}
-
-.category-btn.active {
-  background: rgba(255, 107, 157, 0.08);
-  border-color: var(--pink);
-  color: var(--pink);
-}
-
-.hidden-select {
-  display: none;
-}
-
-.textarea-wrapper {
-  position: relative;
-}
-
-.form-textarea {
-  width: 100%;
-  padding: 14px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  font-size: 14px;
-  color: var(--text);
-  transition: all 0.22s ease-out;
-  background: white;
-  resize: vertical;
-  font-family: inherit;
-  line-height: 1.7;
-  min-height: 200px;
-}
-
-.form-textarea:focus {
-  outline: none;
-  border-color: var(--pink);
-  box-shadow: 0 0 0 3px rgba(255, 107, 157, 0.08);
-}
-
-.form-textarea::placeholder {
   color: var(--text-dim);
 }
 
@@ -561,7 +527,7 @@ onMounted(() => {
   height: 24px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.5);
-  color: white;
+  color: var(--white);
   border: none;
   cursor: pointer;
   display: flex;
@@ -579,11 +545,37 @@ onMounted(() => {
   background: rgba(255, 71, 87, 0.9);
 }
 
+.image-crop-btn {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  color: var(--white);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.22s ease-out;
+}
+
+.image-crop-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.image-crop-btn:hover {
+  background: rgba(255, 107, 157, 0.9);
+}
+
 .add-image-btn {
   aspect-ratio: 1;
   border-radius: 10px;
   border: 1px dashed var(--border);
-  background: rgba(255, 107, 157, 0.02);
+  background: var(--pink-bg);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -605,15 +597,90 @@ onMounted(() => {
 
 .add-image-btn:hover {
   border-color: var(--pink);
-  background: rgba(255, 107, 157, 0.05);
+  background: var(--pink-bg);
   color: var(--pink);
 }
 
-.field-hint {
-  display: block;
-  font-size: 12px;
+.add-image-btn.uploading {
+  border-color: var(--pink);
+  color: var(--pink);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.upload-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--pink);
+  border-radius: 50%;
+  animation: uploadSpin 0.6s linear infinite;
+}
+
+@keyframes uploadSpin {
+  to { transform: rotate(360deg); }
+}
+
+.section-selector,
+.circle-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.section-btn,
+.circle-btn {
+  padding: 8px 18px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.22s ease-out;
+}
+
+.section-btn:hover,
+.circle-btn:hover {
+  border-color: var(--pink);
+  color: var(--pink);
+}
+
+.section-btn.active,
+.circle-btn.active {
+  background: var(--pink-bg-hover);
+  border-color: var(--pink);
+  color: var(--pink);
+}
+
+.textarea-wrapper {
+  position: relative;
+}
+
+.form-textarea {
+  width: 100%;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 14px;
+  color: var(--text);
+  transition: all 0.22s ease-out;
+  background: var(--card);
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.7;
+  min-height: 200px;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--pink);
+  box-shadow: 0 0 0 3px var(--pink-bg);
+}
+
+.form-textarea::placeholder {
   color: var(--text-dim);
-  margin-top: 10px;
 }
 
 .tags-container {
@@ -624,7 +691,7 @@ onMounted(() => {
   border: 1px solid var(--border);
   border-radius: 10px;
   min-height: 48px;
-  background: rgba(255, 107, 157, 0.02);
+  background: var(--pink-bg);
 }
 
 .tag-chip {
@@ -647,9 +714,8 @@ onMounted(() => {
 }
 
 .tag-remove {
-  background: rgba(255, 107, 157, 0.15);
+  background: var(--border);
   border: none;
-  color: var(--pink);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -662,7 +728,7 @@ onMounted(() => {
 
 .tag-remove:hover {
   background: rgba(255, 71, 87, 0.8);
-  color: white;
+  color: var(--white);
 }
 
 .tag-remove svg {
@@ -708,12 +774,6 @@ onMounted(() => {
   padding-left: 4px;
 }
 
-.form-divider {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--border), transparent);
-  margin: 16px 0;
-}
-
 .form-actions {
   display: flex;
   gap: 14px;
@@ -741,6 +801,18 @@ onMounted(() => {
   height: 14px;
 }
 
+.back-btn {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text-dim);
+  border: 1.5px solid var(--border);
+  margin-right: auto;
+}
+
+.back-btn:hover {
+  border-color: var(--text-dim);
+  color: var(--text);
+}
+
 .draft-btn {
   background: rgba(255, 255, 255, 0.9);
   color: var(--purple);
@@ -748,18 +820,51 @@ onMounted(() => {
 }
 
 .draft-btn:hover {
-  background: rgba(180, 132, 255, 0.08);
+  background: var(--purple-bg);
+}
+
+.check-btn {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text-secondary);
+  border: 1.5px solid var(--border);
+}
+
+.check-btn:hover:not(:disabled) {
+  border-color: var(--text-dim);
+  color: var(--text);
+}
+
+.check-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.check-btn.check-pass {
+  color: #16a34a;
+  border-color: #16a34a;
+  background: rgba(22, 163, 74, 0.08);
+}
+
+.check-btn.check-fail {
+  color: #ef4444;
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* 命中时悬停提示 */
+.check-btn.check-fail:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.14);
 }
 
 .publish-btn {
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  color: white;
-  box-shadow: 0 4px 20px rgba(255, 107, 157, 0.35);
+  background: var(--gradient-brand);
+  color: var(--white);
+  box-shadow: 0 4px 20px var(--shadow-lg);
 }
 
 .publish-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 24px rgba(255, 107, 157, 0.45);
+  box-shadow: 0 6px 24px var(--shadow-lg);
 }
 
 .publish-btn:disabled {
@@ -771,6 +876,11 @@ onMounted(() => {
   display: none;
 }
 
+html.dark .draft-btn,
+html.dark .back-btn {
+  background: rgba(30, 26, 50, 0.85);
+}
+
 @media (max-width: 768px) {
   .page-inner {
     padding: 0 16px;
@@ -780,24 +890,25 @@ onMounted(() => {
     padding: 20px;
   }
 
-  .page-title {
-    font-size: 20px;
-  }
-
   .images-grid {
     grid-template-columns: repeat(3, 1fr);
   }
 
   .form-actions {
-    flex-direction: column;
+    flex-wrap: wrap;
+  }
+
+  .back-btn {
+    margin-right: 0;
   }
 
   .action-btn {
-    width: 100%;
+    flex: 1 1 auto;
     justify-content: center;
   }
 
-  .category-btn {
+  .section-btn,
+  .circle-btn {
     padding: 8px 16px;
     font-size: 13px;
   }

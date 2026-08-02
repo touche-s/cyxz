@@ -9,14 +9,24 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/Home.vue'),
   },
   {
+    path: '/square',
+    name: 'Square',
+    component: () => import('@/views/Square.vue'),
+  },
+  {
+    path: '/discover',
+    name: 'Discover',
+    component: () => import('@/views/Discover.vue'),
+  },
+  {
     path: '/following',
     name: 'Following',
     component: () => import('@/views/Following.vue'),
   },
   {
-    path: '/community',
-    name: 'Community',
-    component: () => import('@/views/Community.vue'),
+    path: '/circle/:id',
+    name: 'CircleDetail',
+    component: () => import('@/views/CircleDetail.vue'),
   },
   {
     path: '/user/:id',
@@ -39,19 +49,53 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/post/create',
     name: 'PostCreate',
-    component: () => import('@/views/PostCreate.vue'),
+    component: () => import('@/views/PublishFlow.vue'),
     meta: { requiresAuth: true },
   },
   {
     path: '/post/edit/:id',
     name: 'PostEdit',
-    component: () => import('@/views/PostCreate.vue'),
+    component: () => import('@/views/PublishFlow.vue'),
     meta: { requiresAuth: true },
   },
   {
     path: '/post/:id',
     name: 'PostDetail',
     component: () => import('@/views/PostDetail.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/article/:id',
+    name: 'ArticleDetail',
+    component: () => import('@/views/ArticleDetail.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/search',
+    name: 'Search',
+    component: () => import('@/views/SearchPage.vue'),
+  },
+  {
+    path: '/messages',
+    name: 'MessageCenter',
+    component: () => import('@/views/MessageCenter.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/guidelines',
+    name: 'Guidelines',
+    component: () => import('@/views/Guidelines.vue'),
+  },
+  {
+    path: '/admin',
+    name: 'Admin',
+    component: () => import('@/views/AdminView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/messages/chat',
+    name: 'PrivateMessages',
+    component: () => import('@/views/PrivateMessages.vue'),
     meta: { requiresAuth: true },
   },
 ]

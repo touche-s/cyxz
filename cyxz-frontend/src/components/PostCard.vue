@@ -1,16 +1,53 @@
 <template>
-  <div class="card" :class="{ 'card--small': size === 'small' }" @click="$emit('click', post)">
+  <!-- 长文卡片：水平布局 -->
+  <div v-if="post.postType === 'ARTICLE'" class="card article-card" :class="{ 'card--small': size === 'small' }" @click="handleClick">
+    <div class="article-card-inner">
+      <div class="article-cover" v-if="post.cover">
+        <img :src="post.cover" class="article-cover-img" alt="cover" />
+      </div>
+      <div class="article-body">
+        <div class="article-title-row">
+          <span class="card-type-badge">长文</span>
+          <span class="article-title">{{ post.title }}</span>
+        </div>
+        <p class="article-summary">{{ articleSummary }}</p>
+        <div class="article-meta">
+          <div class="card-author">
+            <img :src="avatarUrl(post.authorAvatar)" class="card-avatar clickable" alt="avatar" @click.stop="goToAuthor" />
+            <span class="card-author-name clickable" @click.stop="goToAuthor">{{ post.authorName || '匿名用户' }}</span>
+          </div>
+          <div class="card-stats">
+            <button
+              v-if="showLike"
+              class="like-btn"
+              :class="{ active: post.liked, popping: likePopping[post.id] }"
+              @click.stop="handleLike(post)"
+            >
+              <Icon icon="ph:heart" class="stat-icon pink-icon" v-show="!post.liked" />
+              <Icon icon="ph:heart-fill" class="stat-icon pink-icon" v-show="post.liked" />
+              {{ formatNumber(post.likes) }}
+            </button>
+            <span><Icon icon="ph:eye" class="stat-icon pink-icon" />{{ formatNumber(post.views) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 图文卡片：原有布局 -->
+  <div v-else class="card" :class="{ 'card--small': size === 'small' }" @click="$emit('click', post)">
     <div class="card-cover">
       <img v-if="post.cover" :src="post.cover" class="img" alt="cover" />
       <div v-else class="img" :style="{ background: getGradient(post.id) }"></div>
-      <span class="card-badge" v-if="post.categoryName">{{ post.categoryName }}</span>
+      <span class="card-badge" v-if="post.sectionName">{{ post.sectionName }}</span>
+      <span class="card-pin-badge" :class="{ 'has-collect': showCollect }" v-if="showPinBadge && post.pinned"><Icon icon="ph:push-pin-fill" class="pin-badge-icon" />置顶</span>
       <button
         v-if="showCollect"
         class="card-save"
         :class="{ active: post.collected, popping: collectPopping[post.id] }"
         @click.stop="handleCollect(post)"
       >
-        <img :src="post.collected ? favoriteIconSrc : favoriteOutlineIconSrc" alt="collect" class="collect-icon" />
+        <Icon :icon="post.collected ? 'ph:star-fill' : 'ph:star'" class="collect-icon pink-icon" />
       </button>
     </div>
     <div class="card-body">
@@ -20,8 +57,7 @@
       </div>
       <div class="card-meta">
         <div class="card-author">
-          <div class="card-avatar clickable" v-if="!post.authorAvatar" @click.stop="goToAuthor"></div>
-          <img v-else :src="post.authorAvatar" class="card-avatar clickable" alt="avatar" @click.stop="goToAuthor" />
+          <img :src="avatarUrl(post.authorAvatar)" class="card-avatar clickable" alt="avatar" @click.stop="goToAuthor" />
           <span class="card-author-name clickable" @click.stop="goToAuthor">{{ post.authorName || '匿名用户' }}</span>
         </div>
         <div class="card-stats">
@@ -31,10 +67,11 @@
             :class="{ active: post.liked, popping: likePopping[post.id] }"
             @click.stop="handleLike(post)"
           >
-            <img :src="post.liked ? likeIconSrc : likeOutlineIconSrc" alt="like" class="stat-icon" />
+            <Icon icon="ph:heart" class="stat-icon pink-icon" v-show="!post.liked" />
+            <Icon icon="ph:heart-fill" class="stat-icon pink-icon" v-show="post.liked" />
             {{ formatNumber(post.likes) }}
           </button>
-          <span><img src="@/assets/icons/eye.svg" alt="eye" class="stat-icon" /> {{ formatNumber(post.views) }}</span>
+          <span><Icon icon="ph:eye" class="stat-icon pink-icon" />{{ formatNumber(post.views) }}</span>
         </div>
       </div>
     </div>
@@ -42,35 +79,59 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, computed } from 'vue'
+import { Icon } from '@iconify/vue'
 import type { PostVO } from '@/api/post'
-import likeIconSrc from '@/assets/icons/like.svg'
-import likeOutlineIconSrc from '@/assets/icons/like-outline.svg'
-import favoriteIconSrc from '@/assets/icons/favorite.svg'
-import favoriteOutlineIconSrc from '@/assets/icons/favorite-outline.svg'
 import { formatNumber } from '@/utils/format'
+import { avatarUrl } from '@/utils/avatar'
+import { useNavigate } from '@/composables/useNavigate'
 
 const props = defineProps<{
   post: PostVO
   showCollect?: boolean
   showLike?: boolean
+  showPinBadge?: boolean
   size?: 'normal' | 'small'
 }>()
 
-const router = useRouter()
-
-function goToAuthor() {
-  if (props.post.userId) {
-    router.push(`/user/${props.post.userId}`)
-  }
-}
+const { open } = useNavigate()
 
 const emit = defineEmits<{
   click: [post: PostVO]
   like: [post: PostVO]
   collect: [post: PostVO]
 }>()
+
+// 长文摘要：去除 Markdown 语法后截取
+const articleSummary = computed(() => {
+  const raw = props.post.content || ''
+  // 去除 Markdown 标题、加粗、链接、图片等语法
+  const plain = raw
+    .replace(/#{1,6}\s+/g, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    .replace(/!\[.*?\]\(.*?\)/g, '')
+    .replace(/\[([^\]]+)\]\(.*?\)/g, '$1')
+    .replace(/`{1,3}[^`]*`{1,3}/g, '')
+    .replace(/~~(.+?)~~/g, '$1')
+    .replace(/^[>\s-]+/gm, '')
+    .replace(/\n+/g, ' ')
+    .trim()
+  return plain.length > 140 ? plain.slice(0, 140) + '...' : plain
+})
+
+function handleClick() {
+  // 长文跳转到 /article/:id
+  open(`/article/${props.post.id}`)
+}
+
+function goToAuthor() {
+  if (props.post.userId) {
+    open(`/user/${props.post.userId}`)
+  }
+}
 
 const likePopping = reactive<Record<string, boolean>>({})
 const collectPopping = reactive<Record<string, boolean>>({})
@@ -109,34 +170,36 @@ const getGradient = (id: string | number) => {
 
 <style scoped>
 .card {
-  background: white;
+  background: var(--card);
   border-radius: 16px;
   overflow: hidden;
   border: 1.5px solid var(--border);
-  box-shadow: 0 4px 12px rgba(180, 132, 255, 0.08);
+  box-shadow: 0 4px 12px var(--shadow);
   transition: all 0.22s ease-out;
   cursor: pointer;
 }
 
 .card:hover {
-  transform: translateY(-4px) scale(1.03);
-  border-color: rgba(180, 132, 255, 0.3);
-  box-shadow: 0 12px 36px rgba(180, 132, 255, 0.15);
+  transform: translateY(-2px);
+  border-color: rgba(255, 107, 157, 0.2);
+  box-shadow: 0 8px 28px rgba(180, 132, 255, 0.1);
 }
 
 .card-cover {
   position: relative;
-  height: 180px;
+  aspect-ratio: 16 / 9;
   overflow: hidden;
 }
 
 .card-cover .img {
   width: 100%;
   height: 100%;
+  object-fit: cover;
+  object-position: center;
   transition: transform 0.4s;
 }
 
-.card:hover .card-cover .img { transform: scale(1.05); }
+.card:hover .card-cover .img { transform: scale(1.02); }
 
 .card-badge {
   position: absolute;
@@ -149,6 +212,44 @@ const getGradient = (id: string | number) => {
   font-weight: 700;
   color: white;
   backdrop-filter: blur(8px);
+}
+
+.card-type-badge {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--gradient-brand); opacity: 0.7;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.card-pin-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.9), rgba(251, 146, 60, 0.9));
+  font-size: 10px;
+  font-weight: 700;
+  color: white;
+  backdrop-filter: blur(8px);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.card-pin-badge.has-collect {
+  right: 52px;
+}
+
+.pin-badge-icon {
+  width: 11px;
+  height: 11px;
 }
 
 .card-save {
@@ -177,9 +278,9 @@ const getGradient = (id: string | number) => {
 }
 
 .card-save:hover {
-  background: white;
+  background: var(--card);
   transform: scale(1.15);
-  box-shadow: 0 2px 12px rgba(180, 132, 255, 0.2);
+  box-shadow: 0 2px 12px var(--shadow);
 }
 
 .card-body { padding: 14px 16px; }
@@ -209,8 +310,8 @@ const getGradient = (id: string | number) => {
   font-size: 10px;
   font-weight: 500;
   color: var(--pink);
-  background: rgba(255, 107, 157, 0.08);
-  border: 1px solid rgba(255, 107, 157, 0.15);
+  background: var(--pink-bg-hover);
+  border: 1px solid var(--border);
   white-space: nowrap;
 }
 
@@ -226,9 +327,8 @@ const getGradient = (id: string | number) => {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
   border: 2px solid white;
-  box-shadow: 0 1px 4px rgba(180, 132, 255, 0.15);
+  box-shadow: 0 1px 4px var(--shadow);
 }
 
 .card-author-name {
@@ -263,12 +363,13 @@ const getGradient = (id: string | number) => {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  line-height: 1;
+  font-size: 12px;
+  line-height: 14px;
   transition: color 0.22s ease-out;
 }
 
 .card-stats span:hover {
-  color: var(--text);
+  color: var(--pink);
 }
 
 .card-stats .stat-icon {
@@ -284,12 +385,12 @@ const getGradient = (id: string | number) => {
   gap: 3px;
   background: transparent;
   border: none;
+  color: var(--text-dim);
   cursor: pointer;
   font-size: 12px;
-  color: var(--text-dim);
   padding: 0;
   transition: color 0.22s ease-out;
-  line-height: 1;
+  line-height: 14px;
   font-family: inherit;
 }
 
@@ -303,7 +404,7 @@ const getGradient = (id: string | number) => {
 
 /* ===== Small Size ===== */
 .card--small .card-cover {
-  height: 120px;
+  aspect-ratio: 16 / 9;
 }
 
 .card--small .card-body {
@@ -378,5 +479,100 @@ const getGradient = (id: string | number) => {
 
 .card-save.popping .collect-icon {
   animation: collectPop 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===== 长文卡片 ===== */
+.article-card {
+  cursor: pointer;
+}
+
+.article-card-inner {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  align-items: stretch;
+}
+
+.article-cover {
+  flex-shrink: 0;
+  width: 160px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.article-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s;
+}
+
+.article-card:hover .article-cover-img {
+  transform: scale(1.04);
+}
+
+.article-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.article-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.article-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.article-summary {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  flex: 1;
+}
+
+.article-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+}
+
+/* small 尺寸长文卡 */
+.card--small .article-card-inner {
+  padding: 12px;
+  gap: 12px;
+}
+
+.card--small .article-cover {
+  width: 120px;
+}
+
+.card--small .article-title {
+  font-size: 13px;
+}
+
+.card--small .article-summary {
+  font-size: 12px;
+  -webkit-line-clamp: 2;
 }
 </style>

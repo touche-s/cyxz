@@ -3,36 +3,34 @@
     <div class="header-left">
       <div class="logo-wrap">
         <div class="logo-icon">
-          <img src="@/assets/logo.png" alt="logo" class="logo-img" />
+          <img src="/favicon.svg" alt="logo" class="logo-icon-img" />
         </div>
-        <span class="logo-text">次元小站</span>
+        <img src="/logo-text.svg?v=1" alt="次元小站" class="logo-text-img" />
       </div>
     </div>
-    <div class="header-center">
-      <div class="search-wrap">
-        <el-icon><Search /></el-icon>
-        <input type="text" placeholder="搜索感兴趣的内容..." />
-      </div>
+    <div class="header-center" :class="{ 'header-center--hidden': $route.path === '/search' }">
+      <SearchInput v-model="searchText" variant="header" placeholder="搜索感兴趣的内容..." @search="goToSearch" />
     </div>
+    <nav class="nav">
+      <router-link to="/" :class="{ active: $route.path === '/' }">首页</router-link>
+      <router-link to="/discover" :class="{ active: $route.path === '/discover' }">次元街</router-link>
+      <router-link to="/following" :class="{ active: $route.path === '/following' }">关注</router-link>
+      <a href="javascript:;" :class="{ active: $route.path === '/creator' }" @click="goCreator">创作中心</a>
+      <a v-if="userStore.isAdmin" href="javascript:;" :class="{ active: $route.path.startsWith('/admin') }" @click="to('/admin')">管理</a>
+    </nav>
     <div class="header-right">
-      <nav class="nav">
-        <router-link to="/" :class="{ active: $route.path === '/' }">发现</router-link>
-        <router-link to="/following" :class="{ active: $route.path === '/following' }">关注</router-link>
-        <router-link to="/community" :class="{ active: $route.path === '/community' }">社区</router-link>
-        <a href="javascript:;" :class="{ active: $route.path === '/creator' }" @click="goCreator">创作中心</a>
-      </nav>
-      <template v-if="userStore.isLoggedIn">
+      <div v-if="userStore.isLoggedIn">
         <div class="user-dropdown" :class="{ open: dropdownOpen }">
-          <div class="avatar-trigger" @click="goToProfile" @mouseenter="dropdownOpen = true" @mouseleave="dropdownOpen = false">
+          <div class="avatar-trigger" @click.stop="goToProfile" @mouseenter="dropdownOpen = true" @mouseleave="dropdownOpen = false">
             <img v-if="userStore.userInfo?.avatar" :src="userStore.userInfo.avatar" alt="avatar" class="avatar-img" />
-            <span v-else class="avatar-placeholder">{{ (userStore.userInfo?.nickname || 'U').charAt(0) }}</span>
+            <span v-else class="avatar-placeholder">{{ displayName.charAt(0) }}</span>
           </div>
           <Transition name="drop">
             <div v-if="dropdownOpen" class="dropdown-panel" @mouseenter="dropdownOpen = true" @mouseleave="dropdownOpen = false">
               <div class="panel-top">
                 <div class="panel-user-info">
-                  <span class="panel-nickname">{{ userStore.userInfo?.nickname || '用户' }}</span>
-                  <span class="panel-uid">UID: {{ userStore.userInfo?.id || '-' }}</span>
+                  <span class="panel-nickname">{{ displayName }}</span>
+                  <span class="panel-uid">UID: {{ uid }}</span>
                 </div>
               </div>
               <div class="panel-stats">
@@ -47,72 +45,124 @@
               </div>
               <div class="panel-menu">
                 <div class="menu-item" @click="handleCommand('user-center')">
-                  <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                    <path d="M12 20h9"/>
-                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-                  </svg>
+                  <Icon icon="ph:user" class="menu-icon" />
                   <span>个人中心</span>
-                  <svg class="menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="9 18 15 12 9 6"/>
-                  </svg>
+                  <Icon icon="ph:caret-right" class="menu-arrow" />
                 </div>
                 <div class="menu-divider"></div>
                 <div class="menu-item logout" @click="handleCommand('logout')">
-                  <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                    <polyline points="16 17 21 12 16 7"/>
-                    <line x1="21" y1="12" x2="9" y2="12"/>
-                  </svg>
+                  <Icon icon="ph:sign-out" class="menu-icon" />
                   <span>退出登录</span>
                 </div>
               </div>
             </div>
           </Transition>
         </div>
-      </template>
+      </div>
       <div v-else class="login-circle" @click="userStore.openLoginModal()">
         <span>登录</span>
       </div>
       <div class="header-icons">
-        <button class="icon-btn"><el-icon><Star /></el-icon></button>
-        <button class="icon-btn"><el-icon><ChatLineSquare /></el-icon></button>
-        <button class="icon-btn"><el-icon><Bell /></el-icon></button>
+        <button class="header-action" @click="goPrivateMessages">
+          <Icon icon="ph:chat-circle-text" class="action-iconify" />
+          <span class="action-label">私信</span>
+        </button>
+        <button class="header-action" @click="goMessages">
+          <div class="action-icon-wrap">
+            <Icon icon="ph:bell" class="action-iconify" />
+            <span class="action-badge" v-if="unreadCount > 0">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+          </div>
+          <span class="action-label">通知</span>
+        </button>
+        <button class="header-action" @click="goFavorites">
+          <Icon icon="ph:star" class="action-iconify" />
+          <span class="action-label">收藏</span>
+        </button>
+        <button class="header-action" @click="toggleDarkMode">
+          <Icon icon="ph:moon" v-if="!isDark" class="action-iconify" />
+          <Icon icon="ph:sun" v-else class="action-iconify" />
+        </button>
       </div>
       <button class="btn-create" @click="goPublish">
-        <el-icon><Plus /></el-icon>
-        发布
+        <Icon icon="ph:pencil-simple" class="btn-iconify" />
+        创作
       </button>
     </div>
   </header>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { Search, Plus, Bell, ChatLineSquare, Star } from '@element-plus/icons-vue'
+import { ref, computed, onMounted } from 'vue'
+import { Icon } from '@iconify/vue'
+import SearchInput from '@/components/SearchInput.vue'
 import { useUserStore } from '@/stores/user'
+import { useMessageStore } from '@/stores/message'
 import { useAuth } from '@/composables/useAuth'
-import { useRouter } from 'vue-router'
+import { useNavigate } from '@/composables/useNavigate'
 import { logout } from '@/api/auth'
 import { getFollowStats } from '@/api/user'
 import { ElMessage } from 'element-plus'
 
 const userStore = useUserStore()
+const messageStore = useMessageStore()
 const { requireLogin } = useAuth()
-const router = useRouter()
+const { open, openWithQuery, to } = useNavigate()
 
 const dropdownOpen = ref(false)
 const followStats = ref({ following: 0, followers: 0 })
+const searchText = ref('')
+const isDark = ref(false)
+const unreadCount = computed(() => messageStore.unreadCount)
+
+const displayName = computed(() => {
+  const u = userStore.userInfo
+  if (!u) return '用户'
+  return (u as any).nickname || (u as any).username || `ID:${u.userId || '-'}`
+})
+
+const uid = computed(() => userStore.userInfo?.userId || '-')
+
+function toggleDarkMode() {
+  isDark.value = !isDark.value
+  document.documentElement.classList.toggle('dark', isDark.value)
+  localStorage.setItem('darkMode', isDark.value ? '1' : '0')
+}
 
 function goCreator() {
   if (!requireLogin()) return
   dropdownOpen.value = false
-  router.push('/creator')
+  to('/creator')
+}
+
+function goToSearch() {
+  const kw = searchText.value.trim()
+  if (!kw) return
+  openWithQuery('/search', { q: kw })
+  searchText.value = ''
+}
+
+function goFavorites() {
+  if (!requireLogin()) return
+  const uid = userStore.userInfo?.id
+  if (uid) {
+    openWithQuery(`/user/${uid}`, { tab: 'favorites' })
+  }
+}
+
+function goMessages() {
+  if (!requireLogin()) return
+  to('/messages')
+}
+
+function goPrivateMessages() {
+  if (!requireLogin()) return
+  to('/messages/chat')
 }
 
 function goPublish() {
   if (!requireLogin()) return
   userStore.creatorActiveNav = 'publish'
-  router.push('/creator')
+  to('/creator')
 }
 
 /** 进入粉丝管理页面对应 tab */
@@ -121,24 +171,26 @@ function goFans(tab: 'followers' | 'following') {
   if (!requireLogin()) return
   userStore.creatorActiveNav = 'fans'
   userStore.creatorFansTab = tab
-  router.push('/creator')
+  to('/creator')
 }
 
-/** 点击头像进入个人空间 */
+/** 点击头像进入个人空间（新标签页） */
 function goToProfile() {
-  dropdownOpen.value = false
   const uid = userStore.userInfo?.id
-  if (uid) router.push(`/user/${uid}`)
+  if (uid) {
+    open(`/user/${uid}`)
+  }
+  dropdownOpen.value = false
 }
 
 async function handleCommand(cmd: string) {
   dropdownOpen.value = false
   if (cmd === 'user-center') {
-    router.push('/user-center')
+    open('/user-center')
   } else if (cmd === 'logout') {
     try { await logout() } catch { /* ignore */ }
     userStore.clearAuth()
-    router.push('/')
+    to('/')
     ElMessage.success('已退出登录')
   }
 }
@@ -146,37 +198,51 @@ async function handleCommand(cmd: string) {
 async function loadFollowStats() {
   if (!userStore.userInfo?.id) return
   try {
-    const res = await getFollowStats()
-    if (res.data.code === 200) {
-      const d = res.data.data
-      followStats.value = {
-        following: d?.followingCount ?? 0,
-        followers: d?.followerCount ?? 0,
-      }
+    const d = await getFollowStats()
+    followStats.value = {
+      following: d?.followingCount ?? 0,
+      followers: d?.followerCount ?? 0,
     }
   } catch { /* ignore */ }
 }
 
+function loadUnreadCount() {
+  if (!userStore.isLoggedIn) return
+  messageStore.refreshUnreadCount()
+}
+
 onMounted(() => {
+  isDark.value = localStorage.getItem('darkMode') === '1'
+  document.documentElement.classList.toggle('dark', isDark.value)
   loadFollowStats()
+  loadUnreadCount()
+  setInterval(() => { loadUnreadCount() }, 30000)
 })
 </script>
 
 <style scoped>
 .header-bar {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
+  top: var(--header-top);
+  left: 18px;
+  right: 18px;
   z-index: 100;
-  background: rgba(254, 246, 255, 0.85);
-  backdrop-filter: blur(24px) saturate(1.4);
-  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 246, 251, 0.94));
+  backdrop-filter: blur(26px) saturate(1.75);
+  border: 1px solid rgba(255, 107, 157, 0.18);
+  box-shadow: 0 18px 48px rgba(255, 107, 157, 0.14), 0 4px 18px rgba(180, 132, 255, 0.12);
   padding: 0 44px;
-  height: 66px;
+  height: var(--header-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
+  border-radius: 22px;
+}
+
+html.dark .header-bar {
+  background: linear-gradient(180deg, rgba(30, 26, 50, 0.94), rgba(26, 22, 45, 0.92));
+  border-color: rgba(255, 107, 157, 0.1);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.3), 0 4px 18px rgba(0, 0, 0, 0.2);
 }
 
 .header-left {
@@ -188,6 +254,11 @@ onMounted(() => {
 .header-center {
   display: flex;
   align-items: center;
+}
+
+.header-center--hidden {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .header-right {
@@ -213,59 +284,26 @@ onMounted(() => {
   box-shadow: 0 4px 16px rgba(255, 107, 157, 0.3);
   transition: all 0.22s ease-out;
 }
-.logo-img {
+
+.logo-icon-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
+
+.logo-text-img {
+  height: 56px;
+  width: auto;
+  display: block;
+}
+
 .logo-wrap:hover .logo-icon {
   box-shadow: 0 4px 24px rgba(255, 107, 157, 0.45);
   transform: scale(1.05);
 }
 
-.logo-text {
-  font-size: 22px;
-  font-weight: 900;
-  letter-spacing: 1px;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  text-shadow: 0 0 20px rgba(255, 107, 157, 0.15);
-}
-
-.search-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(255, 240, 247, 0.7);
-  border: 1.5px solid rgba(255, 138, 200, 0.2);
-  border-radius: 12px;
-  padding: 9px 16px;
-  transition: all 0.22s ease-out;
-}
-
-.search-wrap:focus-within {
-  border-color: #B484FF;
-  background: white;
-  box-shadow: 0 0 0 3px rgba(180, 132, 255, 0.1);
-}
-
-.search-wrap .el-icon {
-  color: #B484FF;
-  transition: color 0.22s ease-out;
-}
-
-.search-wrap input {
-  border: none;
-  background: none;
-  outline: none;
-  font-size: 13px;
-  width: 220px;
-  color: var(--text);
-}
-
-.search-wrap input::placeholder {
-  color: #c4a0b8;
+.logo-wrap:hover .logo-text-img {
+  filter: brightness(1.08);
 }
 
 .nav {
@@ -278,7 +316,7 @@ onMounted(() => {
   text-decoration: none;
   color: var(--text-dim);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   padding: 8px 16px;
   border-radius: 12px;
   transition: all 0.22s ease-out;
@@ -286,49 +324,66 @@ onMounted(() => {
 }
 
 .nav a:hover {
-  color: #B484FF;
+  color: var(--purple);
 }
 
 .nav a.active {
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  font-weight: 700;
+  color: var(--pink);
+  background: linear-gradient(180deg, rgba(255, 121, 176, 0.16), rgba(255, 121, 176, 0.08));
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 121, 176, 0.18),
+    0 8px 18px rgba(255, 121, 176, 0.14);
+  font-weight: 800;
 }
 .nav a.active::after {
   content: '';
   position: absolute;
-  bottom: 2px;
   left: 16px;
   right: 16px;
-  height: 3px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, var(--pink), var(--purple));
+  bottom: 5px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 79, 160, 0.92), rgba(255, 140, 196, 0.88));
+}
+
+.nav a.nav-disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.nav a.nav-disabled:hover {
+  color: var(--text-dim);
 }
 
 .btn-create {
   padding: 9px 20px;
   border-radius: 14px;
   border: none;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   color: white;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 4px 16px rgba(255, 107, 157, 0.25);
-  transition: all 0.22s ease-out;
+  box-shadow: 0 4px 12px rgba(255, 107, 157, 0.28);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
 .btn-create:hover {
-  transform: scale(1.04);
-  box-shadow: 0 6px 24px rgba(180, 132, 255, 0.35);
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+  box-shadow: 0 6px 16px rgba(255, 107, 157, 0.34);
 }
 .btn-create:active {
-  transform: scale(0.97);
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(255, 107, 157, 0.24);
+}
+.btn-iconify {
+  width: 16px;
+  height: 16px;
+  color: white;
 }
 
 .login-circle {
@@ -337,7 +392,7 @@ onMounted(() => {
    border-radius: 50%;
    cursor: pointer;
    border: 2px solid rgba(255, 107, 157, 0.35);
-   background: white;
+   background: var(--card);
    display: flex;
    align-items: center;
    justify-content: center;
@@ -367,32 +422,52 @@ onMounted(() => {
 
 .header-icons {
   display: flex;
+  align-items: center;
   gap: 4px;
+  margin: 0 8px;
 }
 
-.icon-btn {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
+.header-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 46px;
+  height: 54px;
   border: none;
   background: transparent;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.22s ease-out;
+  border-radius: 14px;
+  padding: 0;
+  transition: background 0.2s ease;
 }
 
-.icon-btn .el-icon {
+.header-action:hover {
+}
+
+.action-iconify {
+  width: 19px;
+  height: 19px;
   color: var(--text-dim);
-  font-size: 18px;
+  line-height: 1;
+  transition: color 0.2s ease, transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.icon-btn:hover {
-  background: rgba(0, 0, 0, 0.06);
+.header-action:hover .action-iconify {
+  color: var(--pink);
+  transform: translateY(-2px);
 }
 
-.icon-btn:hover .el-icon {
+.action-label {
+  font-size: 11px;
+  line-height: 1;
+  color: var(--text-dim);
+  transition: color 0.2s ease;
+  white-space: nowrap;
+}
+
+.header-action:hover .action-label {
   color: var(--pink);
 }
 
@@ -411,8 +486,7 @@ onMounted(() => {
   cursor: pointer;
   overflow: hidden;
   border: 2px solid rgba(255, 255, 255, 0.95);
-  transition: transform 0.24s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.24s ease, border-color 0.24s ease;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -420,12 +494,22 @@ onMounted(() => {
   z-index: 301;
   flex-shrink: 0;
   box-shadow: 0 4px 16px rgba(255, 107, 157, 0.22);
+  transition: transform 0.24s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.24s ease, border-color 0.24s ease;
+  padding: 0;
+}
+
+html.dark .avatar-trigger {
+  border-color: rgba(255, 255, 255, 0.55);
 }
 
 .user-dropdown.open .avatar-trigger {
-  transform: translateY(18px) scale(1.56);
+  transform: translateY(24px) scale(1.9);
   border-color: #fff;
-  box-shadow: 0 10px 24px rgba(255, 107, 157, 0.24);
+  box-shadow: 0 12px 28px rgba(255, 107, 157, 0.28);
+}
+
+html.dark .user-dropdown.open .avatar-trigger {
+  border-color: rgba(255, 255, 255, 0.7);
 }
 
 .avatar-placeholder {
@@ -436,17 +520,17 @@ onMounted(() => {
 
 .dropdown-panel {
   position: absolute;
-  top: calc(100% - 8px);
+  top: calc(100% + 2px);
   left: 50%;
   transform: translateX(-50%);
   width: 260px;
-  background: #fff;
+  background: var(--card);
   border-radius: 18px;
-  border: 1.5px solid rgba(255, 107, 157, 0.12);
+  border: 1.5px solid var(--border-light);
   box-shadow: 0 18px 48px rgba(255, 107, 157, 0.10), 0 2px 10px rgba(255, 107, 157, 0.06);
   z-index: 200;
   overflow: visible;
-  padding-top: 38px;
+  padding-top: 46px;
 }
 
 .drop-enter-active {
@@ -488,15 +572,15 @@ onMounted(() => {
 
 .panel-uid {
   font-size: 11px;
-  color: #9c8ba6;
+  color: var(--text-dim);
 }
 
 .panel-stats {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   padding: 12px 12px 10px;
-  border-top: 1px solid rgba(255, 107, 157, 0.15);
-  border-bottom: 1px solid rgba(255, 107, 157, 0.15);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
 }
 
 .stat-item {
@@ -514,83 +598,107 @@ onMounted(() => {
 }
 
 .stat-num {
-  font-size: 17px;
-  line-height: 1;
-  font-weight: 700;
-  color: #2f1b46;
-  transition: color 0.2s;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text);
 }
 
 .stat-label {
   font-size: 12px;
-  color: #a18faa;
-  transition: color 0.2s;
+  color: var(--text-dim);
 }
 
 .panel-menu {
-  padding: 6px 0 8px;
+  padding: 8px;
 }
 
 .menu-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 16px;
+  padding: 11px 12px;
+  border-radius: 12px;
   cursor: pointer;
-  transition: background 0.2s ease, color 0.2s ease;
-  color: #4a3b57;
-  font-size: 14px;
-  line-height: 1;
+  color: var(--text);
+  transition: all 0.2s;
 }
 
 .menu-item:hover {
-  background: linear-gradient(135deg, rgba(255, 107, 157, 0.08), rgba(180, 132, 255, 0.06));
-  color: var(--pink);
+  background: var(--bg-soft);
 }
 
-.menu-item:hover .menu-icon,
-.menu-item:hover .menu-arrow {
-  stroke: var(--pink);
+.menu-item.logout {
+  color: var(--error);
 }
 
 .menu-icon {
-  width: 21px;
-  height: 21px;
-  flex-shrink: 0;
-  stroke: #7e6f8f;
-  transition: stroke 0.2s;
+  width: 18px;
+  height: 18px;
+  color: currentColor;
 }
 
 .menu-arrow {
+  margin-left: auto;
   width: 16px;
   height: 16px;
-  margin-left: auto;
-  stroke: #c4b8ca;
-  flex-shrink: 0;
-  transition: stroke 0.2s;
+  color: var(--text-dim);
 }
 
 .menu-divider {
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 107, 157, 0.2), transparent);
-  margin: 8px 16px;
+  background: var(--border);
+  margin: 6px 8px;
 }
 
-.menu-item.logout {
-  color: #e85b7d;
+.action-icon-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.menu-item.logout .menu-icon {
-  stroke: #e85b7d;
+.action-badge {
+  position: absolute;
+  top: -6px;
+  right: -10px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--gradient-brand);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-shadow: 0 2px 8px rgba(255, 77, 106, 0.35);
 }
 
-.menu-item.logout:hover {
-  background: rgba(232, 91, 125, 0.08);
-  color: #e85b7d;
+html.dark .logo-icon {
+  box-shadow: 0 4px 16px rgba(255, 107, 157, 0.2);
 }
 
-@media (max-width: 768px) {
-  .header-bar { padding: 0 16px; }
-  .nav { display: none; }
+html.dark .logo-wrap:hover .logo-icon {
+  box-shadow: 0 4px 24px rgba(255, 107, 157, 0.3);
+}
+
+html.dark .dropdown-panel {
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35), 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+html.dark .btn-create {
+  box-shadow: 0 4px 16px rgba(255, 107, 157, 0.18);
+}
+
+html.dark .btn-create:hover {
+  box-shadow: 0 6px 24px rgba(180, 132, 255, 0.28);
+}
+
+html.dark .nav-mobile {
+  background: rgba(30, 26, 50, 0.96);
+  border-color: rgba(255, 107, 157, 0.1);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
 }
 </style>

@@ -1,10 +1,11 @@
 package com.cyxz.auth.controller;
 
 import com.cyxz.auth.dto.AuthResponse;
+import com.cyxz.auth.dto.ChangePasswordRequest;
 import com.cyxz.auth.dto.LoginRequest;
 import com.cyxz.auth.dto.RegisterRequest;
 import com.cyxz.auth.service.AuthService;
-import com.cyxz.auth.util.TokenUtil;
+import com.cyxz.common.utils.TokenUtil;
 import com.cyxz.common.base.Result;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -62,6 +63,26 @@ public class AuthController {
         }
         authService.logout(token);
         return Result.success("登出成功");
+    }
+
+    /**
+     * 修改密码
+     * <p>需要提供旧密码验证身份，新密码与确认密码一致后更新。
+     *
+     * @param request      改密请求
+     * @param authHeader   Authorization 请求头
+     * @return 操作结果
+     */
+    @PutMapping("/password")
+    public Result<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request,
+                                       @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        String token = TokenUtil.extractBearerToken(authHeader);
+        if (token == null) {
+            return Result.fail(401, "无效的Token");
+        }
+        Long userId = authService.extractUserId(token);
+        authService.changePassword(userId, request);
+        return Result.success("密码修改成功");
     }
 
     /**

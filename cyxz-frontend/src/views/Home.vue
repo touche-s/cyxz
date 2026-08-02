@@ -1,265 +1,319 @@
 <template>
   <main class="main-content">
-      <div class="page-inner">
-    <div class="hero-carousel">
-      <div class="carousel-track" :style="{ transform: `translateX(-${currentBanner * 100}%)` }">
-        <div class="hero-banner" v-for="(banner, index) in banners" :key="index">
-          <div class="hero-text">
-            <div class="hero-eyebrow">
-              <span class="pulse-dot"></span>
-              {{ banner.tag }}
-            </div>
-            <h1 v-html="banner.title"></h1>
-            <p>{{ banner.desc }}</p>
-            <div class="hero-stats">
-              <div class="hero-stat" v-for="(stat, i) in banner.stats" :key="i"><b>{{ stat.value }}</b>{{ stat.label }}</div>
+    <div class="page-inner">
+      <section class="hero-panel">
+        <div class="hero-card">
+          <div class="hero-bg-orb hero-bg-orb--1"></div>
+          <div class="hero-bg-orb hero-bg-orb--2"></div>
+          <div class="hero-bg-orb hero-bg-orb--3"></div>
+          <div class="hero-dots">
+            <span v-for="i in 12" :key="i" class="hero-dot" :style="dotStyle(i)"></span>
+          </div>
+
+          <div class="hero-left">
+            <span class="hero-kicker">
+              <Icon icon="ph:sparkle" class="kicker-icon" />
+              从作品进入同好世界
+            </span>
+            <h1>
+              找到你的<span class="h1-accent">同好圈</span>，从这里开始
+            </h1>
+            <p>
+              选一个你喜欢的 IP，加入圈子，和同好一起讨论、创作、分享属于你们的次元故事。
+            </p>
+            <div class="hero-actions">
+              <button class="primary-btn" @click="scrollToJoined">
+                <Icon icon="ph:circles-three-plus" class="btn-icon" />
+                我的圈子
+              </button>
+              <button class="ghost-btn" @click="scrollToAll">
+                探索全部
+                <Icon icon="ph:arrow-right" class="btn-icon-arrow" />
+              </button>
             </div>
           </div>
-          <div class="hero-illust">
-            <div class="circle c1"></div>
-            <div class="circle c2"></div>
-            <div class="circle c3"></div>
-            <div class="char-emoji"></div>
+
+          <div class="hero-right">
+            <div class="collage-wrap">
+              <div class="collage-card collage-card--main">
+                <div class="collage-cover collage-cover--1">
+                  <div class="collage-cover-pattern"></div>
+                </div>
+                <div class="collage-bar">
+                  <span class="collage-name">原神</span>
+                  <span class="collage-stat">2.4k 成员</span>
+                </div>
+              </div>
+              <div class="collage-card collage-card--top">
+                <div class="collage-cover collage-cover--2">
+                  <div class="collage-cover-pattern"></div>
+                </div>
+                <div class="collage-bar">
+                  <span class="collage-name">崩坏：星穹铁道</span>
+                  <span class="collage-tag">热门</span>
+                </div>
+              </div>
+              <div class="collage-card collage-card--bottom">
+                <div class="collage-cover collage-cover--3">
+                  <div class="collage-cover-pattern"></div>
+                </div>
+                <div class="collage-bar">
+                  <span class="collage-name">同人创作</span>
+                  <span class="collage-tag tag-new">新圈</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="floating-tag floating-tag--1">
+              <Icon icon="ph:plus-circle" class="ft-icon" />
+              今日新增 12 个圈子
+            </div>
+            <div class="floating-tag floating-tag--2">
+              <Icon icon="ph:tag" class="ft-icon" />
+              热门标签：<span class="ft-hashtag">#同人</span><span class="ft-hashtag">#日常</span><span class="ft-hashtag">#COS</span>
+            </div>
           </div>
         </div>
-      </div>
-      <button class="carousel-prev" @click="prevBanner">&lt;</button>
-      <button class="carousel-next" @click="nextBanner">&gt;</button>
-      <div class="carousel-dots">
-        <span 
-          v-for="(_, index) in banners" 
-          :key="index" 
-          class="dot" 
-          :class="{ active: currentBanner === index }"
-          @click="currentBanner = index"
-        ></span>
-      </div>
-    </div>
 
-    <div class="cat-row">
-      <span 
-        class="cat-pill" 
-        :class="{ active: selectedCategoryId === null }"
-        @click="selectCategory(null)"
-      >
-        推荐
-      </span>
-      <span 
-        v-for="cat in categories" 
-        :key="cat.id"
-        class="cat-pill"
-        :title="cat.description"
-        :class="{ active: selectedCategoryId === cat.id }"
-        @click="selectCategory(cat.id)"
-      >
-        {{ cat.name }}
-      </span>
-    </div>
+        <aside class="hero-side" v-if="hotCircles.length > 0">
+          <div class="hero-side-head">
+            <span class="hero-side-kicker">
+              <Icon icon="ph:fire" class="kicker-icon" />
+              热门圈子排行
+            </span>
+            <strong>本周最活跃</strong>
+          </div>
+          <div class="hero-rank-list">
+            <article
+              v-for="(circle, index) in hotCircles"
+              :key="circle.id"
+              class="hero-rank-card"
+              @click="enterCircle(circle)"
+            >
+              <div class="hero-rank-badge" :class="`hero-rank-badge--${index + 1}`">
+                {{ index + 1 }}
+              </div>
+              <div class="hero-rank-avatar">
+                <img v-if="circle.avatar" :src="circle.avatar" :alt="circle.name" />
+                <span v-else class="hero-rank-avatar-fallback">{{ circle.name.charAt(0) }}</span>
+              </div>
+              <div class="hero-rank-main">
+                <div class="hero-rank-topline">
+                  <strong>{{ circle.name }}</strong>
+                  <span class="hero-rank-heat">{{ circle.memberCount }} 成员</span>
+                </div>
+                <p>{{ circle.intro }}</p>
+              </div>
+            </article>
+          </div>
+        </aside>
+      </section>
 
-    <div class="section-label">
-      精选内容
-      <a href="#">查看更多 <span class="arrow-icon">→</span></a>
-    </div>
+      <section v-if="joinedCircles.length > 0" ref="joinedSectionRef" class="circle-section">
+        <div class="section-top">
+          <div>
+            <span class="block-kicker">
+              <Icon icon="ph:heart-straight" class="kicker-icon" />
+              我的圈子
+            </span>
+            <h2>常驻同好地带</h2>
+          </div>
+          <a class="view-all" @click="to('/square?tab=joined')">查看更多 →</a>
+        </div>
+        <div class="circle-grid">
+          <CircleCard
+            v-for="circle in joinedCircles"
+            :key="circle.id"
+            :circle="circle"
+            variant="joined"
+            @click="enterCircle(circle)"
+          />
+        </div>
+      </section>
 
-    <div class="content-grid" v-if="!loading">
-      <PostCard
-        v-for="post in posts"
-        :key="post.id"
-        :post="post"
-        :show-collect="true"
-        :show-like="true"
-        @click="viewPost"
-        @like="handlePostLike"
-        @collect="toggleSave"
-      />
-    </div>
+      <section v-if="hotCircles.length > 0" class="circle-section">
+        <div class="section-top">
+          <div>
+            <span class="block-kicker">
+              <Icon icon="ph:fire" class="kicker-icon" />
+              热门推荐
+            </span>
+            <h2>本周最活跃圈子</h2>
+          </div>
+          <a class="view-all" @click="to('/square?tab=hot')">查看更多 →</a>
+        </div>
+        <div class="circle-grid">
+          <CircleCard
+            v-for="(circle, index) in hotCircles"
+            :key="circle.id"
+            :circle="circle"
+            :rank="index"
+            @click="enterCircle(circle)"
+            @toggle="toggleJoin(circle)"
+          />
+        </div>
+      </section>
 
-    <LoadingSpinner v-else text="加载中..." />
+      <section ref="allSectionRef" class="circle-section">
+        <div class="section-top">
+          <div>
+            <span class="block-kicker">
+              <Icon icon="ph:planet" class="kicker-icon" />
+              全部圈子
+            </span>
+            <h2>从作品主题进入社区</h2>
+          </div>
+          <a class="view-all" @click="to('/square?tab=all')">查看更多 →</a>
+        </div>
+        <div v-if="!loading" class="circle-grid">
+          <CircleCard
+            v-for="circle in previewCircles"
+            :key="circle.id"
+            :circle="circle"
+            @click="enterCircle(circle)"
+            @toggle="toggleJoin(circle)"
+          />
+        </div>
+        <LoadingSpinner v-else text="加载圈子中..." />
+        <EmptyState v-if="!loading && circles.length === 0" title="暂无圈子" />
+      </section>
 
-    <EmptyState v-if="!loading && posts.length === 0" title="暂无内容" />
-
-    <footer class="footer">
-      <div class="footer-links">
-        <a href="#">关于我们</a>
-        <a href="#">社区规范</a>
-        <a href="#">帮助中心</a>
-        <a href="#">意见反馈</a>
-      </div>
-      <div class="footer-copy">© 2026 次元小站. All rights reserved.</div>
-    </footer>
+      <footer class="footer">
+        <div class="footer-links">
+          <a href="#">关于我们</a>
+          <a @click="to('/guidelines')" class="footer-link">社区规范</a>
+          <a href="#">帮助中心</a>
+          <a href="#">意见反馈</a>
+        </div>
+        <div class="footer-copy">© 2026 次元小站. All rights reserved.</div>
+      </footer>
     </div>
   </main>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { getPostList, getCategoryList, togglePostLike, togglePostCollect } from '@/api/post'
-import type { PostVO, CategoryVO } from '@/api/post'
-import { useUserStore } from '@/stores/user'
+import { computed, onMounted, ref } from 'vue'
+import { getCircleList, getJoinedCircles, joinCircle, leaveCircle } from '@/api/circle'
+import type { CircleVO } from '@/api/circle'
+import { useNavigate } from '@/composables/useNavigate'
 import { useAuth } from '@/composables/useAuth'
-import PostCard from '@/components/PostCard.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import CircleCard from '@/components/CircleCard.vue'
 
-const router = useRouter()
-const userStore = useUserStore()
+const { open, to } = useNavigate()
 const { requireLogin } = useAuth()
 
-const posts = ref<PostVO[]>([])
-const categories = ref<CategoryVO[]>([])
-const selectedCategoryId = ref<number | null>(null)
+const circles = ref<CircleVO[]>([])
+const joinedCircles = ref<CircleVO[]>([])
 const loading = ref(false)
+const joinLoading = ref<Record<number, boolean>>({})
+const joinedSectionRef = ref<HTMLElement | null>(null)
+const allSectionRef = ref<HTMLElement | null>(null)
 
-const banners = ref([
-  {
-    tag: '今日推荐',
-    title: '在<em>这里</em>发现<br />属于你的世界',
-    desc: '每一次分享都是一场奇遇，每一个灵感都值得被看见',
-    stats: [
-      { value: '128K+', label: '创作者' },
-      { value: '2.4M+', label: '作品' },
-      { value: '580+', label: '今日上新' },
-    ],
-  },
-  {
-    tag: '热门话题',
-    title: '一起<em>探索</em>无限可能<br />发现更多精彩',
-    desc: '加入创作者社区，分享你的故事与灵感',
-    stats: [
-      { value: '50K+', label: '活跃用户' },
-      { value: '10M+', label: '浏览量' },
-      { value: '10K+', label: '日发帖' },
-    ],
-  },
-  {
-    tag: '创作激励',
-    title: '你的<em>创意</em>值得被看见<br />开启创作之旅',
-    desc: '优质内容获得更多曝光，与千万用户分享',
-    stats: [
-      { value: '100%', label: '流量扶持' },
-      { value: '50万', label: '奖金池' },
-      { value: '专属', label: '认证标识' },
-    ],
-  },
-])
+const hotCircles = computed(() => {
+  return [...circles.value]
+    .sort((a, b) => {
+      if (b.postCount !== a.postCount) return b.postCount - a.postCount
+      return b.memberCount - a.memberCount
+    })
+    .slice(0, 3)
+})
 
-const currentBanner = ref(0)
-let autoPlayTimer: number | null = null
+const previewCircles = computed(() => circles.value.slice(0, 8))
 
-const startAutoPlay = () => {
-  autoPlayTimer = window.setInterval(() => {
-    currentBanner.value = (currentBanner.value + 1) % banners.value.length
-  }, 5000)
-}
-
-const stopAutoPlay = () => {
-  if (autoPlayTimer) {
-    clearInterval(autoPlayTimer)
-    autoPlayTimer = null
+function dotStyle(i: number) {
+  const positions = [
+    { top: '8%', left: '72%' },
+    { top: '14%', left: '82%' },
+    { top: '22%', left: '92%' },
+    { top: '36%', left: '68%' },
+    { top: '46%', left: '88%' },
+    { top: '58%', left: '78%' },
+    { top: '68%', left: '94%' },
+    { top: '78%', left: '70%' },
+    { top: '84%', left: '86%' },
+    { top: '10%', left: '62%' },
+    { top: '30%', left: '60%' },
+    { top: '52%', left: '62%' },
+  ]
+  const delays = [0, 0.8, 1.6, 0.4, 1.2, 2.0, 0.6, 1.4, 0.2, 1.0, 1.8, 0.9]
+  const sizes = [4, 3, 5, 3, 4, 3, 2, 4, 3, 5, 3, 2]
+  const idx = i - 1
+  return {
+    top: positions[idx].top,
+    left: positions[idx].left,
+    width: sizes[idx] + 'px',
+    height: sizes[idx] + 'px',
+    animationDelay: delays[idx] + 's',
   }
 }
 
-const prevBanner = () => {
-  currentBanner.value = (currentBanner.value - 1 + banners.value.length) % banners.value.length
-  stopAutoPlay()
-  startAutoPlay()
-}
-
-const nextBanner = () => {
-  currentBanner.value = (currentBanner.value + 1) % banners.value.length
-  stopAutoPlay()
-  startAutoPlay()
-}
-
-const loadCategories = async () => {
-  try {
-    const res = await getCategoryList()
-    if (res.data.code === 200) {
-      categories.value = res.data.data
-    }
-  } catch (error) {
-    console.error('加载分类失败:', error)
-  }
-}
-
-const loadPosts = async () => {
+async function loadCircles() {
   loading.value = true
   try {
-    const params: any = { page: 1, size: 12 }
-    if (selectedCategoryId.value !== null) {
-      params.categoryId = selectedCategoryId.value
-    }
-    const res = await getPostList(params)
-    if (res.data.code === 200) {
-      posts.value = res.data.data.records || []
-    }
-  } catch (error) {
-    console.error('加载帖子失败:', error)
+    circles.value = await getCircleList()
+  } catch (e) {
+    console.error('加载圈子失败:', e)
   } finally {
     loading.value = false
   }
 }
 
-const selectCategory = (categoryId: number | null) => {
-  selectedCategoryId.value = categoryId
-  loadPosts()
-}
-
-const viewPost = (post: PostVO) => {
-  if (!requireLogin()) return
-  const url = router.resolve(`/post/${post.id}`).href
-  window.open(url, '_blank')
-}
-
-const toggleSave = async (post: PostVO) => {
-  if (!requireLogin()) return
-
-  const oldCollected = post.collected
-  const oldCollections = post.collections
-
-  post.collected = !oldCollected
-  post.collections = oldCollected ? Math.max(oldCollections - 1, 0) : oldCollections + 1
-
+async function loadJoined() {
   try {
-    const res = await togglePostCollect(post.id)
-    if (res.data.code === 200) {
-      post.collections = res.data.data
-    }
+    joinedCircles.value = await getJoinedCircles()
   } catch {
-    post.collected = oldCollected
-    post.collections = oldCollections
+    joinedCircles.value = []
   }
 }
 
-const handlePostLike = async (post: PostVO) => {
+function enterCircle(circle: CircleVO) {
+  open(`/circle/${circle.id}`)
+}
+
+function scrollToJoined() {
+  if (joinedCircles.value.length > 0) {
+    joinedSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    return
+  }
+  allSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+function scrollToAll() {
+  allSectionRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+async function toggleJoin(circle: CircleVO) {
   if (!requireLogin()) return
-
-  const oldLiked = post.liked
-  const oldLikes = post.likes
-
-  post.liked = !oldLiked
-  post.likes = oldLiked ? Math.max(oldLikes - 1, 0) : oldLikes + 1
-
+  if (joinLoading.value[circle.id]) return
+  const prevJoined = circle.joined
+  const prevMemberCount = circle.memberCount
+  joinLoading.value[circle.id] = true
   try {
-    const res = await togglePostLike(post.id)
-    if (res.data.code === 200) {
-      post.likes = res.data.data
+    if (circle.joined) {
+      await leaveCircle(circle.id)
+      circle.joined = false
+      circle.memberCount = Math.max(circle.memberCount - 1, 0)
+      joinedCircles.value = joinedCircles.value.filter(c => c.id !== circle.id)
+    } else {
+      await joinCircle(circle.id)
+      circle.joined = true
+      circle.memberCount = circle.memberCount + 1
+      joinedCircles.value.push({ ...circle, joined: true })
     }
-  } catch {
-    post.liked = oldLiked
-    post.likes = oldLikes
+  } catch (e) {
+    console.error('操作失败:', e)
+    circle.joined = prevJoined
+    circle.memberCount = prevMemberCount
+  } finally {
+    joinLoading.value[circle.id] = false
   }
 }
 
 onMounted(() => {
-  loadCategories()
-  loadPosts()
-  startAutoPlay()
-})
-
-onUnmounted(() => {
-  stopAutoPlay()
+  loadCircles()
+  loadJoined()
 })
 </script>
 
@@ -269,573 +323,731 @@ onUnmounted(() => {
 }
 
 .page-inner {
-  max-width: 1500px;
+  width: min(1368px, calc(100vw - 48px));
   margin: 0 auto;
-  padding: 0 32px;
 }
 
-/* ===== Hero Carousel ===== */
-.hero-carousel {
+/* ==================== HERO PANEL ==================== */
+.hero-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(320px, 0.9fr);
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+/* ==================== HERO CARD (LEFT) ==================== */
+.hero-card {
   position: relative;
+  display: grid;
+  grid-template-columns: 1fr 0.92fr;
+  gap: 20px;
+  min-height: 348px;
+  padding: 28px 0 28px 32px;
+  border-radius: 24px;
   overflow: hidden;
-  border-radius: 20px;
-  margin-bottom: 28px;
+  background: linear-gradient(145deg, #fff6fb 0%, #ffeef6 28%, #f6efff 68%, #fdf5ff 100%);
+  border: 1.5px solid rgba(255, 163, 200, 0.35);
+  box-shadow:
+    0 12px 40px rgba(255, 107, 157, 0.06),
+    0 2px 8px rgba(180, 132, 255, 0.05),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6);
 }
 
-.carousel-track {
-  display: flex;
-  transition: transform 0.4s ease-out;
+html.dark .hero-card {
+  background: linear-gradient(145deg, #211d35 0%, #252042 28%, #221f40 68%, #1f1c38 100%);
+  border-color: rgba(255, 163, 200, 0.15);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.25),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03);
 }
 
-.carousel-track > .hero-banner {
-  flex: 0 0 100%;
-  margin-bottom: 0;
-  border-radius: 0;
-  border: none;
-}
-
-.carousel-prev,
-.carousel-next {
+/* Background orbs */
+.hero-bg-orb {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  background: transparent;
-  border: none;
-  font-size: 28px;
-  color: var(--purple);
-  cursor: pointer;
-  transition: all 0.22s ease-out;
-  z-index: 10;
-  opacity: 0;
-  padding: 4px;
-}
-
-.hero-carousel:hover .carousel-prev,
-.hero-carousel:hover .carousel-next {
-  opacity: 1;
-}
-
-.carousel-prev {
-  left: 12px;
-}
-
-.carousel-next {
-  right: 12px;
-}
-
-.carousel-prev:hover,
-.carousel-next:hover {
-  color: var(--pink);
-  transform: translateY(-50%) scale(1.2);
-}
-
-.carousel-dots {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 8px;
-  z-index: 10;
-}
-
-.dot {
-  width: 10px;
-  height: 10px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.5);
-  cursor: pointer;
-  transition: all 0.22s ease-out;
+  pointer-events: none;
+  z-index: 0;
 }
 
-.dot:hover {
-  background: rgba(255, 255, 255, 0.8);
-}
-
-.dot.active {
-  width: 28px;
-  border-radius: 5px;
-  background: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-/* ===== Hero Banner ===== */
-.hero-banner {
-  position: relative;
-  background:
-    radial-gradient(circle at 10% 20%, #FFD6E8 0%, transparent 60%),
-    radial-gradient(circle at 90% 80%, #E2D9FF 0%, transparent 60%),
-    linear-gradient(135deg, #FFD6E8, #E2D9FF);
-  border-radius: 20px;
-  padding: 48px 44px;
-  margin-bottom: 28px;
-  overflow: hidden;
-  border: 1.5px solid rgba(255, 182, 215, 0.25);
-  display: flex;
-  align-items: center;
-  gap: 40px;
-  box-shadow: 0 8px 32px rgba(180, 132, 255, 0.1);
-}
-
-/* Floating decorations */
-.hero-banner::before {
-  content: '';
-  position: absolute;
-  top: 20px;
+.hero-bg-orb--1 {
+  width: 220px;
+  height: 220px;
+  top: -60px;
   right: 10%;
-  width: 100px;
-  height: 100px;
-  background: radial-gradient(circle, rgba(255, 138, 200, 0.12), transparent 70%);
-  border-radius: 50%;
-  animation: decoFloat 5s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(255, 163, 200, 0.15) 0%, transparent 70%);
+  animation: orbFloat1 6s ease-in-out infinite;
 }
 
-.hero-banner::after {
-  content: '';
-  position: absolute;
-  bottom: 30px;
-  left: 60%;
-  width: 60px;
-  height: 60px;
-  background: radial-gradient(circle, rgba(180, 132, 255, 0.1), transparent 70%);
-  border-radius: 50%;
-  animation: decoFloat 4s ease-in-out infinite 1s;
+.hero-bg-orb--2 {
+  width: 160px;
+  height: 160px;
+  bottom: -40px;
+  right: 40%;
+  background: radial-gradient(circle, rgba(180, 132, 255, 0.12) 0%, transparent 70%);
+  animation: orbFloat2 7s ease-in-out infinite;
 }
 
-@keyframes decoFloat {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-10px) scale(1.1); }
+.hero-bg-orb--3 {
+  width: 120px;
+  height: 120px;
+  top: 30%;
+  right: 60%;
+  background: radial-gradient(circle, rgba(255, 200, 220, 0.1) 0%, transparent 70%);
+  animation: orbFloat3 5s ease-in-out infinite;
 }
 
-.hero-text { flex: 1; z-index: 1; }
-
-.hero-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 16px;
-  border-radius: 20px;
-  background: rgba(255, 138, 200, 0.12);
-  border: 1.5px solid rgba(255, 138, 200, 0.25);
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--pink);
-  margin-bottom: 18px;
-  letter-spacing: 2px;
-  transition: all 0.22s ease-out;
-}
-.hero-eyebrow:hover {
-  transform: translateY(-2px);
-  background: rgba(255, 138, 200, 0.18);
+@keyframes orbFloat1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(12px, -10px) scale(1.06); }
 }
 
-.pulse-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  animation: pulse 2s ease-in-out infinite;
+@keyframes orbFloat2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-8px, 14px) scale(1.08); }
 }
 
-@keyframes pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 157, 0.4); }
-  50% { box-shadow: 0 0 0 8px rgba(255, 107, 157, 0); }
+@keyframes orbFloat3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(10px, 6px) scale(1.05); }
 }
 
-.hero-text h1 {
-  font-size: 40px;
-  font-weight: 900;
-  line-height: 1.25;
-  margin-bottom: 14px;
-  color: var(--text);
-  text-shadow: 0 2px 12px rgba(255, 107, 157, 0.08);
-}
-
-.hero-text h1 em {
-  font-style: normal;
-  background: linear-gradient(135deg, #FF8AC8, #B484FF);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  font-weight: 900;
-}
-
-.hero-text p {
-  font-size: 14px;
-  color: var(--text-dim);
-  line-height: 1.7;
-  max-width: 400px;
-  opacity: 0.85;
-}
-
-/* Stats with dividers */
-.hero-stats {
-  display: flex;
-  gap: 0;
-  margin-top: 24px;
-  align-items: center;
-}
-
-.hero-stat {
-  font-size: 12px;
-  color: var(--text-dim);
-  padding: 8px 24px;
-  border-radius: 12px;
-  transition: all 0.22s ease-out;
-  cursor: default;
-}
-.hero-stat:hover {
-  background: rgba(255, 138, 200, 0.06);
-}
-.hero-stat + .hero-stat {
-  border-left: 1.5px solid rgba(180, 132, 255, 0.15);
-}
-
-.hero-stat b {
-  display: block;
-  font-size: 22px;
-  font-weight: 900;
-  background: linear-gradient(135deg, #FF8AC8, #B484FF);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin-bottom: 2px;
-}
-
-.hero-illust {
-  flex-shrink: 0;
-  z-index: 1;
-  width: 280px;
-  height: 200px;
-  position: relative;
-}
-
-.circle {
-  position: absolute;
-  width: 140px;
-  height: 140px;
-  border-radius: 50%;
-  opacity: 0.15;
-  animation: circleFloat 4s ease-in-out infinite;
-}
-
-.c1 { background: var(--pink); top: 10px; left: 40px; }
-.c2 { background: var(--purple); bottom: 0; right: 30px; animation-delay: 1s; }
-.c3 { background: var(--blue); top: 60px; right: 0; width: 80px; height: 80px; animation-delay: 2s; }
-
-.char-emoji {
+/* Dot decoration */
+.hero-dots {
   position: absolute;
   inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.hero-dot {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 163, 200, 0.22);
+  animation: dotPulse 2.5s ease-in-out infinite;
+}
+
+html.dark .hero-dot {
+  background: rgba(255, 163, 200, 0.15);
+}
+
+@keyframes dotPulse {
+  0%, 100% { opacity: 0.25; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.4); }
+}
+
+/* Left text area */
+.hero-left {
+  position: relative;
+  z-index: 2;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   justify-content: center;
-  font-size: 80px;
-  animation: charBounce 3s ease-in-out infinite;
-  filter: drop-shadow(0 4px 12px rgba(255, 107, 157, 0.3));
+  padding-right: 4px;
 }
 
-.char-emoji::before { content: ''; }
-
-@keyframes circleFloat {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-12px) scale(1.05); }
+.hero-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pink);
+  letter-spacing: 0.06em;
+  padding: 5px 14px;
+  background: rgba(255, 107, 157, 0.1);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 107, 157, 0.18);
+  width: fit-content;
 }
 
-@keyframes charBounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-8px); }
-}
-
-/* ===== Category Tabs ===== */
-.cat-row {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 28px;
-  overflow-x: auto;
-  padding: 4px 4px;
-}
-
-.cat-row::-webkit-scrollbar { display: none; }
-
-.cat-pill {
-  padding: 9px 20px;
-  border-radius: 12px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  border: 1.5px solid rgba(255, 138, 200, 0.2);
-  background: white;
-  color: var(--text-dim);
-  transition: all 0.22s ease-out;
+.kicker-icon {
+  width: 14px;
+  height: 14px;
   flex-shrink: 0;
 }
 
-.cat-pill.active {
-  background: transparent;
-  color: #FF6B9D;
-  border-color: rgba(255, 107, 157, 0.4);
-  box-shadow: none;
-  font-weight: 700;
-}
-
-.cat-pill:hover:not(.active) {
-  border-color: rgba(255, 138, 200, 0.4);
-  color: #B484FF;
-  background: rgba(180, 132, 255, 0.04);
-  transform: translateY(-1px);
-}
-
-.cat-icon {
-  width: 14px;
-  height: 14px;
-  margin-right: 4px;
-}
-
-.cat-pill.active .cat-icon {
-  filter: brightness(0) invert(1);
-}
-
-/* ===== Section Label ===== */
-.section-label {
-  font-size: 17px;
+.hero-left h1 {
+  margin: 14px 0 8px;
+  font-size: 32px;
+  line-height: 1.22;
   font-weight: 800;
   color: var(--text);
-  margin-bottom: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
 }
 
-.section-label a {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--pink);
-  text-decoration: none;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  transition: all 0.22s ease-out;
-}
-.section-label a:hover {
-  color: #B484FF;
-}
-.section-label a:hover .arrow-icon {
-  transform: translateX(4px);
-}
-.arrow-icon {
-  display: inline-block;
-  transition: transform 0.22s ease-out;
+.h1-accent {
+  background: var(--gradient-brand);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-/* ===== Content Grid ===== */
-.content-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 18px;
-  margin-bottom: 32px;
-}
-
-.card {
-  background: white;
-  border-radius: 16px;
-  overflow: hidden;
-  border: 1.5px solid var(--border);
-  box-shadow: 0 4px 12px rgba(180, 132, 255, 0.08);
-  transition: all 0.22s ease-out;
-  cursor: pointer;
-}
-
-.card:hover {
-  transform: translateY(-4px) scale(1.02);
-  border-color: rgba(180, 132, 255, 0.3);
-  box-shadow: 0 12px 36px rgba(180, 132, 255, 0.15);
-}
-
-.card-cover {
-  position: relative;
-  height: 180px;
-  overflow: hidden;
-}
-
-.card-cover .img {
-  width: 100%;
-  height: 100%;
-  transition: transform 0.4s;
-}
-
-.card:hover .card-cover .img { transform: scale(1.05); }
-
-.card-badge {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  padding: 4px 10px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, rgba(255, 138, 200, 0.9), rgba(180, 132, 255, 0.9));
-  font-size: 10px;
-  font-weight: 700;
-  color: white;
-  backdrop-filter: blur(8px);
-}
-
-.card-save {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  border: none;
-  transition: all 0.22s ease-out;
-  padding: 0;
-  line-height: 0;
-}
-
-.card-save .collect-icon {
-  width: 16px;
-  height: 16px;
-  display: block;
-}
-
-.card-save:hover {
-  background: white;
-  transform: scale(1.15);
-  box-shadow: 0 2px 12px rgba(180, 132, 255, 0.2);
-}
-
-.card-body { padding: 14px 16px; }
-
-.card-title {
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1.5;
+.hero-left p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: rgba(90, 70, 108, 0.72);
+  max-width: 480px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  margin-bottom: 12px;
-  color: var(--text);
 }
 
-.card-meta {
+html.dark .hero-left p {
+  color: rgba(200, 190, 220, 0.65);
+}
+
+.hero-actions {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
 }
 
-.card-author { display: flex; align-items: center; gap: 8px; }
-
-.card-avatar {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
-  border: 2px solid white;
-  box-shadow: 0 1px 4px rgba(180, 132, 255, 0.15);
-}
-
-.card-author-name {
-  font-size: 12px;
-  color: var(--text-dim);
-  font-weight: 500;
-  transition: color 0.22s ease-out;
-}
-.card-author-name:hover {
-  color: var(--pink);
-}
-
-.card-stats { 
-  display: flex; 
-  align-items: center; 
-  gap: 14px; 
-  font-size: 12px; 
-  color: var(--text-dim);
-  line-height: 1;
-}
-
-.card-stats span { 
-  display: inline-flex; 
-  align-items: center; 
-  gap: 3px;
-  line-height: 1;
-  transition: color 0.22s ease-out;
-}
-
-.card-stats span:hover {
-  color: var(--text);
-}
-
-.card-stats .stat-icon { 
-  width: 14px; 
-  height: 14px; 
-  display: block;
-  flex-shrink: 0;
-}
-
-.like-btn {
+.primary-btn,
+.ghost-btn {
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 12px;
-  color: var(--text-dim);
-  padding: 0;
-  transition: color 0.22s ease-out;
-  line-height: 1;
+  gap: 7px;
+  height: 46px;
+  padding: 0 24px;
   font-family: inherit;
 }
 
-.like-btn:hover {
-  color: var(--pink);
+.primary-btn {
+  border: none;
+  background: var(--gradient-brand);
+  color: white;
+  box-shadow: 0 6px 20px rgba(255, 107, 157, 0.2);
 }
 
-.like-btn.active {
-  color: var(--pink);
+.primary-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(180, 132, 255, 0.26);
 }
 
-/* ===== Footer ===== */
+.primary-btn:active {
+  transform: scale(0.97);
+}
+
+.ghost-btn {
+  border: 1.5px solid rgba(255, 163, 200, 0.35);
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--text);
+}
+
+html.dark .ghost-btn {
+  background: rgba(37, 37, 71, 0.5);
+}
+
+.ghost-btn:hover {
+  border-color: var(--pink);
+  color: var(--pink);
+  background: rgba(255, 107, 157, 0.05);
+  transform: translateY(-2px);
+}
+
+.ghost-btn:hover .btn-icon-arrow {
+  transform: translateX(3px);
+}
+
+.btn-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.btn-icon-arrow {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.22s ease-out;
+}
+
+/* ==================== HERO RIGHT - COLLAGE ==================== */
+.hero-right {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-right: 8px;
+}
+
+.collage-wrap {
+  position: relative;
+  width: 100%;
+  height: 240px;
+}
+
+.collage-card {
+  position: absolute;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 28px rgba(255, 107, 157, 0.1), 0 2px 6px rgba(180, 132, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+  cursor: default;
+}
+
+.collage-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 36px rgba(255, 107, 157, 0.15), 0 4px 12px rgba(180, 132, 255, 0.12);
+}
+
+.collage-card--main {
+  width: 68%;
+  height: 148px;
+  top: 50%;
+  left: 10%;
+  transform: translateY(-50%);
+  z-index: 3;
+}
+
+.collage-card--main:hover {
+  transform: translateY(calc(-50% - 3px));
+}
+
+.collage-card--top {
+  width: 52%;
+  height: 115px;
+  top: 0;
+  right: 2%;
+  z-index: 2;
+  border-radius: 14px;
+}
+
+.collage-card--bottom {
+  width: 48%;
+  height: 110px;
+  bottom: 4px;
+  left: 0;
+  z-index: 4;
+  border-radius: 14px;
+}
+
+.collage-cover {
+  position: relative;
+  width: 100%;
+  height: calc(100% - 36px);
+  overflow: hidden;
+}
+
+.collage-cover--1 {
+  background: linear-gradient(135deg, #a8d8ea, #e8c4f8, #fcd5e8);
+}
+
+.collage-cover--2 {
+  background: linear-gradient(135deg, #1a1a3e, #3d2e6e, #6b4faa);
+}
+
+.collage-cover--3 {
+  background: linear-gradient(135deg, #fce4ec, #f8d0e0, #e8c8f0);
+}
+
+.collage-cover-pattern {
+  position: absolute;
+  inset: 0;
+  opacity: 0.12;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.8) 1px, transparent 1px),
+    radial-gradient(circle at 60% 70%, rgba(255, 255, 255, 0.6) 1px, transparent 1px),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.7) 1.5px, transparent 1.5px),
+    radial-gradient(circle at 40% 50%, rgba(255, 255, 255, 0.5) 2px, transparent 2px);
+  background-size: 60px 60px, 40px 40px, 50px 50px, 70px 70px;
+}
+
+.collage-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(8px);
+}
+
+html.dark .collage-bar {
+  background: rgba(30, 28, 48, 0.75);
+}
+
+.collage-name {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.collage-stat {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.collage-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, rgba(255, 107, 157, 0.15), rgba(180, 132, 255, 0.1));
+  color: var(--pink);
+  flex-shrink: 0;
+}
+
+.tag-new {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(16, 185, 129, 0.1));
+  color: var(--success);
+}
+
+/* Floating tags */
+.floating-tag {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 163, 200, 0.2);
+  color: var(--text);
+  box-shadow: 0 4px 14px rgba(255, 107, 157, 0.06);
+  white-space: nowrap;
+  z-index: 5;
+  pointer-events: none;
+  animation: tagFloat 3.5s ease-in-out infinite;
+}
+
+html.dark .floating-tag {
+  background: rgba(37, 37, 71, 0.78);
+  border-color: rgba(255, 163, 200, 0.12);
+}
+
+.floating-tag--1 {
+  top: -2px;
+  right: -8px;
+  animation-delay: 0s;
+}
+
+.floating-tag--2 {
+  bottom: -6px;
+  right: -6px;
+  animation-delay: 1.2s;
+}
+
+@keyframes tagFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.ft-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--pink);
+  flex-shrink: 0;
+}
+
+.ft-hashtag {
+  color: var(--pink);
+  margin-left: 2px;
+}
+
+/* ==================== HERO SIDE RANK ==================== */
+.hero-side {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(255, 249, 253, 0.94));
+  border: 1.5px solid rgba(255, 163, 200, 0.2);
+  border-radius: 24px;
+  padding: 18px;
+  box-shadow: 0 12px 32px rgba(255, 107, 157, 0.04);
+}
+
+html.dark .hero-side {
+  background: linear-gradient(180deg, rgba(37, 37, 71, 0.75), rgba(32, 30, 55, 0.85));
+  border-color: rgba(255, 163, 200, 0.1);
+}
+
+.hero-side-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.hero-side-head strong {
+  font-size: 18px;
+  color: var(--text);
+  font-weight: 800;
+}
+
+.hero-side-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--pink);
+  padding: 4px 12px;
+  background: rgba(255, 107, 157, 0.08);
+  border-radius: 999px;
+  width: fit-content;
+}
+
+.hero-rank-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hero-rank-card {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 14px;
+  background: var(--card);
+  border: 1px solid rgba(255, 163, 200, 0.14);
+  cursor: pointer;
+  transition: all 0.22s ease;
+}
+
+.hero-rank-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 107, 157, 0.3);
+  box-shadow: 0 10px 20px rgba(255, 107, 157, 0.06);
+}
+
+.hero-rank-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.hero-rank-badge--1 {
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+}
+
+.hero-rank-badge--2 {
+  background: linear-gradient(135deg, #a5b4fc, #c4b5fd);
+}
+
+.hero-rank-badge--3 {
+  background: linear-gradient(135deg, #fb923c, #fda4af);
+}
+
+.hero-rank-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--gradient-tag);
+  box-shadow: 0 3px 10px rgba(255, 107, 157, 0.12);
+}
+
+.hero-rank-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hero-rank-avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.hero-rank-main {
+  min-width: 0;
+}
+
+.hero-rank-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.hero-rank-topline strong {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hero-rank-heat {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 107, 157, 0.08);
+  color: var(--pink);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.hero-rank-main p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ==================== SECTIONS ==================== */
+.circle-section {
+  margin-bottom: 48px;
+}
+
+.block-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--pink);
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+
+.section-top {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.section-top h2 {
+  margin: 6px 0 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.view-all {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pink);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.22s ease-out;
+}
+
+.view-all:hover {
+  color: var(--purple);
+}
+
+/* ==================== GRID ==================== */
+.circle-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+/* ==================== FOOTER ==================== */
 .footer {
   text-align: center;
   padding: 40px 0 20px;
   border-top: 1px solid var(--border);
-  margin-top: 20px;
+  margin-top: 48px;
 }
 
-.footer-links { display: flex; justify-content: center; gap: 24px; margin-bottom: 12px; }
+.footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 12px;
+}
 
 .footer-links a {
   font-size: 12px;
   color: var(--text-dim);
   text-decoration: none;
+  cursor: pointer;
 }
 
 .footer-links a:hover { color: var(--pink); }
 
-.footer-copy { font-size: 11px; color: #c4a0b8; }
-
-/* ===== Responsive ===== */
-@media (max-width: 1200px) {
-  .content-grid { grid-template-columns: repeat(3, 1fr); }
+.footer-copy {
+  font-size: 11px;
+  color: var(--text-dim);
 }
 
-@media (max-width: 900px) {
-  .content-grid { grid-template-columns: repeat(2, 1fr); }
+/* ==================== RESPONSIVE ==================== */
+@media (max-width: 1100px) {
+  .hero-panel { grid-template-columns: 1fr; }
+
+  .hero-card {
+    grid-template-columns: 1fr 0.85fr;
+    min-height: 320px;
+    padding: 24px 0 24px 24px;
+  }
+
+  .hero-left h1 { font-size: 28px; }
+
+  .circle-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 768px) {
-  .hero-banner { flex-direction: column; padding: 32px 24px; gap: 24px; }
-  .hero-illust { width: 200px; height: 160px; }
-  .hero-text h1 { font-size: 28px; }
-  .main-content { padding: 90px 0 60px; }
-  .content-grid { grid-template-columns: 1fr; }
-  .hero-stats { flex-wrap: wrap; }
-  .hero-stat + .hero-stat { border-left: none; }
+  .page-inner { width: min(100vw - 24px, 1368px); }
+
+  .hero-card {
+    grid-template-columns: 1fr;
+    min-height: auto;
+    padding: 24px;
+    gap: 0;
+  }
+
+  .hero-left {
+    padding-right: 0;
+  }
+
+  .hero-left h1 { font-size: 24px; }
+
+  .hero-right {
+    display: none;
+  }
+
+  .hero-dots {
+    display: none;
+  }
+
+  .hero-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .floating-tag {
+    display: none;
+  }
+
+  .circle-grid { grid-template-columns: 1fr; }
 }
 </style>

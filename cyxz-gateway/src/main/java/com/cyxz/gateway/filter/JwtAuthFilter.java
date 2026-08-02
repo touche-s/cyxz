@@ -2,7 +2,8 @@ package com.cyxz.gateway.filter;
 
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
-import com.cyxz.auth.util.JwtUtil;
+import com.cyxz.common.utils.TokenUtil;
+import com.cyxz.auth.utils.JwtUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -50,7 +51,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             "/api/auth/captcha/**",
             "/api/auth/refresh",
             "/api/post/list/**",
-            "/api/category/**"
+            "/api/circle/**",
+            "/ws/message/**"
     );
 
     /**
@@ -68,15 +70,32 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         ServerHttpResponse response = exchange.getResponse();
         String path = request.getURI().getPath();
 
+        // 拒绝外部直接访问内部接口（Feign 直调不经网关，不受影响）
+        if (path.contains("/internal/")) {
+            return forbidden(response, "内部接口禁止外部访问");
+        }
+
+        // 防伪造：无条件剥离客户端传入的信任头，仅由本 filter 验证 JWT 后注入
+        request = request.mutate()
+                .headers(headers -> {
+                    headers.remove("X-User-Id");
+                    headers.remove("X-User-Role");
+                })
+                .build();
+        exchange = exchange.mutate().request(request).build();
+
         if (isWhitelisted(path)) {
             // 白名单路径：有 Token 就解析注入 X-User-Id，无 Token 直接放行
-            String token = extractToken(request);
+            String token = TokenUtil.extractBearerToken(request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION));
             if (token != null && jwtUtil.validateToken(token)) {
                 Long userId = jwtUtil.getUserId(token);
+                String role = jwtUtil.getRole(token);
                 ServerHttpRequest mutatedRequest = request.mutate()
                         .headers(headers -> {
                             headers.remove("X-User-Id");
                             headers.set("X-User-Id", String.valueOf(userId));
+                            headers.remove("X-User-Role");
+                            headers.set("X-User-Role", role);
                         })
                         .build();
                 return chain.filter(exchange.mutate().request(mutatedRequest).build());
@@ -88,7 +107,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
 
-        String token = extractToken(request);
+        String token = TokenUtil.extractBearerToken(request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION));
         if (token == null) {
             return unauthorized(response, ErrorCode.TOKEN_MISSING, "缺少Token");
         }
@@ -98,10 +117,13 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         }
 
         Long userId = jwtUtil.getUserId(token);
+        String role = jwtUtil.getRole(token);
         ServerHttpRequest mutatedRequest = request.mutate()
                 .headers(headers -> {
                     headers.remove("X-User-Id");
                     headers.set("X-User-Id", String.valueOf(userId));
+                    headers.remove("X-User-Role");
+                    headers.set("X-User-Role", role);
                 })
                 .build();
 
@@ -118,6 +140,20 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         return -100;
     }
 
+    private Mono<Void> forbidden(ServerHttpResponse response, String message) {
+        response.setStatusCode(HttpStatus.FORBIDDEN);
+        response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
+        Result<Void> result = Result.fail(403, message);
+        byte[] bytes;
+        try {
+            bytes = objectMapper.writeValueAsString(result).getBytes(StandardCharsets.UTF_8);
+        } catch (JsonProcessingException e) {
+            bytes = "{\"code\":403,\"message\":\"禁止访问\"}".getBytes(StandardCharsets.UTF_8);
+        }
+        DataBuffer buffer = response.bufferFactory().wrap(bytes);
+        return response.writeWith(Mono.just(buffer));
+    }
+
     private boolean isWhitelisted(String path) {
         for (String pattern : WHITELIST) {
             if (pathMatcher.match(pattern, path)) {
@@ -125,14 +161,6 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             }
         }
         return false;
-    }
-
-    private String extractToken(ServerHttpRequest request) {
-        String header = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-        if (header != null && header.startsWith("Bearer ")) {
-            return header.substring(7);
-        }
-        return null;
     }
 
     private Mono<Void> unauthorized(ServerHttpResponse response, ErrorCode errorCode, String message) {

@@ -10,8 +10,7 @@ export function useFollow() {
 
   async function checkFollowing(targetUserId: string) {
     try {
-      const res = await isFollowing(targetUserId)
-      following.value = ((res.data as any).data) === true
+      following.value = await isFollowing(targetUserId) === true
     } catch {
       // 忽略关注状态查询失败
     }
@@ -24,6 +23,7 @@ export function useFollow() {
    */
   async function toggleFollow(targetUserId: string, onSuccess?: (nowFollowing: boolean) => void) {
     if (!requireLogin()) return
+    if (followLoading.value) return  // 防重复点击
     followLoading.value = true
     const oldFollowing = following.value
     following.value = !oldFollowing

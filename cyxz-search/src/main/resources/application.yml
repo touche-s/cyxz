@@ -1,5 +1,5 @@
 server:
-  port: 9005
+  port: 9008
 
 spring:
   application:
@@ -18,3 +18,8 @@ spring:
     uris: http://${ES_HOST:127.0.0.1}:${ES_PORT:9200}
     connection-timeout: 30s
     socket-timeout: 60s
+  rabbitmq:
+    host: ${RABBITMQ_HOST:127.0.0.1}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}

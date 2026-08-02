@@ -2,6 +2,8 @@ package com.cyxz.upload.service;
 
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 /**
  * 文件上传服务接口
  * <p>提供头像、帖子图片的上传与删除能力。
@@ -18,20 +20,13 @@ public interface UploadService {
     String uploadAvatar(MultipartFile file, Long userId);
 
     /**
-     * 上传帖子封面
-     *
-     * @param file 图片文件
-     * @return 文件访问 URL
-     */
-    String uploadCover(MultipartFile file);
-
-    /**
      * 上传帖子图片
      *
-     * @param file 图片文件
+     * @param file   图片文件
+     * @param userId 当前用户 ID（用于路径归属校验）
      * @return 文件访问 URL
      */
-    String uploadPostImage(MultipartFile file);
+    String uploadPostImage(MultipartFile file, Long userId);
 
     /**
      * 删除文件
@@ -39,4 +34,22 @@ public interface UploadService {
      * @param objectName MinIO 中的对象路径
      */
     void deleteFile(String objectName);
+
+    /**
+     * 上传圈子资源（头像或封面）
+     *
+     * @param file     图片文件
+     * @param circleId 圈子 ID
+     * @param type     资源类型：avatar 或 cover
+     * @return 文件访问 URL
+     */
+    String uploadCircleResource(MultipartFile file, Long circleId, String type);
+
+    /**
+     * 列出用户历史头像
+     *
+     * @param userId 用户 ID
+     * @return 头像 URL 列表，按上传时间倒序
+     */
+    List<String> listAvatarHistory(Long userId);
 }

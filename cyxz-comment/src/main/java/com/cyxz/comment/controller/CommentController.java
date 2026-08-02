@@ -2,8 +2,10 @@ package com.cyxz.comment.controller;
 
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
+import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.web.CurrentUser;
 import com.cyxz.comment.dto.CreateCommentRequest;
+import com.cyxz.comment.service.CommentInteractionService;
 import com.cyxz.comment.service.CommentService;
 import com.cyxz.comment.vo.CommentVO;
 import jakarta.validation.Valid;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 public class CommentController {
 
     private final CommentService commentService;
+    private final CommentInteractionService commentInteractionService;
 
     /**
      * 发表评论
@@ -59,8 +62,8 @@ public class CommentController {
      */
     @GetMapping("/list")
     public Result<PageResult<CommentVO>> list(@RequestParam("postId") Long postId,
-                                        @RequestParam(value = "page", defaultValue = "1") int page,
-                                        @RequestParam(value = "size", defaultValue = "20") int size,
+                                        @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
+                                        @RequestParam(value = "size", defaultValue = PageConstants.SIZE_20_STR) int size,
                                         @CurrentUser(required = false) Long currentUserId) {
         return Result.success(commentService.listComments(postId, page, size, currentUserId));
     }
@@ -76,24 +79,38 @@ public class CommentController {
      */
     @GetMapping("/replies")
     public Result<PageResult<CommentVO>> replies(@RequestParam("parentId") Long parentId,
-                                           @RequestParam(value = "page", defaultValue = "1") int page,
-                                           @RequestParam(value = "size", defaultValue = "5") int size,
+                                           @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
+                                           @RequestParam(value = "size", defaultValue = PageConstants.SIZE_5_STR) int size,
                                            @CurrentUser(required = false) Long currentUserId) {
         return Result.success(commentService.listReplies(parentId, page, size, currentUserId));
     }
 
     /**
-     * 点赞 / 取消点赞评论
+     * 点赞评论（幂等）
      *
      * @param commentId 评论 ID
      * @param userId    当前登录用户 ID（由 Gateway 注入）
-     * @return 操作后的点赞数
+     * @return 操作结果
      */
-    @PostMapping("/{commentId}/like")
-    public Result<Integer> toggleLike(@PathVariable("commentId") Long commentId,
-                                       @CurrentUser Long userId) {
-        int likes = commentService.toggleLike(userId, commentId);
-        return Result.success(likes);
+    @PutMapping("/{commentId}/like")
+    public Result<Void> like(@PathVariable("commentId") Long commentId,
+                             @CurrentUser Long userId) {
+        commentInteractionService.likeComment(userId, commentId);
+        return Result.success();
+    }
+
+    /**
+     * 取消点赞评论（幂等）
+     *
+     * @param commentId 评论 ID
+     * @param userId    当前登录用户 ID（由 Gateway 注入）
+     * @return 操作结果
+     */
+    @DeleteMapping("/{commentId}/like")
+    public Result<Void> unlike(@PathVariable("commentId") Long commentId,
+                               @CurrentUser Long userId) {
+        commentInteractionService.unlikeComment(userId, commentId);
+        return Result.success();
     }
 
     /**
@@ -107,8 +124,8 @@ public class CommentController {
      */
     @GetMapping("/received")
     public Result<PageResult<CommentVO>> received(@CurrentUser Long userId,
-                                                  @RequestParam(value = "page", defaultValue = "1") int page,
-                                                  @RequestParam(value = "size", defaultValue = "20") int size) {
+                                                  @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
+                                                  @RequestParam(value = "size", defaultValue = PageConstants.SIZE_20_STR) int size) {
         return Result.success(commentService.listReceivedComments(userId, userId, page, size));
     }
 
@@ -125,9 +142,33 @@ public class CommentController {
     @GetMapping("/manage")
     public Result<PageResult<CommentVO>> manage(@CurrentUser Long userId,
                                                  @RequestParam(value = "postId", required = false) Long postId,
-                                                 @RequestParam(value = "page", defaultValue = "1") int page,
-                                                 @RequestParam(value = "size", defaultValue = "20") int size,
+                                                 @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
+                                                 @RequestParam(value = "size", defaultValue = PageConstants.SIZE_20_STR) int size,
                                                  @RequestParam(value = "sortAsc", defaultValue = "false") boolean sortAsc) {
         return Result.success(commentService.listManagedComments(userId, postId, page, size, sortAsc));
+    }
+
+    /**
+     * 删除帖子下的所有评论及评论点赞（内部接口）
+     * <p>供 post 服务在彻底删除帖子时调用，级联清理关联数据。
+     *
+     * @param postId 帖子 ID
+     * @return 操作结果
+     */
+    @DeleteMapping("/internal/post/{postId}")
+    public Result<Void> deleteByPostId(@PathVariable("postId") Long postId) {
+        commentService.deleteCommentsByPostId(postId);
+        return Result.success();
+    }
+
+    /**
+     * 查询今日新增评论数（内部接口）
+     *
+     * @param postAuthorId 帖子作者 ID
+     * @return 今日新增评论数
+     */
+    @GetMapping("/internal/today")
+    public Result<Integer> todayComments(@RequestParam("postAuthorId") Long postAuthorId) {
+        return Result.success(commentService.countTodayComments(postAuthorId));
     }
 }

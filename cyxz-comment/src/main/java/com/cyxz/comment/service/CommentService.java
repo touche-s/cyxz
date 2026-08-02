@@ -52,15 +52,6 @@ public interface CommentService {
     PageResult<CommentVO> listReplies(Long parentId, int page, int size, Long currentUserId);
 
     /**
-     * 点赞 / 取消点赞评论
-     *
-     * @param userId    当前登录用户 ID
-     * @param commentId 评论 ID
-     * @return 操作后的点赞数
-     */
-    int toggleLike(Long userId, Long commentId);
-
-    /**
      * 查询用户收到的评论列表（对用户帖子的评论 + 回复我的评论）
      * <p>用于互动管理，查询当前用户所有帖子收到的评论和回复自己的评论，按创建时间倒序。
      *
@@ -83,4 +74,20 @@ public interface CommentService {
      * @return 分页结果（含帖子标题、回复目标用户昵称）
      */
     PageResult<CommentVO> listManagedComments(Long currentUserId, Long postId, int page, int size, boolean sortAsc);
+
+    /**
+     * 删除指定帖子下的所有评论及评论点赞（物理删除，内部接口）
+     * <p>用于帖子彻底删除时级联清理关联数据。
+     *
+     * @param postId 帖子 ID
+     */
+    void deleteCommentsByPostId(Long postId);
+
+    /**
+     * 统计今日某用户帖子收到的新评论数
+     *
+     * @param postAuthorId 帖子作者 ID
+     * @return 今日新增评论数
+     */
+    int countTodayComments(Long postAuthorId);
 }

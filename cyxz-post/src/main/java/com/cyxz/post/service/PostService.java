@@ -7,7 +7,8 @@ import com.cyxz.post.vo.PostInfoVO;
 import com.cyxz.post.vo.PostStatsVO;
 import com.cyxz.post.vo.PostVO;
 import com.cyxz.post.vo.ReceivedLikeVO;
-import jakarta.servlet.http.HttpServletRequest;
+import com.cyxz.post.vo.DashboardVO;
+import com.cyxz.post.vo.TodayStatsVO;
 
 import java.util.List;
 import java.util.Map;
@@ -41,7 +42,7 @@ public interface PostService {
 
     /**
      * 删除帖子（逻辑删除）
-     * <p>将帖子状态设为 2（已删除），不做物理删除。
+     * <p>将帖子状态设为 4（已删除），不做物理删除。
      * 校验帖子归属权，非作者本人无权删除。
      *
      * @param userId 当前登录用户 ID
@@ -50,37 +51,51 @@ public interface PostService {
     void deletePost(Long userId, Long postId);
 
     /**
+     * 彻底删除帖子（物理删除 + 级联清理关联数据）
+     * <p>仅允许删除 status=2 的帖子（已在回收站中的帖子），
+     * 同时清理评论、评论点赞、帖子点赞、帖子收藏等关联数据。
+     *
+     * @param userId 当前登录用户 ID
+     * @param postId 帖子 ID
+     */
+    void hardDeletePost(Long userId, Long postId);
+
+    /**
      * 根据 ID 查询帖子详情
      * <p>已删除的帖子不可查看，草稿仅作者本人可查看。
      *
      * @param postId        帖子 ID
      * @param currentUserId 当前登录用户 ID（可为 null，游客访问）
-     * @return 帖子视图对象（含作者信息、分类名称）
+     * @return 帖子视图对象（含作者信息、板块名称）
      */
     PostVO getById(Long postId, Long currentUserId);
 
     /**
      * 分页查询帖子列表（仅已发布）
-     * <p>按创建时间倒序排列，可按分类筛选。
+     * <p>支持按板块、圈子筛选和排序。
      *
-     * @param categoryId    分类 ID（可为 null，null 时查全部分类）
+     * @param sectionId     板块 ID（可为 null）
+     * @param circleId      圈子 ID（可为 null）
+     * @param sortBy        排序方式：latest 按创建时间倒序，hot 按热度（点赞→评论→收藏→浏览）倒序
      * @param page          页码（从 1 开始）
      * @param size          每页条数
      * @param currentUserId 当前登录用户 ID（可为 null，用于查询点赞状态）
      * @return 分页结果（含总条数）
      */
-    PageResult<PostVO> listPosts(Long categoryId, int page, int size, Long currentUserId);
+    PageResult<PostVO> listPosts(Long sectionId, Long circleId, String sortBy, int page, int size, Long currentUserId);
 
     /**
      * 查询当前用户的帖子列表
-     * <p>包含草稿、已发布和已删除，按创建时间倒序。
+     * <p>包含草稿、已发布和已删除，支持排序。
      *
-     * @param userId 当前用户 ID
-     * @param page   页码（从 1 开始）
-     * @param size   每页条数
+     * @param userId    当前用户 ID
+     * @param page      页码（从 1 开始）
+     * @param size      每页条数
+     * @param sortField 排序字段（createTime/views/likes/collections），默认 createTime
+     * @param sortOrder 排序方向（asc/desc），默认 desc
      * @return 分页结果（含总条数）
      */
-    PageResult<PostVO> listByUserId(Long userId, int page, int size);
+    PageResult<PostVO> listByUserId(Long userId, int page, int size, String sortField, String sortOrder);
 
     /**
      * 查询指定用户的已发布帖子列表
@@ -105,39 +120,6 @@ public interface PostService {
      * @return 分页结果（含总条数）
      */
     PageResult<PostVO> listFavorites(Long targetUserId, Long currentUserId, int page, int size);
-
-    /**
-     * 切换帖子点赞状态
-     * <p>已点赞则取消，未点赞则添加。使用 post_like 表存储用户点赞关系，
-     * 同时原子更新 post.likes。
-     *
-     * @param userId 当前登录用户 ID
-     * @param postId 帖子 ID
-     * @return 更新后的点赞数
-     */
-    int toggleLike(Long userId, Long postId);
-
-    /**
-     * 切换帖子收藏状态
-     * <p>已收藏则取消，未收藏则添加。使用 post_collect 表存储用户收藏关系，
-     * 同时原子更新 post.collections。
-     *
-     * @param userId 当前登录用户 ID
-     * @param postId 帖子 ID
-     * @return 更新后的收藏数
-     */
-    int toggleCollect(Long userId, Long postId);
-
-    /**
-     * 记录浏览
-     * <p>用户进入帖子详情页时调用，Redis 去重（30min 内同一用户/IP 只算一次），
-     * 去重通过则 Hash 增量 +1，由定时任务刷库到 post.views。
-     *
-     * @param postId  帖子 ID
-     * @param userId  当前登录用户 ID（可为 null，游客按 IP 去重）
-     * @param request HTTP 请求（用于获取 IP）
-     */
-    void recordView(Long postId, Long userId, HttpServletRequest request);
 
     /**
      * 获取用户帖子统计数据
@@ -191,4 +173,93 @@ public interface PostService {
      * @return 分页结果
      */
     PageResult<ReceivedLikeVO> getReceivedLikes(Long userId, int page, int size);
+
+    /**
+     * 搜索帖子（仅已发布）
+     * <p>按标题和正文模糊匹配，按创建时间倒序。
+     *
+     * @param keyword       搜索关键词
+     * @param page          页码（从 1 开始）
+     * @param size          每页条数
+     * @param currentUserId 当前登录用户 ID（可为 null）
+     * @return 分页结果（含总条数）
+     */
+    PageResult<PostVO> searchPosts(String keyword, int page, int size, Long currentUserId);
+
+    /**
+     * 获取数据中心仪表盘数据
+     * <p>包含概览统计、月度趋势、板块分布和 Top 5 作品排行。
+     *
+     * @param userId 当前用户 ID
+     * @return 仪表盘 VO
+     */
+    DashboardVO getDashboard(Long userId);
+
+    /**
+     * 获取今日新增互动统计
+     * <p>用于创作首页工作台展示今日新增的点赞、收藏、评论数。
+     *
+     * @param userId 当前用户 ID
+     * @return 今日统计 VO
+     */
+    TodayStatsVO getTodayStats(Long userId);
+
+    /**
+     * 置顶帖子
+     * <p>仅已发布帖子可置顶，每人最多置顶 3 条。
+     *
+     * @param userId 当前用户 ID
+     * @param postId 帖子 ID
+     */
+    void pinPost(Long userId, Long postId);
+
+    /**
+     * 取消置顶帖子
+     *
+     * @param userId 当前用户 ID
+     * @param postId 帖子 ID
+     */
+    void unpinPost(Long userId, Long postId);
+
+    /**
+     * 分页查询关注动态（已加入圈子的帖子）
+     * <p>按创建时间倒序排列，仅返回已发布帖子。
+     *
+     * @param userId 当前用户 ID
+     * @param page   页码（从 1 开始）
+     * @param size   每页条数
+     * @return 分页结果（含总条数）
+     */
+    PageResult<PostVO> listFollowingPosts(Long userId, int page, int size);
+
+    /**
+     * 批量操作帖子
+     * <p>支持批量发布和批量删除。
+     *
+     * @param userId  当前用户 ID
+     * @param postIds 帖子 ID 列表
+     * @param action  操作类型（publish / delete）
+     */
+    void batchOperate(Long userId, List<Long> postIds, String action);
+
+    /**
+     * 审核通过帖子
+     */
+    void approvePost(Long postId);
+
+    /**
+     * 审核拒绝帖子
+     */
+    void rejectPost(Long postId, String reason);
+
+    /**
+     * 查询待审核帖子列表
+     */
+    PageResult<PostVO> listPendingReview(int page, int size);
+
+    /**
+     * 批量统计各圈子的已发布帖子数（内部接口）
+     * <p>供 circle 服务定时刷新帖子数。
+     */
+    Map<Long, Integer> batchCountByCircle(Set<Long> circleIds);
 }

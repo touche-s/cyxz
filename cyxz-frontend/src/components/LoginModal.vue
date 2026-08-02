@@ -15,21 +15,21 @@
               </div>
               <div class="features">
                 <div class="feature-item">
-                  <img src="@/assets/icons/edit.svg" alt="edit" class="feature-icon" />
+                  <Icon icon="ph:pencil-simple" class="feature-icon white-icon" />
                   <div>
                     <h3>创作分享</h3>
                     <p>发布绘画、摄影、Cosplay，展示你的创意世界</p>
                   </div>
                 </div>
                 <div class="feature-item">
-                  <img src="@/assets/icons/handshake.svg" alt="handshake" class="feature-icon" />
+                  <Icon icon="ph:handshake" class="feature-icon white-icon" />
                   <div>
                     <h3>同好社区</h3>
                     <p>找到志同道合的伙伴，一起追番聊番</p>
                   </div>
                 </div>
                 <div class="feature-item">
-                  <img src="@/assets/icons/sparkle.svg" alt="sparkle" class="feature-icon" />
+                  <Icon icon="ph:sparkle" class="feature-icon white-icon" />
                   <div>
                     <h3>发现灵感</h3>
                     <p>探索海量优质内容，每一次浏览都是惊喜</p>
@@ -110,12 +110,15 @@
                     size="large"
                     prefix-icon="Key"
                   />
-                  <img
-                    :src="captchaImage"
-                    @click="loadCaptcha"
-                    class="captcha-img"
-                    alt="验证码"
-                  />
+                  <div class="captcha-img" @click="loadCaptcha">
+                    <img
+                      v-if="captchaImage"
+                      :src="captchaImage"
+                      class="captcha-img-inner"
+                      alt="验证码"
+                    />
+                    <span v-else class="captcha-placeholder">加载中...</span>
+                  </div>
                 </div>
               </el-form-item>
 
@@ -149,18 +152,19 @@
 
 <script setup lang="ts">
 import { ref, reactive, watch } from 'vue'
+import { Icon } from '@iconify/vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { login, register, getCaptcha } from '@/api/auth'
 import type { LoginRequest, RegisterRequest } from '@/api/auth'
 import { getMyProfile } from '@/api/user'
 import { useUserStore } from '@/stores/user'
-import { useRouter } from 'vue-router'
+import { useNavigate } from '@/composables/useNavigate'
 
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ 'update:visible': [val: boolean] }>()
 
 const userStore = useUserStore()
-const router = useRouter()
+const { to } = useNavigate()
 
 const tab = ref<'login' | 'register'>('login')
 const captchaImage = ref('')
@@ -216,10 +220,9 @@ watch(() => props.visible, (val) => {
 
 async function loadCaptcha() {
   try {
-    const res = await getCaptcha()
-    const data = res.data as any
-    captchaImage.value = data.data?.image || data.image
-    form.captchaUuid = data.data?.uuid || data.uuid
+    const data = await getCaptcha()
+    captchaImage.value = data.image
+    form.captchaUuid = data.uuid
   } catch {
     ElMessage.error('获取验证码失败')
   }
@@ -243,44 +246,33 @@ async function handleSubmit() {
   submitting.value = true
   try {
     if (tab.value === 'login') {
-      const res = await login({
+      const data = await login({
         username: form.username,
         password: form.password,
         captcha: form.captcha,
         captchaUuid: form.captchaUuid,
       })
-      const data = res.data as any
-      if (data.code === 200) {
-        userStore.setToken(data.data.accessToken)
-        ElMessage.success('登录成功')
-        try {
-          const profileRes = await getMyProfile()
-          const pdata = (profileRes.data as any).data || profileRes.data
-          userStore.setUserInfo({ userId: data.data.userId, ...pdata })
-        } catch {
-          userStore.setUserInfo({ userId: data.data.userId, nickname: form.username } as any)
-        }
-        emit('update:visible', false)
-        router.push(`/user/${data.data.userId}`)
-      } else {
-        handleBusinessError(data)
+      userStore.setToken(data.accessToken)
+      ElMessage.success('登录成功')
+      try {
+        const pdata = await getMyProfile()
+        userStore.setUserInfo({ ...pdata, userId: data.userId, role: data.role })
+      } catch {
+        userStore.setUserInfo({ userId: data.userId, nickname: form.username, role: data.role } as any)
       }
+      emit('update:visible', false)
+      to(`/user/${data.userId}`)
     } else {
-      const res = await register({
+      await register({
         username: form.username,
         password: form.password,
         confirmPassword: form.confirmPassword,
         captcha: form.captcha,
         captchaUuid: form.captchaUuid,
       })
-      const data = res.data as any
-      if (data.code === 200) {
-        ElMessage.success('注册成功，请登录')
-        tab.value = 'login'
-        loadCaptcha()
-      } else {
-        handleBusinessError(data)
-      }
+      ElMessage.success('注册成功，请登录')
+      tab.value = 'login'
+      loadCaptcha()
     }
   } catch (err: any) {
     handleBusinessError(err?.response?.data || {})
@@ -309,7 +301,7 @@ async function handleSubmit() {
   max-width: 95vw;
   height: 520px;
   max-height: 90vh;
-  background: white;
+  background: var(--card);
   border-radius: 20px;
   display: flex;
   overflow: hidden;
@@ -478,7 +470,7 @@ async function handleSubmit() {
   background: none;
   border: none;
   font-size: 18px;
-  color: #999;
+  color: var(--text-dim);
   cursor: pointer;
   width: 32px;
   height: 32px;
@@ -519,7 +511,7 @@ async function handleSubmit() {
   transition: border-color 0.2s;
 }
 .auth-form :deep(.el-input__wrapper:hover) {
-  border-color: #e0b0d0;
+  border-color: var(--border);
 }
 .auth-form :deep(.el-input__wrapper.is-focus) {
   border-color: var(--pink);
@@ -542,9 +534,23 @@ async function handleSubmit() {
   border: 1.5px solid var(--border);
   flex-shrink: 0;
   transition: border-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 .captcha-img:hover {
   border-color: var(--pink);
+}
+.captcha-img-inner {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.captcha-placeholder {
+  font-size: 12px;
+  color: var(--text-dim);
 }
 
 .submit-btn {
@@ -554,7 +560,7 @@ async function handleSubmit() {
   font-size: 16px;
   font-weight: 700;
   letter-spacing: 4px;
-  background: linear-gradient(135deg, var(--pink), var(--purple));
+  background: var(--gradient-brand);
   border: none;
   box-shadow: 0 4px 20px rgba(255,107,157,0.3);
   margin-top: 8px;
