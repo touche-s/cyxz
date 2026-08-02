@@ -1,7 +1,7 @@
 package com.cyxz.message.consumer;
 
-import com.cyxz.message.api.constant.NotificationConstants;
-import com.cyxz.message.api.event.NotificationEvent;
+import com.cyxz.message.constant.NotificationConstants;
+import com.cyxz.message.event.NotificationEvent;
 import com.cyxz.message.service.impl.NotificationServiceImpl;
 import com.cyxz.message.websocket.WebSocketSessionManager;
 import com.fasterxml.jackson.databind.ObjectMapper;

@@ -1,6 +1,6 @@
 package com.cyxz.message.config;
 
-import com.cyxz.message.api.constant.NotificationConstants;
+import com.cyxz.message.constant.NotificationConstants;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Queue;

@@ -1,8 +1,8 @@
 package com.cyxz.message.service;
 
 import com.cyxz.common.base.PageResult;
-import com.cyxz.message.api.vo.ChatMessageVO;
-import com.cyxz.message.api.vo.ConversationVO;
+import com.cyxz.message.vo.ChatMessageVO;
+import com.cyxz.message.vo.ConversationVO;
 
 import java.util.List;
 

@@ -1,8 +1,8 @@
 package com.cyxz.message.service;
 
 import com.cyxz.common.base.PageResult;
-import com.cyxz.message.api.dto.CreateNotificationRequest;
-import com.cyxz.message.api.vo.NotificationVO;
+import com.cyxz.message.dto.CreateNotificationRequest;
+import com.cyxz.message.vo.NotificationVO;
 
 /**
  * 通知服务接口

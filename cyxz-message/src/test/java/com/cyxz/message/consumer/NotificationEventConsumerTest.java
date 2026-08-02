@@ -1,6 +1,6 @@
 package com.cyxz.message.consumer;
 
-import com.cyxz.message.api.event.NotificationEvent;
+import com.cyxz.message.event.NotificationEvent;
 import com.cyxz.message.entity.NotificationPO;
 import com.cyxz.message.mapper.NotificationMapper;
 import com.cyxz.message.service.impl.NotificationServiceImpl;
