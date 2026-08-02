@@ -54,3 +54,6 @@ rebel.xml
 
 # Build tools
 dependency-reduced-pom.xml
+
+# Internal docs (not for public display)
+docs-internal/
