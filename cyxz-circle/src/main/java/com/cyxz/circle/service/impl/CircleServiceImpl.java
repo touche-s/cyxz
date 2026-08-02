@@ -101,7 +101,7 @@ public class CircleServiceImpl implements CircleService {
         List<CirclePO> circles = circleMapper.selectBatchIds(joinedIds);
         return circles.stream()
                 .filter(c -> c.getStatus() == CommonStatus.ACTIVE)
-                .map(c -> toVO(c, userId))
+                .map(c -> convertToVO(c, joinedIds))
                 .collect(Collectors.toList());
     }
 
