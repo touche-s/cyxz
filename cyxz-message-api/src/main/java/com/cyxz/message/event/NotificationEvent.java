@@ -1,4 +1,4 @@
-package com.cyxz.message.api.event;
+package com.cyxz.message.event;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

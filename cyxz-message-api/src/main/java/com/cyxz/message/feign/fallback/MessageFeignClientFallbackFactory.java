@@ -1,8 +1,8 @@
-package com.cyxz.message.api.feign.fallback;
+package com.cyxz.message.feign.fallback;
 
 import com.cyxz.common.base.Result;
-import com.cyxz.message.api.dto.CreateNotificationRequest;
-import com.cyxz.message.api.feign.MessageFeignClient;
+import com.cyxz.message.dto.CreateNotificationRequest;
+import com.cyxz.message.feign.MessageFeignClient;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.cloud.openfeign.FallbackFactory;

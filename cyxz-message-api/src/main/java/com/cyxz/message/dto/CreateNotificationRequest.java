@@ -1,4 +1,4 @@
-package com.cyxz.message.api.dto;
+package com.cyxz.message.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

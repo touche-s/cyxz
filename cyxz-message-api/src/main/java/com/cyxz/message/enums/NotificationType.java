@@ -1,4 +1,4 @@
-package com.cyxz.message.api.enums;
+package com.cyxz.message.enums;
 
 import lombok.Getter;
 

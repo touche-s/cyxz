@@ -1,4 +1,4 @@
-package com.cyxz.message.api.constant;
+package com.cyxz.message.constant;
 
 /**
  * 通知 MQ 常量，统一管理 exchange、routingKey，避免各模块散落魔数字符串
