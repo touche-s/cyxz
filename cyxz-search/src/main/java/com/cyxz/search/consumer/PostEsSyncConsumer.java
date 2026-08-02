@@ -30,10 +30,18 @@ public class PostEsSyncConsumer {
             postIndexService.sync(event);
         } catch (Exception e) {
             log.error("ES 同步失败: postId={}, action={}", event.getPostId(), event.getAction(), e);
-            // 重试一次失败后拒绝，不进死信
+            // 拒绝且不重新入队，消息转入死信队列（DLQ）避免丢失
             channel.basicReject(tag, false);
             return;
         }
         channel.basicAck(tag, false);
+    }
+
+    /**
+     * 死信队列消费者：ES 同步失败的消息进入死信，记录日志便于人工排查或重放
+     */
+    @RabbitListener(queues = EsSyncConstants.DLQ)
+    public void onDeadLetter(PostEsSyncEvent event) {
+        log.error("ES 同步消息进入死信，需人工处理: postId={}, action={}", event.getPostId(), event.getAction());
     }
 }
