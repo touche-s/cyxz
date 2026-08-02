@@ -28,4 +28,13 @@ public interface CommentMapper extends BaseMapper<CommentPO> {
      */
     @Select("SELECT COUNT(*) FROM comment WHERE post_author_id = #{postAuthorId} AND status = 1 AND create_time >= CURDATE()")
     int countTodayComments(@Param("postAuthorId") Long postAuthorId);
+
+    /**
+     * 级联逻辑删除子回复
+     *
+     * @param parentId 父评论 ID
+     * @return 受影响行数
+     */
+    @Update("UPDATE comment SET status = 0 WHERE parent_id = #{parentId} AND status = 1")
+    int cascadeDeleteReplies(@Param("parentId") Long parentId);
 }

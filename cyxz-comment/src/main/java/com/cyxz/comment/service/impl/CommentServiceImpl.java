@@ -75,6 +75,17 @@ public class CommentServiceImpl implements CommentService {
         po.setLikes(0);
         po.setStatus(CommonStatus.ACTIVE);
 
+        // 校验 parentId：非空时校验父评论存在且属于同一帖子
+        if (po.getParentId() != null) {
+            CommentPO parent = commentMapper.selectById(po.getParentId());
+            if (parent == null || parent.getStatus() == CommonStatus.DELETED) {
+                throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "父评论不存在");
+            }
+            if (!parent.getPostId().equals(po.getPostId())) {
+                throw new BusinessException(ErrorCode.PARAM_ERROR, "父评论不属于该帖子");
+            }
+        }
+
         Result<Long> result = postFeignClient.getPostAuthor(request.getPostIdAsLong());
         if (result != null && result.getData() != null) {
             po.setPostAuthorId(result.getData());
@@ -167,10 +178,12 @@ public class CommentServiceImpl implements CommentService {
         }
         po.setStatus(CommonStatus.DELETED);
         commentMapper.updateById(po);
-        // Redis 增量：帖子评论数 -1
+        // 级联逻辑删除子回复
+        int replyCount = commentMapper.cascadeDeleteReplies(commentId);
+        // Redis 增量：帖子评论数 -(1 + 子回复数)
         stringRedisTemplate.opsForHash()
-                .increment(CacheKeyConstants.POST_COMMENT_DELTA, po.getPostId().toString(), -1);
-        log.info("删除评论成功: commentId={}, userId={}", commentId, userId);
+                .increment(CacheKeyConstants.POST_COMMENT_DELTA, po.getPostId().toString(), -(1 + replyCount));
+        log.info("删除评论成功: commentId={}, userId={}, 级联删除子回复={}", commentId, userId, replyCount);
     }
 
     /**
