@@ -364,9 +364,8 @@ onMounted(async () => {
     await selectConv(conversations.value[0])
   }
 
-  // 启动 WebSocket
+  // 注册 WebSocket 消息回调（连接由 App.vue 顶层管理）
   wsOff = onMessage(handleWsMessage)
-  connect()
 })
 
 onUnmounted(() => {
