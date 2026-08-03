@@ -16,7 +16,7 @@
       <router-link to="/discover" :class="{ active: $route.path === '/discover' }">次元街</router-link>
       <router-link to="/following" :class="{ active: $route.path === '/following' }">关注</router-link>
       <a href="javascript:;" :class="{ active: $route.path === '/creator' }" @click="goCreator">创作中心</a>
-      <a v-if="userStore.isAdmin" href="javascript:;" :class="{ active: $route.path.startsWith('/admin') }" @click="to('/admin')">管理</a>
+
     </nav>
     <div class="header-right">
       <div v-if="userStore.isLoggedIn">
@@ -48,6 +48,10 @@
                   <Icon icon="ph:user" class="menu-icon" />
                   <span>个人中心</span>
                   <Icon icon="ph:caret-right" class="menu-arrow" />
+                </div>
+                <div v-if="userStore.isAdmin" class="menu-item" @click="handleCommand('admin')">
+                  <Icon icon="ph:monitor" class="menu-icon" />
+                  <span>管理后台</span>
                 </div>
                 <div class="menu-divider"></div>
                 <div class="menu-item logout" @click="handleCommand('logout')">
@@ -187,6 +191,8 @@ async function handleCommand(cmd: string) {
   dropdownOpen.value = false
   if (cmd === 'user-center') {
     open('/user-center')
+  } else if (cmd === 'admin') {
+    open('/admin')
   } else if (cmd === 'logout') {
     try { await logout() } catch { /* ignore */ }
     userStore.clearAuth()
