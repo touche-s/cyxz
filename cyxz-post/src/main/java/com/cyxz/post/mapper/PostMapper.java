@@ -130,9 +130,13 @@ public interface PostMapper extends BaseMapper<PostPO> {
     TodayStatsVO selectTodayStats(@Param("userId") Long userId);
 
     /**
-     * 置顶帖子
+     * 原子置顶帖子（防 TOCTOU 竞态）
+     * <p>单条 SQL 完成：校验帖子归属 + 未置顶 + 已置顶数 < 3，全部满足才更新。
+     * <p>rows=0 表示帖子不存在/非本人/已置顶/已达上限。
      */
-    @Update("UPDATE post SET is_pinned = 1, pinned_time = NOW() WHERE id = #{postId} AND user_id = #{userId}")
+    @Update("UPDATE post SET is_pinned = 1, pinned_time = NOW() " +
+            "WHERE id = #{postId} AND user_id = #{userId} AND is_pinned = 0 " +
+            "AND (SELECT cnt FROM (SELECT COUNT(*) AS cnt FROM post WHERE user_id = #{userId} AND is_pinned = 1) t) < 3")
     int pinPost(@Param("userId") Long userId, @Param("postId") Long postId);
 
     /**

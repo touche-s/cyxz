@@ -1,6 +1,7 @@
 package com.cyxz.post.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
@@ -175,6 +176,8 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
 
+        // 记录原始状态，用于 CAS 更新防止并发状态覆盖
+        final int originalStatus = po.getStatus();
 
         // 发布动作：仅校验请求体完整性，前端必须传完整发布数据
         boolean isPublishAction = request.getStatus() != null && request.getStatus() == PostStatus.PENDING;
@@ -205,7 +208,14 @@ public class PostServiceImpl implements PostService {
             po.setStatus(request.getStatus());
         }
 
-        postMapper.updateById(po);
+        // CAS 更新：带原 status 条件，防止并发请求互相覆盖状态
+        LambdaUpdateWrapper<PostPO> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(PostPO::getId, po.getId())
+               .eq(PostPO::getStatus, originalStatus);
+        int rows = postMapper.update(po, wrapper);
+        if (rows == 0) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "帖子状态已被修改，请刷新后重试");
+        }
         evictDetailCache(po.getId());
         syncPostToEs(po);
 
@@ -990,11 +1000,14 @@ public class PostServiceImpl implements PostService {
         if (po.getStatus() != PostStatus.APPROVED) {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "仅已发布帖子可置顶");
         }
-        int pinnedCount = postMapper.countPinnedPosts(userId);
-        if (pinnedCount >= 3) {
+        // 原子置顶：SQL 层校验已置顶数 < 3，避免 TOCTOU 竞态
+        int rows = postMapper.pinPost(userId, postId);
+        if (rows == 0) {
+            if (po.getIsPinned() != null && po.getIsPinned() == 1) {
+                throw new BusinessException(ErrorCode.PARAM_ERROR, "该帖子已置顶");
+            }
             throw new BusinessException(ErrorCode.PARAM_ERROR, "最多置顶 3 条帖子");
         }
-        postMapper.pinPost(userId, postId);
         log.info("置顶帖子成功: postId={}, userId={}", postId, userId);
     }
 
