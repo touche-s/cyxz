@@ -12,6 +12,7 @@ import com.cyxz.common.constant.EsSyncConstants;
 import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.constant.PostStatus;
 import com.cyxz.common.event.PostEsSyncEvent;
+import com.cyxz.common.utils.RequestContextUtil;
 import com.cyxz.message.constant.NotificationConstants;
 import com.cyxz.message.event.NotificationEvent;
 import com.cyxz.post.service.AiReviewService;
@@ -520,11 +521,11 @@ public class PostServiceImpl implements PostService {
         Set<Long> postIds = posts.stream().map(PostPO::getId).collect(Collectors.toSet());
 
         CompletableFuture<Map<Long, UserProfileVO>> userFuture =
-                CompletableFuture.supplyAsync(() -> UserFeignHelper.batchGetUsers(userFeignClient, userIds));
+                CompletableFuture.supplyAsync(RequestContextUtil.wrap(() -> UserFeignHelper.batchGetUsers(userFeignClient, userIds)));
         CompletableFuture<Map<Long, String>> circleFuture =
-                CompletableFuture.supplyAsync(() -> extractCircleNameMap(posts));
+                CompletableFuture.supplyAsync(RequestContextUtil.wrap(() -> extractCircleNameMap(posts)));
         CompletableFuture<Map<Long, String>> sectionFuture =
-                CompletableFuture.supplyAsync(() -> extractSectionNameMap(posts));
+                CompletableFuture.supplyAsync(RequestContextUtil.wrap(() -> extractSectionNameMap(posts)));
         CompletableFuture<Set<Long>> likedIdFuture =
                 CompletableFuture.supplyAsync(() -> getLikedPostIds(currentUserId, postIds));
         CompletableFuture<Set<Long>> collectedIdFuture =

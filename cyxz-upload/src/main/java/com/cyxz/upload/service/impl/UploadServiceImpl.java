@@ -17,6 +17,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -38,6 +39,9 @@ public class UploadServiceImpl implements UploadService {
 
     private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png", ".gif");
     private static final Set<String> ALLOWED_IMAGE_CONTENT_TYPES = Set.of("image/jpeg", "image/png", "image/gif");
+
+    /** 图片像素上限（宽×高），防止解压炸弹耗尽内存 */
+    private static final int MAX_PIXELS = 4096 * 4096;
 
     private final MinioClient minioClient;
     private final MinioConfig minioConfig;
@@ -165,8 +169,14 @@ public class UploadServiceImpl implements UploadService {
         }
 
         try (InputStream inputStream = file.getInputStream()) {
-            if (ImageIO.read(inputStream) == null) {
+            BufferedImage image = ImageIO.read(inputStream);
+            if (image == null) {
                 throw new BusinessException(ErrorCode.PARAM_ERROR, bizType + "内容不合法");
+            }
+            // 防解压炸弹：限制像素总数
+            long pixels = (long) image.getWidth() * image.getHeight();
+            if (pixels > MAX_PIXELS) {
+                throw new BusinessException(ErrorCode.PARAM_ERROR, bizType + "图片像素过大，最长边不超过4096");
             }
         } catch (BusinessException e) {
             throw e;
