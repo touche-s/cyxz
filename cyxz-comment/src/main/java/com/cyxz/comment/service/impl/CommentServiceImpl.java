@@ -86,6 +86,11 @@ public class CommentServiceImpl implements CommentService {
             if (!parent.getPostId().equals(po.getPostId())) {
                 throw new BusinessException(ErrorCode.PARAM_ERROR, "父评论不属于该帖子");
             }
+            // B站模式：仅支持两级评论，parentId 必须指向顶级评论
+            // 回复子回复时 parentId 仍填顶级评论 ID，用 replyToUserId 区分被回复人
+            if (parent.getParentId() != null) {
+                throw new BusinessException(ErrorCode.PARAM_ERROR, "不支持多级回复，请直接回复顶级评论");
+            }
         }
 
         // 一次 Feign 调用拿帖子作者 + 圈子 ID（替代原 getPostAuthor）
