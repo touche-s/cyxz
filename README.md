@@ -219,4 +219,4 @@ npm test
 
 ## License
 
-仅供学习与个人使用。
+本项目基于 [MIT License](./LICENSE) 开源，仅供学习与个人使用。
