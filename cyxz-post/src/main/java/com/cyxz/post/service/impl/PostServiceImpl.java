@@ -360,6 +360,11 @@ public class PostServiceImpl implements PostService {
         vo.setLiked(false);
         vo.setCollected(false);
         redisTemplate.opsForValue().set(cacheKey, vo, Duration.ofMinutes(cacheTtlMinutes));
+        // 返回前补填当前用户的真实互动状态（缓存存的是无用户态的干净副本）
+        if (currentUserId != null) {
+            vo.setLiked(likedPostIds.contains(postId));
+            vo.setCollected(collectedPostIds.contains(postId));
+        }
         return vo;
     }
 
@@ -409,7 +414,7 @@ public class PostServiceImpl implements PostService {
      * <p>包含草稿、已发布和已删除，按创建时间倒序。
      *
      * @param userId 用户 ID
-     * @param sortField 排序字段（createTime/views/likes/collections），默认 createTime
+     * @param sortField 排序字段（create_time/views/likes/collections），默认 create_time
      * @param sortOrder 排序方向（asc/desc），默认 desc
      * @return 帖子视图列表
      */
