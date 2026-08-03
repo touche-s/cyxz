@@ -25,8 +25,12 @@ public class UserAdminService {
     private final SysUserMapper sysUserMapper;
 
     public List<UserAdminVO> listAll() {
+        // 排除 password 字段，避免无谓加载 BCrypt 哈希
         List<SysUserPO> users = sysUserMapper.selectList(
                 new LambdaQueryWrapper<SysUserPO>()
+                        .select(SysUserPO::getId, SysUserPO::getUsername,
+                                SysUserPO::getRole, SysUserPO::getStatus,
+                                SysUserPO::getCreateTime)
                         .orderByDesc(SysUserPO::getCreateTime)
         );
         return users.stream().map(this::toVO).collect(Collectors.toList());

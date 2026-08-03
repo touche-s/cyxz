@@ -75,6 +75,15 @@ public final class CacheKeyConstants {
     /** 图形验证码过期时间（分钟） */
     public static final long CAPTCHA_EXPIRE_MINUTES = 5;
 
+    /** 登录失败计数前缀（login:fail:{ip}） */
+    public static final String LOGIN_FAIL_PREFIX = "login:fail:";
+
+    /** 登录失败计数窗口（分钟） */
+    public static final long LOGIN_FAIL_WINDOW_MINUTES = 5;
+
+    /** 登录失败最大次数，超过则锁定 */
+    public static final int LOGIN_FAIL_MAX_ATTEMPTS = 10;
+
     /**
      * 获取用户点赞 Key
      *
@@ -135,5 +144,15 @@ public final class CacheKeyConstants {
      */
     public static String getUserLikesCountKey(Long userId) {
         return USER_LIKES_COUNT_PREFIX + userId;
+    }
+
+    /**
+     * 获取登录失败计数 Key
+     *
+     * @param ip 客户端 IP
+     * @return Redis Key
+     */
+    public static String getLoginFailKey(String ip) {
+        return LOGIN_FAIL_PREFIX + ip;
     }
 }

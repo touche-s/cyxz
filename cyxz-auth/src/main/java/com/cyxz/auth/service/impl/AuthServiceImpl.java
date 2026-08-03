@@ -13,7 +13,9 @@ import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.CacheKeyConstants;
+import com.cyxz.common.utils.IpUtil;
 import com.cyxz.user.feign.UserFeignClient;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -21,6 +23,10 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * 认证服务实现
@@ -38,15 +44,24 @@ public class AuthServiceImpl implements AuthService {
     private final StringRedisTemplate stringRedisTemplate;
     private final UserFeignClient userFeignClient;
 
+    /** dummy BCrypt 哈希，用于用户不存在时平衡响应时间（防时间侧信道），懒加载 */
+    private volatile String dummyHash;
+
     /**
      * 用户登录
-     * <p>1. 校验验证码 2. 查用户 3. BCrypt 比对密码 4. 签发 JWT
+     * <p>1. IP 失败次数限流 2. 校验验证码 3. 查用户 4. BCrypt 比对密码 5. 签发 JWT
+     * <p>用户不存在时跑一次 dummy BCrypt 平衡响应时间，防止通过响应耗时探测账号是否存在。
+     * <p>同一 IP 在 5 分钟内登录失败超过 10 次将被锁定。
      *
      * @param request 登录请求
      * @return 认证响应（token + userId + username）
      */
     @Override
     public AuthResponse login(LoginRequest request) {
+        String clientIp = getClientIp();
+        // IP 失败次数限流：超过阈值直接拒绝
+        checkLoginFailLimit(clientIp);
+
         validateCaptcha(request.getCaptcha(), request.getCaptchaUuid());
 
         SysUserPO user = sysUserMapper.selectOne(
@@ -54,14 +69,21 @@ public class AuthServiceImpl implements AuthService {
                         .eq(SysUserPO::getUsername, request.getUsername())
         );
         if (user == null) {
+            // 跑一次 dummy BCrypt 平衡响应时间，防时间侧信道
+            passwordEncoder.matches(request.getPassword(), getDummyHash());
+            recordLoginFail(clientIp);
             throw new BusinessException(ErrorCode.PASSWORD_ERROR, "账号或密码错误");
         }
         if (user.getStatus() != null && user.getStatus() != 1) {
             throw new BusinessException(ErrorCode.USER_DISABLED);
         }
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            recordLoginFail(clientIp);
             throw new BusinessException(ErrorCode.PASSWORD_ERROR, "账号或密码错误");
         }
+
+        // 登录成功，清空失败计数
+        clearLoginFail(clientIp);
 
         String role = user.getRole() != null ? user.getRole() : "user";
         String token = jwtUtil.generateToken(user.getId(), role);
@@ -69,6 +91,71 @@ public class AuthServiceImpl implements AuthService {
 
         log.info("用户登录成功: userId={}, username={}, role={}", user.getId(), user.getUsername(), role);
         return new AuthResponse(token, "Bearer", expiresIn, user.getId(), user.getUsername(), role);
+    }
+
+    /**
+     * 检查 IP 登录失败次数是否超限，超限抛 FORBIDDEN
+     */
+    private void checkLoginFailLimit(String ip) {
+        if (ip == null) {
+            return;
+        }
+        String key = CacheKeyConstants.getLoginFailKey(ip);
+        String count = stringRedisTemplate.opsForValue().get(key);
+        if (count != null && Integer.parseInt(count) >= CacheKeyConstants.LOGIN_FAIL_MAX_ATTEMPTS) {
+            log.warn("IP 登录失败次数超限，临时锁定: ip={}, count={}", ip, count);
+            throw new BusinessException(ErrorCode.FORBIDDEN, "登录失败次数过多，请稍后再试");
+        }
+    }
+
+    /**
+     * 记录一次登录失败，计数 +1 并设置窗口过期
+     */
+    private void recordLoginFail(String ip) {
+        if (ip == null) {
+            return;
+        }
+        String key = CacheKeyConstants.getLoginFailKey(ip);
+        Long count = stringRedisTemplate.opsForValue().increment(key);
+        if (count != null && count == 1L) {
+            stringRedisTemplate.expire(key, CacheKeyConstants.LOGIN_FAIL_WINDOW_MINUTES, TimeUnit.MINUTES);
+        }
+    }
+
+    /**
+     * 登录成功后清空失败计数
+     */
+    private void clearLoginFail(String ip) {
+        if (ip == null) {
+            return;
+        }
+        stringRedisTemplate.delete(CacheKeyConstants.getLoginFailKey(ip));
+    }
+
+    /**
+     * 从当前请求上下文获取客户端 IP
+     */
+    private String getClientIp() {
+        ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attrs == null) {
+            return null;
+        }
+        HttpServletRequest httpRequest = attrs.getRequest();
+        return IpUtil.getClientIp(httpRequest);
+    }
+
+    /**
+     * 懒加载生成一个 dummy BCrypt 哈希，用于平衡用户不存在时的响应时间
+     */
+    private String getDummyHash() {
+        if (dummyHash == null) {
+            synchronized (this) {
+                if (dummyHash == null) {
+                    dummyHash = passwordEncoder.encode("dummy-password-for-timing-balance");
+                }
+            }
+        }
+        return dummyHash;
     }
 
     /**
