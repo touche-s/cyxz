@@ -16,6 +16,7 @@ import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.constant.PageConstants;
+import com.cyxz.circle.feign.CircleFeignClient;
 import com.cyxz.message.dto.CreateNotificationRequest;
 import com.cyxz.message.constant.NotificationConstants;
 import com.cyxz.message.enums.NotificationType;
@@ -48,6 +49,7 @@ public class CommentServiceImpl implements CommentService {
     private final CommentLikeMapper commentLikeMapper;
     private final UserFeignClient userFeignClient;
     private final PostFeignClient postFeignClient;
+    private final CircleFeignClient circleFeignClient;
     private final StringRedisTemplate stringRedisTemplate;
     private final MessageFeignClient messageFeignClient;
     private final RabbitTemplate rabbitTemplate;
@@ -86,14 +88,25 @@ public class CommentServiceImpl implements CommentService {
             }
         }
 
-        Result<Long> result = postFeignClient.getPostAuthor(request.getPostIdAsLong());
-        if (result != null && result.getData() != null) {
-            po.setPostAuthorId(result.getData());
-            log.debug("设置帖子作者成功: postId={}, postAuthorId={}", request.getPostId(), result.getData());
-        } else {
-            log.warn("获取帖子作者返回为空: postId={}, resultCode={}",
-                request.getPostId(), result != null ? result.getCode() : "null");
+        // 一次 Feign 调用拿帖子作者 + 圈子 ID（替代原 getPostAuthor）
+        Result<Map<String, Object>> postInfoResult = postFeignClient.getPostInfo(request.getPostIdAsLong());
+        Map<String, Object> postInfo = postInfoResult != null ? postInfoResult.getData() : null;
+        if (postInfo == null || postInfo.get("userId") == null) {
+            log.warn("获取帖子信息失败: postId={}, result={}", request.getPostId(), postInfoResult);
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
+        }
+        Long postAuthorId = ((Number) postInfo.get("userId")).longValue();
+        po.setPostAuthorId(postAuthorId);
+
+        // 校验评论者是否为帖子所属圈子成员（非成员只能看不能评）
+        Object circleIdObj = postInfo.get("circleId");
+        if (circleIdObj instanceof Number) {
+            Long circleId = ((Number) circleIdObj).longValue();
+            Result<Map<String, Object>> circleResult = circleFeignClient.checkPublishable(circleId, userId);
+            Map<String, Object> circleData = circleResult != null ? circleResult.getData() : null;
+            if (circleData == null || !Boolean.TRUE.equals(circleData.get("joined"))) {
+                throw new BusinessException(ErrorCode.FORBIDDEN, "请先加入该圈子再评论");
+            }
         }
 
         commentMapper.insert(po);

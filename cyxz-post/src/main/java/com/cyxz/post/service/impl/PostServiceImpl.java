@@ -831,11 +831,12 @@ public class PostServiceImpl implements PostService {
         if (po == null) {
             return Collections.emptyMap();
         }
-        return Map.of(
-                "postId", po.getId(),
-                "userId", po.getUserId(),
-                "title", po.getTitle()
-        );
+        Map<String, Object> map = new HashMap<>();
+        map.put("postId", po.getId());
+        map.put("userId", po.getUserId());
+        map.put("title", po.getTitle());
+        map.put("circleId", po.getCircleId());
+        return map;
     }
 
     /**
@@ -856,6 +857,7 @@ public class PostServiceImpl implements PostService {
             vo.setPostId(po.getId());
             vo.setUserId(po.getUserId());
             vo.setTitle(po.getTitle());
+            vo.setCircleId(po.getCircleId());
             return vo;
         }).collect(Collectors.toList());
     }

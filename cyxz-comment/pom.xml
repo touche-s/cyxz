@@ -88,6 +88,11 @@
 
         <dependency>
             <groupId>com.cyxz</groupId>
+            <artifactId>cyxz-circle-api</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.cyxz</groupId>
             <artifactId>cyxz-message-api</artifactId>
         </dependency>
 

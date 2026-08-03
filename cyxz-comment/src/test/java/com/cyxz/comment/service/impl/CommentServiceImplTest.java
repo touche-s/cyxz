@@ -6,6 +6,8 @@ import com.cyxz.comment.mapper.CommentLikeMapper;
 import com.cyxz.comment.mapper.CommentMapper;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.CacheKeyConstants;
+import com.cyxz.common.constant.CommonStatus;
+import com.cyxz.circle.feign.CircleFeignClient;
 import com.cyxz.message.constant.NotificationConstants;
 import com.cyxz.message.enums.NotificationType;
 import com.cyxz.message.event.NotificationEvent;
@@ -27,9 +29,14 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("CommentServiceImpl 评论创建与通知")
@@ -39,6 +46,7 @@ class CommentServiceImplTest {
     @Mock private CommentLikeMapper commentLikeMapper;
     @Mock private UserFeignClient userFeignClient;
     @Mock private PostFeignClient postFeignClient;
+    @Mock private CircleFeignClient circleFeignClient;
     @Mock private StringRedisTemplate stringRedisTemplate;
     @Mock private MessageFeignClient messageFeignClient;
     @Mock private RabbitTemplate rabbitTemplate;
@@ -49,7 +57,27 @@ class CommentServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        when(postFeignClient.getPostAuthor(any())).thenReturn(Result.ok(999L));
+        Map<String, Object> postInfo = new HashMap<>();
+        postInfo.put("postId", 100L);
+        postInfo.put("userId", 999L);
+        postInfo.put("title", "测试帖子");
+        postInfo.put("circleId", 7L);
+        when(postFeignClient.getPostInfo(any())).thenReturn(Result.success(postInfo));
+
+        Map<String, Object> circleData = new HashMap<>();
+        circleData.put("exists", true);
+        circleData.put("enabled", true);
+        circleData.put("joined", true);
+        circleData.put("publishable", true);
+        when(circleFeignClient.checkPublishable(any(), any())).thenReturn(Result.success(circleData));
+
+        // 父评论 mock（回复类测试用，顶级评论测试不会触发）
+        CommentPO parent = new CommentPO();
+        parent.setId(100L);
+        parent.setPostId(100L);
+        parent.setStatus(CommonStatus.ACTIVE);
+        lenient().when(commentMapper.selectById(100L)).thenReturn(parent);
+
         when(stringRedisTemplate.opsForHash()).thenReturn(hashOps);
     }
 
@@ -133,8 +161,9 @@ class CommentServiceImplTest {
                 po.setId(10L);
                 return 1;
             });
-            when(rabbitTemplate.convertAndSend(any(String.class), any(String.class), any(Object.class)))
-                    .thenThrow(new RuntimeException("MQ down"));
+            doThrow(new RuntimeException("MQ down"))
+                    .when(rabbitTemplate)
+                    .convertAndSend(any(String.class), any(String.class), any(Object.class));
 
             commentService.createComment(1L, request);
         }
