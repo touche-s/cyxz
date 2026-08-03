@@ -924,6 +924,22 @@ public class PostServiceImpl implements PostService {
         if (!"ARTICLE".equals(postType) && (images == null || images.isEmpty())) {
             throw new BusinessException(ErrorCode.PARAM_MISSING, "图文帖发布时至少需要一张图片");
         }
+        boolean isArticle = "ARTICLE".equals(postType);
+        int titleLen = title.length();
+        int maxTitleLen = isArticle ? 50 : 30;
+        if (titleLen > maxTitleLen) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR,
+                    isArticle ? "长文标题最长50字" : "图文标题最长30字");
+        }
+        int contentLen = content.length();
+        int maxContentLen = isArticle ? 50000 : 10000;
+        if (contentLen > maxContentLen) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR,
+                    isArticle ? "长文正文最长50000字" : "图文正文最长10000字");
+        }
+        if (isArticle && contentLen < 100) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "长文正文至少100字");
+        }
         Result<Map<String, Object>> r = circleFeignClient.checkPublishable(circleId, userId);
         Map<String, Object> data = r != null ? r.getData() : null;
         if (data == null || !Boolean.TRUE.equals(data.get("publishable"))) {

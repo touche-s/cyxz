@@ -1,5 +1,6 @@
 package com.cyxz.user.dto;
 
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
@@ -10,6 +11,7 @@ import lombok.Data;
 public class UpdateProfileRequest {
 
     /** 昵称 */
+    @Size(max = 20, message = "昵称最长20字")
     private String nickname;
 
     /** 头像 URL */
@@ -19,6 +21,7 @@ public class UpdateProfileRequest {
     private Integer gender;
 
     /** 个人简介 */
+    @Size(max = 200, message = "个人简介最长200字")
     private String bio;
 
     /** 生日（yyyy-MM-dd） */

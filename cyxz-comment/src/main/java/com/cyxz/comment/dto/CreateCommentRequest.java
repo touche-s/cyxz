@@ -2,6 +2,7 @@ package com.cyxz.comment.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
@@ -16,6 +17,7 @@ public class CreateCommentRequest {
 
     /** 评论内容 */
     @NotBlank(message = "评论内容不能为空")
+    @Size(max = 500, message = "评论内容最长500字")
     private String content;
 
     /** 父评论 ID（回复评论时传入，顶级评论不传） */

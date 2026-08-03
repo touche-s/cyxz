@@ -7,6 +7,7 @@ import com.cyxz.message.dto.SendMessageRequest;
 import com.cyxz.message.vo.ChatMessageVO;
 import com.cyxz.message.vo.ConversationVO;
 import com.cyxz.message.service.ChatService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -46,7 +47,7 @@ public class ChatController {
      * 发送私信
      */
     @PostMapping("/send")
-    public Result<ChatMessageVO> send(@CurrentUser Long userId, @RequestBody SendMessageRequest request) {
+    public Result<ChatMessageVO> send(@CurrentUser Long userId, @Valid @RequestBody SendMessageRequest request) {
         return Result.success(chatService.sendMessage(userId, request.getReceiverId(), request.getContent()));
     }
 
