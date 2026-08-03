@@ -16,10 +16,10 @@
               type="text"
               class="form-input"
               placeholder="分享你的故事，给帖子起个吸引人的标题吧~"
-              maxlength="100"
+              :maxlength="titleMaxLength"
               required
             />
-            <span class="char-count">{{ editor.form.value.title.length }}/100</span>
+            <span class="char-count">{{ editor.form.value.title.length }}/{{ titleMaxLength }}</span>
           </div>
         </div>
 
@@ -79,8 +79,10 @@
               class="form-textarea"
               placeholder="写下你想分享的内容吧，支持换行哦~"
               rows="10"
+              :maxlength="contentMaxLength"
               required
             ></textarea>
+            <span class="char-count char-count-textarea">{{ editor.form.value.content.length }}/{{ contentMaxLength }}</span>
           </div>
         </div>
 
@@ -217,7 +219,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import { ElMessage } from 'element-plus'
 import { usePostEditor } from '@/composables/usePostEditor'
@@ -238,6 +240,12 @@ const emit = defineEmits<{
 }>()
 
 const editor = usePostEditor('NORMAL')
+
+// 根据帖子类型动态计算标题/正文的字数上限，与后端 DTO 校验保持一致
+// 图文(NORMAL)：标题 30 / 正文 10000；长文(ARTICLE)：标题 50 / 正文 50000
+const isArticle = computed(() => editor.form.value.postType === 'ARTICLE')
+const titleMaxLength = computed(() => (isArticle.value ? 50 : 30))
+const contentMaxLength = computed(() => (isArticle.value ? 50000 : 10000))
 
 /**
  * 选择圈子后：
@@ -498,6 +506,16 @@ defineExpose({ dirty: editor.dirty, confirmLeave: editor.confirmLeave })
   transform: translateY(-50%);
   font-size: 12px;
   color: var(--text-dim);
+}
+
+.char-count-textarea {
+  top: auto;
+  bottom: 10px;
+  transform: none;
+  background: var(--card);
+  padding: 2px 6px;
+  border-radius: 6px;
+  pointer-events: none;
 }
 
 .images-grid {

@@ -163,8 +163,8 @@
               <div class="form-field">
                 <label class="ff-label">昵称</label>
                 <div class="ff-input-wrap">
-                  <input v-model="infoForm.nickname" type="text" class="ff-input" maxlength="7" placeholder="输入你的昵称" />
-                  <span class="ff-count">{{ infoForm.nickname.length }}/7</span>
+                  <input v-model="infoForm.nickname" type="text" class="ff-input" maxlength="20" placeholder="输入你的昵称" />
+                  <span class="ff-count">{{ infoForm.nickname.length }}/20</span>
                 </div>
               </div>
               <div class="form-field">
@@ -174,8 +174,8 @@
               <div class="form-field form-field-full">
                 <label class="ff-label">个性签名</label>
                 <div class="ff-input-wrap">
-                  <textarea v-model="infoForm.bio" class="ff-input ff-textarea" maxlength="50" rows="3" placeholder="介绍一下自己吧~"></textarea>
-                  <span class="ff-count">{{ infoForm.bio.length }}/50</span>
+                  <textarea v-model="infoForm.bio" class="ff-input ff-textarea" maxlength="200" rows="3" placeholder="介绍一下自己吧~"></textarea>
+                  <span class="ff-count">{{ infoForm.bio.length }}/200</span>
                 </div>
               </div>
               <div class="form-field form-field-full">
@@ -363,7 +363,8 @@
             </div>
             <div class="password-field">
               <label>新密码</label>
-              <input v-model="passwordForm.newPassword" type="password" class="form-input" placeholder="6-20位新密码" maxlength="20" />
+              <input v-model="passwordForm.newPassword" type="password" class="form-input" placeholder="6-20位新密码" minlength="6" maxlength="20" />
+              <span class="password-hint">密码长度 6-20 位</span>
             </div>
             <div class="password-field">
               <label>确认新密码</label>
@@ -1469,6 +1470,13 @@ html.dark .form-sticky {
   font-weight: 600;
   color: var(--text);
   margin-bottom: 6px;
+}
+
+.password-hint {
+  display: block;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 6px;
 }
 
 .modal-footer {

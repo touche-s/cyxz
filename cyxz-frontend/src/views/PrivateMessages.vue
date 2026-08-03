@@ -98,6 +98,7 @@
                 type="text"
                 class="pm-ft-input"
                 placeholder="发一条友善的消息吧~"
+                maxlength="500"
                 @keydown.enter="handleSend"
               />
               <button
@@ -108,6 +109,7 @@
                 发送
               </button>
             </div>
+            <span class="pm-ft-char-count">{{ newMessage.length }}/500</span>
           </div>
         </template>
 
@@ -849,6 +851,13 @@ onUnmounted(() => {
 
 .pm-ft-input::placeholder {
   color: var(--text-dim);
+}
+
+.pm-ft-char-count {
+  align-self: flex-end;
+  font-size: 11px;
+  color: var(--text-dim);
+  padding-right: 2px;
 }
 
 .pm-ft-send {

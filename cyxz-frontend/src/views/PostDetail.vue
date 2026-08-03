@@ -113,11 +113,13 @@
                   class="comment-input"
                   placeholder="写下你的评论..."
                   rows="3"
+                  maxlength="500"
                 ></textarea>
                 <button class="send-btn" :disabled="!commentInput.trim()" @click="submitTopComment">
                   发送
                 </button>
               </div>
+              <span class="comment-char-count">{{ commentInput.length }}/500</span>
             </div>
 
             <div class="comment-list" v-if="comments.length > 0">
@@ -141,12 +143,14 @@
                       class="comment-input"
                       :placeholder="`回复 @${replyTarget?.comment.userName || '匿名用户'}...`"
                       rows="2"
+                      maxlength="500"
                       ref="inlineReplyInput"
                     ></textarea>
                     <button class="send-btn" :disabled="!commentInput.trim()" @click="submitComment">
                       发送
                     </button>
                   </div>
+                  <span class="comment-char-count">{{ commentInput.length }}/500</span>
                 </div>
               </template>
 
@@ -924,6 +928,13 @@ const goHome = () => {
   margin-bottom: 20px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border);
+}
+
+.comment-char-count {
+  align-self: flex-end;
+  font-size: 12px;
+  color: var(--text-dim);
+  padding-right: 4px;
 }
 
 /* 内联回复框 */
