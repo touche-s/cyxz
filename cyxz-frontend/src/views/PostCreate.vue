@@ -227,6 +227,7 @@ import { watch } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { uploadPostImage, deleteUploadedFile } from '@/api/upload'
 import { checkSensitive } from '@/api/post'
+import { pickApiMessage } from '@/utils/errorCode'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import ImageCropper from '@/components/ImageCropper.vue'
 
@@ -362,7 +363,7 @@ async function uploadAndReplace(index: number, file: File) {
     if (editor.form.value.cover === oldUrl) editor.form.value.cover = newUrl
     deleteUploadedFile(oldUrl).catch(() => {})
     ElMessage.success('裁剪完成')
-  }, { onError: () => ElMessage.error('图片上传失败') })
+  }, { onError: (e) => ElMessage.error(pickApiMessage(e, '图片上传失败')) })
 }
 
 const uploadImage = async (file: File) => {
@@ -372,7 +373,7 @@ const uploadImage = async (file: File) => {
     if (editor.form.value.images.length === 1 && !editor.form.value.cover) {
       editor.form.value.cover = url
     }
-  }, { onError: () => ElMessage.error('图片上传失败') })
+  }, { onError: (e) => ElMessage.error(pickApiMessage(e, '图片上传失败')) })
 }
 
 const removeImage = (index: number) => {

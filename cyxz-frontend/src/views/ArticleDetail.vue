@@ -20,7 +20,7 @@
 
             <div class="article-header">
               <div class="author-info">
-                <img :src="avatarUrl(post.authorAvatar)" class="author-avatar clickable" @click="goToAuthor" />
+                <UserAvatar :src="post.authorAvatar" :name="post.authorName" :user-id="post.userId" :size="48" border="white" shadow="lg" fallback="image" />
                 <div class="author-meta">
                   <div class="author-name-row">
                     <span class="author-name clickable" @click="goToAuthor">{{ post.authorName || '匿名用户' }}</span>
@@ -129,9 +129,7 @@
               </div>
             </div>
 
-            <div class="empty-comments" v-else-if="!commentLoading">
-              <p>暂无评论，来发表第一条评论吧~</p>
-            </div>
+            <EmptyState v-else-if="!commentLoading" icon="ph:chat-circle-text" title="暂无评论，来发表第一条评论吧~" />
 
             <div class="empty-comments" v-else>
               <p>加载中...</p>
@@ -139,7 +137,7 @@
           </div>
         </div>
 
-        <EmptyState v-else title="文章不存在或已删除">
+        <EmptyState v-else :icon="errorState.icon" :title="errorState.title" :hint="errorState.hint">
           <template #actions>
             <button class="back-btn" @click="goHome">返回首页</button>
           </template>
@@ -157,7 +155,9 @@ import { ElMessage } from 'element-plus'
 import { getPostDetail, likePost, unlikePost, collectPost, uncollectPost, recordPostView } from '@/api/post'
 import { isPublished } from '@/utils/postStatus'
 import { formatDateTime, formatNumber } from '@/utils/format'
-import { avatarUrl } from '@/utils/avatar'
+import { ErrorCode } from '@/utils/errorCode'
+import { ApiError } from '@/utils/request'
+import UserAvatar from '@/components/UserAvatar.vue'
 import {
   getCommentList,
   createComment,
@@ -185,6 +185,11 @@ const { requireLogin } = useAuth()
 const { following, followLoading, checkFollowing, toggleFollow: doFollow } = useFollow()
 
 const post = ref<PostVO | null>(null)
+// 文章加载失败时的细分错误状态
+const errorState = ref<{ icon: string; title: string; hint?: string }>({
+  icon: 'ph:warning-circle',
+  title: '文章不存在或已删除',
+})
 const loading = ref(false)
 const commentInput = ref('')
 const commentSection = ref<HTMLElement | null>(null)
@@ -274,8 +279,32 @@ const loadPost = async () => {
     if (post.value.userId && String(post.value.userId) !== String(currentUserId.value)) {
       await checkFollowing(String(post.value.userId))
     }
-  } catch {
-    ElMessage.error('加载失败')
+  } catch (e) {
+    post.value = null
+    // 按细分错误码设置差异化提示
+    if (e instanceof ApiError) {
+      switch (e.code) {
+        case ErrorCode.POST_DELETED:
+          errorState.value = { icon: 'ph:trash', title: '文章已被作者删除', hint: '看看其他精彩内容吧~' }
+          break
+        case ErrorCode.POST_REJECTED:
+          errorState.value = { icon: 'ph:shield-warning', title: '该文章因违规被下架', hint: '如有疑问请联系管理员' }
+          break
+        case ErrorCode.POST_PENDING:
+          errorState.value = { icon: 'ph:hourglass', title: '文章正在审核中', hint: '稍后再来看看吧~' }
+          break
+        case ErrorCode.POST_NOT_INTERACTABLE:
+          errorState.value = { icon: 'ph:lock', title: '该内容暂不可查看', hint: '作者尚未发布此内容' }
+          break
+        case ErrorCode.POST_NOT_FOUND:
+          errorState.value = { icon: 'ph:warning-circle', title: '文章不存在', hint: '可能已被删除或链接有误' }
+          break
+        default:
+          errorState.value = { icon: 'ph:warning-circle', title: '加载失败', hint: '请稍后重试' }
+      }
+    } else {
+      errorState.value = { icon: 'ph:warning-circle', title: '加载失败', hint: '请检查网络后重试' }
+    }
   } finally {
     loading.value = false
   }
@@ -350,8 +379,13 @@ const submitTopComment = async () => {
     commentInput.value = ''
     comments.value.unshift(newComment)
     if (post.value) post.value.comments = (post.value.comments ?? 0) + 1
-  } catch {
-    ElMessage.error('评论失败')
+  } catch (e) {
+    const msg = e instanceof ApiError ? e.message : '评论失败'
+    if (e instanceof ApiError && e.code === ErrorCode.CONTENT_SENSITIVE) {
+      ElMessage.error({ message: msg, duration: 5000 })
+    } else {
+      ElMessage.error(msg)
+    }
   }
 }
 
@@ -384,8 +418,13 @@ const submitComment = async () => {
       }
       comments.value[idx] = updated
     }
-  } catch {
-    ElMessage.error('回复失败')
+  } catch (e) {
+    const msg = e instanceof ApiError ? e.message : '回复失败'
+    if (e instanceof ApiError && e.code === ErrorCode.CONTENT_SENSITIVE) {
+      ElMessage.error({ message: msg, duration: 5000 })
+    } else {
+      ElMessage.error(msg)
+    }
   }
 }
 
@@ -541,15 +580,6 @@ const goHome = () => {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-
-.author-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid var(--white);
-  box-shadow: var(--shadow-lg);
 }
 
 .author-meta {

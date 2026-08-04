@@ -22,15 +22,7 @@
             :class="{ active: selectedId === conv.id }"
             @click="selectConv(conv)"
           >
-            <img
-              v-if="conv.peerAvatar"
-              :src="avatarUrl(conv.peerAvatar)"
-              alt="avatar"
-              class="pm-conv-avatar pm-conv-avatar--img"
-            />
-            <div v-else class="pm-conv-avatar" :style="{ background: avatarGrad(conv.peerName) }">
-              {{ (conv.peerName || 'U').charAt(0) }}
-            </div>
+            <UserAvatar :src="conv.peerAvatar" :name="conv.peerName" :size="44" />
             <div class="pm-conv-main">
               <div class="pm-conv-top">
                 <span class="pm-conv-name">{{ conv.peerName }}</span>
@@ -54,15 +46,7 @@
             <button v-if="isMobile" class="pm-chat-back" @click="showChat = false">
               <Icon icon="ph:arrow-left" />
             </button>
-            <img
-              v-if="selectedConv.peerAvatar"
-              :src="avatarUrl(selectedConv.peerAvatar)"
-              alt="avatar"
-              class="pm-chat-avatar-sm pm-chat-avatar-sm--img"
-            />
-            <div v-else class="pm-chat-avatar-sm" :style="{ background: avatarGrad(selectedConv.peerName) }">
-              {{ (selectedConv.peerName || 'U').charAt(0) }}
-            </div>
+            <UserAvatar :src="selectedConv.peerAvatar" :name="selectedConv.peerName" :size="38" />
             <div class="pm-chat-hd-info">
               <span class="pm-chat-hd-name">{{ selectedConv.peerName }}</span>
             </div>
@@ -139,8 +123,10 @@ import {
 import type { ConversationVO, ChatMessageVO } from '@/api/chat'
 import { useChatWebSocket } from '@/composables/useChatWebSocket'
 import { useUserStore } from '@/stores/user'
-import { avatarUrl } from '@/utils/avatar'
 import { formatTime } from '@/utils/format'
+import { ApiError } from '@/utils/request'
+import { ErrorCode, pickApiMessage } from '@/utils/errorCode'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const route = useRoute()
 const userStore = useUserStore()
@@ -210,24 +196,6 @@ function formatDateLabel(time: string): string {
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
   return `${d.getFullYear()}-${m}-${day}`
-}
-
-// 粉紫色系字母头像渐变（peerAvatar 缺省时使用）
-const AVATAR_GRADIENTS = [
-  'linear-gradient(135deg, #f9a8d4, #c4b5fd)',
-  'linear-gradient(135deg, #a5f3fc, #c4b5fd)',
-  'linear-gradient(135deg, #fde68a, #f9a8d4)',
-  'linear-gradient(135deg, #f9a8d4, #fda4af)',
-  'linear-gradient(135deg, #c084fc, #a78bfa)',
-  'linear-gradient(135deg, #ff8ac8, #c084fc)',
-]
-function avatarGrad(name: string): string {
-  if (!name) return AVATAR_GRADIENTS[0]
-  let hash = 0
-  for (let i = 0; i < name.length; i++) {
-    hash = (hash * 31 + name.charCodeAt(i)) >>> 0
-  }
-  return AVATAR_GRADIENTS[hash % AVATAR_GRADIENTS.length]
 }
 
 function scrollToBottom() {
@@ -301,8 +269,13 @@ async function handleSend() {
       const idx = messages.value.findIndex((m) => m.id === tempId)
       if (idx >= 0) messages.value.splice(idx, 1, saved)
     }
-  } catch {
-    ElMessage.error('发送失败，请稍后重试')
+  } catch (e) {
+    // 互相关注才能私信：提示并引导关注对方
+    if (e instanceof ApiError && e.code === ErrorCode.NOT_MUTUAL_FOLLOW) {
+      ElMessage.warning({ message: e.message || '需要互相关注后才能私信', duration: 4000 })
+    } else {
+      ElMessage.error(pickApiMessage(e, '发送失败，请稍后重试'))
+    }
     const idx = messages.value.findIndex((m) => m.id === tempId)
     if (idx >= 0) messages.value.splice(idx, 1)
     newMessage.value = text

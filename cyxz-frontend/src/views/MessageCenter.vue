@@ -121,6 +121,7 @@ import { useNavigate } from '@/composables/useNavigate'
 import { useMessageStore } from '@/stores/message'
 import { getNotifications, markAllRead, markRead, type NotificationVO } from '@/api/message'
 import { avatarUrl } from '@/utils/avatar'
+import { formatTime } from '@/utils/format'
 
 const { open } = useNavigate()
 const messageStore = useMessageStore()
@@ -298,19 +299,6 @@ function typeIcon(type: string): string {
     follow: 'ph:user-plus',
   }
   return icons[type] || 'ph:bell'
-}
-
-function formatTime(time: string): string {
-  if (!time) return ''
-  const now = Date.now()
-  const t = new Date(time).getTime()
-  const diff = now - t
-  if (diff < 60_000) return '刚刚'
-  if (diff < 3600_000) return `${Math.floor(diff / 60_000)}分钟前`
-  if (diff < 86400_000) return `${Math.floor(diff / 3600_000)}小时前`
-  if (diff < 172800_000) return '昨天'
-  const d = new Date(time)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 /** 点击消息条目：单条已读 + 导航 */

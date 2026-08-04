@@ -1,10 +1,7 @@
 <template>
   <div class="comment-item" :class="{ 'is-reply': !isTopLevel }">
     <!-- 用户头像 -->
-    <img :src="avatarUrl(comment.userAvatar)"
-         class="comment-avatar"
-         :class="{ clickable: comment.userId }"
-         @click="comment.userId && goToUser()" />
+    <UserAvatar :src="comment.userAvatar" :name="comment.userName" :user-id="comment.userId" :size="isTopLevel ? 48 : 24" fallback="image" />
 
     <div class="comment-body">
       <!-- 头部：用户名 + 内容（子评论时同行显示） -->
@@ -131,7 +128,7 @@ import { useNavigate } from '@/composables/useNavigate'
 import { useToggleInteraction } from '@/composables/useToggleInteraction'
 import { Icon } from '@iconify/vue'
 import { formatDateTime } from '@/utils/format'
-import { avatarUrl } from '@/utils/avatar'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const { open } = useNavigate()
 
@@ -345,26 +342,6 @@ watch(() => props.comment.totalReplies, async (newVal, oldVal) => {
   margin-left: 10px;
   padding: 10px 0;
   gap: 8px;
-}
-
-/* 顶级评论头像 */
-.comment-item:not(.is-reply) .comment-avatar {
-  width: 48px;
-  height: 48px;
-}
-
-.comment-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-
-/* 子评论头像小一点 */
-.comment-item.is-reply .comment-avatar {
-  width: 24px;
-  height: 24px;
 }
 
 .comment-body {

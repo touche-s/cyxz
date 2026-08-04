@@ -52,9 +52,7 @@
 
     <div class="comment-list" v-if="!commentsLoading && filteredManagedComments.length > 0">
       <div class="comment-manage-item" v-for="comment in filteredManagedComments" :key="comment.id">
-        <div class="comment-avatar clickable" @click="goToUser(comment.userId)">
-          <img :src="avatarUrl(comment.userAvatar)" alt="" />
-        </div>
+        <UserAvatar :src="comment.userAvatar" :name="comment.userName" :user-id="comment.userId" :size="32" fallback="image" />
         <div class="comment-body">
           <div class="comment-top-row">
             <span class="comment-name clickable" @click="goToUser(comment.userId)">{{ comment.userName }}</span>
@@ -96,8 +94,8 @@ import { getUserPosts } from '@/api/post'
 import type { CommentVO } from '@/api/comment'
 import type { PostVO } from '@/api/post'
 import { formatTime } from '@/utils/format'
-import { avatarUrl } from '@/utils/avatar'
 import { useNavigate } from '@/composables/useNavigate'
+import UserAvatar from '@/components/UserAvatar.vue'
 import { isDeleted, statusText } from '@/utils/postStatus'
 
 const emit = defineEmits<{
@@ -427,27 +425,11 @@ onMounted(() => {
   background: rgba(0, 0, 0, 0.012);
 }
 
-.comment-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.comment-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.comment-avatar.clickable,
 .comment-name.clickable {
   cursor: pointer;
   transition: opacity 0.15s;
 }
 
-.comment-avatar.clickable:hover,
 .comment-name.clickable:hover {
   opacity: 0.75;
 }

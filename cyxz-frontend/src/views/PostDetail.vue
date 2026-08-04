@@ -19,7 +19,7 @@
             </div>
             <div class="post-header">
               <div class="author-info">
-                <img :src="avatarUrl(post.authorAvatar)" class="author-avatar clickable" @click="goToAuthor" />
+                <UserAvatar :src="post.authorAvatar" :name="post.authorName" :user-id="post.userId" :size="56" border="white" shadow="lg" fallback="image" />
                 <div class="author-meta">
                   <div class="author-name-row">
                     <span class="author-name clickable" @click="goToAuthor">{{ post.authorName || '匿名用户' }}</span>
@@ -171,9 +171,7 @@
               </div>
             </div>
 
-            <div class="empty-comments" v-else-if="!commentLoading">
-              <p>暂无评论，来发表第一条评论吧~</p>
-            </div>
+            <EmptyState v-else-if="!commentLoading" icon="ph:chat-circle-text" title="暂无评论，来发表第一条评论吧~" />
 
             <div class="empty-comments" v-else>
               <p>加载中...</p>
@@ -181,7 +179,7 @@
           </div>
         </div>
 
-        <EmptyState v-else title="帖子不存在或已删除">
+        <EmptyState v-else :icon="errorState.icon" :title="errorState.title" :hint="errorState.hint">
           <template #actions>
             <button class="back-btn" @click="goHome">返回首页</button>
           </template>
@@ -225,13 +223,16 @@ import { ElMessage } from 'element-plus'
 import { getPostDetail, likePost, unlikePost, collectPost, uncollectPost, recordPostView } from '@/api/post'
 import { isPublished } from '@/utils/postStatus'
 import { formatDateTime, formatNumber } from '@/utils/format'
-import { avatarUrl } from '@/utils/avatar'
+import { ErrorCode } from '@/utils/errorCode'
+import { ApiError } from '@/utils/request'
+import UserAvatar from '@/components/UserAvatar.vue'
 import {
   getCommentList,
   createComment,
 } from '@/api/comment'
 import type { PostVO } from '@/api/post'
 import type { CommentVO, CreateCommentRequest } from '@/api/comment'
+import type { PageResult } from '@/api/types/common'
 import { useUserStore } from '@/stores/user'
 import { useAuth } from '@/composables/useAuth'
 import { useFollow } from '@/composables/useFollow'
@@ -240,6 +241,7 @@ import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import FollowButton from '@/components/FollowButton.vue'
 import { useToggleInteraction } from '@/composables/useToggleInteraction'
+import { usePagination } from '@/composables/usePagination'
 import { Icon } from '@iconify/vue'
 import VMdPreview from '@kangc/v-md-editor/lib/preview'
 import githubTheme from '@kangc/v-md-editor/lib/theme/github.js'
@@ -254,6 +256,11 @@ const { following, followLoading, checkFollowing, toggleFollow: doFollow } = use
 
 const post = ref<PostVO | null>(null)
 const loading = ref(false)
+// 帖子加载失败时的细分错误状态
+const errorState = ref<{ icon: string; title: string; hint?: string }>({
+  icon: 'ph:warning-circle',
+  title: '帖子不存在或已删除',
+})
 const commentInput = ref('')
 const commentSection = ref<HTMLElement | null>(null)
 const currentImage = ref(0)
@@ -292,11 +299,34 @@ const activeReplyId = ref<string | null>(null) // 哪个顶级评论下方显示
 
 
 // ===== 评论列表 =====
-const comments = ref<CommentVO[]>([])
-const commentPage = ref(1)
-const commentSize = 20
-const commentLoading = ref(false)
-const commentFinished = ref(false)
+const {
+  list: comments,
+  loading: commentLoading,
+  hasMore: commentHasMore,
+  load: loadCommentsPagination,
+  loadMore: loadMoreComments,
+  unshift: unshiftComment,
+  removeById: removeCommentById,
+} = usePagination<CommentVO>(
+  ({ page, size }) => getCommentList({
+    postId: String(post.value?.id ?? ''),
+    page,
+    size,
+  }),
+  {
+    pageSize: 20,
+    onError: () => ElMessage.error('加载评论失败'),
+    onPageLoaded: (result) => {
+      const pr = result as PageResult<CommentVO>
+      if (post.value) post.value.comments = pr.total ?? 0
+    },
+  }
+)
+const commentFinished = computed(() => !commentHasMore.value)
+
+async function loadComments(reset = false) {
+  await loadCommentsPagination(reset)
+}
 
 const currentUserId = computed<string | null>(() => {
   const info = userStore.userInfo
@@ -380,8 +410,32 @@ const loadPost = async () => {
     if (post.value.userId && String(post.value.userId) !== String(currentUserId.value)) {
       await checkFollowing(String(post.value.userId))
     }
-  } catch {
-    ElMessage.error('加载失败')
+  } catch (e) {
+    post.value = null
+    // 按细分错误码设置差异化提示
+    if (e instanceof ApiError) {
+      switch (e.code) {
+        case ErrorCode.POST_DELETED:
+          errorState.value = { icon: 'ph:trash', title: '帖子已被作者删除', hint: '看看其他精彩内容吧~' }
+          break
+        case ErrorCode.POST_REJECTED:
+          errorState.value = { icon: 'ph:shield-warning', title: '该帖子因违规被下架', hint: '如有疑问请联系管理员' }
+          break
+        case ErrorCode.POST_PENDING:
+          errorState.value = { icon: 'ph:hourglass', title: '帖子正在审核中', hint: '稍后再来看看吧~' }
+          break
+        case ErrorCode.POST_NOT_INTERACTABLE:
+          errorState.value = { icon: 'ph:lock', title: '该内容暂不可查看', hint: '作者尚未发布此内容' }
+          break
+        case ErrorCode.POST_NOT_FOUND:
+          errorState.value = { icon: 'ph:warning-circle', title: '帖子不存在', hint: '可能已被删除或链接有误' }
+          break
+        default:
+          errorState.value = { icon: 'ph:warning-circle', title: '加载失败', hint: '请稍后重试' }
+      }
+    } else {
+      errorState.value = { icon: 'ph:warning-circle', title: '加载失败', hint: '请检查网络后重试' }
+    }
   } finally {
     loading.value = false
   }
@@ -433,47 +487,6 @@ onMounted(async () => {
   }
 })
 
-const loadComments = async (reset = false) => {
-  if (!post.value) return
-  if (commentLoading.value) return
-
-  if (reset) {
-    commentPage.value = 1
-    commentFinished.value = false
-    comments.value = []
-  }
-
-  if (commentFinished.value) return
-
-  commentLoading.value = true
-  try {
-    const pageResult = await getCommentList({
-      postId: String(post.value.id),
-      page: commentPage.value,
-      size: commentSize,
-    })
-    const records = pageResult.records || []
-    if (reset) {
-      comments.value = records
-    } else {
-      comments.value.push(...records)
-    }
-    if (post.value) post.value.comments = pageResult.total || 0
-    if (comments.value.length >= (pageResult.total || 0)) {
-      commentFinished.value = true
-    }
-  } catch {
-    ElMessage.error('加载评论失败')
-  } finally {
-    commentLoading.value = false
-  }
-}
-
-const loadMoreComments = () => {
-  commentPage.value++
-  loadComments(false)
-}
-
 // ===== 发表评论 / 回复 =====
 const submitTopComment = async () => {
   if (!commentInput.value.trim()) return
@@ -489,10 +502,15 @@ const submitTopComment = async () => {
     ElMessage.success('评论成功')
     commentInput.value = ''
     // 后端返回完整 CommentVO，直接插入列表第一条展示
-    comments.value.unshift(newComment)
+    unshiftComment(newComment)
     if (post.value) post.value.comments = (post.value.comments ?? 0) + 1
-  } catch {
-    ElMessage.error('评论失败')
+  } catch (e) {
+    const msg = e instanceof ApiError ? e.message : '评论失败'
+    if (e instanceof ApiError && e.code === ErrorCode.CONTENT_SENSITIVE) {
+      ElMessage.error({ message: msg, duration: 5000 })
+    } else {
+      ElMessage.error(msg)
+    }
   }
 }
 
@@ -527,8 +545,13 @@ const submitComment = async () => {
       }
       comments.value[idx] = updated
     }
-  } catch {
-    ElMessage.error('回复失败')
+  } catch (e) {
+    const msg = e instanceof ApiError ? e.message : '回复失败'
+    if (e instanceof ApiError && e.code === ErrorCode.CONTENT_SENSITIVE) {
+      ElMessage.error({ message: msg, duration: 5000 })
+    } else {
+      ElMessage.error(msg)
+    }
   }
 }
 
@@ -547,10 +570,7 @@ const cancelReply = () => {
 
 const handleCommentDeleted = (commentId: string) => {
   // 从顶级列表移除（如果是顶级评论）；子回复由 CommentItem 本地清理
-  const idx = comments.value.findIndex(c => c.id === commentId)
-  if (idx !== -1) {
-    comments.value.splice(idx, 1)
-  }
+  removeCommentById('id', commentId)
   if (post.value) post.value.comments = Math.max(0, (post.value.comments ?? 1) - 1)
 }
 
@@ -685,15 +705,6 @@ const goHome = () => {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-
-.author-avatar {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid var(--white);
-  box-shadow: var(--shadow-lg);
 }
 
 .author-meta {

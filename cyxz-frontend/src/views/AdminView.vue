@@ -477,7 +477,7 @@ async function onCircleCoverFile(e: Event) {
     const tempId = editingCircleId.value ?? 0
     const url = await uploadCircleResource(file, tempId, 'cover') as string
     circleForm.value.cover = url
-  } catch { ElMessage.error('封面上传失败') }
+  } catch (e) { ElMessage.error(pickApiMessage(e, '封面上传失败')) }
   finally { circleModalLoading.value = false }
 }
 

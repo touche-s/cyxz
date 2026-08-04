@@ -62,7 +62,7 @@
 
       <LoadingSpinner v-if="loading" text="加载中..." />
 
-      <EmptyState v-if="!loading && posts.length === 0" title="新的灵感正在路上" description="换个时间再来看看吧~" />
+      <EmptyState v-if="!loading && posts.length === 0" icon="ph:sparkle" title="新的灵感正在路上" hint="换个时间再来看看吧~" />
 
     </div>
   </main>
@@ -76,6 +76,7 @@ import { getPostList, likePost, unlikePost, collectPost, uncollectPost } from '@
 import type { PostVO } from '@/api/post'
 import { useNavigate } from '@/composables/useNavigate'
 import { useAuth } from '@/composables/useAuth'
+import { createToggleAction } from '@/composables/useToggleInteraction'
 import UnderlineTabs from '@/components/UnderlineTabs.vue'
 import PostCard from '@/components/PostCard.vue'
 import MasonryGrid from '@/components/MasonryGrid.vue'
@@ -152,46 +153,30 @@ const viewPost = (post: PostVO) => {
   open(`/post/${post.id}`)
 }
 
-const toggleSave = async (post: PostVO) => {
+const toggleLike = createToggleAction<PostVO>({
+  likedField: 'liked',
+  countField: 'likes',
+  likeApi: (id) => likePost(id),
+  unlikeApi: (id) => unlikePost(id),
+  idGetter: (p) => p.id,
+})
+
+const toggleCollect = createToggleAction<PostVO>({
+  likedField: 'collected',
+  countField: 'collections',
+  likeApi: (id) => collectPost(id),
+  unlikeApi: (id) => uncollectPost(id),
+  idGetter: (p) => p.id,
+})
+
+const handlePostLike = (post: PostVO) => {
   if (!requireLogin()) return
-
-  const oldCollected = post.collected
-  const oldCollections = post.collections
-
-  post.collected = !oldCollected
-  post.collections = oldCollected ? Math.max(oldCollections - 1, 0) : oldCollections + 1
-
-  try {
-    if (oldCollected) {
-      await uncollectPost(post.id)
-    } else {
-      await collectPost(post.id)
-    }
-  } catch {
-    post.collected = oldCollected
-    post.collections = oldCollections
-  }
+  toggleLike(post)
 }
 
-const handlePostLike = async (post: PostVO) => {
+const toggleSave = (post: PostVO) => {
   if (!requireLogin()) return
-
-  const oldLiked = post.liked
-  const oldLikes = post.likes
-
-  post.liked = !oldLiked
-  post.likes = oldLiked ? Math.max(oldLikes - 1, 0) : oldLikes + 1
-
-  try {
-    if (oldLiked) {
-      await unlikePost(post.id)
-    } else {
-      await likePost(post.id)
-    }
-  } catch {
-    post.liked = oldLiked
-    post.likes = oldLikes
-  }
+  toggleCollect(post)
 }
 
 onMounted(() => {

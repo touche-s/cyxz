@@ -4,8 +4,7 @@
       <aside class="uc-sidebar">
         <div class="sidebar-user">
           <div class="sidebar-avatar" @click="activeTab = 'avatar'">
-            <img v-if="profile.avatar" :src="profile.avatar" alt="" />
-            <span v-else class="sidebar-avatar-fallback">{{ (profile.nickname || 'U').charAt(0) }}</span>
+            <UserAvatar :src="profile.avatar" :name="profile.nickname" :size="48" />
           </div>
           <div class="sidebar-user-text">
             <span class="sidebar-nick">{{ profile.nickname || '未设置昵称' }}</span>
@@ -87,8 +86,7 @@
         <template v-if="activeTab === 'home'">
           <div class="card profile-summary">
             <div class="summary-avatar" @click="activeTab = 'avatar'">
-              <img v-if="profile.avatar" :src="profile.avatar" alt="" />
-              <span v-else class="summary-avatar-fb">{{ (profile.nickname || 'U').charAt(0) }}</span>
+              <UserAvatar :src="profile.avatar" :name="profile.nickname" :size="72" />
             </div>
             <div class="summary-info">
               <h2>{{ profile.nickname || '未设置昵称' }}</h2>
@@ -259,10 +257,7 @@
             </div>
           </div>
           <div v-else class="card empty-card">
-            <div class="empty-state">
-              <Icon icon="ph:image" class="empty-icon" />
-              <p>还没有历史头像，上传第一张吧~</p>
-            </div>
+            <EmptyState icon="ph:image" title="还没有历史头像，上传第一张吧~" />
           </div>
         </template>
 
@@ -394,7 +389,10 @@ import type { UserInfo } from '@/api/user'
 import { uploadAvatar, getAvatarHistory, deleteUploadedFile } from '@/api/upload'
 import { useUserStore } from '@/stores/user'
 import { formatDate } from '@/utils/format'
+import { pickApiMessage } from '@/utils/errorCode'
 import ImageCropper from '@/components/ImageCropper.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const userStore = useUserStore()
 const route = useRoute()
@@ -613,8 +611,8 @@ async function onAvatarCrop(blob: Blob) {
       ElMessage.success('头像更换成功')
       loadHistory()
     }
-  } catch {
-    ElMessage.error('头像上传失败')
+  } catch (e) {
+    ElMessage.error(pickApiMessage(e, '头像上传失败'))
   }
 }
 
@@ -1753,25 +1751,6 @@ html.dark .avatar-ring {
 
 .empty-card {
   padding: 40px 24px;
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  color: var(--text-dim);
-}
-
-.empty-icon {
-  width: 48px;
-  height: 48px;
-  opacity: 0.4;
-}
-
-.empty-state p {
-  font-size: 14px;
-  margin: 0;
 }
 
 @media (max-width: 1024px) {

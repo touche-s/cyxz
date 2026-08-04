@@ -1,5 +1,7 @@
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { ApiError } from '@/utils/request'
+import { ErrorCode } from '@/utils/errorCode'
 
 export function useApi() {
   const loading = ref(false)
@@ -18,8 +20,13 @@ export function useApi() {
       if (options?.onError) {
         options.onError(e)
       } else if (!options?.silent) {
-        const msg = e?.response?.data?.msg || e?.message || '请求失败'
-        ElMessage.error(msg)
+        const msg = e?.response?.data?.message || e?.message || '请求失败'
+        // 内容违规：用更长持续时间的错误提示，让用户明确感知违规
+        if (e instanceof ApiError && e.code === ErrorCode.CONTENT_SENSITIVE) {
+          ElMessage.error({ message: msg, duration: 5000 })
+        } else {
+          ElMessage.error(msg)
+        }
       }
       return undefined
     } finally {

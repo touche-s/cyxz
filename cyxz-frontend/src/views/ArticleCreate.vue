@@ -168,6 +168,7 @@ import { watch, ref, computed } from 'vue'
 import { uploadPostImage } from '@/api/upload'
 import { useApi } from '@/composables/useApi'
 import { checkSensitive } from '@/api/post'
+import { pickApiMessage } from '@/utils/errorCode'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import VMdEditor from '@kangc/v-md-editor/lib/base-editor'
 import githubTheme from '@kangc/v-md-editor/lib/theme/github.js'
@@ -249,8 +250,8 @@ const handleMdImageUpload = async (_event: any, insertImage: Function, files: Fi
     const url = await uploadPostImage(file)
     insertImage({ url, desc: '' })
     ElMessage.success('图片已插入')
-  } catch {
-    ElMessage.error('图片上传失败')
+  } catch (e) {
+    ElMessage.error(pickApiMessage(e, '图片上传失败'))
   }
 }
 

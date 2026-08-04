@@ -82,7 +82,7 @@
 
     <LoadingSpinner v-else text="加载中..." />
 
-    <EmptyState v-if="!loading && posts.length === 0" title="这个圈子还没有内容" description="来做第一个发帖的人吧" />
+    <EmptyState v-if="!loading && posts.length === 0" icon="ph:chat-circle-dots" title="这个圈子还没有内容" hint="来做第一个发帖的人吧" />
 
     </div>
   </main>
@@ -99,6 +99,7 @@ import type { PostVO } from '@/api/post'
 import { useNavigate } from '@/composables/useNavigate'
 import { useAuth } from '@/composables/useAuth'
 import { useUserStore } from '@/stores/user'
+import { createToggleAction } from '@/composables/useToggleInteraction'
 import PostCard from '@/components/PostCard.vue'
 import UnderlineTabs from '@/components/UnderlineTabs.vue'
 import PillTabs from '@/components/PillTabs.vue'
@@ -211,30 +212,30 @@ function viewPost(post: PostVO) {
   open(`/post/${post.id}`)
 }
 
-const toggleSave = async (post: PostVO) => {
+const toggleLike = createToggleAction<PostVO>({
+  likedField: 'liked',
+  countField: 'likes',
+  likeApi: (id) => likePost(id),
+  unlikeApi: (id) => unlikePost(id),
+  idGetter: (p) => p.id,
+})
+
+const toggleCollect = createToggleAction<PostVO>({
+  likedField: 'collected',
+  countField: 'collections',
+  likeApi: (id) => collectPost(id),
+  unlikeApi: (id) => uncollectPost(id),
+  idGetter: (p) => p.id,
+})
+
+function handlePostLike(post: PostVO) {
   if (!requireLogin()) return
-  const old = post.collected
-  post.collected = !old
-  post.collections = old ? Math.max(post.collections - 1, 0) : post.collections + 1
-  try {
-    old ? await uncollectPost(post.id) : await collectPost(post.id)
-  } catch {
-    post.collected = old
-    post.collections = old ? post.collections + 1 : Math.max(post.collections - 1, 0)
-  }
+  toggleLike(post)
 }
 
-const handlePostLike = async (post: PostVO) => {
+function toggleSave(post: PostVO) {
   if (!requireLogin()) return
-  const old = post.liked
-  post.liked = !old
-  post.likes = old ? Math.max(post.likes - 1, 0) : post.likes + 1
-  try {
-    old ? await unlikePost(post.id) : await likePost(post.id)
-  } catch {
-    post.liked = old
-    post.likes = old ? post.likes + 1 : Math.max(post.likes - 1, 0)
-  }
+  toggleCollect(post)
 }
 
 watch(sortBy, () => loadPosts())

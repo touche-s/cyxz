@@ -12,8 +12,7 @@
           @click="goToUser(user.userId)"
         >
           <div class="following-avatar">
-            <img v-if="user.avatar" :src="user.avatar" :alt="user.nickname" />
-            <span v-else>{{ user.nickname.charAt(0) }}</span>
+            <UserAvatar :src="user.avatar" :name="user.nickname" :size="56" />
           </div>
           <span class="following-name">{{ user.nickname }}</span>
         </div>
@@ -21,11 +20,7 @@
     </section>
 
     <!-- 无关注提示 -->
-    <div v-if="!loading && followingUsers.length === 0" class="empty-card">
-      <Icon icon="ph:heart-straight" class="empty-icon" />
-      <p class="empty-title">还没有关注任何人</p>
-      <p class="empty-sub">去发现更多创作者，关注他们就能在这里看到新作品啦</p>
-    </div>
+    <EmptyState v-if="!loading && followingUsers.length === 0" icon="ph:heart-straight" title="还没有关注任何人" hint="去发现更多创作者，关注他们就能在这里看到新作品啦" />
 
     <!-- 加载中 -->
     <LoadingSpinner v-if="loading && followingUsers.length === 0" />
@@ -43,8 +38,7 @@
           <!-- 作者信息栏 -->
           <div class="tl-author">
             <div class="tl-avatar">
-              <img v-if="post.authorAvatar" :src="post.authorAvatar" alt="" />
-              <span v-else>{{ (post.authorName || '?').charAt(0) }}</span>
+              <UserAvatar :src="post.authorAvatar" :name="post.authorName" :size="32" />
             </div>
             <span class="tl-name">{{ post.authorName || '匿名用户' }}</span>
             <span class="tl-time">{{ formatTime(post.createTime) }}</span>
@@ -80,11 +74,7 @@
     </section>
 
     <!-- 关注了但无动态 -->
-    <div v-if="!loading && followingUsers.length > 0 && posts.length === 0 && !initialLoading" class="empty-card">
-      <Icon icon="ph:confetti" class="empty-icon" />
-      <p class="empty-title">暂无新动态</p>
-      <p class="empty-sub">你关注的人还没有发布作品</p>
-    </div>
+    <EmptyState v-if="!loading && followingUsers.length > 0 && posts.length === 0 && !initialLoading" icon="ph:confetti" title="暂无新动态" hint="你关注的人还没有发布作品" />
 
     <footer class="footer">
       <div class="footer-links">
@@ -100,26 +90,34 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { Icon } from '@iconify/vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import UserAvatar from '@/components/UserAvatar.vue'
 import { getFollowingList } from '@/api/user'
 import { getFollowingPosts } from '@/api/post'
 import type { FollowUserVO } from '@/api/user'
 import type { PostVO } from '@/api/post'
 import { useNavigate } from '@/composables/useNavigate'
+import { usePagination } from '@/composables/usePagination'
+import { formatTime } from '@/utils/format'
 
 const { open } = useNavigate()
 const followingUsers = ref<FollowUserVO[]>([])
-const posts = ref<PostVO[]>([])
-const page = ref(1)
-const total = ref(0)
-const loading = ref(true)
-const initialLoading = ref(true)
-const loadingMore = ref(false)
-const pageSize = 10
 
-const hasMore = computed(() => posts.value.length < total.value)
+const {
+  list: posts,
+  loading,
+  loadingMore,
+  initialLoading,
+  hasMore,
+  load: loadPosts,
+  loadMore,
+} = usePagination<PostVO>(
+  ({ page, size }) => getFollowingPosts({ page, size }),
+  { pageSize: 10 }
+)
 
 async function loadFollowing() {
   try {
@@ -128,60 +126,12 @@ async function loadFollowing() {
   } catch { /* ignore */ }
 }
 
-async function loadPosts(reset = false) {
-  if (reset) {
-    page.value = 1
-    posts.value = []
-  }
-  if (reset) loading.value = true
-  else loadingMore.value = true
-
-  try {
-    const res = await getFollowingPosts({ page: page.value, size: pageSize })
-    const list: PostVO[] = (res as any).records ?? (res as any)
-    total.value = (res as any).total ?? 0
-
-    if (reset) {
-      posts.value = list
-    } else {
-      posts.value = [...posts.value, ...list]
-    }
-  } catch {
-    if (reset) posts.value = []
-  } finally {
-    loading.value = false
-    loadingMore.value = false
-    initialLoading.value = false
-  }
-}
-
-function loadMore() {
-  if (loadingMore.value || !hasMore.value) return
-  page.value++
-  loadPosts(false)
-}
-
 function goToUser(userId: string) {
   open(`/user/${userId}`)
 }
 
 function enterPost(post: PostVO) {
   open(`/post/${post.id}`)
-}
-
-function formatTime(dateStr: string) {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  const now = new Date()
-  const diff = now.getTime() - d.getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return '刚刚'
-  if (mins < 60) return `${mins}分钟前`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}小时前`
-  const days = Math.floor(hours / 24)
-  if (days < 7) return `${days}天前`
-  return `${d.getMonth() + 1}-${d.getDate()}`
 }
 
 onMounted(async () => {
@@ -420,35 +370,6 @@ onMounted(async () => {
 
 .tl-stat-icon {
   font-size: 14px;
-}
-
-/* ===== 加载/空态 ===== */
-.empty-card {
-  background: var(--card);
-  border: 1.5px solid var(--border-light);
-  border-radius: 16px;
-  padding: 48px 32px;
-  text-align: center;
-  margin-top: 16px;
-}
-
-.empty-icon {
-  font-size: 52px;
-  color: var(--pink);
-  margin-bottom: 12px;
-  opacity: 0.7;
-}
-
-.empty-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 6px;
-}
-
-.empty-sub {
-  font-size: 13px;
-  color: var(--text-dim);
 }
 
 /* ===== 加载更多 ===== */

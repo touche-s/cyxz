@@ -22,9 +22,7 @@
 
     <div class="fans-list" v-if="!fansLoading">
       <div class="fan-item" v-for="fan in filteredFansList" :key="fan.userId">
-        <div class="fan-avatar clickable" @click="goToUser(fan.userId)">
-          <img :src="avatarUrl(fan.avatar)" alt="" />
-        </div>
+        <UserAvatar :src="fan.avatar" :name="fan.nickname" :user-id="fan.userId" :size="44" fallback="image" />
         <div class="fan-info">
           <h4 class="fan-name clickable" @click="goToUser(fan.userId)">{{ fan.nickname || '未知用户' }}</h4>
           <span class="fan-time">{{ formatTime(fan.createTime) }}</span>
@@ -64,10 +62,10 @@ import { useNavigate } from '@/composables/useNavigate'
 import { getFollowerList, getFollowingList, followUser, unfollowUser, getFollowStats } from '@/api/user'
 import type { FollowUserVO } from '@/api/user'
 import { formatTime } from '@/utils/format'
-import { avatarUrl } from '@/utils/avatar'
 import SearchInput from '@/components/SearchInput.vue'
 import FollowButton from '@/components/FollowButton.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import UserAvatar from '@/components/UserAvatar.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import Pagination from '@/components/Pagination.vue'
 
@@ -267,29 +265,13 @@ html.dark .tab-badge {
   border-color: var(--border);
 }
 
-.fan-avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.fan-avatar.clickable,
 .fan-name.clickable {
   cursor: pointer;
   transition: opacity 0.15s;
 }
 
-.fan-avatar.clickable:hover,
 .fan-name.clickable:hover {
   opacity: 0.75;
-}
-
-.fan-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
 }
 
 .fan-info {
