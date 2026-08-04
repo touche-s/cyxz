@@ -110,7 +110,7 @@ class SectionTemplateServiceImplTest {
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> sectionTemplateService.update(1L, new SectionTemplateRequest()));
 
-            assertEquals(ErrorCode.NOT_FOUND.getCode(), ex.getCode());
+            assertEquals(ErrorCode.SECTION_TEMPLATE_NOT_FOUND.getCode(), ex.getCode());
             verify(sectionTemplateMapper, never()).updateById(any());
         }
 
@@ -147,7 +147,7 @@ class SectionTemplateServiceImplTest {
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> sectionTemplateService.delete(1L));
 
-            assertEquals(ErrorCode.NOT_FOUND.getCode(), ex.getCode());
+            assertEquals(ErrorCode.SECTION_TEMPLATE_NOT_FOUND.getCode(), ex.getCode());
             verify(sectionTemplateMapper, never()).deleteById(anyLong());
         }
 

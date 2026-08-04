@@ -94,7 +94,7 @@ class UploadServiceImplTest {
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> uploadService.uploadAvatar(file, USER_ID));
 
-            assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
+            assertEquals(ErrorCode.UPLOAD_TYPE_INVALID.getCode(), ex.getCode());
             assertTrue(ex.getMessage().contains("jpg"));
         }
 
@@ -108,7 +108,7 @@ class UploadServiceImplTest {
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> uploadService.uploadAvatar(file, USER_ID));
 
-            assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
+            assertEquals(ErrorCode.UPLOAD_CONTENT_INVALID.getCode(), ex.getCode());
             assertTrue(ex.getMessage().contains("类型不合法"));
         }
 
@@ -176,7 +176,7 @@ class UploadServiceImplTest {
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> uploadService.deleteFile("avatar/" + USER_ID + "/abc.png"));
 
-            assertEquals(ErrorCode.FAIL.getCode(), ex.getCode());
+            assertEquals(ErrorCode.UPLOAD_DELETE_FAILED.getCode(), ex.getCode());
             assertTrue(ex.getMessage().contains("文件删除失败"));
         }
     }

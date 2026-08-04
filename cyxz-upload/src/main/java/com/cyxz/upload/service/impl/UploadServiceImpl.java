@@ -87,7 +87,7 @@ public class UploadServiceImpl implements UploadService {
             log.info("文件已删除: {}", objectName);
         } catch (Exception e) {
             log.error("删除文件失败: {}", objectName, e);
-            throw new BusinessException(ErrorCode.FAIL, "文件删除失败");
+            throw new BusinessException(ErrorCode.UPLOAD_DELETE_FAILED, "文件删除失败");
         }
     }
 
@@ -156,7 +156,7 @@ public class UploadServiceImpl implements UploadService {
             return url;
         } catch (Exception e) {
             log.error("文件上传失败", e);
-            throw new BusinessException(ErrorCode.FAIL, "文件上传失败");
+            throw new BusinessException(ErrorCode.UPLOAD_FAILED, "文件上传失败");
         }
     }
 
@@ -183,28 +183,28 @@ public class UploadServiceImpl implements UploadService {
 
         String extension = getExtension(originalFilename);
         if (!ALLOWED_IMAGE_EXTENSIONS.contains(extension)) {
-            throw new BusinessException(ErrorCode.PARAM_ERROR, bizType + "仅支持 jpg、jpeg、png、gif 格式");
+            throw new BusinessException(ErrorCode.UPLOAD_TYPE_INVALID, bizType + "仅支持 jpg、jpeg、png、gif 格式");
         }
 
         String contentType = normalizeContentType(file.getContentType());
         if (!ALLOWED_IMAGE_CONTENT_TYPES.contains(contentType)) {
-            throw new BusinessException(ErrorCode.PARAM_ERROR, bizType + "类型不合法");
+            throw new BusinessException(ErrorCode.UPLOAD_CONTENT_INVALID, bizType + "类型不合法");
         }
 
         try (InputStream inputStream = file.getInputStream()) {
             BufferedImage image = ImageIO.read(inputStream);
             if (image == null) {
-                throw new BusinessException(ErrorCode.PARAM_ERROR, bizType + "内容不合法");
+                throw new BusinessException(ErrorCode.UPLOAD_CONTENT_INVALID, bizType + "内容不合法");
             }
             // 防解压炸弹：限制像素总数
             long pixels = (long) image.getWidth() * image.getHeight();
             if (pixels > MAX_PIXELS) {
-                throw new BusinessException(ErrorCode.PARAM_ERROR, bizType + "图片像素过大，最长边不超过4096");
+                throw new BusinessException(ErrorCode.UPLOAD_PIXEL_TOO_LARGE, bizType + "图片像素过大，最长边不超过4096");
             }
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            throw new BusinessException(ErrorCode.PARAM_ERROR, bizType + "内容不合法", e);
+            throw new BusinessException(ErrorCode.UPLOAD_CONTENT_INVALID, bizType + "内容不合法", e);
         }
     }
 

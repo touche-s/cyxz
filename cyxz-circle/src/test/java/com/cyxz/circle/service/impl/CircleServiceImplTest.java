@@ -97,7 +97,7 @@ class CircleServiceImplTest {
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> circleService.joinCircle(USER_ID, CIRCLE_ID));
 
-            assertEquals(ErrorCode.NOT_FOUND.getCode(), ex.getCode());
+            assertEquals(ErrorCode.CIRCLE_NOT_FOUND.getCode(), ex.getCode());
             verify(circleMemberMapper, never()).upsertMember(anyLong(), anyLong());
         }
 

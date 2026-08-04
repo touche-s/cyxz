@@ -59,7 +59,7 @@ public class CircleServiceImpl implements CircleService {
     public CircleVO getById(Long circleId, Long currentUserId) {
         CirclePO po = circleMapper.selectById(circleId);
         if (po == null || po.getStatus() != CommonStatus.ACTIVE) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "圈子不存在");
+            throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND);
         }
         return toVO(po, currentUserId);
     }
@@ -86,7 +86,7 @@ public class CircleServiceImpl implements CircleService {
     public void joinCircle(Long userId, Long circleId) {
         CirclePO circle = circleMapper.selectById(circleId);
         if (circle == null || circle.getStatus() != CommonStatus.ACTIVE) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "圈子不存在");
+            throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND);
         }
         int rows = circleMemberMapper.upsertMember(circleId, userId);
         if (rows > 0) {
@@ -165,7 +165,7 @@ public class CircleServiceImpl implements CircleService {
     public void updateCircle(Long circleId, String name, String intro, String avatar, String cover) {
         CirclePO po = circleMapper.selectById(circleId);
         if (po == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "圈子不存在");
+            throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND);
         }
         if (StringUtils.hasText(name)) po.setName(name);
         if (intro != null) po.setIntro(intro);
@@ -206,7 +206,7 @@ public class CircleServiceImpl implements CircleService {
     public void deleteCircle(Long circleId) {
         CirclePO po = circleMapper.selectById(circleId);
         if (po == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "圈子不存在");
+            throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND);
         }
         po.setStatus(CommonStatus.DELETED);
         circleMapper.updateById(po);

@@ -143,12 +143,12 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     private Mono<Void> forbidden(ServerHttpResponse response, String message) {
         response.setStatusCode(HttpStatus.FORBIDDEN);
         response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
-        Result<Void> result = Result.fail(403, message);
+        Result<Void> result = Result.fail(ErrorCode.FORBIDDEN.getCode(), message);
         byte[] bytes;
         try {
             bytes = objectMapper.writeValueAsString(result).getBytes(StandardCharsets.UTF_8);
         } catch (JsonProcessingException e) {
-            bytes = "{\"code\":403,\"message\":\"禁止访问\"}".getBytes(StandardCharsets.UTF_8);
+            bytes = "{\"code\":403000,\"message\":\"禁止访问\"}".getBytes(StandardCharsets.UTF_8);
         }
         DataBuffer buffer = response.bufferFactory().wrap(bytes);
         return response.writeWith(Mono.just(buffer));
@@ -171,7 +171,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         try {
             bytes = objectMapper.writeValueAsString(result).getBytes(StandardCharsets.UTF_8);
         } catch (JsonProcessingException e) {
-            bytes = "{\"code\":401,\"message\":\"未授权\"}".getBytes(StandardCharsets.UTF_8);
+            bytes = "{\"code\":401000,\"message\":\"未授权\"}".getBytes(StandardCharsets.UTF_8);
         }
         DataBuffer buffer = response.bufferFactory().wrap(bytes);
         return response.writeWith(Mono.just(buffer));

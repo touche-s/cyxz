@@ -68,7 +68,7 @@ public class SectionTemplateServiceImpl implements SectionTemplateService {
     public SectionTemplateVO update(Long id, SectionTemplateRequest dto) {
         SectionTemplatePO po = sectionTemplateMapper.selectById(id);
         if (po == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "板块模板不存在");
+            throw new BusinessException(ErrorCode.SECTION_TEMPLATE_NOT_FOUND);
         }
         BeanUtils.copyProperties(dto, po, "id", "createTime");
         sectionTemplateMapper.updateById(po);
@@ -83,7 +83,7 @@ public class SectionTemplateServiceImpl implements SectionTemplateService {
     public void delete(Long id) {
         SectionTemplatePO po = sectionTemplateMapper.selectById(id);
         if (po == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "板块模板不存在");
+            throw new BusinessException(ErrorCode.SECTION_TEMPLATE_NOT_FOUND);
         }
         sectionTemplateMapper.deleteById(id);
     }

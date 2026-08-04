@@ -6,6 +6,7 @@ import com.cyxz.auth.dto.LoginRequest;
 import com.cyxz.auth.dto.RegisterRequest;
 import com.cyxz.auth.service.AuthService;
 import com.cyxz.common.utils.TokenUtil;
+import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -59,7 +60,7 @@ public class AuthController {
     public Result<Void> logout(@RequestHeader(value = "Authorization", required = false) String authHeader) {
         String token = TokenUtil.extractBearerToken(authHeader);
         if (token == null) {
-            return Result.fail(401, "无效的Token");
+            return Result.fail(ErrorCode.TOKEN_INVALID.getCode(), "无效的Token");
         }
         authService.logout(token);
         return Result.success("登出成功");
@@ -78,7 +79,7 @@ public class AuthController {
                                        @RequestHeader(value = "Authorization", required = false) String authHeader) {
         String token = TokenUtil.extractBearerToken(authHeader);
         if (token == null) {
-            return Result.fail(401, "无效的Token");
+            return Result.fail(ErrorCode.TOKEN_INVALID.getCode(), "无效的Token");
         }
         Long userId = authService.extractUserId(token);
         authService.changePassword(userId, request);
@@ -96,7 +97,7 @@ public class AuthController {
     public Result<AuthResponse> refreshToken(@RequestHeader(value = "Authorization", required = false) String authHeader) {
         String token = TokenUtil.extractBearerToken(authHeader);
         if (token == null) {
-            return Result.fail(401, "无效的Token");
+            return Result.fail(ErrorCode.TOKEN_INVALID.getCode(), "无效的Token");
         }
         AuthResponse response = authService.refreshToken(token);
         return Result.success("刷新成功", response);
