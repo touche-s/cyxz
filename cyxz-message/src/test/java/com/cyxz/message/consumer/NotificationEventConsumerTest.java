@@ -4,6 +4,8 @@ import com.cyxz.message.event.NotificationEvent;
 import com.cyxz.message.entity.NotificationPO;
 import com.cyxz.message.mapper.NotificationMapper;
 import com.cyxz.message.service.impl.NotificationServiceImpl;
+import com.cyxz.message.websocket.WebSocketSessionManager;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.Channel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -32,6 +34,12 @@ class NotificationEventConsumerTest {
     @Mock
     private Channel channel;
 
+    @Mock
+    private WebSocketSessionManager sessionManager;
+
+    @Mock
+    private ObjectMapper objectMapper;
+
     private NotificationEventConsumer consumer;
 
     private final long tag = 1L;
@@ -39,7 +47,7 @@ class NotificationEventConsumerTest {
     @BeforeEach
     void setUp() {
         NotificationServiceImpl notificationService = new NotificationServiceImpl(notificationMapper, null);
-        consumer = new NotificationEventConsumer(notificationService);
+        consumer = new NotificationEventConsumer(notificationService, sessionManager, objectMapper);
     }
 
     @Nested
