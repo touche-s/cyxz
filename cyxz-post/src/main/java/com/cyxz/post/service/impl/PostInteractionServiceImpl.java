@@ -7,9 +7,9 @@ import com.cyxz.common.constant.PostStatus;
 import com.cyxz.common.utils.IpUtil;
 import com.cyxz.message.dto.CreateNotificationRequest;
 import com.cyxz.message.enums.NotificationType;
-import com.cyxz.message.constant.NotificationConstants;
 import com.cyxz.message.event.NotificationEvent;
 import com.cyxz.message.feign.MessageFeignClient;
+import com.cyxz.message.utils.NotificationPublisher;
 import com.cyxz.post.entity.PostPO;
 import com.cyxz.post.mapper.PostCollectMapper;
 import com.cyxz.post.mapper.PostLikeMapper;
@@ -173,30 +173,23 @@ public class PostInteractionServiceImpl implements PostInteractionService {
 
     /**
      * 发送点赞通知
-     * <p>通过 Feign 调用消息服务创建点赞通知，失败仅记录日志不影响主流程。
+     * <p>通过 MQ 异步发布点赞通知，失败仅记录日志不影响主流程。
      *
      * @param postId 帖子 ID
      * @param userId 点赞用户 ID
      * @param po     帖子实体（用于获取帖子作者作为接收者）
      */
     private void sendLikeNotification(Long postId, Long userId, PostPO po) {
-        try {
-            rabbitTemplate.convertAndSend(
-                NotificationConstants.EXCHANGE,
-                NotificationConstants.ROUTING_KEY,
-                NotificationEvent.builder()
-                    .receiverId(po.getUserId())
-                    .senderId(userId)
-                    .type(NotificationType.POST_LIKED.name())
-                    .title("有人赞了你的帖子")
-                    .targetType("post")
-                    .targetId(postId)
-                    .createTime(System.currentTimeMillis())
-                    .build()
-            );
-        } catch (Exception e) {
-            log.warn("MQ 发布点赞通知失败: postId={}, userId={}", postId, userId, e);
-        }
+        NotificationEvent event = NotificationEvent.builder()
+            .receiverId(po.getUserId())
+            .senderId(userId)
+            .type(NotificationType.POST_LIKED.name())
+            .title("有人赞了你的帖子")
+            .targetType("post")
+            .targetId(postId)
+            .createTime(System.currentTimeMillis())
+            .build();
+        NotificationPublisher.publish(rabbitTemplate, event);
     }
 
 }

@@ -11,13 +11,14 @@ import org.apache.ibatis.annotations.Update;
 import java.util.List;
 
 /**
- * 帖子点赞关系 Mapper
+ * 帖子点赞关系 Mapper，对应 post_like 表，用于帖子点赞关系的 UPSERT、取消及收到的点赞查询统计
  */
 public interface PostLikeMapper extends BaseMapper<PostLikePO> {
 
     /**
      * UPSERT 帖子点赞：不存在则插入，存在则恢复为 status=1
-     *
+     * @param postId 帖子 ID
+     * @param userId 点赞用户 ID
      * @return 1=新增, 2=恢复(0→1), 0=幂等(已是1)
      */
     @Insert("INSERT INTO post_like(post_id, user_id, status) " +
@@ -27,7 +28,8 @@ public interface PostLikeMapper extends BaseMapper<PostLikePO> {
 
     /**
      * 条件取消点赞：仅 status=1 时更新为 0
-     *
+     * @param postId 帖子 ID
+     * @param userId 点赞用户 ID
      * @return 1=取消成功, 0=无需取消(不存在或已取消)
      */
     @Update("UPDATE post_like SET status = 0 WHERE post_id = #{postId} AND user_id = #{userId} AND status = 1")

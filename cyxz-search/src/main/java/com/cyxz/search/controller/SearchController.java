@@ -1,11 +1,12 @@
 package com.cyxz.search.controller;
 
 import com.cyxz.common.base.PageResult;
+import com.cyxz.common.base.Result;
+import com.cyxz.common.constant.PageConstants;
 import com.cyxz.search.document.PostDocument;
 import com.cyxz.search.repository.PostSearchRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
@@ -23,7 +24,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 搜索接口
@@ -37,8 +37,17 @@ public class SearchController {
     private final ElasticsearchOperations esOps;
     private final PostSearchRepository repository;
 
+    /**
+     * 全文搜索帖子，支持标题/正文匹配、高亮、圈子过滤与热度/时间排序
+     * @param keyword 搜索关键词，为空时返回空分页
+     * @param circleId 圈子 ID，可选，大于 0 时按圈子过滤
+     * @param sortBy 排序方式，hot 按点赞数降序，其它按创建时间降序
+     * @param page 页码，从 1 开始
+     * @param size 每页大小，限制在 1~MAX_SIZE
+     * @return 命中帖子分页，title/content 字段替换为高亮内容
+     */
     @GetMapping("/post")
-    public PageResult<PostDocument> search(
+    public Result<PageResult<PostDocument>> search(
             @RequestParam String keyword,
             @RequestParam(required = false) Long circleId,
             @RequestParam(defaultValue = "hot") String sortBy,
@@ -46,12 +55,12 @@ public class SearchController {
             @RequestParam(defaultValue = "20") int size) {
 
         if (keyword.isBlank()) {
-            return PageResult.empty(page, size);
+            return Result.success(PageResult.empty(page, size));
         }
 
-        // 分页参数防御：page 最小 1，size 限制 1~50 防止拉取过多数据
+        // 分页参数防御：page 最小 1，size 限制 1~MAX_SIZE 防止拉取过多数据
         page = Math.max(page, 1);
-        size = Math.min(Math.max(size, 1), 50);
+        size = Math.min(Math.max(size, 1), PageConstants.MAX_SIZE);
 
         // 构建高亮
         HighlightQuery highlightQuery = new HighlightQuery(
@@ -94,6 +103,6 @@ public class SearchController {
             results.add(doc);
         }
 
-        return PageResult.of(results, hits.getTotalHits(), page, size);
+        return Result.success(PageResult.of(results, hits.getTotalHits(), page, size));
     }
 }

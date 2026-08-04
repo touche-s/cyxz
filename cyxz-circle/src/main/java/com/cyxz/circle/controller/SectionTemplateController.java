@@ -33,7 +33,13 @@ public class SectionTemplateController {
         return Result.success(sectionTemplateService.create(dto));
     }
 
-    /** 更新板块模板 */
+    /**
+     * 更新板块模板
+     * @param id 板块模板 ID
+     * @param dto 板块模板更新请求
+     * @param admin 当前管理员标识
+     * @return 更新后的板块模板信息
+     */
     @PutMapping("/{id}")
     public Result<SectionTemplateVO> update(@PathVariable Long id, @RequestBody SectionTemplateRequest dto, @AdminUser Object admin) {
         return Result.success(sectionTemplateService.update(id, dto));

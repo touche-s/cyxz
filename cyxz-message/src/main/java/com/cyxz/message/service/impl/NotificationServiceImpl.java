@@ -61,7 +61,11 @@ public class NotificationServiceImpl implements NotificationService {
         log.debug("创建通知: type={}, receiverId={}, senderId={}", request.getType(), request.getReceiverId(), request.getSenderId());
     }
 
-    /** 从 MQ 事件创建通知 */
+    /**
+     * 从 MQ 事件创建通知
+     * @param event 通知事件，包含接收者、发送者、类型、目标等字段
+     * @return 落库成功返回 true，事件字段非法、给自己发或重复时返回 false
+     */
     public boolean createByEvent(NotificationEvent event) {
         if (event.getReceiverId() == null || event.getType() == null) {
             log.warn("事件字段非法: receiverId={}, type={}", event.getReceiverId(), event.getType());

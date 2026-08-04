@@ -147,6 +147,11 @@ public class PostController {
 
     /**
      * 分页查询关注动态（关注用户发布的帖子）
+     *
+     * @param userId 当前登录用户 ID（由 Gateway 注入）
+     * @param page   页码（从 1 开始，默认 1）
+     * @param size   每页条数（默认 10）
+     * @return 关注用户的帖子列表
      */
     @GetMapping("/following")
     public Result<PageResult<PostVO>> listFollowing(@CurrentUser Long userId,
@@ -377,6 +382,9 @@ public class PostController {
 
     /**
      * 批量统计各圈子的已发布帖子数（内部接口，供 circle 服务定时刷新）
+     *
+     * @param circleIds 圈子 ID 集合
+     * @return 圈子 ID 到帖子数的映射
      */
     @GetMapping("/internal/batch-circle-post-count")
     public Result<Map<Long, Integer>> batchCountByCircle(@RequestParam("circleIds") Set<Long> circleIds) {
@@ -417,6 +425,10 @@ public class PostController {
 
     /**
      * 置顶帖子
+     *
+     * @param userId 当前登录用户 ID（由 Gateway 注入）
+     * @param postId 帖子 ID
+     * @return 操作结果
      */
     @PutMapping("/{postId}/pin")
     public Result<Void> pinPost(@CurrentUser Long userId, @PathVariable("postId") Long postId) {
@@ -426,6 +438,10 @@ public class PostController {
 
     /**
      * 取消置顶帖子
+     *
+     * @param userId 当前登录用户 ID（由 Gateway 注入）
+     * @param postId 帖子 ID
+     * @return 操作结果
      */
     @DeleteMapping("/{postId}/pin")
     public Result<Void> unpinPost(@CurrentUser Long userId, @PathVariable("postId") Long postId) {
@@ -435,6 +451,10 @@ public class PostController {
 
     /**
      * 批量操作帖子
+     *
+     * @param userId 当前登录用户 ID（由 Gateway 注入）
+     * @param body   批量操作请求体，包含 postIds（帖子 ID 列表）和 action（操作类型）
+     * @return 操作结果
      */
     @PostMapping("/batch")
     public Result<Void> batchOperate(@CurrentUser Long userId, @RequestBody Map<String, Object> body) {
@@ -447,7 +467,14 @@ public class PostController {
 
     // ===== 审核接口（管理员） =====
 
-    /** 待审核帖子列表 */
+    /**
+     * 待审核帖子列表
+     *
+     * @param admin 管理员身份（由 Gateway 注入）
+     * @param page  页码（从 1 开始，默认 1）
+     * @param size  每页条数（默认 10）
+     * @return 待审核帖子分页列表
+     */
     @GetMapping("/admin/review/pending")
     public Result<PageResult<PostVO>> listPendingReview(@AdminUser Object admin,
                                                          @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
@@ -455,14 +482,27 @@ public class PostController {
         return Result.success(postService.listPendingReview(page, size));
     }
 
-    /** 审核通过 */
+    /**
+     * 审核通过
+     *
+     * @param admin  管理员身份（由 Gateway 注入）
+     * @param postId 帖子 ID
+     * @return 操作结果
+     */
     @PutMapping("/admin/review/{postId}/approve")
     public Result<Void> approvePost(@AdminUser Object admin, @PathVariable Long postId) {
         postService.approvePost(postId);
         return Result.success("审核通过");
     }
 
-    /** 审核拒绝 */
+    /**
+     * 审核拒绝
+     *
+     * @param admin  管理员身份（由 Gateway 注入）
+     * @param postId 帖子 ID
+     * @param body   拒绝请求体，包含 reason（拒绝原因）
+     * @return 操作结果
+     */
     @PutMapping("/admin/review/{postId}/reject")
     public Result<Void> rejectPost(@AdminUser Object admin, @PathVariable Long postId, @RequestBody Map<String, String> body) {
         postService.rejectPost(postId, body.get("reason"));
@@ -472,6 +512,9 @@ public class PostController {
     /**
      * 敏感词手动检测
      * <p>用户发布前自行检测标题和正文，返回命中的敏感词列表。为空表示通过。
+     *
+     * @param body 检测请求体，包含 title（标题）和 content（正文）
+     * @return 命中的敏感词集合，为空表示无敏感词
      */
     @PostMapping("/check-sensitive")
     public Result<Set<String>> checkSensitive(@RequestBody Map<String, String> body) {

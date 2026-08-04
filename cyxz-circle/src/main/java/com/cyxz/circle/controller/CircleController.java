@@ -48,6 +48,10 @@ public class CircleController {
 
     /**
      * 热门圈子分页（按成员数降序）
+     * @param page 页码
+     * @param size 每页数量
+     * @param currentUserId 当前登录用户 ID，未登录时为 null
+     * @return 热门圈子分页结果
      */
     @GetMapping("/hot")
     public Result<PageResult<CircleVO>> hot(@RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
@@ -119,6 +123,9 @@ public class CircleController {
 
     /**
      * 内部接口：校验发布权限
+     * @param circleId 圈子 ID
+     * @param userId 用户 ID
+     * @return 发布权限校验结果
      */
     @GetMapping("/internal/{circleId}/publishable")
     public Result<PublishableResult> checkPublishable(@PathVariable Long circleId,
@@ -164,6 +171,8 @@ public class CircleController {
 
     /**
      * 内部接口：批量查询板块名称
+     * @param sectionIds 板块 ID 集合
+     * @return 板块 ID 到名称的映射
      */
     @GetMapping("/internal/section/batch-names")
     public Result<Map<Long, String>> batchSectionNames(@RequestParam Set<Long> sectionIds) {

@@ -169,6 +169,7 @@ public class ChatServiceImpl implements ChatService {
         conversationMapper.updateById(conv);
     }
 
+    /** 查询当前用户的私信总未读数 */
     @Override
     public int unreadTotal(Long userId) {
         LambdaQueryWrapper<ConversationPO> wrapper = new LambdaQueryWrapper<>();

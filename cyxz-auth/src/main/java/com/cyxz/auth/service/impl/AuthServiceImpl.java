@@ -245,6 +245,12 @@ public class AuthServiceImpl implements AuthService {
         log.info("用户修改密码成功: userId={}", userId);
     }
 
+    /**
+     * 从 Token 中提取用户 ID
+     *
+     * @param token JWT Token
+     * @return 用户 ID
+     */
     @Override
     public Long extractUserId(String token) {
         return jwtUtil.getUserId(token);

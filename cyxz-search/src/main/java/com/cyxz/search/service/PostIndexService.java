@@ -21,6 +21,10 @@ public class PostIndexService {
 
     private final PostSearchRepository repository;
 
+    /**
+     * 同步帖子文档到 ES 索引
+     * @param event 帖子 ES 同步事件，包含帖子 ID、操作类型（新增/更新/删除）及帖子字段
+     */
     public void sync(PostEsSyncEvent event) {
         if ("DELETE".equals(event.getAction())) {
             repository.deleteById(event.getPostId());

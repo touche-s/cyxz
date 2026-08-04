@@ -191,6 +191,9 @@ public class UserProfileController {
 
     /**
      * 查询关注用户 ID 列表（内部接口，供 post 服务拉取关注动态）
+     *
+     * @param userId 用户 ID
+     * @return 该用户关注的目标用户 ID 列表
      */
     @GetMapping("/internal/following-ids")
     public Result<List<Long>> listFollowingUserIds(@RequestParam("userId") Long userId) {

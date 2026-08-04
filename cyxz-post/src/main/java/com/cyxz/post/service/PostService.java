@@ -244,6 +244,7 @@ public interface PostService {
 
     /**
      * 审核通过帖子
+     * @param postId 帖子 ID
      */
     void approvePost(Long postId);
 
@@ -260,6 +261,8 @@ public interface PostService {
     /**
      * 批量统计各圈子的已发布帖子数（内部接口）
      * <p>供 circle 服务定时刷新帖子数。
+     * @param circleIds 圈子 ID 集合
+     * @return 圈子 ID 到帖子数的映射（无帖子的圈子返回 0）
      */
     Map<Long, Integer> batchCountByCircle(Set<Long> circleIds);
 }

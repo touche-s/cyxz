@@ -133,6 +133,9 @@ public interface PostMapper extends BaseMapper<PostPO> {
      * 原子置顶帖子（防 TOCTOU 竞态）
      * <p>单条 SQL 完成：校验帖子归属 + 未置顶 + 已置顶数 < 3，全部满足才更新。
      * <p>rows=0 表示帖子不存在/非本人/已置顶/已达上限。
+     * @param userId 用户 ID
+     * @param postId 帖子 ID
+     * @return 受影响行数：1=置顶成功，0=帖子不存在/非本人/已置顶/已达上限
      */
     @Update("UPDATE post SET is_pinned = 1, pinned_time = NOW() " +
             "WHERE id = #{postId} AND user_id = #{userId} AND is_pinned = 0 " +
@@ -141,20 +144,28 @@ public interface PostMapper extends BaseMapper<PostPO> {
 
     /**
      * 取消置顶
+     * @param userId 用户 ID
+     * @param postId 帖子 ID
+     * @return 受影响行数：1=取消成功，0=帖子不存在或非本人
      */
     @Update("UPDATE post SET is_pinned = 0, pinned_time = NULL WHERE id = #{postId} AND user_id = #{userId}")
     int unpinPost(@Param("userId") Long userId, @Param("postId") Long postId);
 
     /**
      * 统计当前用户已置顶帖子数
+     * @param userId 用户 ID
+     * @return 已置顶帖子数量
      */
     @Select("SELECT COUNT(*) FROM post WHERE user_id = #{userId} AND is_pinned = 1")
     int countPinnedPosts(@Param("userId") Long userId);
 
     /**
      * 批量更新帖子状态
-     *
+     * @param userId     用户 ID
+     * @param postIds    帖子 ID 列表
+     * @param status     目标状态
      * @param fromStatus 限制仅更新该状态的帖子，null 表示不限制（用于状态机校验）
+     * @return 受影响行数
      */
     @Update("<script>" +
             "UPDATE post SET status = #{status} WHERE user_id = #{userId} AND id IN " +
@@ -166,6 +177,8 @@ public interface PostMapper extends BaseMapper<PostPO> {
 
     /**
      * 统计各圈子的已发布帖子数
+     * @param circleIds 圈子 ID 集合
+     * @return 每个圈子对应的已发布帖子数列表，元素包含 circleId 与 cnt 字段
      */
     @Select("<script>" +
             "SELECT circle_id, COUNT(*) AS cnt FROM post WHERE circle_id IN " +

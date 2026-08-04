@@ -8,12 +8,16 @@ import org.apache.ibatis.annotations.Update;
 
 /**
  * 评论点赞关系 Mapper
+ * <p>对应 comment_like 表，维护用户对评论的点赞/取消点赞状态，
+ * 继承 MyBatis-Plus BaseMapper 获得通用增删改查能力。
  */
 public interface CommentLikeMapper extends BaseMapper<CommentLikePO> {
 
     /**
      * UPSERT 评论点赞：不存在则插入，存在则恢复为 status=1
      *
+     * @param commentId 评论 ID
+     * @param userId    点赞用户 ID
      * @return 1=新增, 2=恢复(0→1), 0=幂等(已是1)
      */
     @Insert("INSERT INTO comment_like(comment_id, user_id, status) " +
@@ -24,6 +28,8 @@ public interface CommentLikeMapper extends BaseMapper<CommentLikePO> {
     /**
      * 条件取消点赞：仅 status=1 时更新为 0
      *
+     * @param commentId 评论 ID
+     * @param userId    取消点赞的用户 ID
      * @return 1=取消成功, 0=无需取消(不存在或已取消)
      */
     @Update("UPDATE comment_like SET status = 0 WHERE comment_id = #{commentId} AND user_id = #{userId} AND status = 1")

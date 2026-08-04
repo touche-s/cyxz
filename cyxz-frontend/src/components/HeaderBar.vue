@@ -96,7 +96,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import SearchInput from '@/components/SearchInput.vue'
 import { useUserStore } from '@/stores/user'
@@ -223,6 +223,15 @@ onMounted(() => {
   loadFollowStats()
   loadUnreadCount()
   setInterval(() => { loadUnreadCount() }, 30000)
+})
+
+// 登录后重新拉取关注统计，登出后清零
+watch(() => userStore.userInfo, (info) => {
+  if (info?.id) {
+    loadFollowStats()
+  } else {
+    followStats.value = { following: 0, followers: 0 }
+  }
 })
 </script>
 

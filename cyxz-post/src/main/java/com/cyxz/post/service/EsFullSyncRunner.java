@@ -25,6 +25,9 @@ public class EsFullSyncRunner implements ApplicationRunner {
     private final PostMapper postMapper;
     private final RabbitTemplate rabbitTemplate;
 
+    /**
+     * 启动时全量同步已通过帖子到 ES（失败仅记日志，不影响主流程）
+     */
     @Override
     public void run(ApplicationArguments args) {
         try {

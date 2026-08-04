@@ -7,9 +7,9 @@ import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.message.dto.CreateNotificationRequest;
 import com.cyxz.message.enums.NotificationType;
-import com.cyxz.message.constant.NotificationConstants;
 import com.cyxz.message.event.NotificationEvent;
 import com.cyxz.message.feign.MessageFeignClient;
+import com.cyxz.message.utils.NotificationPublisher;
 import com.cyxz.user.entity.UserFollowPO;
 import com.cyxz.user.mapper.UserFollowMapper;
 import com.cyxz.user.service.FollowService;
@@ -60,23 +60,16 @@ public class FollowServiceImpl implements FollowService {
 
         if (rows == 1) {
             log.info("关注用户: userId={}, followUserId={}", userId, targetUserId);
-            try {
-                rabbitTemplate.convertAndSend(
-                    NotificationConstants.EXCHANGE,
-                    NotificationConstants.ROUTING_KEY,
-                    NotificationEvent.builder()
-                        .receiverId(targetUserId)
-                        .senderId(userId)
-                        .type(NotificationType.USER_FOLLOWED.name())
-                        .title("有人关注了你")
-                        .targetType("user")
-                        .targetId(targetUserId)
-                        .createTime(System.currentTimeMillis())
-                        .build()
-                );
-            } catch (Exception e2) {
-                log.warn("MQ 发布关注通知失败: userId={}, targetUserId={}", userId, targetUserId, e2);
-            }
+            NotificationEvent event = NotificationEvent.builder()
+                    .receiverId(targetUserId)
+                    .senderId(userId)
+                    .type(NotificationType.USER_FOLLOWED.name())
+                    .title("有人关注了你")
+                    .targetType("user")
+                    .targetId(targetUserId)
+                    .createTime(System.currentTimeMillis())
+                    .build();
+            NotificationPublisher.publish(rabbitTemplate, event);
         } else if (rows == 2) {
             log.info("恢复关注: userId={}, followUserId={}", userId, targetUserId);
         }
@@ -116,6 +109,8 @@ public class FollowServiceImpl implements FollowService {
 
     /**
      * 查询两个用户是否互相关注
+     *
+     * @return true=互相关注
      */
     @Override
     public boolean isMutualFollowing(Long userId, Long targetUserId) {
@@ -192,11 +187,21 @@ public class FollowServiceImpl implements FollowService {
         return PageResult.of(records, total, page, size);
     }
 
+    /**
+     * 统计今日新增粉丝数
+     *
+     * @return 今日新增粉丝数
+     */
     @Override
     public int countNewFollowers(Long userId) {
         return followMapper.countNewFollowers(userId);
     }
 
+    /**
+     * 查询当前用户关注的用户 ID 列表
+     *
+     * @return 关注的用户 ID 列表
+     */
     @Override
     public List<Long> listFollowingUserIds(Long userId) {
         return followMapper.selectFollowingIds(userId);

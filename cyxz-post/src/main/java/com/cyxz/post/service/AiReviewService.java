@@ -41,6 +41,10 @@ public class AiReviewService {
      * 执行审核（文本 + 图片），返回整体结果
      * <p>文本先审，再逐张审图，任一不通过即返回失败。
      *
+     * @param postId     帖子 ID（透传给 AI 服务用于日志追踪）
+     * @param title      帖子标题
+     * @param content    帖子正文
+     * @param imageUrls  图片 URL 列表（可为 null）
      * @return 审核结果，passed=true 表示文本和所有图片均审核通过
      */
     public AiReviewResult review(Long postId, String title, String content, List<String> imageUrls) {

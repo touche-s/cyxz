@@ -91,6 +91,7 @@ public class UploadController {
      * @param circleId 圈子 ID
      * @param type     资源类型：avatar 或 cover
      * @param userId   当前登录用户 ID（由 Gateway 注入）
+     * @param admin    当前管理员标识（由 Gateway 注入，用于鉴权）
      * @return 文件访问 URL
      */
     @PostMapping("/circle-resource")
@@ -103,6 +104,12 @@ public class UploadController {
         return Result.success("操作成功", url);
     }
 
+    /**
+     * 查询当前登录用户的头像上传历史
+     *
+     * @param userId 当前登录用户 ID（由 Gateway 注入）
+     * @return 头像文件访问 URL 列表，按上传时间倒序
+     */
     @GetMapping("/avatar-history")
     public Result<List<String>> getAvatarHistory(@CurrentUser Long userId) {
         List<String> urls = uploadService.listAvatarHistory(userId);

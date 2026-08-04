@@ -43,6 +43,7 @@ public class SensitiveWordService {
 
     /**
      * 检测文本是否包含敏感词
+     * @param texts 待检测的文本（可传多个，如标题、正文）
      * @return 命中的敏感词集合，为空表示通过
      */
     public Set<String> check(String... texts) {

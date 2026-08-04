@@ -10,13 +10,14 @@ import org.apache.ibatis.annotations.Update;
 import java.util.Set;
 
 /**
- * 圈子成员 Mapper
+ * 圈子成员 Mapper，对应 circle_member 表，维护用户与圈子的加入关系
  */
 public interface CircleMemberMapper extends BaseMapper<CircleMemberPO> {
 
     /**
      * UPSERT 圈子成员：不存在则插入，存在则恢复为 status=1
-     *
+     * @param circleId 圈子 ID
+     * @param userId 用户 ID
      * @return 1=新增, 2=恢复(0→1), 0=幂等(已是1)
      */
     @Insert("INSERT INTO circle_member(circle_id, user_id, status) " +
@@ -26,7 +27,8 @@ public interface CircleMemberMapper extends BaseMapper<CircleMemberPO> {
 
     /**
      * 条件退出圈子：仅 status=1 时更新为 0
-     *
+     * @param circleId 圈子 ID
+     * @param userId 用户 ID
      * @return 1=退出成功, 0=无需退出(不存在或已退出)
      */
     @Update("UPDATE circle_member SET status = 0 WHERE circle_id = #{circleId} AND user_id = #{userId} AND status = 1")
@@ -34,6 +36,8 @@ public interface CircleMemberMapper extends BaseMapper<CircleMemberPO> {
 
     /**
      * 查询用户已加入的圈子 ID 集合
+     * @param userId 用户 ID
+     * @return 用户已加入且状态为启用的圈子 ID 集合
      */
     @Select("SELECT circle_id FROM circle_member WHERE user_id = #{userId} AND status = 1")
     Set<Long> selectJoinedCircleIds(@Param("userId") Long userId);

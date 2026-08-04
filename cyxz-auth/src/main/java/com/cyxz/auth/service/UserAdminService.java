@@ -24,6 +24,12 @@ public class UserAdminService {
 
     private final SysUserMapper sysUserMapper;
 
+    /**
+     * 查询所有用户列表
+     * <p>按创建时间倒序返回，排除 password 字段
+     *
+     * @return 用户管理 VO 列表（不含密码）
+     */
     public List<UserAdminVO> listAll() {
         // 排除 password 字段，避免无谓加载 BCrypt 哈希
         List<SysUserPO> users = sysUserMapper.selectList(
@@ -36,6 +42,11 @@ public class UserAdminService {
         return users.stream().map(this::toVO).collect(Collectors.toList());
     }
 
+    /**
+     * 禁用指定用户
+     *
+     * @param id 用户 ID
+     */
     @Transactional
     public void disable(Long id) {
         SysUserPO user = sysUserMapper.selectById(id);
@@ -47,6 +58,11 @@ public class UserAdminService {
         log.info("管理员禁用用户: userId={}, username={}", id, user.getUsername());
     }
 
+    /**
+     * 启用指定用户
+     *
+     * @param id 用户 ID
+     */
     @Transactional
     public void enable(Long id) {
         SysUserPO user = sysUserMapper.selectById(id);
