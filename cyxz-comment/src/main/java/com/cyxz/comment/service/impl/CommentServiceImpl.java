@@ -16,12 +16,13 @@ import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.constant.PageConstants;
+import com.cyxz.common.utils.FeignResults;
 import com.cyxz.circle.feign.CircleFeignClient;
 import com.cyxz.message.dto.CreateNotificationRequest;
-import com.cyxz.message.constant.NotificationConstants;
 import com.cyxz.message.enums.NotificationType;
 import com.cyxz.message.event.NotificationEvent;
 import com.cyxz.message.feign.MessageFeignClient;
+import com.cyxz.message.utils.NotificationPublisher;
 import com.cyxz.post.feign.PostFeignClient;
 import com.cyxz.post.vo.PostInfoVO;
 import com.cyxz.user.feign.UserFeignClient;
@@ -95,7 +96,7 @@ public class CommentServiceImpl implements CommentService {
 
         // 一次 Feign 调用拿帖子作者 + 圈子 ID（替代原 getPostAuthor）
         Result<Map<String, Object>> postInfoResult = postFeignClient.getPostInfo(request.getPostIdAsLong());
-        Map<String, Object> postInfo = postInfoResult != null ? postInfoResult.getData() : null;
+        Map<String, Object> postInfo = FeignResults.unwrapOrNull(postInfoResult);
         if (postInfo == null || postInfo.get("userId") == null) {
             log.warn("获取帖子信息失败: postId={}, result={}", request.getPostId(), postInfoResult);
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
@@ -107,8 +108,7 @@ public class CommentServiceImpl implements CommentService {
         Object circleIdObj = postInfo.get("circleId");
         if (circleIdObj instanceof Number) {
             Long circleId = ((Number) circleIdObj).longValue();
-            Result<Map<String, Object>> circleResult = circleFeignClient.checkPublishable(circleId, userId);
-            Map<String, Object> circleData = circleResult != null ? circleResult.getData() : null;
+            Map<String, Object> circleData = FeignResults.unwrapOrNull(circleFeignClient.checkPublishable(circleId, userId));
             if (circleData == null || !Boolean.TRUE.equals(circleData.get("joined"))) {
                 throw new BusinessException(ErrorCode.FORBIDDEN, "请先加入该圈子再评论");
             }
@@ -117,47 +117,33 @@ public class CommentServiceImpl implements CommentService {
         commentMapper.insert(po);
         // 发送帖子被评论通知 — MQ 异步
         if (!userId.equals(po.getPostAuthorId())) {
-            try {
-                rabbitTemplate.convertAndSend(
-                    NotificationConstants.EXCHANGE,
-                    NotificationConstants.ROUTING_KEY,
-                    NotificationEvent.builder()
-                        .receiverId(po.getPostAuthorId())
-                        .senderId(userId)
-                        .type(NotificationType.POST_COMMENTED.name())
-                        .title("有人评论了你的帖子")
-                        .targetType("comment")
-                        .targetId(po.getId())
-                        .relatedId(po.getPostId())
-                        .content(request.getContent())
-                        .createTime(System.currentTimeMillis())
-                        .build()
-                );
-            } catch (Exception e) {
-                log.warn("MQ 发布评论通知失败: commentId={}, postId={}", po.getId(), po.getPostId(), e);
-            }
+            NotificationEvent event = NotificationEvent.builder()
+                    .receiverId(po.getPostAuthorId())
+                    .senderId(userId)
+                    .type(NotificationType.POST_COMMENTED.name())
+                    .title("有人评论了你的帖子")
+                    .targetType("comment")
+                    .targetId(po.getId())
+                    .relatedId(po.getPostId())
+                    .content(request.getContent())
+                    .createTime(System.currentTimeMillis())
+                    .build();
+            NotificationPublisher.publish(rabbitTemplate, event);
         }
         // 发送回复通知 — MQ 异步
         if (po.getReplyToUserId() != null && !userId.equals(po.getReplyToUserId())) {
-            try {
-                rabbitTemplate.convertAndSend(
-                    NotificationConstants.EXCHANGE,
-                    NotificationConstants.ROUTING_KEY,
-                    NotificationEvent.builder()
-                        .receiverId(po.getReplyToUserId())
-                        .senderId(userId)
-                        .type(NotificationType.COMMENT_REPLIED.name())
-                        .title("有人回复了你的评论")
-                        .targetType("comment")
-                        .targetId(po.getId())
-                        .relatedId(po.getPostId())
-                        .content(request.getContent())
-                        .createTime(System.currentTimeMillis())
-                        .build()
-                );
-            } catch (Exception e) {
-                log.warn("MQ 发布回复通知失败: commentId={}, replyToUserId={}", po.getId(), po.getReplyToUserId(), e);
-            }
+            NotificationEvent event = NotificationEvent.builder()
+                    .receiverId(po.getReplyToUserId())
+                    .senderId(userId)
+                    .type(NotificationType.COMMENT_REPLIED.name())
+                    .title("有人回复了你的评论")
+                    .targetType("comment")
+                    .targetId(po.getId())
+                    .relatedId(po.getPostId())
+                    .content(request.getContent())
+                    .createTime(System.currentTimeMillis())
+                    .build();
+            NotificationPublisher.publish(rabbitTemplate, event);
         }
         // Redis 增量：帖子评论数 +1
         stringRedisTemplate.opsForHash()
@@ -505,12 +491,8 @@ public class CommentServiceImpl implements CommentService {
         if (postIds == null || postIds.isEmpty()) {
             return Collections.emptyMap();
         }
-        Result<List<PostInfoVO>> res = postFeignClient.batchGetPostInfo(postIds);
-        if (res != null && res.getData() != null) {
-            return res.getData().stream()
-                    .collect(Collectors.toMap(PostInfoVO::getPostId, PostInfoVO::getTitle, (a, b) -> a));
-        }
-        return Collections.emptyMap();
+        return FeignResults.unwrapOrEmpty(postFeignClient.batchGetPostInfo(postIds)).stream()
+                .collect(Collectors.toMap(PostInfoVO::getPostId, PostInfoVO::getTitle, (a, b) -> a));
     }
 
     /**
@@ -580,6 +562,9 @@ public class CommentServiceImpl implements CommentService {
         log.info("删除帖子关联评论: postId={}, count={}", postId, commentIds.size());
     }
 
+    /**
+     * 统计今日某用户帖子收到的新评论数
+     */
     @Override
     public int countTodayComments(Long postAuthorId) {
         return commentMapper.countTodayComments(postAuthorId);

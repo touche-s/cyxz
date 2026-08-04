@@ -46,6 +46,11 @@ public class UploadServiceImpl implements UploadService {
     private final MinioClient minioClient;
     private final MinioConfig minioConfig;
 
+    /**
+     * 上传用户头像
+     *
+     * @return 头像文件访问 URL
+     */
     @Override
     public String uploadAvatar(MultipartFile file, Long userId) {
         validateImage(file, "头像");
@@ -53,6 +58,11 @@ public class UploadServiceImpl implements UploadService {
         return upload(file, objectName);
     }
 
+    /**
+     * 上传帖子图片
+     *
+     * @return 帖子图片访问 URL
+     */
     @Override
     public String uploadPostImage(MultipartFile file, Long userId) {
         validateImage(file, "帖子图片");
@@ -62,6 +72,9 @@ public class UploadServiceImpl implements UploadService {
         return upload(file, objectName);
     }
 
+    /**
+     * 删除文件
+     */
     @Override
     public void deleteFile(String objectName) {
         try {
@@ -78,6 +91,11 @@ public class UploadServiceImpl implements UploadService {
         }
     }
 
+    /**
+     * 上传圈子资源（头像或封面）
+     *
+     * @return 圈子资源访问 URL
+     */
     @Override
     public String uploadCircleResource(MultipartFile file, Long circleId, String type) {
         validateImage(file, "圈子" + ("avatar".equals(type) ? "头像" : "封面"));
@@ -88,6 +106,11 @@ public class UploadServiceImpl implements UploadService {
         return upload(file, objectName);
     }
 
+    /**
+     * 列出用户历史头像
+     *
+     * @return 头像 URL 列表，按上传时间倒序
+     */
     @Override
     public List<String> listAvatarHistory(Long userId) {
         String prefix = "avatar/" + userId + "/";

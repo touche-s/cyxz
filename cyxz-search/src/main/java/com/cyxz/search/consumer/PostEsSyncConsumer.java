@@ -1,5 +1,6 @@
 package com.cyxz.search.consumer;
 
+import com.cyxz.common.consumer.AbstractManualAckRabbitListener;
 import com.cyxz.common.constant.EsSyncConstants;
 import com.cyxz.common.event.PostEsSyncEvent;
 import com.cyxz.search.service.PostIndexService;
@@ -19,22 +20,24 @@ import java.io.IOException;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class PostEsSyncConsumer {
+public class PostEsSyncConsumer extends AbstractManualAckRabbitListener<PostEsSyncEvent> {
 
     private final PostIndexService postIndexService;
 
     @RabbitListener(queues = EsSyncConstants.QUEUE, ackMode = "MANUAL")
     public void onSyncEvent(PostEsSyncEvent event, Channel channel,
                             @Header(AmqpHeaders.DELIVERY_TAG) long tag) throws IOException {
-        try {
-            postIndexService.sync(event);
-        } catch (Exception e) {
-            log.error("ES 同步失败: postId={}, action={}", event.getPostId(), event.getAction(), e);
-            // 拒绝且不重新入队，消息转入死信队列（DLQ）避免丢失
-            channel.basicReject(tag, false);
-            return;
-        }
-        channel.basicAck(tag, false);
+        processWithManualAck(event, channel, tag);
+    }
+
+    @Override
+    protected void handle(PostEsSyncEvent event) throws Exception {
+        postIndexService.sync(event);
+    }
+
+    @Override
+    protected String describe(PostEsSyncEvent event) {
+        return "postId=" + event.getPostId() + ", action=" + event.getAction();
     }
 
     /**

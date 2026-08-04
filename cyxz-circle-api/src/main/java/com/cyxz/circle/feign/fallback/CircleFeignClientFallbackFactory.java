@@ -2,7 +2,8 @@ package com.cyxz.circle.feign.fallback;
 
 import com.cyxz.circle.feign.CircleFeignClient;
 import com.cyxz.common.base.Result;
-import lombok.extern.slf4j.Slf4j;
+import com.cyxz.common.feign.AbstractFeignFallbackFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.cloud.openfeign.FallbackFactory;
 import org.springframework.stereotype.Component;
 
@@ -10,13 +11,17 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 
-@Slf4j
 @Component
-public class CircleFeignClientFallbackFactory implements FallbackFactory<CircleFeignClient> {
+@ConditionalOnClass(FallbackFactory.class)
+public class CircleFeignClientFallbackFactory extends AbstractFeignFallbackFactory<CircleFeignClient> {
 
     @Override
-    public CircleFeignClient create(Throwable cause) {
-        log.error("CircleFeignClient 调用失败，启用降级", cause);
+    protected String serviceName() {
+        return "圈子服务";
+    }
+
+    @Override
+    protected CircleFeignClient createFallback(Throwable cause) {
         return new CircleFeignClient() {
             @Override
             public Result<Map<String, Object>> checkPublishable(Long circleId, Long userId) {

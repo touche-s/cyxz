@@ -13,9 +13,11 @@ import com.cyxz.common.constant.EsSyncConstants;
 import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.constant.PostStatus;
 import com.cyxz.common.event.PostEsSyncEvent;
+import com.cyxz.common.utils.FeignResults;
 import com.cyxz.common.utils.RequestContextUtil;
 import com.cyxz.message.constant.NotificationConstants;
 import com.cyxz.message.event.NotificationEvent;
+import com.cyxz.message.utils.NotificationPublisher;
 import com.cyxz.post.service.AiReviewService;
 import com.cyxz.post.service.AiReviewService.AiReviewResult;
 import com.cyxz.post.service.SensitiveWordService;
@@ -641,11 +643,7 @@ public class PostServiceImpl implements PostService {
         if (circleIds.isEmpty()) {
             return Collections.emptyMap();
         }
-        Result<Map<Long, String>> result = circleFeignClient.batchGetNames(circleIds);
-        if (result == null || result.getData() == null) {
-            return Collections.emptyMap();
-        }
-        return result.getData();
+        return FeignResults.unwrapOrEmptyMap(circleFeignClient.batchGetNames(circleIds));
     }
 
 
@@ -660,11 +658,7 @@ public class PostServiceImpl implements PostService {
         if (sectionIds.isEmpty()) {
             return Collections.emptyMap();
         }
-        Result<Map<Long, String>> result = circleFeignClient.batchGetSectionNames(sectionIds);
-        if (result == null || result.getData() == null) {
-            return Collections.emptyMap();
-        }
-        return result.getData();
+        return FeignResults.unwrapOrEmptyMap(circleFeignClient.batchGetSectionNames(sectionIds));
     }
 
 
@@ -767,9 +761,9 @@ public class PostServiceImpl implements PostService {
             stats = new TodayStatsVO(0, 0, 0);
         }
         try {
-            Result<Integer> result = commentFeignClient.countTodayComments(userId);
-            if (result != null && result.getData() != null) {
-                stats.setTodayComments(result.getData());
+            Integer todayComments = FeignResults.unwrapOrNull(commentFeignClient.countTodayComments(userId));
+            if (todayComments != null) {
+                stats.setTodayComments(todayComments);
             }
         } catch (Exception e) {
             log.warn("获取今日评论数失败: userId={}", userId, e);
@@ -959,7 +953,7 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "长文正文至少100字");
         }
         Result<Map<String, Object>> r = circleFeignClient.checkPublishable(circleId, userId);
-        Map<String, Object> data = r != null ? r.getData() : null;
+        Map<String, Object> data = FeignResults.unwrapOrNull(r);
         if (data == null || !Boolean.TRUE.equals(data.get("publishable"))) {
             if (data != null && !Boolean.TRUE.equals(data.get("exists"))) {
                 throw new BusinessException(ErrorCode.PARAM_ERROR, "圈子不存在");
@@ -1077,11 +1071,12 @@ public class PostServiceImpl implements PostService {
         log.info("批量操作完成: action={}, count={}, userId={}", action, postIds.size(), userId);
     }
 
+    /**
+     * 分页查询关注动态（已加入圈子的帖子）
+     */
     @Override
     public PageResult<PostVO> listFollowingPosts(Long userId, int page, int size) {
-        Result<List<Long>> feignResult = userFeignClient.getFollowingUserIds(userId);
-        List<Long> followingUserIds = (feignResult != null && feignResult.getData() != null)
-                ? feignResult.getData() : Collections.emptyList();
+        List<Long> followingUserIds = FeignResults.unwrapOrEmpty(userFeignClient.getFollowingUserIds(userId));
 
         if (followingUserIds.isEmpty()) {
             return PageResult.of(Collections.emptyList(), 0, page, size);
@@ -1238,24 +1233,20 @@ public class PostServiceImpl implements PostService {
     }
 
     private void sendReviewNotify(Long receiverId, String type, String reason, Long postId, String title) {
-        try {
-            String content = "POST_APPROVED".equals(type)
-                    ? "你的帖子《" + title + "》审核通过，已公开发布"
-                    : "你的帖子《" + title + "》未通过审核" + (reason != null ? "：" + reason : "");
-            NotificationEvent event = NotificationEvent.builder()
-                    .receiverId(receiverId)
-                    .senderId(0L)
-                    .type(type)
-                    .title("审核结果")
-                    .content(content)
-                    .targetType("post")
-                    .targetId(postId)
-                    .createTime(System.currentTimeMillis())
-                    .build();
-            rabbitTemplate.convertAndSend(NotificationConstants.EXCHANGE, NotificationConstants.ROUTING_KEY, event);
-        } catch (Exception e) {
-            log.error("发送审核通知失败: postId={}, receiverId={}", postId, receiverId, e);
-        }
+        String content = "POST_APPROVED".equals(type)
+                ? "你的帖子《" + title + "》审核通过，已公开发布"
+                : "你的帖子《" + title + "》未通过审核" + (reason != null ? "：" + reason : "");
+        NotificationEvent event = NotificationEvent.builder()
+                .receiverId(receiverId)
+                .senderId(0L)
+                .type(type)
+                .title("审核结果")
+                .content(content)
+                .targetType("post")
+                .targetId(postId)
+                .createTime(System.currentTimeMillis())
+                .build();
+        NotificationPublisher.publish(rabbitTemplate, event);
     }
 
     @Override
@@ -1269,6 +1260,9 @@ public class PostServiceImpl implements PostService {
         return PageResult.of(vos, result.getTotal(), page, size);
     }
 
+    /**
+     * 批量统计各圈子的已发布帖子数（无帖子的圈子返回 0）
+     */
     @Override
     public Map<Long, Integer> batchCountByCircle(Set<Long> circleIds) {
         if (circleIds == null || circleIds.isEmpty()) {

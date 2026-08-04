@@ -1,55 +1,43 @@
 package com.cyxz.search.config;
 
+import com.cyxz.common.config.AbstractDlxRabbitConfig;
 import com.cyxz.common.constant.EsSyncConstants;
-import org.springframework.amqp.core.Binding;
-import org.springframework.amqp.core.BindingBuilder;
-import org.springframework.amqp.core.Queue;
-import org.springframework.amqp.core.QueueBuilder;
-import org.springframework.amqp.core.TopicExchange;
-import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
-import org.springframework.amqp.support.converter.MessageConverter;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * 搜索服务 RabbitMQ 配置
+ * <p>继承 {@link AbstractDlxRabbitConfig} 获得 ES 同步主队列与死信队列的完整声明。
+ */
 @Configuration
-public class SearchRabbitConfig {
+public class SearchRabbitConfig extends AbstractDlxRabbitConfig {
 
-    @Bean
-    public TopicExchange postExchange() {
-        return new TopicExchange(EsSyncConstants.EXCHANGE, true, false);
+    @Override
+    protected String exchangeName() {
+        return EsSyncConstants.EXCHANGE;
     }
 
-    @Bean
-    public Queue postEsSyncQueue() {
-        return QueueBuilder.durable(EsSyncConstants.QUEUE)
-                .deadLetterExchange(EsSyncConstants.DLX)
-                .deadLetterRoutingKey(EsSyncConstants.DEAD_ROUTING_KEY)
-                .build();
+    @Override
+    protected String queueName() {
+        return EsSyncConstants.QUEUE;
     }
 
-    @Bean
-    public Binding postEsSyncBinding() {
-        return BindingBuilder.bind(postEsSyncQueue()).to(postExchange()).with(EsSyncConstants.ROUTING_KEY);
+    @Override
+    protected String routingKey() {
+        return EsSyncConstants.ROUTING_KEY;
     }
 
-    /** 死信交换机：ES 同步失败的消息路由到死信队列 */
-    @Bean
-    public TopicExchange postEsDlx() {
-        return new TopicExchange(EsSyncConstants.DLX, true, false);
+    @Override
+    protected String dlxName() {
+        return EsSyncConstants.DLX;
     }
 
-    @Bean
-    public Queue postEsDlq() {
-        return QueueBuilder.durable(EsSyncConstants.DLQ).build();
+    @Override
+    protected String dlqName() {
+        return EsSyncConstants.DLQ;
     }
 
-    @Bean
-    public Binding postEsDlqBinding() {
-        return BindingBuilder.bind(postEsDlq()).to(postEsDlx()).with(EsSyncConstants.DEAD_ROUTING_KEY);
-    }
-
-    @Bean
-    public MessageConverter postEsMessageConverter() {
-        return new Jackson2JsonMessageConverter();
+    @Override
+    protected String deadRoutingKey() {
+        return EsSyncConstants.DEAD_ROUTING_KEY;
     }
 }
