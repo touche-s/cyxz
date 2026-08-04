@@ -5,10 +5,8 @@ import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
-import com.cyxz.message.dto.CreateNotificationRequest;
 import com.cyxz.message.enums.NotificationType;
 import com.cyxz.message.event.NotificationEvent;
-import com.cyxz.message.feign.MessageFeignClient;
 import com.cyxz.message.utils.NotificationPublisher;
 import com.cyxz.user.entity.UserFollowPO;
 import com.cyxz.user.mapper.UserFollowMapper;
@@ -34,7 +32,6 @@ import java.util.stream.Collectors;
 public class FollowServiceImpl implements FollowService {
 
     private final UserFollowMapper followMapper;
-    private final MessageFeignClient messageFeignClient;
     private final RabbitTemplate rabbitTemplate;
 
     /**
@@ -53,7 +50,7 @@ public class FollowServiceImpl implements FollowService {
     @Transactional(rollbackFor = Exception.class)
     public void follow(Long userId, Long targetUserId) {
         if (userId.equals(targetUserId)) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "不能关注自己");
+            throw new BusinessException(ErrorCode.SELF_OPERATION_FORBIDDEN, "不能关注自己");
         }
 
         int rows = followMapper.upsertFollow(userId, targetUserId);

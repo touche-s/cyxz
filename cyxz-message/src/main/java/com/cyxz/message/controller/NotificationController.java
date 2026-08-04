@@ -3,7 +3,6 @@ package com.cyxz.message.controller;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.web.CurrentUser;
-import com.cyxz.message.dto.CreateNotificationRequest;
 import com.cyxz.message.vo.NotificationVO;
 import com.cyxz.message.service.NotificationService;
 import lombok.RequiredArgsConstructor;
@@ -75,16 +74,4 @@ public class NotificationController {
         return Result.success();
     }
 
-    /**
-     * 创建通知（内部接口）
-     * <p>供其他微服务通过 Feign 调用，由 Gateway 转发。
-     *
-     * @param request 创建通知请求
-     * @return 操作结果
-     */
-    @PostMapping("/internal/notifications")
-    public Result<Void> createNotification(@RequestBody CreateNotificationRequest request) {
-        notificationService.create(request);
-        return Result.success();
-    }
 }

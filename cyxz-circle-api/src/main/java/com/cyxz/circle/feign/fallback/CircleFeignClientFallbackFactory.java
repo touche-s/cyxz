@@ -1,6 +1,7 @@
 package com.cyxz.circle.feign.fallback;
 
 import com.cyxz.circle.feign.CircleFeignClient;
+import com.cyxz.circle.vo.PublishableResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.feign.AbstractFeignFallbackFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -24,24 +25,14 @@ public class CircleFeignClientFallbackFactory extends AbstractFeignFallbackFacto
     protected CircleFeignClient createFallback(Throwable cause) {
         return new CircleFeignClient() {
             @Override
-            public Result<Map<String, Object>> checkPublishable(Long circleId, Long userId) {
-                Map<String, Object> fallback = Map.of(
-                        "exists", false,
-                        "enabled", false,
-                        "joined", false,
-                        "publishable", false
-                );
+            public Result<PublishableResult> checkPublishable(Long circleId, Long userId) {
+                PublishableResult fallback = new PublishableResult();
                 return Result.success(fallback);
             }
 
             @Override
             public Result<Map<Long, String>> batchGetNames(Set<Long> circleIds) {
                 return Result.success(Collections.emptyMap());
-            }
-
-            @Override
-            public Result<Boolean> validateSection(Long sectionId, Long circleId) {
-                return Result.success(false);
             }
 
             @Override

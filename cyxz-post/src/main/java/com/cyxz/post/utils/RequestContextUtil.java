@@ -1,4 +1,4 @@
-package com.cyxz.common.utils;
+package com.cyxz.post.utils;
 
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;

@@ -3,7 +3,7 @@ package com.cyxz.post.service.impl;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.constant.CacheKeyConstants;
-import com.cyxz.common.constant.PostStatus;
+import com.cyxz.post.constant.PostStatus;
 import com.cyxz.post.entity.PostPO;
 import com.cyxz.post.mapper.PostCollectMapper;
 import com.cyxz.post.mapper.PostLikeMapper;

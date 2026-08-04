@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class CountFlushTask {
+public class PostCountFlushTask {
 
     private final PostCountFlushService flushService;
 

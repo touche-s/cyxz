@@ -1,4 +1,4 @@
-package com.cyxz.post.service;
+package com.cyxz.post.runner;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.cyxz.common.constant.EsSyncConstants;

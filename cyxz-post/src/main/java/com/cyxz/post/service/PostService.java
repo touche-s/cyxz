@@ -140,14 +140,6 @@ public interface PostService {
     List<PostVO> getTopPosts(Long userId, int limit);
 
     /**
-     * 查询帖子作者 ID（内部接口）
-     *
-     * @param postId 帖子 ID
-     * @return 帖子作者 ID
-     */
-    Long getPostAuthor(Long postId);
-
-    /**
      * 查询帖子信息（内部接口）
      *
      * @param postId 帖子 ID

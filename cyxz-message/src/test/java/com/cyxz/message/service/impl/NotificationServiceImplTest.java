@@ -1,6 +1,5 @@
 package com.cyxz.message.service.impl;
 
-import com.cyxz.message.dto.CreateNotificationRequest;
 import com.cyxz.message.entity.NotificationPO;
 import com.cyxz.message.event.NotificationEvent;
 import com.cyxz.message.mapper.NotificationMapper;
@@ -35,101 +34,6 @@ class NotificationServiceImplTest {
 
     private static final Long RECEIVER_ID = 100L;
     private static final Long SENDER_ID = 200L;
-
-    // ==================== create ====================
-
-    @Nested
-    @DisplayName("create — 创建通知")
-    class Create {
-
-        @Test
-        @DisplayName("不给自己发通知：receiverId == senderId 直接返回")
-        void shouldSkipWhenReceiverEqualsSender() {
-            CreateNotificationRequest req = new CreateNotificationRequest();
-            req.setReceiverId(RECEIVER_ID);
-            req.setSenderId(RECEIVER_ID);
-            req.setType("LIKE");
-
-            notificationService.create(req);
-
-            verify(notificationMapper, never()).insert(any());
-        }
-
-        @Test
-        @DisplayName("正常创建：插入完整字段")
-        void shouldInsertNotificationWithAllFields() {
-            CreateNotificationRequest req = new CreateNotificationRequest();
-            req.setReceiverId(RECEIVER_ID);
-            req.setSenderId(SENDER_ID);
-            req.setType("COMMENT");
-            req.setTargetId(1000L);
-            req.setTargetType("post");
-            req.setRelatedId(2000L);
-            req.setContent("有人评论了你的帖子");
-
-            notificationService.create(req);
-
-            ArgumentCaptor<NotificationPO> captor = ArgumentCaptor.forClass(NotificationPO.class);
-            verify(notificationMapper).insert(captor.capture());
-            NotificationPO po = captor.getValue();
-            assertEquals(RECEIVER_ID, po.getReceiverId());
-            assertEquals(SENDER_ID, po.getSenderId());
-            assertEquals("COMMENT", po.getType());
-            assertEquals(1000L, po.getTargetId());
-            assertEquals("post", po.getTargetType());
-            assertEquals(2000L, po.getRelatedId());
-            assertEquals(0, po.getIsRead());
-        }
-
-        @Test
-        @DisplayName("targetId 为 null 时用 0 占位（保证唯一索引去重）")
-        void shouldUseZeroWhenTargetIdIsNull() {
-            CreateNotificationRequest req = new CreateNotificationRequest();
-            req.setReceiverId(RECEIVER_ID);
-            req.setSenderId(SENDER_ID);
-            req.setType("SYSTEM");
-            req.setTargetId(null);
-
-            notificationService.create(req);
-
-            ArgumentCaptor<NotificationPO> captor = ArgumentCaptor.forClass(NotificationPO.class);
-            verify(notificationMapper).insert(captor.capture());
-            assertEquals(0L, captor.getValue().getTargetId());
-        }
-
-        @Test
-        @DisplayName("内容超过 200 字自动截断")
-        void shouldTruncateContentOver200Chars() {
-            CreateNotificationRequest req = new CreateNotificationRequest();
-            req.setReceiverId(RECEIVER_ID);
-            req.setSenderId(SENDER_ID);
-            req.setType("SYSTEM");
-            String longContent = "a".repeat(250);
-            req.setContent(longContent);
-
-            notificationService.create(req);
-
-            ArgumentCaptor<NotificationPO> captor = ArgumentCaptor.forClass(NotificationPO.class);
-            verify(notificationMapper).insert(captor.capture());
-            assertEquals(200, captor.getValue().getContent().length());
-        }
-
-        @Test
-        @DisplayName("内容不足 200 字不截断")
-        void shouldNotTruncateShortContent() {
-            CreateNotificationRequest req = new CreateNotificationRequest();
-            req.setReceiverId(RECEIVER_ID);
-            req.setSenderId(SENDER_ID);
-            req.setType("SYSTEM");
-            req.setContent("短内容");
-
-            notificationService.create(req);
-
-            ArgumentCaptor<NotificationPO> captor = ArgumentCaptor.forClass(NotificationPO.class);
-            verify(notificationMapper).insert(captor.capture());
-            assertEquals("短内容", captor.getValue().getContent());
-        }
-    }
 
     // ==================== createByEvent ====================
 

@@ -20,16 +20,6 @@ import java.util.Set;
 public interface PostFeignClient {
 
     /**
-     * 获取帖子作者 ID（内部接口）
-     * <p>用于评论服务创建评论时获取帖子作者，以便写入 post_author_id 冗余字段。
-     *
-     * @param postId 帖子 ID
-     * @return 帖子作者用户 ID
-     */
-    @GetMapping("/internal/{postId}/author")
-    Result<Long> getPostAuthor(@PathVariable("postId") Long postId);
-
-    /**
      * 获取帖子信息（内部接口）
      * <p>用于评论服务批量查询帖子标题，填充收到的评论列表。
      *

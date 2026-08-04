@@ -18,10 +18,9 @@ import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.utils.FeignResults;
 import com.cyxz.circle.feign.CircleFeignClient;
-import com.cyxz.message.dto.CreateNotificationRequest;
+import com.cyxz.circle.vo.PublishableResult;
 import com.cyxz.message.enums.NotificationType;
 import com.cyxz.message.event.NotificationEvent;
-import com.cyxz.message.feign.MessageFeignClient;
 import com.cyxz.message.utils.NotificationPublisher;
 import com.cyxz.post.feign.PostFeignClient;
 import com.cyxz.post.vo.PostInfoVO;
@@ -52,7 +51,6 @@ public class CommentServiceImpl implements CommentService {
     private final PostFeignClient postFeignClient;
     private final CircleFeignClient circleFeignClient;
     private final StringRedisTemplate stringRedisTemplate;
-    private final MessageFeignClient messageFeignClient;
     private final RabbitTemplate rabbitTemplate;
 
     /**
@@ -82,7 +80,7 @@ public class CommentServiceImpl implements CommentService {
         if (po.getParentId() != null) {
             CommentPO parent = commentMapper.selectById(po.getParentId());
             if (parent == null || parent.getStatus() == CommonStatus.DELETED) {
-                throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "父评论不存在");
+                throw new BusinessException(ErrorCode.COMMENT_PARENT_NOT_FOUND, "父评论不存在");
             }
             if (!parent.getPostId().equals(po.getPostId())) {
                 throw new BusinessException(ErrorCode.PARAM_ERROR, "父评论不属于该帖子");
@@ -90,7 +88,7 @@ public class CommentServiceImpl implements CommentService {
             // B站模式：仅支持两级评论，parentId 必须指向顶级评论
             // 回复子回复时 parentId 仍填顶级评论 ID，用 replyToUserId 区分被回复人
             if (parent.getParentId() != null) {
-                throw new BusinessException(ErrorCode.PARAM_ERROR, "不支持多级回复，请直接回复顶级评论");
+                throw new BusinessException(ErrorCode.COMMENT_NO_MULTI_LEVEL, "不支持多级回复，请直接回复顶级评论");
             }
         }
 
@@ -108,9 +106,9 @@ public class CommentServiceImpl implements CommentService {
         Object circleIdObj = postInfo.get("circleId");
         if (circleIdObj instanceof Number) {
             Long circleId = ((Number) circleIdObj).longValue();
-            Map<String, Object> circleData = FeignResults.unwrapOrNull(circleFeignClient.checkPublishable(circleId, userId));
-            if (circleData == null || !Boolean.TRUE.equals(circleData.get("joined"))) {
-                throw new BusinessException(ErrorCode.FORBIDDEN, "请先加入该圈子再评论");
+            PublishableResult circleData = FeignResults.unwrapOrNull(circleFeignClient.checkPublishable(circleId, userId));
+            if (circleData == null || !circleData.isJoined()) {
+                throw new BusinessException(ErrorCode.NOT_CIRCLE_MEMBER, "请先加入该圈子再评论");
             }
         }
 
@@ -178,7 +176,7 @@ public class CommentServiceImpl implements CommentService {
         boolean isCommentAuthor = po.getUserId().equals(userId);
         boolean isPostAuthor = po.getPostAuthorId() != null && po.getPostAuthorId().equals(userId);
         if (!isCommentAuthor && !isPostAuthor) {
-            throw new BusinessException(ErrorCode.FORBIDDEN);
+            throw new BusinessException(ErrorCode.NOT_COMMENT_OWNER);
         }
         po.setStatus(CommonStatus.DELETED);
         commentMapper.updateById(po);

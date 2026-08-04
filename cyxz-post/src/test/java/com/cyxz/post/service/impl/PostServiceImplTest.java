@@ -3,12 +3,13 @@ package com.cyxz.post.service.impl;
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cyxz.circle.feign.CircleFeignClient;
+import com.cyxz.circle.vo.PublishableResult;
 import com.cyxz.comment.feign.CommentFeignClient;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.CommonStatus;
-import com.cyxz.common.constant.PostStatus;
+import com.cyxz.post.constant.PostStatus;
 import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
 import com.cyxz.post.entity.PostPO;
@@ -120,11 +121,11 @@ class PostServiceImplTest {
     }
 
     private void mockCirclePublishable(Long circleId, Long userId, boolean ok) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("exists", true);
-        data.put("enabled", true);
-        data.put("joined", ok);
-        data.put("publishable", ok);
+        PublishableResult data = new PublishableResult();
+        data.setExists(true);
+        data.setEnabled(true);
+        data.setJoined(ok);
+        data.setPublishable(ok);
         when(circleFeignClient.checkPublishable(circleId, userId)).thenReturn(Result.success(data));
     }
 
@@ -179,7 +180,7 @@ class PostServiceImplTest {
                     () -> postService.createPost(USER_ID, req));
 
             verify(postMapper, never()).insert(any(PostPO.class));
-            assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
+            assertEquals(ErrorCode.CONTENT_SENSITIVE.getCode(), ex.getCode());
             assertNotNull(ex.getMessage());
         }
 
@@ -265,7 +266,7 @@ class PostServiceImplTest {
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> postService.updatePost(OTHER_USER_ID, req));
-            assertEquals(ErrorCode.UNAUTHORIZED.getCode(), ex.getCode());
+            assertEquals(ErrorCode.NOT_POST_OWNER.getCode(), ex.getCode());
         }
 
         @Test
@@ -343,7 +344,7 @@ class PostServiceImplTest {
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> postService.deletePost(OTHER_USER_ID, POST_ID));
-            assertEquals(ErrorCode.UNAUTHORIZED.getCode(), ex.getCode());
+            assertEquals(ErrorCode.NOT_POST_OWNER.getCode(), ex.getCode());
             verify(postMapper, never()).updateById(any());
         }
 
@@ -380,7 +381,7 @@ class PostServiceImplTest {
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> postService.hardDeletePost(OTHER_USER_ID, POST_ID));
-            assertEquals(ErrorCode.UNAUTHORIZED.getCode(), ex.getCode());
+            assertEquals(ErrorCode.NOT_POST_OWNER.getCode(), ex.getCode());
         }
     }
 
@@ -447,7 +448,7 @@ class PostServiceImplTest {
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> postService.pinPost(OTHER_USER_ID, POST_ID));
-            assertEquals(ErrorCode.UNAUTHORIZED.getCode(), ex.getCode());
+            assertEquals(ErrorCode.NOT_POST_OWNER.getCode(), ex.getCode());
         }
 
         @Test
@@ -535,30 +536,8 @@ class PostServiceImplTest {
     // ==================== 内部接口 ====================
 
     @Nested
-    @DisplayName("内部接口 — getPostAuthor / getPostInfo / batchGetPostInfo")
+    @DisplayName("内部接口 — getPostInfo / batchGetPostInfo")
     class InternalApi {
-
-        @Test
-        @DisplayName("getPostAuthor：已发布帖子返回作者 ID")
-        void shouldReturnAuthorForApprovedPost() {
-            PostPO po = buildPost(PostStatus.APPROVED);
-            when(postMapper.selectById(POST_ID)).thenReturn(po);
-
-            Long author = postService.getPostAuthor(POST_ID);
-
-            assertEquals(USER_ID, author);
-        }
-
-        @Test
-        @DisplayName("getPostAuthor：草稿帖子不可评论，抛 POST_NOT_FOUND")
-        void shouldRejectAuthorQueryForDraft() {
-            PostPO po = buildPost(PostStatus.DRAFT);
-            when(postMapper.selectById(POST_ID)).thenReturn(po);
-
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> postService.getPostAuthor(POST_ID));
-            assertEquals(ErrorCode.POST_NOT_FOUND.getCode(), ex.getCode());
-        }
 
         @Test
         @DisplayName("getPostInfo：帖子不存在返回空 Map")

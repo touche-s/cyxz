@@ -5,7 +5,6 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.constant.PageConstants;
-import com.cyxz.message.dto.CreateNotificationRequest;
 import com.cyxz.message.event.NotificationEvent;
 import com.cyxz.message.vo.NotificationVO;
 import com.cyxz.message.entity.NotificationPO;
@@ -35,31 +34,6 @@ public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationMapper notificationMapper;
     private final UserFeignClient userFeignClient;
-
-    /**
-     * 创建通知
-     * <p>不给自己发通知（receiverId == senderId 时直接返回）。
-     * 内容超过 200 字自动截断。
-     */
-    @Override
-    public void create(CreateNotificationRequest request) {
-        if (request.getReceiverId().equals(request.getSenderId())) {
-            return; // 不给自己发通知
-        }
-        NotificationPO po = new NotificationPO();
-        po.setReceiverId(request.getReceiverId());
-        po.setSenderId(request.getSenderId());
-        po.setType(request.getType());
-        // targetId 为 null 时用 0 占位，保证唯一索引去重生效（NULL ≠ NULL 会导致幂等失效）
-        po.setTargetId(request.getTargetId() != null ? request.getTargetId() : 0L);
-        po.setTargetType(request.getTargetType());
-        po.setRelatedId(request.getRelatedId());
-        po.setContent(request.getContent() != null && request.getContent().length() > 200
-                ? request.getContent().substring(0, 200) : request.getContent());
-        po.setIsRead(0);
-        notificationMapper.insert(po);
-        log.debug("创建通知: type={}, receiverId={}, senderId={}", request.getType(), request.getReceiverId(), request.getSenderId());
-    }
 
     /**
      * 从 MQ 事件创建通知

@@ -55,7 +55,7 @@ class FollowServiceImplTest {
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> followService.follow(USER_ID, USER_ID));
 
-            assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+            assertEquals(ErrorCode.SELF_OPERATION_FORBIDDEN.getCode(), ex.getCode());
             assertTrue(ex.getMessage().contains("不能关注自己"));
             verify(followMapper, never()).upsertFollow(anyLong(), anyLong());
         }

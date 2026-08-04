@@ -1,20 +1,12 @@
 package com.cyxz.message.service;
 
 import com.cyxz.common.base.PageResult;
-import com.cyxz.message.dto.CreateNotificationRequest;
 import com.cyxz.message.vo.NotificationVO;
 
 /**
  * 通知服务接口
  */
 public interface NotificationService {
-
-    /**
-     * 创建通知
-     *
-     * @param request 创建通知请求
-     */
-    void create(CreateNotificationRequest request);
 
     /**
      * 分页查询通知列表

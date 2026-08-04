@@ -3,12 +3,10 @@ package com.cyxz.post.service.impl;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.constant.CacheKeyConstants;
-import com.cyxz.common.constant.PostStatus;
+import com.cyxz.post.constant.PostStatus;
 import com.cyxz.common.utils.IpUtil;
-import com.cyxz.message.dto.CreateNotificationRequest;
 import com.cyxz.message.enums.NotificationType;
 import com.cyxz.message.event.NotificationEvent;
-import com.cyxz.message.feign.MessageFeignClient;
 import com.cyxz.message.utils.NotificationPublisher;
 import com.cyxz.post.entity.PostPO;
 import com.cyxz.post.mapper.PostCollectMapper;
@@ -28,7 +26,7 @@ import java.time.Duration;
 /**
  * 帖子互动服务实现
  * <p>管理点赞、收藏、浏览等互动操作。
- * <p>计数方案：关系表照常写，计数通过 Redis Hash 增量记录，由 CountFlushTask 定时刷库。
+ * <p>计数方案：关系表照常写，计数通过 Redis Hash 增量记录，由 PostCountFlushTask 定时刷库。
  */
 @Slf4j
 @Service
@@ -39,7 +37,6 @@ public class PostInteractionServiceImpl implements PostInteractionService {
     private final PostLikeMapper postLikeMapper;
     private final PostCollectMapper postCollectMapper;
     private final StringRedisTemplate stringRedisTemplate;
-    private final MessageFeignClient messageFeignClient;
     private final RabbitTemplate rabbitTemplate;
 
     /** 帖子是否允许互动（仅已发布 PostStatus.APPROVED） */

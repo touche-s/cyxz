@@ -206,51 +206,6 @@ class CircleSectionServiceImplTest {
         }
     }
 
-    // ==================== validateSection ====================
-
-    @Nested
-    @DisplayName("validateSection — 校验板块归属")
-    class ValidateSection {
-
-        @Test
-        @DisplayName("sectionId 为 null 返回 false")
-        void shouldReturnFalseWhenSectionIdNull() {
-            boolean result = circleSectionService.validateSection(null, CIRCLE_ID);
-
-            assertFalse(result);
-            verify(circleSectionMapper, never()).selectCount(any());
-        }
-
-        @Test
-        @DisplayName("circleId 为 null 返回 false")
-        void shouldReturnFalseWhenCircleIdNull() {
-            boolean result = circleSectionService.validateSection(1L, null);
-
-            assertFalse(result);
-            verify(circleSectionMapper, never()).selectCount(any());
-        }
-
-        @Test
-        @DisplayName("校验通过：板块存在且已启用")
-        void shouldReturnTrueWhenSectionValid() {
-            when(circleSectionMapper.selectCount(any())).thenReturn(1L);
-
-            boolean result = circleSectionService.validateSection(1L, CIRCLE_ID);
-
-            assertTrue(result);
-        }
-
-        @Test
-        @DisplayName("校验不通过：板块不存在")
-        void shouldReturnFalseWhenSectionInvalid() {
-            when(circleSectionMapper.selectCount(any())).thenReturn(0L);
-
-            boolean result = circleSectionService.validateSection(1L, CIRCLE_ID);
-
-            assertFalse(result);
-        }
-    }
-
     // ==================== initDefaultSections ====================
 
     @Nested

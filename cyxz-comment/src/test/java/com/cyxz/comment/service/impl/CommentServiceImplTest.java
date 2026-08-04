@@ -8,10 +8,10 @@ import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.circle.feign.CircleFeignClient;
+import com.cyxz.circle.vo.PublishableResult;
 import com.cyxz.message.constant.NotificationConstants;
 import com.cyxz.message.enums.NotificationType;
 import com.cyxz.message.event.NotificationEvent;
-import com.cyxz.message.feign.MessageFeignClient;
 import com.cyxz.post.feign.PostFeignClient;
 import com.cyxz.user.feign.UserFeignClient;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,7 +48,6 @@ class CommentServiceImplTest {
     @Mock private PostFeignClient postFeignClient;
     @Mock private CircleFeignClient circleFeignClient;
     @Mock private StringRedisTemplate stringRedisTemplate;
-    @Mock private MessageFeignClient messageFeignClient;
     @Mock private RabbitTemplate rabbitTemplate;
     @Mock private HashOperations<String, Object, Object> hashOps;
 
@@ -64,11 +63,11 @@ class CommentServiceImplTest {
         postInfo.put("circleId", 7L);
         when(postFeignClient.getPostInfo(any())).thenReturn(Result.success(postInfo));
 
-        Map<String, Object> circleData = new HashMap<>();
-        circleData.put("exists", true);
-        circleData.put("enabled", true);
-        circleData.put("joined", true);
-        circleData.put("publishable", true);
+        PublishableResult circleData = new PublishableResult();
+        circleData.setExists(true);
+        circleData.setEnabled(true);
+        circleData.setJoined(true);
+        circleData.setPublishable(true);
         when(circleFeignClient.checkPublishable(any(), any())).thenReturn(Result.success(circleData));
 
         // 父评论 mock（回复类测试用，顶级评论测试不会触发）

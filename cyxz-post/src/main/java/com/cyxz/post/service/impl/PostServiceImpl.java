@@ -11,10 +11,10 @@ import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.constant.EsSyncConstants;
 import com.cyxz.common.constant.PageConstants;
-import com.cyxz.common.constant.PostStatus;
+import com.cyxz.post.constant.PostStatus;
 import com.cyxz.common.event.PostEsSyncEvent;
 import com.cyxz.common.utils.FeignResults;
-import com.cyxz.common.utils.RequestContextUtil;
+import com.cyxz.post.utils.RequestContextUtil;
 import com.cyxz.message.constant.NotificationConstants;
 import com.cyxz.message.event.NotificationEvent;
 import com.cyxz.message.utils.NotificationPublisher;
@@ -24,6 +24,7 @@ import com.cyxz.post.service.SensitiveWordService;
 import com.cyxz.post.vo.*;
 import com.cyxz.comment.feign.CommentFeignClient;
 import com.cyxz.circle.feign.CircleFeignClient;
+import com.cyxz.circle.vo.PublishableResult;
 import com.cyxz.user.feign.UserFeignClient;
 import com.cyxz.user.utils.UserFeignHelper;
 import com.cyxz.post.dto.CreatePostRequest;
@@ -78,19 +79,9 @@ public class PostServiceImpl implements PostService {
 
     private static final Set<String> ALLOWED_SORT_FIELDS = Set.of("create_time", "views", "likes", "collections");
 
-    /** 帖子是否公开可见（非作者也可看）—— PostStatus.APPROVED 已通过 */
-    private boolean isPublicVisible(PostPO po) {
-        return po != null && po.getStatus() == PostStatus.APPROVED;
-    }
-
     /** 帖子是否仅作者可见 */
     private boolean isAuthorOnly(PostPO po) {
         return po != null && po.getStatus() != PostStatus.APPROVED;
-    }
-
-    /** 帖子是否允许互动（点赞、收藏、评论） */
-    private boolean isInteractable(PostPO po) {
-        return isPublicVisible(po);
     }
 
     /**
@@ -110,7 +101,7 @@ public class PostServiceImpl implements PostService {
             // 发布时检测敏感词，命中直接拒绝
             Set<String> hits = sensitiveWordService.check(request.getTitle(), request.getContent());
             if (!hits.isEmpty()) {
-                throw new BusinessException(ErrorCode.PARAM_ERROR, "内容包含敏感词：" + String.join("、", hits));
+                throw new BusinessException(ErrorCode.CONTENT_SENSITIVE, "内容包含敏感词：" + String.join("、", hits));
             }
         } else {
             validateDraftHasContent(request);
@@ -175,7 +166,7 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
         if (!po.getUserId().equals(userId)) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+            throw new BusinessException(ErrorCode.NOT_POST_OWNER);
         }
 
         // 记录原始状态，用于 CAS 更新防止并发状态覆盖
@@ -196,7 +187,7 @@ public class PostServiceImpl implements PostService {
             // 敏感词检测
             Set<String> hits = sensitiveWordService.check(request.getTitle(), request.getContent());
             if (!hits.isEmpty()) {
-                throw new BusinessException(ErrorCode.PARAM_ERROR, "内容包含敏感词：" + String.join("、", hits));
+                throw new BusinessException(ErrorCode.CONTENT_SENSITIVE, "内容包含敏感词：" + String.join("、", hits));
             }
         }
 
@@ -204,7 +195,7 @@ public class PostServiceImpl implements PostService {
 
         if (request.getStatus() != null) {
             if (!PostStatus.canTransition(po.getStatus(), request.getStatus())) {
-                throw new BusinessException(ErrorCode.PARAM_ERROR,
+                throw new BusinessException(ErrorCode.POST_STATUS_TRANSITION_INVALID,
                         "不允许从 " + PostStatus.label(po.getStatus()) + " 直接变更为 " + PostStatus.label(request.getStatus()));
             }
             po.setStatus(request.getStatus());
@@ -216,7 +207,7 @@ public class PostServiceImpl implements PostService {
                .eq(PostPO::getStatus, originalStatus);
         int rows = postMapper.update(po, wrapper);
         if (rows == 0) {
-            throw new BusinessException(ErrorCode.PARAM_ERROR, "帖子状态已被修改，请刷新后重试");
+            throw new BusinessException(ErrorCode.POST_STATUS_CONFLICT, "帖子状态已被修改，请刷新后重试");
         }
         evictDetailCache(po.getId());
         syncPostToEs(po);
@@ -268,7 +259,7 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
         if (!po.getUserId().equals(userId)) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+            throw new BusinessException(ErrorCode.NOT_POST_OWNER);
         }
         po.setStatus(PostStatus.DELETED);
         postMapper.updateById(po);
@@ -293,7 +284,7 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
         if (!po.getUserId().equals(userId)) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+            throw new BusinessException(ErrorCode.NOT_POST_OWNER);
         }
         if (po.getStatus() != PostStatus.DELETED) {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "仅回收站中的帖子可彻底删除");
@@ -359,9 +350,18 @@ public class PostServiceImpl implements PostService {
         if (po == null) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
-        // 非公开帖子仅作者本人可查看
+        // 非公开帖子仅作者本人可查看；非作者访问时按状态返回细分错误码
         if (isAuthorOnly(po) && !po.getUserId().equals(currentUserId)) {
-            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
+            switch (po.getStatus()) {
+                case PostStatus.DELETED:
+                    throw new BusinessException(ErrorCode.POST_DELETED);
+                case PostStatus.REJECTED:
+                    throw new BusinessException(ErrorCode.POST_REJECTED);
+                case PostStatus.PENDING:
+                    throw new BusinessException(ErrorCode.POST_PENDING);
+                default:
+                    throw new BusinessException(ErrorCode.POST_NOT_INTERACTABLE);
+            }
         }
         Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, Set.of(po.getUserId()));
         Map<Long, String> circleNameMap = extractCircleNameMap(List.of(po));
@@ -805,24 +805,6 @@ public class PostServiceImpl implements PostService {
     }
 
     /**
-     * 获取帖子作者 ID（内部接口）
-     * <p>用于评论服务创建评论时通过 Feign 调用获取帖子作者。
-     * 仅已发布帖子可评论，草稿和已删除帖子拒绝。
-     *
-     * @param postId 帖子 ID
-     * @return 作者用户 ID
-     * @throws BusinessException 帖子不存在或非已发布状态
-     */
-    @Override
-    public Long getPostAuthor(Long postId) {
-        PostPO po = postMapper.selectById(postId);
-        if (po == null || !isInteractable(po)) {
-            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
-        }
-        return po.getUserId();
-    }
-
-    /**
      * 获取帖子信息（内部接口）
      * <p>用于评论服务批量查询帖子标题。
      *
@@ -952,16 +934,15 @@ public class PostServiceImpl implements PostService {
         if (isArticle && contentLen < 100) {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "长文正文至少100字");
         }
-        Result<Map<String, Object>> r = circleFeignClient.checkPublishable(circleId, userId);
-        Map<String, Object> data = FeignResults.unwrapOrNull(r);
-        if (data == null || !Boolean.TRUE.equals(data.get("publishable"))) {
-            if (data != null && !Boolean.TRUE.equals(data.get("exists"))) {
-                throw new BusinessException(ErrorCode.PARAM_ERROR, "圈子不存在");
+        PublishableResult data = FeignResults.unwrapOrNull(circleFeignClient.checkPublishable(circleId, userId));
+        if (data == null || !data.isPublishable()) {
+            if (data != null && !data.isExists()) {
+                throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND);
             }
-            if (data != null && !Boolean.TRUE.equals(data.get("enabled"))) {
-                throw new BusinessException(ErrorCode.PARAM_ERROR, "该圈子已停用，暂不可发布");
+            if (data != null && !data.isEnabled()) {
+                throw new BusinessException(ErrorCode.CIRCLE_DISABLED, "该圈子已停用，暂不可发布");
             }
-            throw new BusinessException(ErrorCode.PARAM_ERROR, "请先加入该圈子再发布");
+            throw new BusinessException(ErrorCode.NOT_CIRCLE_MEMBER, "请先加入该圈子再发布");
         }
     }
 
@@ -989,7 +970,7 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
         if (!po.getUserId().equals(userId)) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+            throw new BusinessException(ErrorCode.NOT_POST_OWNER);
         }
         if (po.getStatus() != PostStatus.APPROVED) {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "仅已发布帖子可置顶");
@@ -1012,7 +993,7 @@ public class PostServiceImpl implements PostService {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
         if (!po.getUserId().equals(userId)) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+            throw new BusinessException(ErrorCode.NOT_POST_OWNER);
         }
         postMapper.unpinPost(userId, postId);
         log.info("取消置顶帖子成功: postId={}, userId={}", postId, userId);

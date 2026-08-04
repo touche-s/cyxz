@@ -69,10 +69,10 @@ public class ChatServiceImpl implements ChatService {
     public PageResult<ChatMessageVO> listMessages(Long userId, Long conversationId, int page, int size) {
         ConversationPO conv = conversationMapper.selectById(conversationId);
         if (conv == null) {
-            throw new BusinessException(ErrorCode.PARAM_ERROR, "会话不存在");
+            throw new BusinessException(ErrorCode.CONVERSATION_NOT_FOUND);
         }
         if (!conv.getUserId1().equals(userId) && !conv.getUserId2().equals(userId)) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "无权查看此会话");
+            throw new BusinessException(ErrorCode.NOT_CONVERSATION_MEMBER, "无权查看此会话");
         }
 
         LambdaQueryWrapper<PrivateMessagePO> wrapper = new LambdaQueryWrapper<>();
@@ -99,7 +99,7 @@ public class ChatServiceImpl implements ChatService {
         // 校验互相关注
         Result<Boolean> mutualResult = userFeignClient.isMutualFollowing(senderId, receiverId);
         if (mutualResult == null || !Boolean.TRUE.equals(mutualResult.getData())) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "需要互相关注后才能私信");
+            throw new BusinessException(ErrorCode.NOT_MUTUAL_FOLLOW, "需要互相关注后才能私信");
         }
 
         // 获取或创建会话
@@ -149,7 +149,7 @@ public class ChatServiceImpl implements ChatService {
             return;
         }
         if (!conv.getUserId1().equals(userId) && !conv.getUserId2().equals(userId)) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作此会话");
+            throw new BusinessException(ErrorCode.NOT_CONVERSATION_MEMBER, "无权操作此会话");
         }
 
         // 标记消息已读

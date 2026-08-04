@@ -161,15 +161,6 @@ public class CircleController {
     }
 
     /**
-     * 内部接口：校验板块是否属于指定圈子
-     */
-    @GetMapping("/internal/section/validate")
-    public Result<Boolean> validateSection(@RequestParam Long sectionId,
-                                           @RequestParam Long circleId) {
-        return Result.success(circleSectionService.validateSection(sectionId, circleId));
-    }
-
-    /**
      * 内部接口：批量查询板块名称
      * @param sectionIds 板块 ID 集合
      * @return 板块 ID 到名称的映射

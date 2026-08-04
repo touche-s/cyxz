@@ -348,17 +348,6 @@ public class PostController {
     }
 
     /**
-     * 查询帖子作者 ID（内部接口，供 comment 服务通过 Feign 调用）
-     *
-     * @param postId 帖子 ID
-     * @return 帖子作者 ID
-     */
-    @GetMapping("/internal/{postId}/author")
-    public Result<Long> getPostAuthor(@PathVariable("postId") Long postId) {
-        return Result.success(postService.getPostAuthor(postId));
-    }
-
-    /**
      * 查询帖子信息（内部接口，供 comment 服务通过 Feign 调用）
      *
      * @param postId 帖子 ID

@@ -93,7 +93,7 @@ class ChatServiceImplTest {
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> chatService.sendMessage(USER1, USER2, "你好"));
 
-            assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+            assertEquals(ErrorCode.NOT_MUTUAL_FOLLOW.getCode(), ex.getCode());
             assertTrue(ex.getMessage().contains("互相关注"));
             verify(messageMapper, never()).insert(any());
         }
@@ -106,7 +106,7 @@ class ChatServiceImplTest {
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> chatService.sendMessage(USER1, USER2, "你好"));
 
-            assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+            assertEquals(ErrorCode.NOT_MUTUAL_FOLLOW.getCode(), ex.getCode());
             verify(messageMapper, never()).insert(any());
         }
 
@@ -181,7 +181,7 @@ class ChatServiceImplTest {
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> chatService.listMessages(999L, CONVERSATION_ID, 1, 20));
 
-            assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+            assertEquals(ErrorCode.NOT_CONVERSATION_MEMBER.getCode(), ex.getCode());
             assertTrue(ex.getMessage().contains("无权查看"));
         }
     }
@@ -201,7 +201,7 @@ class ChatServiceImplTest {
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> chatService.markRead(999L, CONVERSATION_ID));
 
-            assertEquals(ErrorCode.FORBIDDEN.getCode(), ex.getCode());
+            assertEquals(ErrorCode.NOT_CONVERSATION_MEMBER.getCode(), ex.getCode());
             assertTrue(ex.getMessage().contains("无权操作"));
         }
 

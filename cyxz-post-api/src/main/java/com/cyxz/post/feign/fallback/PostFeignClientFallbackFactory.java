@@ -30,11 +30,6 @@ public class PostFeignClientFallbackFactory extends AbstractFeignFallbackFactory
     protected PostFeignClient createFallback(Throwable cause) {
         return new PostFeignClient() {
             @Override
-            public Result<Long> getPostAuthor(Long postId) {
-                return Result.success((Long) null);
-            }
-
-            @Override
             public Result<Map<String, Object>> getPostInfo(Long postId) {
                 return Result.success(Collections.emptyMap());
             }

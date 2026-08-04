@@ -1,11 +1,11 @@
-package com.cyxz.common.constant;
+package com.cyxz.post.constant;
 
 import java.util.Map;
 import java.util.Set;
 
 /**
  * 帖子状态常量与流转规则
- * <p>所有服务共享，避免状态码硬编码导致不一致。
+ * <p>仅 post 服务内部使用，避免状态码硬编码导致不一致。
  * 0=草稿 1=待审核 2=已通过(公开) 3=拒绝 4=已删除
  */
 public final class PostStatus {

@@ -41,14 +41,6 @@ public interface CircleSectionService {
     CircleSectionVO getDefaultSection(Long circleId);
 
     /**
-     * 校验板块是否属于指定圈子
-     * @param sectionId circle_section 主键（不是 templateId）
-     * @param circleId 圈子 ID
-     * @return true=板块存在且属于该圈子且已启用
-     */
-    boolean validateSection(Long sectionId, Long circleId);
-
-    /**
      * 创建圈子时初始化默认板块
      * <p>自动分配 DEFAULT 类型的模板作为该圈子的板块
      * @param circleId 新创建的圈子 ID
