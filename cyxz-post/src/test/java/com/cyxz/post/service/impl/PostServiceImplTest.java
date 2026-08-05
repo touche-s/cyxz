@@ -1,7 +1,6 @@
 package com.cyxz.post.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.Wrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cyxz.circle.feign.CircleFeignClient;
 import com.cyxz.circle.vo.PublishableResult;
 import com.cyxz.comment.feign.CommentFeignClient;
@@ -25,12 +24,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.*;
@@ -42,11 +39,17 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
- * PostServiceImpl 单元测试
- * <p>覆盖帖子 CRUD、状态机 CAS 并发、置顶原子限制、批量操作、内部接口等核心场景。
+ * 帖子核心服务单元测试
+ * <p>门面 {@link PostServiceImpl} 拆分为 5 个子 Service 后，本测试按子 Service 组织：
+ * <ul>
+ *   <li>写操作（CRUD/置顶/批量）验证 {@link PostCommandService}</li>
+ *   <li>审核操作验证 {@link PostReviewService}</li>
+ *   <li>统计与内部接口验证 {@link PostStatsService}</li>
+ * </ul>
+ * 跨子 Service 依赖（EsSync/Review/Query）用 @Mock 隔离，避免异步 AI 审核回调与真实缓存/ES 副作用。
  */
 @ExtendWith(MockitoExtension.class)
-@DisplayName("PostServiceImpl 帖子核心服务")
+@DisplayName("帖子核心服务（Command/Review/Stats 子 Service）")
 class PostServiceImplTest {
 
     @Mock private PostMapper postMapper;
@@ -60,8 +63,15 @@ class PostServiceImplTest {
     @Mock private RedisTemplate<String, Object> redisTemplate;
     @Mock private RabbitTemplate rabbitTemplate;
 
-    @InjectMocks
-    private PostServiceImpl postService;
+    // 跨子 Service 依赖：用 mock 隔离，避免异步回调与真实缓存/ES 副作用
+    @Mock private PostEsSyncService postEsSyncService;
+    @Mock private PostReviewService postReviewService;
+    @Mock private PostQueryService postQueryService;
+
+    // 被测对象
+    private PostCommandService postCommandService;
+    private PostReviewService reviewService;
+    private PostStatsService postStatsService;
 
     private static final Long USER_ID = 100L;
     private static final Long OTHER_USER_ID = 200L;
@@ -70,8 +80,19 @@ class PostServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        // 注入 @Value 字段
-        ReflectionTestUtils.setField(postService, "cacheTtlMinutes", 30L);
+        // PostCommandService：依赖 mock 的 EsSync/Review/Query
+        postCommandService = new PostCommandService(
+                postMapper, postLikeMapper, postCollectMapper,
+                commentFeignClient, circleFeignClient,
+                sensitiveWordService, aiReviewService,
+                postEsSyncService, postReviewService, postQueryService);
+        // PostReviewService：真实对象，依赖 mock 的 EsSync/Query
+        reviewService = new PostReviewService(
+                postMapper, rabbitTemplate, postEsSyncService, postQueryService);
+        // PostStatsService：真实对象，依赖 mock 的 Query
+        postStatsService = new PostStatsService(
+                postMapper, postLikeMapper, userFeignClient, commentFeignClient, postQueryService);
+
         // 手动开启事务同步，供 hardDeletePost / batchOperate 注册 afterCommit 回调
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.initSynchronization();
@@ -140,7 +161,7 @@ class PostServiceImplTest {
         void shouldCreateDraftWithoutPublishValidation() {
             CreatePostRequest req = buildDraftRequest();
 
-            postService.createPost(USER_ID, req);
+            postCommandService.createPost(USER_ID, req);
 
             verify(sensitiveWordService, never()).check(any(), any());
             verify(aiReviewService, never()).review(anyLong(), any(), any(), any());
@@ -160,7 +181,7 @@ class PostServiceImplTest {
                 return 1;
             }).when(postMapper).insert(any(PostPO.class));
 
-            Long result = postService.createPost(USER_ID, req);
+            Long result = postCommandService.createPost(USER_ID, req);
 
             assertEquals(POST_ID, result);
             verify(sensitiveWordService).check("测试标题", "测试正文");
@@ -177,7 +198,7 @@ class PostServiceImplTest {
             when(sensitiveWordService.check(any(), any())).thenReturn(Set.of("违规词"));
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> postService.createPost(USER_ID, req));
+                    () -> postCommandService.createPost(USER_ID, req));
 
             verify(postMapper, never()).insert(any(PostPO.class));
             assertEquals(ErrorCode.CONTENT_SENSITIVE.getCode(), ex.getCode());
@@ -191,7 +212,7 @@ class PostServiceImplTest {
             mockCirclePublishable(CIRCLE_ID, USER_ID, false);
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> postService.createPost(USER_ID, req));
+                    () -> postCommandService.createPost(USER_ID, req));
 
             verify(postMapper, never()).insert(any(PostPO.class));
             assertTrue(ex.getMessage().contains("请先加入该圈子"));
@@ -204,7 +225,7 @@ class PostServiceImplTest {
             req.setImages(null);
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> postService.createPost(USER_ID, req));
+                    () -> postCommandService.createPost(USER_ID, req));
 
             verify(postMapper, never()).insert(any(PostPO.class));
             assertTrue(ex.getMessage().contains("至少需要一张图片"));
@@ -220,7 +241,7 @@ class PostServiceImplTest {
             when(sensitiveWordService.check(any(), any())).thenReturn(Collections.emptySet());
             mockCirclePublishable(CIRCLE_ID, USER_ID, true);
 
-            assertDoesNotThrow(() -> postService.createPost(USER_ID, req));
+            assertDoesNotThrow(() -> postCommandService.createPost(USER_ID, req));
             verify(postMapper).insert(any(PostPO.class));
         }
 
@@ -232,7 +253,7 @@ class PostServiceImplTest {
             req.setImages(null);
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> postService.createPost(USER_ID, req));
+                    () -> postCommandService.createPost(USER_ID, req));
 
             verify(postMapper, never()).insert(any(PostPO.class));
             assertTrue(ex.getMessage().contains("至少需要正文或图片"));
@@ -253,7 +274,7 @@ class PostServiceImplTest {
             when(postMapper.selectById(POST_ID)).thenReturn(null);
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> postService.updatePost(USER_ID, req));
+                    () -> postCommandService.updatePost(USER_ID, req));
             assertEquals(ErrorCode.POST_NOT_FOUND.getCode(), ex.getCode());
         }
 
@@ -265,7 +286,7 @@ class PostServiceImplTest {
             when(postMapper.selectById(POST_ID)).thenReturn(buildPost(PostStatus.DRAFT));
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> postService.updatePost(OTHER_USER_ID, req));
+                    () -> postCommandService.updatePost(OTHER_USER_ID, req));
             assertEquals(ErrorCode.NOT_POST_OWNER.getCode(), ex.getCode());
         }
 
@@ -278,10 +299,11 @@ class PostServiceImplTest {
             when(postMapper.selectById(POST_ID)).thenReturn(buildPost(PostStatus.DRAFT));
             when(postMapper.update(any(PostPO.class), any(Wrapper.class))).thenReturn(1);
 
-            assertDoesNotThrow(() -> postService.updatePost(USER_ID, req));
+            assertDoesNotThrow(() -> postCommandService.updatePost(USER_ID, req));
 
             verify(postMapper).update(any(PostPO.class), any(Wrapper.class));
-            verify(redisTemplate).delete(any(String.class));
+            verify(postQueryService).evictDetailCache(anyLong());
+            verify(postEsSyncService).syncPostToEs(any(PostPO.class));
         }
 
         @Test
@@ -295,11 +317,11 @@ class PostServiceImplTest {
             when(postMapper.update(any(PostPO.class), any(Wrapper.class))).thenReturn(0);
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> postService.updatePost(USER_ID, req));
+                    () -> postCommandService.updatePost(USER_ID, req));
 
             assertTrue(ex.getMessage().contains("帖子状态已被修改"));
             // 失败不应清缓存
-            verify(redisTemplate, never()).delete(any(String.class));
+            verify(postQueryService, never()).evictDetailCache(anyLong());
         }
 
         @Test
@@ -311,7 +333,7 @@ class PostServiceImplTest {
             when(postMapper.selectById(POST_ID)).thenReturn(buildPost(PostStatus.REJECTED));
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> postService.updatePost(USER_ID, req));
+                    () -> postCommandService.updatePost(USER_ID, req));
 
             assertTrue(ex.getMessage().contains("不允许从"));
             verify(postMapper, never()).update(any(PostPO.class), any(Wrapper.class));
@@ -330,11 +352,12 @@ class PostServiceImplTest {
             PostPO po = buildPost(PostStatus.APPROVED);
             when(postMapper.selectById(POST_ID)).thenReturn(po);
 
-            postService.deletePost(USER_ID, POST_ID);
+            postCommandService.deletePost(USER_ID, POST_ID);
 
             assertEquals(PostStatus.DELETED, po.getStatus());
             verify(postMapper).updateById(po);
-            verify(redisTemplate).delete(any(String.class));
+            verify(postQueryService).evictDetailCache(POST_ID);
+            verify(postEsSyncService).syncPostToEs(po);
         }
 
         @Test
@@ -343,7 +366,7 @@ class PostServiceImplTest {
             when(postMapper.selectById(POST_ID)).thenReturn(buildPost(PostStatus.APPROVED));
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> postService.deletePost(OTHER_USER_ID, POST_ID));
+                    () -> postCommandService.deletePost(OTHER_USER_ID, POST_ID));
             assertEquals(ErrorCode.NOT_POST_OWNER.getCode(), ex.getCode());
             verify(postMapper, never()).updateById(any());
         }
@@ -354,11 +377,13 @@ class PostServiceImplTest {
             PostPO po = buildPost(PostStatus.DELETED);
             when(postMapper.selectById(POST_ID)).thenReturn(po);
 
-            postService.hardDeletePost(USER_ID, POST_ID);
+            postCommandService.hardDeletePost(USER_ID, POST_ID);
 
             verify(postLikeMapper).delete(any(Wrapper.class));
             verify(postCollectMapper).delete(any(Wrapper.class));
             verify(postMapper).deleteById(POST_ID);
+            verify(postQueryService).evictDetailCache(POST_ID);
+            verify(postEsSyncService).syncPostToEsDelete(POST_ID);
         }
 
         @Test
@@ -368,7 +393,7 @@ class PostServiceImplTest {
             when(postMapper.selectById(POST_ID)).thenReturn(po);
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> postService.hardDeletePost(USER_ID, POST_ID));
+                    () -> postCommandService.hardDeletePost(USER_ID, POST_ID));
             assertTrue(ex.getMessage().contains("仅回收站中的帖子"));
             verify(postMapper, never()).deleteById(anyLong());
         }
@@ -380,7 +405,7 @@ class PostServiceImplTest {
             when(postMapper.selectById(POST_ID)).thenReturn(po);
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> postService.hardDeletePost(OTHER_USER_ID, POST_ID));
+                    () -> postCommandService.hardDeletePost(OTHER_USER_ID, POST_ID));
             assertEquals(ErrorCode.NOT_POST_OWNER.getCode(), ex.getCode());
         }
     }
@@ -398,7 +423,7 @@ class PostServiceImplTest {
             when(postMapper.selectById(POST_ID)).thenReturn(po);
             when(postMapper.pinPost(USER_ID, POST_ID)).thenReturn(1);
 
-            assertDoesNotThrow(() -> postService.pinPost(USER_ID, POST_ID));
+            assertDoesNotThrow(() -> postCommandService.pinPost(USER_ID, POST_ID));
             verify(postMapper).pinPost(USER_ID, POST_ID);
         }
 
@@ -411,7 +436,7 @@ class PostServiceImplTest {
             when(postMapper.pinPost(USER_ID, POST_ID)).thenReturn(0);
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> postService.pinPost(USER_ID, POST_ID));
+                    () -> postCommandService.pinPost(USER_ID, POST_ID));
             assertTrue(ex.getMessage().contains("最多置顶 3 条帖子"));
         }
 
@@ -424,7 +449,7 @@ class PostServiceImplTest {
             when(postMapper.pinPost(USER_ID, POST_ID)).thenReturn(0);
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> postService.pinPost(USER_ID, POST_ID));
+                    () -> postCommandService.pinPost(USER_ID, POST_ID));
             assertTrue(ex.getMessage().contains("该帖子已置顶"));
         }
 
@@ -435,7 +460,7 @@ class PostServiceImplTest {
             when(postMapper.selectById(POST_ID)).thenReturn(po);
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> postService.pinPost(USER_ID, POST_ID));
+                    () -> postCommandService.pinPost(USER_ID, POST_ID));
             assertTrue(ex.getMessage().contains("仅已发布帖子可置顶"));
             verify(postMapper, never()).pinPost(anyLong(), anyLong());
         }
@@ -447,7 +472,7 @@ class PostServiceImplTest {
             when(postMapper.selectById(POST_ID)).thenReturn(po);
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> postService.pinPost(OTHER_USER_ID, POST_ID));
+                    () -> postCommandService.pinPost(OTHER_USER_ID, POST_ID));
             assertEquals(ErrorCode.NOT_POST_OWNER.getCode(), ex.getCode());
         }
 
@@ -458,7 +483,7 @@ class PostServiceImplTest {
             po.setIsPinned(1);
             when(postMapper.selectById(POST_ID)).thenReturn(po);
 
-            postService.unpinPost(USER_ID, POST_ID);
+            postCommandService.unpinPost(USER_ID, POST_ID);
 
             verify(postMapper).unpinPost(USER_ID, POST_ID);
         }
@@ -474,7 +499,7 @@ class PostServiceImplTest {
         @DisplayName("空列表抛参数错误")
         void shouldRejectEmptyList() {
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> postService.batchOperate(USER_ID, Collections.emptyList(), "delete"));
+                    () -> postCommandService.batchOperate(USER_ID, Collections.emptyList(), "delete"));
             assertTrue(ex.getMessage().contains("请选择"));
         }
 
@@ -482,7 +507,7 @@ class PostServiceImplTest {
         @DisplayName("不支持的动作抛参数错误")
         void shouldRejectUnsupportedAction() {
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> postService.batchOperate(USER_ID, List.of(1L), "unknown"));
+                    () -> postCommandService.batchOperate(USER_ID, List.of(1L), "unknown"));
             assertTrue(ex.getMessage().contains("不支持的操作类型"));
         }
 
@@ -491,7 +516,7 @@ class PostServiceImplTest {
         void shouldBatchDelete() {
             List<Long> ids = List.of(1L, 2L, 3L);
 
-            postService.batchOperate(USER_ID, ids, "delete");
+            postCommandService.batchOperate(USER_ID, ids, "delete");
 
             verify(postMapper).batchUpdateStatus(eq(USER_ID), eq(ids), eq(PostStatus.DELETED), isNull());
         }
@@ -526,7 +551,7 @@ class PostServiceImplTest {
             when(postMapper.selectBatchIds(List.of(1L, 2L, 3L)))
                     .thenReturn(List.of(ownDraft, otherDraft, ownIncomplete));
 
-            postService.batchOperate(USER_ID, List.of(1L, 2L, 3L), "publish");
+            postCommandService.batchOperate(USER_ID, List.of(1L, 2L, 3L), "publish");
 
             // 仅 ownDraft(id=1) 被转 PENDING
             verify(postMapper).batchUpdateStatus(eq(USER_ID), eq(List.of(1L)), eq(PostStatus.PENDING), eq(PostStatus.DRAFT));
@@ -544,7 +569,7 @@ class PostServiceImplTest {
         void shouldReturnEmptyMapWhenPostMissing() {
             when(postMapper.selectById(POST_ID)).thenReturn(null);
 
-            Map<String, Object> info = postService.getPostInfo(POST_ID);
+            Map<String, Object> info = postStatsService.getPostInfo(POST_ID);
 
             assertTrue(info.isEmpty());
         }
@@ -555,7 +580,7 @@ class PostServiceImplTest {
             PostPO po = buildPost(PostStatus.APPROVED);
             when(postMapper.selectById(POST_ID)).thenReturn(po);
 
-            Map<String, Object> info = postService.getPostInfo(POST_ID);
+            Map<String, Object> info = postStatsService.getPostInfo(POST_ID);
 
             assertEquals(POST_ID, ((Number) info.get("postId")).longValue());
             assertEquals(USER_ID, ((Number) info.get("userId")).longValue());
@@ -566,7 +591,7 @@ class PostServiceImplTest {
         @Test
         @DisplayName("batchGetPostInfo：空入参返回空列表")
         void shouldReturnEmptyForEmptyIds() {
-            List<?> result = postService.batchGetPostInfo(Collections.emptySet());
+            List<?> result = postStatsService.batchGetPostInfo(Collections.emptySet());
             assertTrue(result.isEmpty());
         }
 
@@ -576,7 +601,7 @@ class PostServiceImplTest {
             PostPO po = buildPost(PostStatus.APPROVED);
             when(postMapper.selectBatchIds(any())).thenReturn(List.of(po));
 
-            var result = postService.batchGetPostInfo(Set.of(POST_ID));
+            var result = postStatsService.batchGetPostInfo(Set.of(POST_ID));
 
             assertEquals(1, result.size());
             assertEquals(POST_ID, result.get(0).getPostId());
@@ -596,11 +621,13 @@ class PostServiceImplTest {
             PostPO po = buildPost(PostStatus.PENDING);
             when(postMapper.selectById(POST_ID)).thenReturn(po);
 
-            postService.approvePost(POST_ID);
+            reviewService.approvePost(POST_ID);
 
             assertEquals(PostStatus.APPROVED, po.getStatus());
             assertNull(po.getReviewReason());
             verify(postMapper).updateById(po);
+            verify(postQueryService).evictDetailCache(POST_ID);
+            verify(postEsSyncService).syncPostToEs(po);
         }
 
         @Test
@@ -610,7 +637,7 @@ class PostServiceImplTest {
             when(postMapper.selectById(POST_ID)).thenReturn(po);
 
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> postService.approvePost(POST_ID));
+                    () -> reviewService.approvePost(POST_ID));
             assertTrue(ex.getMessage().contains("不在待审核状态"));
         }
 
@@ -620,11 +647,12 @@ class PostServiceImplTest {
             PostPO po = buildPost(PostStatus.PENDING);
             when(postMapper.selectById(POST_ID)).thenReturn(po);
 
-            postService.rejectPost(POST_ID, "内容违规");
+            reviewService.rejectPost(POST_ID, "内容违规");
 
             assertEquals(PostStatus.REJECTED, po.getStatus());
             assertEquals("内容违规", po.getReviewReason());
             verify(postMapper).updateById(po);
+            verify(postQueryService).evictDetailCache(POST_ID);
         }
     }
 
@@ -637,7 +665,7 @@ class PostServiceImplTest {
         @Test
         @DisplayName("空入参返回空 Map")
         void shouldReturnEmptyForEmptyInput() {
-            Map<Long, Integer> result = postService.batchCountByCircle(Collections.emptySet());
+            Map<Long, Integer> result = postStatsService.batchCountByCircle(Collections.emptySet());
             assertTrue(result.isEmpty());
         }
 
@@ -650,7 +678,7 @@ class PostServiceImplTest {
             when(postMapper.batchCountByCircleIds(Set.of(CIRCLE_ID, 99L)))
                     .thenReturn(List.of(row));
 
-            Map<Long, Integer> result = postService.batchCountByCircle(Set.of(CIRCLE_ID, 99L));
+            Map<Long, Integer> result = postStatsService.batchCountByCircle(Set.of(CIRCLE_ID, 99L));
 
             assertEquals(42, result.get(CIRCLE_ID));
             assertEquals(0, result.get(99L));
