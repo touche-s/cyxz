@@ -200,11 +200,6 @@ export const getReceivedLikes = (params: { page?: number; size?: number }) => {
   return request.get('/post/received-likes', { params })
 }
 
-/** 搜索帖子（标题+正文模糊匹配） */
-export const searchPosts = (params: { keyword: string; page?: number; size?: number }) => {
-  return request.get('/post/search', { params })
-}
-
 /** 数据中心月度趋势 */
 export interface MonthlyTrendVO {
   month: string

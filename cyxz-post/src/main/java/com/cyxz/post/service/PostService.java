@@ -167,18 +167,6 @@ public interface PostService {
     PageResult<ReceivedLikeVO> getReceivedLikes(Long userId, int page, int size);
 
     /**
-     * 搜索帖子（仅已发布）
-     * <p>按标题和正文模糊匹配，按创建时间倒序。
-     *
-     * @param keyword       搜索关键词
-     * @param page          页码（从 1 开始）
-     * @param size          每页条数
-     * @param currentUserId 当前登录用户 ID（可为 null）
-     * @return 分页结果（含总条数）
-     */
-    PageResult<PostVO> searchPosts(String keyword, int page, int size, Long currentUserId);
-
-    /**
      * 获取数据中心仪表盘数据
      * <p>包含概览统计、月度趋势、板块分布和 Top 5 作品排行。
      *

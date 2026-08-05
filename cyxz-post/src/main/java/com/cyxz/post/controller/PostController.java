@@ -396,23 +396,6 @@ public class PostController {
     }
 
     /**
-     * 搜索帖子（仅已发布，标题+正文模糊匹配）
-     *
-     * @param keyword       搜索关键词
-     * @param page          页码（从 1 开始，默认 1）
-     * @param size          每页条数（默认 10）
-     * @param currentUserId 当前登录用户 ID（由 Gateway 注入，游客为 null）
-     * @return 搜索结果
-     */
-    @GetMapping("/search")
-    public Result<PageResult<PostVO>> search(@RequestParam("keyword") String keyword,
-                                       @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
-                                       @RequestParam(value = "size", defaultValue = PageConstants.DEFAULT_SIZE_STR) int size,
-                                       @CurrentUser(required = false) Long currentUserId) {
-        return Result.success(postService.searchPosts(keyword, page, size, currentUserId));
-    }
-
-    /**
      * 置顶帖子
      *
      * @param userId 当前登录用户 ID（由 Gateway 注入）
