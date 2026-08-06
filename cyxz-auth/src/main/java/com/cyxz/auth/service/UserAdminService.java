@@ -1,8 +1,10 @@
 package com.cyxz.auth.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.cyxz.auth.dto.UserRoleCode;
 import com.cyxz.auth.entity.SysUserPO;
 import com.cyxz.auth.mapper.SysUserMapper;
+import com.cyxz.auth.mapper.SysUserRoleMapper;
 import com.cyxz.auth.vo.UserAdminVO;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
@@ -12,6 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -23,23 +27,25 @@ import java.util.stream.Collectors;
 public class UserAdminService {
 
     private final SysUserMapper sysUserMapper;
+    private final SysUserRoleMapper sysUserRoleMapper;
 
     /**
      * 查询所有用户列表
-     * <p>按创建时间倒序返回，排除 password 字段
+     * <p>按创建时间倒序返回，排除 password 字段，角色从 sys_user_role 关联查询
      *
      * @return 用户管理 VO 列表（不含密码）
      */
     public List<UserAdminVO> listAll() {
-        // 排除 password 字段，避免无谓加载 BCrypt 哈希
         List<SysUserPO> users = sysUserMapper.selectList(
                 new LambdaQueryWrapper<SysUserPO>()
                         .select(SysUserPO::getId, SysUserPO::getUsername,
-                                SysUserPO::getRole, SysUserPO::getStatus,
-                                SysUserPO::getCreateTime)
+                                SysUserPO::getStatus, SysUserPO::getCreateTime)
                         .orderByDesc(SysUserPO::getCreateTime)
         );
-        return users.stream().map(this::toVO).collect(Collectors.toList());
+        // 批量查询全局角色映射，避免 N+1
+        Map<Long, String> roleMap = sysUserRoleMapper.selectAllUserGlobalRoles().stream()
+                .collect(Collectors.toMap(UserRoleCode::getUserId, UserRoleCode::getRoleCode, (a, b) -> a));
+        return users.stream().map(po -> toVO(po, roleMap.getOrDefault(po.getId(), "USER"))).collect(Collectors.toList());
     }
 
     /**
@@ -74,11 +80,11 @@ public class UserAdminService {
         log.info("管理员启用用户: userId={}, username={}", id, user.getUsername());
     }
 
-    private UserAdminVO toVO(SysUserPO po) {
+    private UserAdminVO toVO(SysUserPO po, String roleCode) {
         UserAdminVO vo = new UserAdminVO();
         vo.setId(po.getId());
         vo.setUsername(po.getUsername());
-        vo.setRole(po.getRole());
+        vo.setRole(roleCode);
         vo.setStatus(po.getStatus());
         return vo;
     }

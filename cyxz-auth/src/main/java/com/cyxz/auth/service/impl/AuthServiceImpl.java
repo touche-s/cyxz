@@ -6,7 +6,9 @@ import com.cyxz.auth.dto.ChangePasswordRequest;
 import com.cyxz.auth.dto.LoginRequest;
 import com.cyxz.auth.dto.RegisterRequest;
 import com.cyxz.auth.entity.SysUserPO;
+import com.cyxz.auth.entity.SysUserRolePO;
 import com.cyxz.auth.mapper.SysUserMapper;
+import com.cyxz.auth.mapper.SysUserRoleMapper;
 import com.cyxz.auth.service.AuthService;
 import com.cyxz.auth.utils.JwtUtil;
 import com.cyxz.common.base.BusinessException;
@@ -26,6 +28,8 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -39,6 +43,7 @@ import java.util.concurrent.TimeUnit;
 public class AuthServiceImpl implements AuthService {
 
     private final SysUserMapper sysUserMapper;
+    private final SysUserRoleMapper sysUserRoleMapper;
     private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
     private final StringRedisTemplate stringRedisTemplate;
@@ -85,12 +90,13 @@ public class AuthServiceImpl implements AuthService {
         // 登录成功，清空失败计数
         clearLoginFail(clientIp);
 
-        String role = user.getRole() != null ? user.getRole() : "user";
-        String token = jwtUtil.generateToken(user.getId(), role);
+        String role = getGlobalRoleCode(user.getId());
+        List<String> permissions = getGlobalPermissionCodes(user.getId());
+        String token = jwtUtil.generateToken(user.getId(), role, permissions);
         long expiresIn = jwtUtil.getExpirationSeconds();
 
         log.info("用户登录成功: userId={}, username={}, role={}", user.getId(), user.getUsername(), role);
-        return new AuthResponse(token, "Bearer", expiresIn, user.getId(), user.getUsername(), role);
+        return new AuthResponse(token, "Bearer", expiresIn, user.getId(), user.getUsername(), role, permissions);
     }
 
     /**
@@ -145,6 +151,25 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /**
+     * 查询用户的全局角色 code（circle_id=0）
+     * <p>用户应有且仅有一个全局角色（SITE_OWNER / PLATFORM_ADMIN / USER），
+     * 无记录时降级为 USER。
+     */
+    private String getGlobalRoleCode(Long userId) {
+        List<String> codes = sysUserRoleMapper.selectGlobalRoleCodes(userId);
+        return codes.isEmpty() ? "USER" : codes.get(0);
+    }
+
+    /**
+     * 查询用户的全局权限码列表（基于 circle_id=0 的全局角色）
+     * <p>登录时写入 JWT，普通用户无管理权限返回空列表。
+     */
+    private List<String> getGlobalPermissionCodes(Long userId) {
+        List<String> codes = sysUserRoleMapper.selectGlobalPermissionCodes(userId);
+        return codes.isEmpty() ? Collections.emptyList() : codes;
+    }
+
+    /**
      * 懒加载生成一个 dummy BCrypt 哈希，用于平衡用户不存在时的响应时间
      */
     private String getDummyHash() {
@@ -189,6 +214,13 @@ public class AuthServiceImpl implements AuthService {
         } catch (DuplicateKeyException e) {
             throw new BusinessException(ErrorCode.USERNAME_EXISTS);
         }
+
+        // 分配默认全局 USER 角色（role_id=3, circle_id=0）
+        SysUserRolePO userRole = new SysUserRolePO();
+        userRole.setUserId(user.getId());
+        userRole.setRoleId(3L);
+        userRole.setCircleId(0L);
+        sysUserRoleMapper.insert(userRole);
 
         log.info("用户注册成功: userId={}, username={}", user.getId(), user.getUsername());
 
@@ -282,10 +314,11 @@ public class AuthServiceImpl implements AuthService {
 
         jwtUtil.blacklistToken(oldToken);
 
-        String role = user.getRole() != null ? user.getRole() : "user";
-        String newToken = jwtUtil.generateToken(userId, role);
+        String role = getGlobalRoleCode(userId);
+        List<String> permissions = getGlobalPermissionCodes(userId);
+        String newToken = jwtUtil.generateToken(userId, role, permissions);
         long expiresIn = jwtUtil.getExpirationSeconds();
-        return new AuthResponse(newToken, "Bearer", expiresIn, userId, user.getUsername(), role);
+        return new AuthResponse(newToken, "Bearer", expiresIn, userId, user.getUsername(), role, permissions);
     }
 
     /**

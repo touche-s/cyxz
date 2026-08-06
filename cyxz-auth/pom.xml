@@ -75,6 +75,10 @@
             <groupId>com.cyxz</groupId>
             <artifactId>cyxz-common</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.cyxz</groupId>
+            <artifactId>cyxz-security</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>com.cyxz</groupId>
