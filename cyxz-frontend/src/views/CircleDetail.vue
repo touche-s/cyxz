@@ -30,6 +30,10 @@
             <Icon icon="ph:pencil-simple" />
             圈内创作
           </button>
+          <button v-if="canManage" class="btn-manage" @click="goManage">
+            <Icon icon="ph:gear-six" />
+            管理圈子
+          </button>
           <button class="btn-join" :class="{ joined: circle.joined }" :disabled="joinLoading" @click="toggleJoin">
             {{ circle.joined ? '已加入' : '加入' }}
           </button>
@@ -92,7 +96,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
-import { getCircleDetail, joinCircle, leaveCircle, getCircleSections } from '@/api/circle'
+import { getCircleDetail, joinCircle, leaveCircle, getCircleSections, getManagedCircles } from '@/api/circle'
 import type { CircleVO, CircleSectionVO } from '@/api/circle'
 import { getPostList, likePost, unlikePost, collectPost, uncollectPost } from '@/api/post'
 import type { PostVO } from '@/api/post'
@@ -119,6 +123,7 @@ const circle = ref<CircleVO | null>(null)
 const posts = ref<PostVO[]>([])
 const loading = ref(false)
 const joinLoading = ref(false)
+const canManage = ref(false)
 const sortBy = ref('latest')
 const sortTabs = [
   { key: 'hot', label: '热门', icon: 'ph:fire' },
@@ -207,6 +212,10 @@ function goPublish() {
   to('/creator')
 }
 
+function goManage() {
+  open(`/circle/${circleId}/admin`)
+}
+
 function viewPost(post: PostVO) {
   if (!requireLogin()) return
   open(`/post/${post.id}`)
@@ -244,6 +253,14 @@ onMounted(() => {
   loadCircle()
   loadSections()
   loadPosts()
+  // 判断当前用户是否有该圈子的管理权限（平台管理员默认放行）
+  if (userStore.isAdmin) {
+    canManage.value = true
+  } else if (userStore.isLoggedIn) {
+    getManagedCircles()
+      .then((circles) => { canManage.value = circles.some((c) => c.id === circleId) })
+      .catch(() => { canManage.value = false })
+  }
 })
 </script>
 
@@ -394,6 +411,28 @@ onMounted(() => {
 }
 
 .btn-publish:active { transform: scale(0.97); }
+
+.btn-manage {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border-radius: 14px;
+  border: 1.5px solid var(--purple);
+  background: transparent;
+  color: var(--purple);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.22s ease-out;
+}
+
+.btn-manage:hover {
+  background: rgba(180, 132, 255, 0.08);
+  transform: scale(1.04);
+}
+
+.btn-manage:active { transform: scale(0.97); }
 
 .btn-join {
   padding: 8px 16px;

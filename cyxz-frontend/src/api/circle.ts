@@ -40,6 +40,11 @@ export const updateCircle = (circleId: number, data: { name?: string; intro?: st
   return request.put(`/circle/${circleId}`, null, { params: data })
 }
 
+/** 查询当前用户管理的圈子（圈主或圈子管理员），用于圈子管理后台左侧圈子选择器 */
+export const getManagedCircles = (): Promise<CircleVO[]> => {
+  return request.get('/circle/managed')
+}
+
 export interface CircleSectionVO {
   /** circle_section 主键 */
   id: number

@@ -17,6 +17,7 @@ type NotificationHandler = (data: any) => void
 const connected = ref(false)
 
 let ws: WebSocket | null = null
+let isConnecting = false
 let reconnectTimer: number | null = null
 let manuallyClosed = false
 const messageHandlers = new Set<MessageHandler>()
@@ -44,25 +45,29 @@ function scheduleReconnect() {
   }, 3000)
 }
 
-/** 建立连接（若已连接或正在连接则跳过） */
+/** 建立连接（若已连接或正在连接则跳过，防止并发建立多个连接导致后端互踢死循环） */
 function connect() {
-  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
-    return
-  }
+  if (connected.value || isConnecting) return
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return
+  isConnecting = true
   manuallyClosed = false
   let socket: WebSocket
   try {
     socket = new WebSocket(buildUrl())
   } catch {
+    isConnecting = false
     scheduleReconnect()
     return
   }
   ws = socket
   socket.onopen = () => {
+    isConnecting = false
     connected.value = true
   }
   socket.onclose = () => {
+    isConnecting = false
     connected.value = false
+    ws = null
     if (!manuallyClosed) {
       scheduleReconnect()
     }

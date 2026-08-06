@@ -49,9 +49,13 @@
                   <span>个人中心</span>
                   <Icon icon="ph:caret-right" class="menu-arrow" />
                 </div>
+                <div class="menu-item" @click="handleCommand('my-circles')">
+                  <Icon icon="ph:circles-three-plus" class="menu-icon" />
+                  <span>我的圈子管理</span>
+                </div>
                 <div v-if="userStore.isAdmin" class="menu-item" @click="handleCommand('admin')">
                   <Icon icon="ph:monitor" class="menu-icon" />
-                  <span>管理后台</span>
+                  <span>平台管理后台</span>
                 </div>
                 <div class="menu-divider"></div>
                 <div class="menu-item logout" @click="handleCommand('logout')">
@@ -105,6 +109,7 @@ import { useAuth } from '@/composables/useAuth'
 import { useNavigate } from '@/composables/useNavigate'
 import { logout } from '@/api/auth'
 import { getFollowStats } from '@/api/user'
+import { getManagedCircles } from '@/api/circle'
 import { ElMessage } from 'element-plus'
 
 const userStore = useUserStore()
@@ -193,6 +198,18 @@ async function handleCommand(cmd: string) {
     open('/user-center')
   } else if (cmd === 'admin') {
     open('/admin')
+  } else if (cmd === 'my-circles') {
+    // 圈主/圈子管理员入口：先查管理的圈子，有则跳第一个，无则提示
+    try {
+      const circles = await getManagedCircles()
+      if (circles.length === 0) {
+        ElMessage.info('你还没有管理的圈子')
+        return
+      }
+      open(`/circle/${circles[0].id}/admin`)
+    } catch {
+      ElMessage.error('加载失败，请稍后重试')
+    }
   } else if (cmd === 'logout') {
     try { await logout() } catch { /* ignore */ }
     userStore.clearAuth()

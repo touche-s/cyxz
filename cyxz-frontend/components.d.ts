@@ -38,5 +38,6 @@ declare module 'vue' {
     SearchInput: typeof import('./src/components/SearchInput.vue')['default']
     StatCard: typeof import('./src/components/StatCard.vue')['default']
     UnderlineTabs: typeof import('./src/components/UnderlineTabs.vue')['default']
+    UserAvatar: typeof import('./src/components/UserAvatar.vue')['default']
   }
 }

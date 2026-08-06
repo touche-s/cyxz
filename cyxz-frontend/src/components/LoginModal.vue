@@ -253,6 +253,7 @@ async function handleSubmit() {
         captchaUuid: form.captchaUuid,
       })
       userStore.setToken(data.accessToken)
+      userStore.setPermissions(data.permissions || [])
       ElMessage.success('登录成功')
       try {
         const pdata = await getMyProfile()
@@ -313,7 +314,7 @@ async function handleSubmit() {
 .auth-left {
   width: 380px;
   flex-shrink: 0;
-  background: linear-gradient(135deg, #ff6b9d 0%, #c084fc 50%, #60a5fa 100%);
+  background: linear-gradient(135deg, var(--brand) 0%, var(--purple) 50%, #60a5fa 100%);
   padding: 48px 36px;
   display: flex;
   flex-direction: column;

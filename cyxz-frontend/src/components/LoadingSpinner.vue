@@ -33,7 +33,7 @@ withDefaults(defineProps<{
   width: 32px;
   height: 32px;
   border: 3px solid var(--border);
-  border-top-color: var(--pink, #ff6b9d);
+  border-top-color: var(--brand);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }

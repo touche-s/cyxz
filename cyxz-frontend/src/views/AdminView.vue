@@ -1,8 +1,19 @@
 <template>
   <div class="admin-container">
     <aside class="admin-sidebar">
-      <div class="sidebar-hd">
-        <span class="sidebar-label">管理后台</span>
+      <div class="sidebar-user" v-if="userStore.userInfo">
+        <div class="sidebar-user-avatar">
+          <img v-if="userStore.userInfo.avatar" :src="userStore.userInfo.avatar" />
+          <span v-else class="sidebar-user-fb">{{ (userStore.userInfo.nickname || '?').charAt(0) }}</span>
+        </div>
+        <div class="sidebar-user-info">
+          <span class="sidebar-user-hi">欢迎回来</span>
+          <span class="sidebar-user-name">{{ userStore.userInfo.nickname || userStore.userInfo.userId }}</span>
+          <span class="sidebar-user-role" :class="userStore.isAdmin ? 'role-admin' : 'role-user'">{{ roleLabel(userStore.role) }}</span>
+        </div>
+        <button class="sidebar-dark-btn" @click="toggleDarkMode" :title="isDark ? '切到日间模式' : '切到夜间模式'">
+          <Icon :icon="isDark ? 'ph:sun' : 'ph:moon'" />
+        </button>
       </div>
       <nav class="sidebar-nav">
         <button class="nav-item" :class="{ active: activeTab === 'circles' }" @click="activeTab = 'circles'">
@@ -20,6 +31,14 @@
         <button class="nav-item" :class="{ active: activeTab === 'users' }" @click="activeTab = 'users'">
           <Icon icon="ph:users" class="nav-icon" />
           <span>用户管理</span>
+        </button>
+        <button class="nav-item" :class="{ active: activeTab === 'posts' }" @click="activeTab = 'posts'">
+          <Icon icon="ph:article" class="nav-icon" />
+          <span>帖子管理</span>
+        </button>
+        <button class="nav-item" :class="{ active: activeTab === 'roles' }" @click="activeTab = 'roles'">
+          <Icon icon="ph:shield-star" class="nav-icon" />
+          <span>角色权限</span>
         </button>
       </nav>
       <div class="sidebar-footer">
@@ -39,13 +58,15 @@
             <p class="section-desc">共 {{ filteredCircles.length }} 个圈子</p>
           </div>
           <div class="section-head-right">
-            <SearchInput v-model="searchKeyword" variant="inline" :placeholder="searchPlaceholder" />
             <button class="toolbar-btn" @click="refreshCurrentTab" title="刷新"><Icon icon="ph:arrows-clockwise" /></button>
             <button class="create-btn" @click="openCreateCircle">
               <Icon icon="ph:plus" />
               新建圈子
             </button>
           </div>
+        </div>
+        <div class="section-search">
+          <SearchInput v-model="searchKeyword" variant="inline" :placeholder="searchPlaceholder" />
         </div>
 
         <LoadingSpinner v-if="circleLoading && circles.length === 0" />
@@ -58,6 +79,7 @@
                 <th>简介</th>
                 <th style="width: 80px;">成员</th>
                 <th style="width: 80px;">帖子</th>
+                <th style="width: 70px;">状态</th>
                 <th style="width: 160px;">操作</th>
               </tr>
             </thead>
@@ -73,9 +95,15 @@
                 <td class="td-intro" :title="c.intro">{{ c.intro?.slice(0, 40) || '-' }}</td>
                 <td>{{ c.memberCount ?? 0 }}</td>
                 <td>{{ (c as any).postCount ?? 0 }}</td>
+                <td>
+                  <span class="tag" :class="(c as any).status === 1 ? 'tag-green' : 'tag-red'">
+                    {{ (c as any).status === 1 ? '启用' : '禁用' }}
+                  </span>
+                </td>
                 <td class="td-actions">
                   <button class="op-link" @click="openEditCircle(c)">编辑</button>
                   <button class="op-link op-link-purple" @click="openSectionConfig(c)">板块</button>
+                  <button class="op-link" @click="toggleCircleStatus(c)">{{ (c as any).status === 1 ? '禁用' : '启用' }}</button>
                   <button class="op-link op-link-danger" @click="deleteCircle(c)">删除</button>
                 </td>
               </tr>
@@ -93,13 +121,15 @@
             <p class="section-desc">共 {{ sectionTemplates.length }} 个模板</p>
           </div>
           <div class="section-head-right">
-            <SearchInput v-model="searchKeyword" variant="inline" :placeholder="searchPlaceholder" />
             <button class="toolbar-btn" @click="refreshCurrentTab" title="刷新"><Icon icon="ph:arrows-clockwise" /></button>
             <button class="create-btn" @click="showSectionTemplateForm = true" v-if="!showSectionTemplateForm">
               <Icon icon="ph:plus" />
               新建模板
             </button>
           </div>
+        </div>
+        <div class="section-search">
+          <SearchInput v-model="searchKeyword" variant="inline" :placeholder="searchPlaceholder" />
         </div>
 
         <div v-if="showSectionTemplateForm" class="form-card">
@@ -171,9 +201,11 @@
             <p class="section-desc">共 {{ reviewPosts.length }} 条待审核</p>
           </div>
           <div class="section-head-right">
-            <SearchInput v-model="searchKeyword" variant="inline" :placeholder="searchPlaceholder" />
             <button class="toolbar-btn" @click="refreshCurrentTab" title="刷新"><Icon icon="ph:arrows-clockwise" /></button>
           </div>
+        </div>
+        <div class="section-search">
+          <SearchInput v-model="searchKeyword" variant="inline" :placeholder="searchPlaceholder" />
         </div>
         <LoadingSpinner v-if="reviewLoading && reviewPosts.length === 0" />
         <div v-else class="table-wrap">
@@ -214,9 +246,11 @@
             <p class="section-desc">共 {{ users.length }} 个用户</p>
           </div>
           <div class="section-head-right">
-            <SearchInput v-model="searchKeyword" variant="inline" :placeholder="searchPlaceholder" />
             <button class="toolbar-btn" @click="refreshCurrentTab" title="刷新"><Icon icon="ph:arrows-clockwise" /></button>
           </div>
+        </div>
+        <div class="section-search">
+          <SearchInput v-model="searchKeyword" variant="inline" :placeholder="searchPlaceholder" />
         </div>
         <LoadingSpinner v-if="userLoading" />
         <div v-else class="table-wrap">
@@ -236,9 +270,10 @@
                 <td class="td-id">{{ u.id }}</td>
                 <td>{{ u.username }}</td>
                 <td>{{ u.nickname || '-' }}</td>
-                <td><span class="tag" :class="u.role === 'admin' ? 'tag-amber' : 'tag-gray'">{{ u.role === 'admin' ? '管理员' : '普通用户' }}</span></td>
+                <td><span class="tag" :class="['SITE_OWNER', 'PLATFORM_ADMIN'].includes(u.role) ? 'tag-amber' : 'tag-gray'">{{ roleLabel(u.role) }}</span></td>
                 <td><span class="tag" :class="u.status === 1 ? 'tag-green' : 'tag-red'">{{ u.status === 1 ? '正常' : '禁用' }}</span></td>
                 <td class="td-actions">
+                  <button class="op-link op-link-purple" @click="openRoleAssign(u)">分配角色</button>
                   <button v-if="u.status === 1" class="op-link op-link-danger" @click="disableUser(u)">禁用</button>
                   <button v-else class="op-link op-link-green" @click="enableUser(u)">启用</button>
                 </td>
@@ -246,6 +281,134 @@
             </tbody>
           </table>
           <EmptyState v-if="filteredUsers.length === 0" title="暂无用户数据" />
+        </div>
+      </section>
+
+      <!-- 帖子管理 -->
+      <section v-if="activeTab === 'posts'" class="admin-section">
+        <div class="section-head">
+          <div>
+            <h2>帖子管理</h2>
+            <p class="section-desc">共 {{ adminPostTotal }} 篇帖子</p>
+          </div>
+          <div class="section-head-right">
+            <button class="toolbar-btn" @click="loadAdminPosts" title="刷新"><Icon icon="ph:arrows-clockwise" /></button>
+          </div>
+        </div>
+        <div class="section-search">
+          <select v-model="adminPostStatusFilter" class="filter-select" @change="adminPostPage = 1; loadAdminPosts()">
+            <option :value="null">全部状态</option>
+            <option :value="0">草稿</option>
+            <option :value="1">待审核</option>
+            <option :value="2">已通过</option>
+            <option :value="3">已拒绝</option>
+            <option :value="4">已删除</option>
+          </select>
+          <SearchInput v-model="searchKeyword" variant="inline" :placeholder="searchPlaceholder" />
+        </div>
+        <LoadingSpinner v-if="adminPostLoading && adminPosts.length === 0" />
+        <div v-else class="table-wrap">
+          <table v-if="filteredAdminPosts.length > 0" class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 100px;">ID</th>
+                <th>标题</th>
+                <th style="width: 100px;">作者</th>
+                <th style="width: 80px;">状态</th>
+                <th style="width: 110px;">创建时间</th>
+                <th style="width: 80px;">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="p in filteredAdminPosts" :key="p.id">
+                <td class="td-id">{{ p.id }}</td>
+                <td class="td-name" :title="p.title">{{ p.title }}</td>
+                <td>{{ p.authorName || '-' }}</td>
+                <td><span class="tag" :class="statusTagClass[p.status]">{{ statusLabels[p.status] }}</span></td>
+                <td class="td-time">{{ p.createTime?.slice(0, 10) }}</td>
+                <td class="td-actions">
+                  <button class="op-link op-link-danger" @click="adminDeletePost(p)">删除</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <EmptyState v-if="filteredAdminPosts.length === 0" title="暂无帖子" />
+        </div>
+        <div v-if="adminPostTotal > 20" class="pagination">
+          <button class="page-btn" :disabled="adminPostPage === 1" @click="adminPostPage--; loadAdminPosts()">上一页</button>
+          <span class="page-info">第 {{ adminPostPage }} 页</span>
+          <button class="page-btn" :disabled="adminPosts.length < 20" @click="adminPostPage++; loadAdminPosts()">下一页</button>
+        </div>
+      </section>
+
+      <!-- 角色权限管理 -->
+      <section v-if="activeTab === 'roles'" class="admin-section">
+        <div class="section-head">
+          <div>
+            <h2>角色权限管理</h2>
+            <p class="section-desc">选择角色，勾选权限点后保存</p>
+          </div>
+        </div>
+        <div class="section-search">
+          <SearchInput v-model="searchKeyword" variant="inline" :placeholder="searchPlaceholder" />
+        </div>
+        <LoadingSpinner v-if="roleLoading" />
+        <div v-else class="rbac-layout">
+          <!-- 左侧角色列表 -->
+          <div class="rbac-roles">
+            <div class="rbac-roles-hd">角色列表</div>
+            <div class="rbac-role-list">
+              <button
+                v-for="r in filteredRoles"
+                :key="r.id"
+                class="rbac-role-item"
+                :class="{ active: selectedRoleId === r.id }"
+                @click="selectRole(r.id)"
+              >
+                <div class="rbac-role-info">
+                  <span class="rbac-role-label">{{ r.label }}</span>
+                  <span class="rbac-role-code">{{ r.code }}</span>
+                </div>
+                <span class="rbac-role-scope" :class="r.scope === 'GLOBAL' ? 'scope-global' : 'scope-circle'">
+                  {{ r.scope === 'GLOBAL' ? '全局' : '圈子' }}
+                </span>
+              </button>
+            </div>
+          </div>
+          <!-- 右侧权限分配 -->
+          <div class="rbac-perms">
+            <div class="rbac-perms-hd">
+              <span>权限点分配</span>
+              <button class="submit-btn" :disabled="rolePermSaving" @click="saveRolePermissions">
+                {{ rolePermSaving ? '保存中...' : '保存权限' }}
+              </button>
+            </div>
+            <LoadingSpinner v-if="rolePermLoading" text="加载中..." />
+            <div v-else class="rbac-perm-groups-scroll">
+              <div v-for="resource in permGroups" :key="resource" class="rbac-perm-group">
+                <div class="rbac-perm-group-hd" @click="togglePermGroup(resource)">
+                  <Icon :icon="collapsedPermGroups.has(resource) ? 'ph:caret-right' : 'ph:caret-down'" class="rbac-group-arrow" />
+                  {{ resource }}
+                </div>
+                <div v-show="!collapsedPermGroups.has(resource)" class="rbac-perm-items">
+                  <div
+                    v-for="p in permissionsByResource[resource]"
+                    :key="p.id"
+                    class="rbac-perm-toggle"
+                    @click="togglePermission(p.id)"
+                  >
+                    <div class="rbac-toggle-info">
+                      <span class="rbac-toggle-label">{{ p.label }}</span>
+                      <span class="rbac-toggle-code">{{ p.code }}</span>
+                    </div>
+                    <div class="rbac-toggle-switch" :class="{ on: rolePermissionIds.has(p.id) }">
+                      <div class="rbac-toggle-knob"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
     </main>
@@ -323,17 +486,20 @@
                   v-for="t in sectionTemplates"
                   :key="t.id"
                   class="section-config-item"
-                  :class="{ disabled: !sectionConfigChecked.has(t.id) }"
                 >
-                  <span class="section-config-left">
-                    <input type="checkbox" :checked="sectionConfigChecked.has(t.id)" @change="toggleSectionCheck(t.id)" />
+                  <span class="section-config-left" @click="toggleSectionCheck(t.id)">
                     <span class="section-config-name">{{ t.name }}</span>
                     <span class="section-config-type">{{ typeLabel(t.applicableType) }}</span>
                   </span>
                   <span class="section-config-right">
-                    <input type="radio" name="defaultSection" :checked="sectionConfigDefault === t.id"
-                      :disabled="!sectionConfigChecked.has(t.id)" @change="sectionConfigDefault = t.id" />
-                    <span class="default-label">默认</span>
+                    <div class="sc-toggle-switch" :class="{ on: sectionConfigChecked.has(t.id) }" @click.stop="toggleSectionCheck(t.id)">
+                      <div class="sc-toggle-knob"></div>
+                    </div>
+                    <span class="sc-default-wrap" @click.stop>
+                      <input type="radio" name="defaultSection" :checked="sectionConfigDefault === t.id"
+                        :disabled="!sectionConfigChecked.has(t.id)" @change="sectionConfigDefault = t.id" />
+                      <span class="default-label">默认</span>
+                    </span>
                   </span>
                 </label>
               </div>
@@ -370,6 +536,30 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- 分配角色弹窗 -->
+    <Teleport to="body">
+      <div class="modal-overlay" v-if="showRoleAssignModal" @click.self="showRoleAssignModal = false">
+        <div class="modal-card" style="max-width: 420px;">
+          <div class="modal-header">
+            <h3>分配角色 - {{ roleAssignTarget?.username }}</h3>
+            <button class="modal-close" @click="showRoleAssignModal = false">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-row">
+              <label>全局角色</label>
+              <select v-model="roleAssignRoleId" class="form-input">
+                <option v-for="r in globalRoles" :key="r.id" :value="r.id">{{ r.label }}（{{ r.code }}）</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="cancel-btn" @click="showRoleAssignModal = false">取消</button>
+            <button class="submit-btn" @click="submitRoleAssign">确认分配</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -378,6 +568,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { Icon } from '@iconify/vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useNavigate } from '@/composables/useNavigate'
+import { useUserStore } from '@/stores/user'
 import { getCircleList, updateCircle as apiUpdateCircle } from '@/api/circle'
 import { uploadCircleResource } from '@/api/upload'
 import type { CircleVO } from '@/api/circle'
@@ -389,8 +580,17 @@ import SearchInput from '@/components/SearchInput.vue'
 import request from '@/utils/request'
 
 const { to } = useNavigate()
+const userStore = useUserStore()
 
-const activeTab = ref<'circles' | 'sectionTemplates' | 'review' | 'users'>('circles')
+const activeTab = ref<'circles' | 'sectionTemplates' | 'review' | 'users' | 'posts' | 'roles'>('circles')
+
+// 暗色模式
+const isDark = ref(false)
+function toggleDarkMode() {
+  isDark.value = !isDark.value
+  document.documentElement.classList.toggle('dark', isDark.value)
+  localStorage.setItem('darkMode', isDark.value ? '1' : '0')
+}
 
 // ===== 统一搜索 =====
 const searchKeyword = ref('')
@@ -402,6 +602,8 @@ const searchPlaceholder = computed(() => {
     sectionTemplates: '搜索模板名称...',
     review: '搜索帖子标题或作者...',
     users: '搜索用户名或昵称...',
+    posts: '搜索帖子标题...',
+    roles: '搜索角色...',
   }
   return map[activeTab.value] || '搜索...'
 })
@@ -412,6 +614,8 @@ function refreshCurrentTab() {
     sectionTemplates: loadSectionTemplates,
     review: loadReviewPosts,
     users: loadUsers,
+    posts: loadAdminPosts,
+    roles: () => { if (roles.value.length === 0) loadRoles() },
   }
   loader[activeTab.value]?.()
 }
@@ -597,6 +801,13 @@ function typeLabel(type: string) {
   return type
 }
 
+function roleLabel(role: string) {
+  if (role === 'SITE_OWNER') return '站主'
+  if (role === 'PLATFORM_ADMIN') return '平台管理员'
+  if (role === 'USER') return '普通用户'
+  return role || '普通用户'
+}
+
 function toggleSectionCheck(templateId: number) {
   const next = new Set(sectionConfigChecked.value)
   if (next.has(templateId)) {
@@ -700,11 +911,189 @@ async function enableUser(u: AdminUser) {
   try { await request.put(`/auth/admin/${u.id}/enable`); ElMessage.success('已启用'); await loadUsers() } catch { ElMessage.error('操作失败') }
 }
 
+// ===== 帖子管理 =====
+interface AdminPost {
+  id: number; title: string; authorName: string; circleId: number;
+  circleName?: string; status: number; createTime: string
+}
+const adminPosts = ref<AdminPost[]>([])
+const adminPostLoading = ref(false)
+const adminPostTotal = ref(0)
+const adminPostPage = ref(1)
+const adminPostStatusFilter = ref<number | null>(null)
+
+const statusLabels: Record<number, string> = {
+  0: '草稿', 1: '待审核', 2: '已通过', 3: '已拒绝', 4: '已删除'
+}
+const statusTagClass: Record<number, string> = {
+  0: 'tag-gray', 1: 'tag-blue', 2: 'tag-green', 3: 'tag-red', 4: 'tag-gray'
+}
+
+const filteredAdminPosts = computed(() => {
+  const q = searchKeyword.value.toLowerCase().trim()
+  if (!q) return adminPosts.value
+  return adminPosts.value.filter(p => p.title?.toLowerCase().includes(q))
+})
+
+async function loadAdminPosts() {
+  adminPostLoading.value = true
+  try {
+    const res = await request.get('/post/admin/list', {
+      params: { status: adminPostStatusFilter.value, page: adminPostPage.value, size: 20 }
+    }) as any
+    adminPosts.value = res.records || []
+    adminPostTotal.value = res.total || 0
+  } catch { adminPosts.value = [] }
+  finally { adminPostLoading.value = false }
+}
+
+async function adminDeletePost(p: AdminPost) {
+  try {
+    await ElMessageBox.confirm(`确定删除帖子"${p.title}"吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' })
+    await request.delete(`/post/admin/${p.id}`)
+    ElMessage.success('删除成功')
+    await loadAdminPosts()
+  } catch (action: any) { if (action !== 'cancel') ElMessage.error('删除失败') }
+}
+
+// ===== 角色权限管理 =====
+interface Role { id: number; code: string; label: string; scope: string; description: string; builtIn: number; sort: number }
+interface Permission { id: number; code: string; label: string; resource: string; action: string }
+const roles = ref<Role[]>([])
+const permissions = ref<Permission[]>([])
+const roleLoading = ref(false)
+const selectedRoleId = ref<number | null>(null)
+const rolePermissionIds = ref<Set<number>>(new Set())
+const rolePermLoading = ref(false)
+const rolePermSaving = ref(false)
+const collapsedPermGroups = ref(new Set<string>())
+
+function togglePermGroup(resource: string) {
+  if (collapsedPermGroups.value.has(resource)) {
+    collapsedPermGroups.value.delete(resource)
+  } else {
+    collapsedPermGroups.value.add(resource)
+  }
+}
+
+const globalRoles = computed(() => roles.value.filter(r => r.scope === 'GLOBAL'))
+
+const permGroups = computed(() => {
+  const groups = new Set<string>()
+  permissions.value.forEach(p => groups.add(p.resource))
+  return Array.from(groups)
+})
+
+const permissionsByResource = computed(() => {
+  const map: Record<string, Permission[]> = {}
+  permissions.value.forEach(p => {
+    if (!map[p.resource]) map[p.resource] = []
+    map[p.resource].push(p)
+  })
+  return map
+})
+
+const filteredRoles = computed(() => {
+  const q = searchKeyword.value.toLowerCase().trim()
+  if (!q) return roles.value
+  return roles.value.filter(r => r.label.toLowerCase().includes(q) || r.code.toLowerCase().includes(q))
+})
+
+async function loadRoles() {
+  roleLoading.value = true
+  try {
+    const [roleList, permList] = await Promise.all([
+      request.get('/auth/admin/roles') as any,
+      request.get('/auth/admin/permissions') as any
+    ])
+    roles.value = roleList || []
+    permissions.value = permList || []
+    if (roles.value.length > 0 && selectedRoleId.value === null) {
+      await selectRole(roles.value[0].id)
+    }
+  } catch { /* ignore */ }
+  finally { roleLoading.value = false }
+}
+
+async function selectRole(roleId: number) {
+  selectedRoleId.value = roleId
+  rolePermLoading.value = true
+  try {
+    const ids = await request.get(`/auth/admin/roles/${roleId}/permissions`) as any
+    rolePermissionIds.value = new Set(ids || [])
+  } catch { rolePermissionIds.value = new Set() }
+  finally { rolePermLoading.value = false }
+}
+
+function togglePermission(permId: number) {
+  const next = new Set(rolePermissionIds.value)
+  if (next.has(permId)) next.delete(permId)
+  else next.add(permId)
+  rolePermissionIds.value = next
+}
+
+async function saveRolePermissions() {
+  if (selectedRoleId.value === null) return
+  rolePermSaving.value = true
+  try {
+    await request.put(`/auth/admin/roles/${selectedRoleId.value}/permissions`, {
+      permissionIds: Array.from(rolePermissionIds.value)
+    })
+    ElMessage.success('权限分配保存成功')
+  } catch { ElMessage.error('保存失败') }
+  finally { rolePermSaving.value = false }
+}
+
+// ===== 用户角色分配 =====
+const showRoleAssignModal = ref(false)
+const roleAssignTarget = ref<AdminUser | null>(null)
+const roleAssignRoleId = ref<number | null>(null)
+
+function openRoleAssign(u: AdminUser) {
+  roleAssignTarget.value = u
+  const currentRole = roles.value.find(r => r.code === u.role)
+  roleAssignRoleId.value = currentRole?.id ?? null
+  showRoleAssignModal.value = true
+}
+
+async function submitRoleAssign() {
+  if (!roleAssignTarget.value || roleAssignRoleId.value === null) return
+  try {
+    await request.put(`/auth/admin/users/${roleAssignTarget.value.id}/role`, { roleId: roleAssignRoleId.value })
+    ElMessage.success('角色分配成功')
+    showRoleAssignModal.value = false
+    await loadUsers()
+  } catch { ElMessage.error('角色分配失败') }
+}
+
+// ===== 圈子禁用/启用 =====
+async function toggleCircleStatus(c: CircleVO) {
+  const action = (c as any).status === 1 ? '禁用' : '启用'
+  try {
+    await ElMessageBox.confirm(`确定${action}圈子"${c.name}"吗？`, `确认${action}`, { confirmButtonText: action, cancelButtonText: '取消', type: 'warning' })
+    await request.put(`/circle/${c.id}/status`, { status: (c as any).status === 1 ? 0 : 1 })
+    ElMessage.success(`${action}成功`)
+    await loadCircles()
+  } catch (action: any) { if (action !== 'cancel') ElMessage.error('操作失败') }
+}
+
+// ===== 懒加载 =====
+watch(activeTab, (tab) => {
+  const loaders: Record<string, () => void> = {
+    circles: () => { if (circles.value.length === 0) loadCircles() },
+    sectionTemplates: () => { if (sectionTemplates.value.length === 0) loadSectionTemplates() },
+    review: () => { if (reviewPosts.value.length === 0) loadReviewPosts() },
+    users: () => { if (users.value.length === 0) loadUsers() },
+    posts: loadAdminPosts,
+    roles: () => { if (roles.value.length === 0) loadRoles() },
+  }
+  loaders[tab]?.()
+})
+
 onMounted(() => {
+  isDark.value = localStorage.getItem('darkMode') === '1'
+  document.documentElement.classList.toggle('dark', isDark.value)
   loadCircles()
-  loadSectionTemplates()
-  loadReviewPosts()
-  loadUsers()
 })
 </script>
 
@@ -722,23 +1111,53 @@ onMounted(() => {
   border-right: 1px solid var(--border-light);
   position: fixed;
   left: 0;
-  top: 86px;
+  top: 0;
   bottom: 0;
   display: flex;
   flex-direction: column;
   z-index: 100;
 }
 
-.sidebar-hd {
-  padding: 24px 20px 16px;
+.sidebar-user {
+  padding: 20px 16px;
   border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.sidebar-label {
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--text);
+.sidebar-user-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--gradient-brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
+
+.sidebar-user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.sidebar-user-fb {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.sidebar-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sidebar-user-hi { font-size: 11px; color: var(--text-dim); }
+.sidebar-user-name { font-size: 14px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-user-role { font-size: 11px; padding: 1px 8px; border-radius: 6px; font-weight: 500; width: fit-content; }
+.role-admin { background: rgba(255, 107, 157, 0.12); color: var(--pink); }
+.role-user { background: var(--pink-bg); color: var(--text-dim); }
 
 .sidebar-nav {
   padding: 12px 12px 20px;
@@ -775,6 +1194,25 @@ onMounted(() => {
 
 .nav-icon { width: 18px; height: 18px; }
 
+.sidebar-dark-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: var(--text-dim);
+  transition: all 0.2s;
+  padding: 0;
+}
+.sidebar-dark-btn:hover { border-color: var(--pink); color: var(--pink); }
+
 .sidebar-footer {
   padding: 12px;
   border-top: 1px solid var(--border-light);
@@ -801,7 +1239,7 @@ onMounted(() => {
 .admin-main {
   flex: 1;
   margin-left: 220px;
-  padding: 96px 32px 32px;
+  padding: 32px;
   min-height: 100vh;
 }
 
@@ -834,13 +1272,20 @@ onMounted(() => {
   gap: 8px;
 }
 
+.section-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
 .create-btn {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 10px 20px;
   border-radius: 12px;
-  background: var(--gradient-brand);
+  background: var(--brand-gradient);
   color: var(--white);
   font-size: 13px;
   font-weight: 600;
@@ -879,7 +1324,8 @@ onMounted(() => {
 
 .data-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 13px;
 }
 
@@ -887,10 +1333,9 @@ onMounted(() => {
   padding: 14px 16px;
   text-align: left;
   font-weight: 600;
-  color: var(--text);
+  color: #fff !important;
   font-size: 12px;
-  background: var(--bg-soft);
-  border-bottom: 2px solid var(--border-light);
+  background: var(--brand) !important;
   letter-spacing: 0.2px;
   white-space: nowrap;
 }
@@ -1211,15 +1656,13 @@ onMounted(() => {
   padding: 10px 14px;
   border-radius: 10px;
   border: 1px solid var(--border-light);
-  cursor: pointer;
   transition: border-color 0.15s;
+  cursor: default;
 }
 
 .section-config-item:hover { border-color: var(--purple); background: rgba(180, 132, 255, 0.04); }
-.section-config-item.disabled { opacity: 0.5; }
 
-.section-config-left { display: flex; align-items: center; gap: 10px; }
-.section-config-left input[type="checkbox"] { accent-color: var(--purple); }
+.section-config-left { display: flex; align-items: center; gap: 10px; cursor: pointer; flex: 1; }
 
 .section-config-name { font-size: 14px; font-weight: 600; color: var(--text); }
 
@@ -1231,10 +1674,271 @@ onMounted(() => {
   color: var(--text-dim);
 }
 
-.section-config-right { display: flex; align-items: center; gap: 6px; }
-.section-config-right input[type="radio"] { accent-color: var(--purple); }
+.section-config-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+
+/* 板块拨动开关 */
+.sc-toggle-switch {
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--border);
+  position: relative;
+  transition: background 0.2s;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.sc-toggle-switch.on { background: var(--gradient-brand); }
+
+.sc-toggle-knob {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+.sc-toggle-switch.on .sc-toggle-knob { transform: translateX(18px); }
+
+.sc-default-wrap { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.sc-default-wrap input[type="radio"] { accent-color: var(--purple); }
 
 .default-label { font-size: 12px; color: var(--text-dim); }
 
 .op-btn-danger-bg { background: var(--error) !important; }
+
+/* ===== 筛选下拉框 ===== */
+.filter-select {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.filter-select:focus { border-color: var(--pink); }
+
+/* ===== 分页 ===== */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.page-btn {
+  padding: 6px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-dim);
+  transition: all 0.2s;
+}
+
+.page-btn:hover:not(:disabled) { border-color: var(--pink); color: var(--pink); }
+.page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.page-info { font-size: 13px; color: var(--text-dim); }
+
+/* ===== RBAC 角色权限管理 ===== */
+.rbac-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  height: calc(100vh - 160px);
+}
+
+.rbac-roles {
+  width: 280px;
+  background: var(--card);
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+}
+
+.rbac-roles-hd {
+  padding: 14px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--brand);
+  border-bottom: none;
+  flex-shrink: 0;
+}
+
+.rbac-role-list {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.rbac-role-item {
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  transition: background 0.15s;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.rbac-role-item:last-child { border-bottom: none; }
+.rbac-role-item:hover { background: var(--pink-bg); }
+.rbac-role-item.active { background: linear-gradient(135deg, rgba(255, 107, 157, 0.08), rgba(180, 132, 255, 0.08)); }
+
+.rbac-role-info { display: flex; flex-direction: column; gap: 2px; }
+.rbac-role-label { font-size: 14px; font-weight: 600; color: var(--text); }
+.rbac-role-code { font-size: 11px; color: var(--text-dim); font-family: 'SF Mono', monospace; }
+
+.rbac-role-scope {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.scope-global { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
+.scope-circle { background: rgba(99, 102, 241, 0.12); color: #6366f1; }
+
+.rbac-perms {
+  flex: 1;
+  background: var(--card);
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+}
+
+.rbac-perms-hd {
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--brand);
+  border-bottom: none;
+  flex-shrink: 0;
+}
+
+.rbac-perm-groups-scroll {
+  overflow-y: auto;
+  flex: 1;
+  padding: 16px;
+}
+
+.rbac-perm-groups { padding: 16px; }
+
+.rbac-perm-group { margin-bottom: 20px; }
+.rbac-perm-group:last-child { margin-bottom: 0; }
+
+.rbac-perm-group-hd {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-light);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+  transition: color 0.15s;
+}
+
+.rbac-perm-group-hd:hover { color: var(--pink); }
+
+.rbac-group-arrow { font-size: 14px; flex-shrink: 0; }
+
+.rbac-perm-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rbac-perm-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border-light);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.rbac-perm-toggle:hover { border-color: var(--pink); background: rgba(255, 107, 157, 0.03); }
+
+.rbac-toggle-info { display: flex; align-items: center; gap: 10px; }
+.rbac-toggle-label { font-size: 13px; font-weight: 500; color: var(--text); }
+.rbac-toggle-code { font-size: 11px; color: var(--text-dim); font-family: 'SF Mono', monospace; }
+
+.rbac-toggle-switch {
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--border);
+  position: relative;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.rbac-toggle-switch.on { background: var(--gradient-brand); }
+
+.rbac-toggle-knob {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+}
+
+.rbac-toggle-switch.on .rbac-toggle-knob { transform: translateX(18px); }
+
+/* 夜间模式 */
+html.dark .op-link-purple { color: #a78bfa; }
+html.dark .op-link-purple:hover { color: #c4b5fd; }
+html.dark .op-link-green:hover { color: #22c55e; }
+html.dark .op-link-danger:hover { color: #f87171; }
+html.dark .section-config-item:hover { background: rgba(180, 132, 255, 0.08); }
+html.dark .sc-toggle-knob,
+html.dark .rbac-toggle-knob { background: #d4d0e8; }
+html.dark .sc-toggle-switch { background: #3d3d5c; }
+html.dark .rbac-toggle-switch { background: #3d3d5c; }
+html.dark .modal-overlay { background: rgba(0, 0, 0, 0.6); }
+html.dark .admin-sidebar { border-right-color: var(--border); }
+html.dark .cancel-btn:hover { border-color: var(--text-dim); color: var(--text); }
+html.dark .upload-btn:hover { border-color: var(--pink); color: var(--pink); }
+html.dark .sidebar-dark-btn:hover { border-color: var(--pink-light); color: var(--pink-light); }
+html.dark .avatar-32-fb { color: #fff; }
+html.dark .sc-default-wrap { color: var(--text-dim); }
+
 </style>
