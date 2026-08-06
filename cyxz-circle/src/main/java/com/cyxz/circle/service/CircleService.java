@@ -59,6 +59,14 @@ public interface CircleService {
     List<CircleVO> listJoined(Long userId);
 
     /**
+     * 查询当前用户管理的圈子（圈主或圈子管理员）
+     * <p>用于前端圈子管理后台的左侧圈子选择器。
+     * @param userId 用户 ID
+     * @return 用户管理的启用圈子 VO 列表
+     */
+    List<CircleVO> listManagedCircles(Long userId);
+
+    /**
      * 校验是否可在指定圈子发布（圈子存在、启用、已加入）
      * @param circleId 圈子 ID
      * @param userId 用户 ID
@@ -84,18 +92,26 @@ public interface CircleService {
     void updateCircle(Long circleId, String name, String intro, String avatar, String cover);
 
     /**
-     * 创建圈子
+     * 创建圈子，并将创建者设为圈主
      * @param name 圈子名称，不能为空
      * @param intro 圈子简介，可为 null
      * @param avatar 圈子头像 URL，可为 null
      * @param cover 圈子封面 URL，可为 null
+     * @param ownerId 圈主用户 ID（创建者），写入 circle.owner_id 并分配 CIRCLE_OWNER 角色
      * @return 创建后的圈子 VO，并初始化默认板块
      */
-    CircleVO createCircle(String name, String intro, String avatar, String cover);
+    CircleVO createCircle(String name, String intro, String avatar, String cover, Long ownerId);
 
     /**
      * 删除圈子（软删除）
      * @param circleId 圈子 ID
      */
     void deleteCircle(Long circleId);
+
+    /**
+     * 更新圈子状态（启用/禁用）
+     * @param circleId 圈子 ID
+     * @param status   状态：1=启用 0=禁用
+     */
+    void updateStatus(Long circleId, Integer status);
 }

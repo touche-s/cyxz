@@ -3,7 +3,6 @@ package com.cyxz.circle.controller;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.PageConstants;
-import com.cyxz.common.web.AdminUser;
 import com.cyxz.common.web.CurrentUser;
 import com.cyxz.circle.dto.SectionConfigRequest;
 import com.cyxz.circle.service.CircleSectionService;
@@ -12,6 +11,7 @@ import com.cyxz.circle.vo.CircleSectionVO;
 import com.cyxz.circle.vo.CircleVO;
 import com.cyxz.circle.vo.PublishableResult;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,6 +20,9 @@ import java.util.Set;
 
 /**
  * 圈子 Controller，提供圈子的公共查询和内部服务接口
+ * <p>写操作权限校验：平台级操作用全局权限码（circle:manage:create/delete），
+ * 圈子内操作用 {@code @circlePerm} 校验圈子权限（circle:manage:update/section:manage），
+ * 全局管理员（站主/平台管理员）对所有圈子均放行。
  */
 @RestController
 @RequestMapping("/circle")
@@ -69,6 +72,15 @@ public class CircleController {
     }
 
     /**
+     * 当前用户管理的圈子（圈主或圈子管理员）
+     * <p>用于圈子管理后台左侧圈子选择器。
+     */
+    @GetMapping("/managed")
+    public Result<List<CircleVO>> managed(@CurrentUser Long userId) {
+        return Result.success(circleService.listManagedCircles(userId));
+    }
+
+    /**
      * 加入圈子
      */
     @PostMapping("/{circleId}/join")
@@ -88,37 +100,54 @@ public class CircleController {
 
     /**
      * 更新圈子资料
+     * <p>平台管理员可改任意圈子；圈主/管理员可改自己圈子（circle:manage:update）。
      */
     @PutMapping("/{circleId}")
+    @PreAuthorize("hasRole('SITE_OWNER') or hasRole('PLATFORM_ADMIN') or " +
+                  "@circlePerm.hasAuthority('circle:manage:update', #circleId)")
     public Result<Void> update(@PathVariable Long circleId,
                                @RequestParam(required = false) String name,
                                @RequestParam(required = false) String intro,
                                @RequestParam(required = false) String avatar,
-                               @RequestParam(required = false) String cover,
-                               @AdminUser Object admin) {
+                               @RequestParam(required = false) String cover) {
         circleService.updateCircle(circleId, name, intro, avatar, cover);
         return Result.success("更新成功");
     }
 
     /**
-     * 创建圈子
+     * 创建圈子，创建者成为圈主
      */
     @PostMapping
+    @PreAuthorize("hasAuthority('circle:manage:create')")
     public Result<CircleVO> create(@RequestParam String name,
                                    @RequestParam(required = false) String intro,
                                    @RequestParam(required = false) String avatar,
                                    @RequestParam(required = false) String cover,
-                                   @AdminUser Object admin) {
-        return Result.success(circleService.createCircle(name, intro, avatar, cover));
+                                   @CurrentUser Long ownerId) {
+        return Result.success(circleService.createCircle(name, intro, avatar, cover, ownerId));
     }
 
     /**
-     * 删除圈子
+     * 删除圈子（仅平台管理员）
      */
     @DeleteMapping("/{circleId}")
-    public Result<Void> delete(@PathVariable Long circleId, @AdminUser Object admin) {
+    @PreAuthorize("hasAuthority('circle:manage:delete')")
+    public Result<Void> delete(@PathVariable Long circleId) {
         circleService.deleteCircle(circleId);
         return Result.success("删除成功");
+    }
+
+    /**
+     * 更新圈子状态（启用/禁用，仅平台管理员）
+     *
+     * @param circleId 圈子 ID
+     * @param body     请求体，包含 status（1=启用 0=禁用）
+     */
+    @PutMapping("/{circleId}/status")
+    @PreAuthorize("hasRole('SITE_OWNER') or hasRole('PLATFORM_ADMIN')")
+    public Result<Void> updateStatus(@PathVariable Long circleId, @RequestBody Map<String, Integer> body) {
+        circleService.updateStatus(circleId, body.get("status"));
+        return Result.success("状态更新成功");
     }
 
     /**
@@ -150,12 +179,13 @@ public class CircleController {
     }
 
     /**
-     * 管理员配置圈子板块
+     * 配置圈子板块（平台管理员或圈子管理员/圈主）
      */
     @PutMapping("/{circleId}/sections")
+    @PreAuthorize("hasRole('SITE_OWNER') or hasRole('PLATFORM_ADMIN') or " +
+                  "@circlePerm.hasAuthority('circle:section:manage', #circleId)")
     public Result<Void> configureSections(@PathVariable Long circleId,
-                                          @RequestBody List<SectionConfigRequest> configs,
-                                          @AdminUser Object admin) {
+                                          @RequestBody List<SectionConfigRequest> configs) {
         circleSectionService.configureSections(circleId, configs);
         return Result.success("配置成功");
     }

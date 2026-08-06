@@ -8,8 +8,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * 圈子服务启动类
+ * <p>额外扫描 common.security.mapper（RBAC 跨库只读查询，供 @circlePerm 权限校验）。
  */
-@MapperScan("com.cyxz.circle.mapper")
+@MapperScan({"com.cyxz.circle.mapper", "com.cyxz.common.security.mapper"})
 @SpringBootApplication(scanBasePackages = {"com.cyxz.circle", "com.cyxz.common"})
 @EnableFeignClients(basePackages = "com.cyxz.post.feign")
 @EnableScheduling

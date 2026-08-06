@@ -3,11 +3,13 @@ package com.cyxz.circle.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cyxz.circle.mapper.CircleRoleAssignmentMapper;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.constant.PageConstants;
+import com.cyxz.circle.constant.CircleRoleConstants;
 import com.cyxz.circle.entity.CircleMemberPO;
 import com.cyxz.circle.entity.CirclePO;
 import com.cyxz.circle.mapper.CircleMapper;
@@ -38,6 +40,7 @@ public class CircleServiceImpl implements CircleService {
 
     private final CircleMapper circleMapper;
     private final CircleMemberMapper circleMemberMapper;
+    private final CircleRoleAssignmentMapper circleRoleAssignmentMapper;
     private final CircleSectionService circleSectionService;
 
     /**
@@ -79,7 +82,7 @@ public class CircleServiceImpl implements CircleService {
     }
 
     /**
-     * 加入圈子，幂等处理成员关系并维护 member_count
+     * 加入圈子，幂等处理成员关系并维护 member_count，同时分配 CIRCLE_MEMBER 角色
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -93,10 +96,12 @@ public class CircleServiceImpl implements CircleService {
             circleMapper.updateMemberCount(circleId, 1);
             log.info("{}圈子: userId={}, circleId={}", rows == 1 ? "加入" : "恢复", userId, circleId);
         }
+        // 分配圈子成员角色（幂等），同一 MySQL 实例跨库写入参与本事务
+        circleRoleAssignmentMapper.assignRole(userId, CircleRoleConstants.CIRCLE_MEMBER_ROLE_ID, circleId);
     }
 
     /**
-     * 退出圈子，软删成员关系并递减 member_count
+     * 退出圈子，软删成员关系并递减 member_count，同时撤销 CIRCLE_MEMBER 角色
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -106,6 +111,8 @@ public class CircleServiceImpl implements CircleService {
             circleMapper.updateMemberCount(circleId, -1);
             log.info("退出圈子: userId={}, circleId={}", userId, circleId);
         }
+        // 撤销圈子成员角色（不影响圈主/管理员角色）
+        circleRoleAssignmentMapper.removeRole(userId, CircleRoleConstants.CIRCLE_MEMBER_ROLE_ID, circleId);
     }
 
     /**
@@ -121,6 +128,19 @@ public class CircleServiceImpl implements CircleService {
         return circles.stream()
                 .filter(c -> c.getStatus() == CommonStatus.ACTIVE)
                 .map(c -> convertToVO(c, joinedIds))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 查询用户管理的圈子（圈主或圈子管理员），用于圈子管理后台选择器
+     */
+    @Override
+    public List<CircleVO> listManagedCircles(Long userId) {
+        List<CirclePO> circles = circleMapper.selectManagedCircles(userId,
+                CircleRoleConstants.CIRCLE_OWNER_ROLE_ID,
+                CircleRoleConstants.CIRCLE_ADMIN_ROLE_ID);
+        return circles.stream()
+                .map(c -> convertToVO(c, Collections.emptySet()))
                 .collect(Collectors.toList());
     }
 
@@ -175,11 +195,11 @@ public class CircleServiceImpl implements CircleService {
     }
 
     /**
-     * 创建圈子并初始化默认板块
+     * 创建圈子并初始化默认板块，同时将创建者设为圈主（写 owner_id + 分配 CIRCLE_OWNER 角色）
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public CircleVO createCircle(String name, String intro, String avatar, String cover) {
+    public CircleVO createCircle(String name, String intro, String avatar, String cover, Long ownerId) {
         if (!StringUtils.hasText(name)) {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "圈子名称不能为空");
         }
@@ -193,8 +213,15 @@ public class CircleServiceImpl implements CircleService {
         po.setSortOrder(0);
         po.setPostCount(0);
         po.setMemberCount(0);
+        po.setOwnerId(ownerId);
         circleMapper.insert(po);
         circleSectionService.initDefaultSections(po.getId());
+
+        // 分配圈主角色给创建者（幂等），权限校验以 sys_user_role 为准
+        if (ownerId != null) {
+            circleRoleAssignmentMapper.assignRole(ownerId, CircleRoleConstants.CIRCLE_OWNER_ROLE_ID, po.getId());
+        }
+        log.info("创建圈子并指定圈主: circleId={}, ownerId={}", po.getId(), ownerId);
         return toVO(po, null);
     }
 
@@ -219,6 +246,20 @@ public class CircleServiceImpl implements CircleService {
         circleMemberMapper.update(null, memberWrapper);
 
         log.info("删除圈子并级联清理: circleId={}, 成员关系已软删", circleId);
+    }
+
+    /**
+     * 更新圈子状态（启用/禁用）
+     */
+    @Override
+    public void updateStatus(Long circleId, Integer status) {
+        CirclePO po = circleMapper.selectById(circleId);
+        if (po == null) {
+            throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND);
+        }
+        po.setStatus(status);
+        circleMapper.updateById(po);
+        log.info("更新圈子状态: circleId={}, status={}", circleId, status);
     }
 
     private List<CircleVO> toVOList(List<CirclePO> circles, Long currentUserId) {
@@ -248,6 +289,7 @@ public class CircleServiceImpl implements CircleService {
         vo.setCover(po.getCover());
         vo.setPostCount(po.getPostCount());
         vo.setMemberCount(po.getMemberCount());
+        vo.setStatus(po.getStatus());
         vo.setJoined(joinedIds.contains(po.getId()));
         return vo;
     }

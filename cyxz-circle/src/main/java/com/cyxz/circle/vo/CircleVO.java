@@ -16,5 +16,6 @@ public class CircleVO {
     private String cover;
     private Integer postCount;
     private Integer memberCount;
+    private Integer status;
     private Boolean joined;
 }
