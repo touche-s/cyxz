@@ -250,6 +250,29 @@ public class PostQueryService {
     }
 
     /**
+     * 管理员帖子列表（全量，含各种状态）
+     *
+     * @param status  帖子状态筛选（null=全部）
+     * @param keyword 标题关键词（null=不筛选）
+     * @param page    页码
+     * @param size    每页条数
+     */
+    public PageResult<PostVO> listAllForAdmin(Integer status, String keyword, int page, int size) {
+        Page<PostPO> pageParam = PageConstants.pageOf(page, size);
+        LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
+        if (status != null) {
+            wrapper.eq(PostPO::getStatus, status);
+        }
+        if (StringUtils.hasText(keyword)) {
+            wrapper.like(PostPO::getTitle, keyword);
+        }
+        wrapper.orderByDesc(PostPO::getCreateTime);
+        Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
+        List<PostVO> vos = fillPostVOList(result.getRecords(), null);
+        return PageResult.of(vos, result.getTotal(), page, size);
+    }
+
+    /**
      * 批量填充帖子 VO 列表
      * <p>并行查询用户信息、板块、圈子、点赞/收藏状态，减少串行等待时间。
      */

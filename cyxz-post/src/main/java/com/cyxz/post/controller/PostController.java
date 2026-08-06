@@ -3,8 +3,8 @@ package com.cyxz.post.controller;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.PageConstants;
-import com.cyxz.common.web.AdminUser;
 import com.cyxz.common.web.CurrentUser;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
 import com.cyxz.post.service.PostInteractionService;
@@ -437,19 +437,18 @@ public class PostController {
         return Result.success("批量操作成功");
     }
 
-    // ===== 审核接口（管理员） =====
+    // ===== 审核接口（平台管理员） =====
 
     /**
      * 待审核帖子列表
      *
-     * @param admin 管理员身份（由 Gateway 注入）
-     * @param page  页码（从 1 开始，默认 1）
-     * @param size  每页条数（默认 10）
+     * @param page 页码（从 1 开始，默认 1）
+     * @param size 每页条数（默认 10）
      * @return 待审核帖子分页列表
      */
+    @PreAuthorize("hasRole('SITE_OWNER') or hasRole('PLATFORM_ADMIN')")
     @GetMapping("/admin/review/pending")
-    public Result<PageResult<PostVO>> listPendingReview(@AdminUser Object admin,
-                                                         @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
+    public Result<PageResult<PostVO>> listPendingReview(@RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
                                                          @RequestParam(value = "size", defaultValue = PageConstants.DEFAULT_SIZE_STR) int size) {
         return Result.success(postService.listPendingReview(page, size));
     }
@@ -457,12 +456,12 @@ public class PostController {
     /**
      * 审核通过
      *
-     * @param admin  管理员身份（由 Gateway 注入）
      * @param postId 帖子 ID
      * @return 操作结果
      */
+    @PreAuthorize("hasRole('SITE_OWNER') or hasRole('PLATFORM_ADMIN')")
     @PutMapping("/admin/review/{postId}/approve")
-    public Result<Void> approvePost(@AdminUser Object admin, @PathVariable Long postId) {
+    public Result<Void> approvePost(@PathVariable Long postId) {
         postService.approvePost(postId);
         return Result.success("审核通过");
     }
@@ -470,15 +469,46 @@ public class PostController {
     /**
      * 审核拒绝
      *
-     * @param admin  管理员身份（由 Gateway 注入）
      * @param postId 帖子 ID
      * @param body   拒绝请求体，包含 reason（拒绝原因）
      * @return 操作结果
      */
+    @PreAuthorize("hasRole('SITE_OWNER') or hasRole('PLATFORM_ADMIN')")
     @PutMapping("/admin/review/{postId}/reject")
-    public Result<Void> rejectPost(@AdminUser Object admin, @PathVariable Long postId, @RequestBody Map<String, String> body) {
+    public Result<Void> rejectPost(@PathVariable Long postId, @RequestBody Map<String, String> body) {
         postService.rejectPost(postId, body.get("reason"));
         return Result.success("已拒绝");
+    }
+
+    // ===== 帖子管理接口（平台管理员） =====
+
+    /**
+     * 管理员帖子列表（全量，含各种状态）
+     *
+     * @param status  帖子状态筛选（null=全部：0=草稿 1=待审核 2=已通过 3=拒绝 4=已删除）
+     * @param keyword 标题关键词
+     * @param page    页码
+     * @param size    每页条数
+     */
+    @PreAuthorize("hasRole('SITE_OWNER') or hasRole('PLATFORM_ADMIN')")
+    @GetMapping("/admin/list")
+    public Result<PageResult<PostVO>> listAllForAdmin(@RequestParam(value = "status", required = false) Integer status,
+                                                       @RequestParam(value = "keyword", required = false) String keyword,
+                                                       @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
+                                                       @RequestParam(value = "size", defaultValue = PageConstants.DEFAULT_SIZE_STR) int size) {
+        return Result.success(postService.listAllForAdmin(status, keyword, page, size));
+    }
+
+    /**
+     * 管理员删除帖子（逻辑删除，不校验作者归属）
+     *
+     * @param postId 帖子 ID
+     */
+    @PreAuthorize("hasRole('SITE_OWNER') or hasRole('PLATFORM_ADMIN')")
+    @DeleteMapping("/admin/{postId}")
+    public Result<Void> adminDeletePost(@PathVariable Long postId) {
+        postService.adminDeletePost(postId);
+        return Result.success("删除成功");
     }
 
     /**

@@ -51,7 +51,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             "/api/auth/captcha/**",
             "/api/auth/refresh",
             "/api/post/list/**",
-            "/api/circle/**",
+            "/api/circle/list/**",
+            "/api/circle/hot/**",
             "/ws/message/**"
     );
 
@@ -80,25 +81,17 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
                 .headers(headers -> {
                     headers.remove("X-User-Id");
                     headers.remove("X-User-Role");
+                    headers.remove("X-User-Roles");
+                    headers.remove("X-User-Permissions");
                 })
                 .build();
         exchange = exchange.mutate().request(request).build();
 
-        if (isWhitelisted(path)) {
-            // 白名单路径：有 Token 就解析注入 X-User-Id，无 Token 直接放行
+        if (isWhitelisted(path, request.getMethod())) {
+            // 白名单路径：有 Token 就解析注入用户头，无 Token 直接放行
             String token = TokenUtil.extractBearerToken(request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION));
             if (token != null && jwtUtil.validateToken(token)) {
-                Long userId = jwtUtil.getUserId(token);
-                String role = jwtUtil.getRole(token);
-                ServerHttpRequest mutatedRequest = request.mutate()
-                        .headers(headers -> {
-                            headers.remove("X-User-Id");
-                            headers.set("X-User-Id", String.valueOf(userId));
-                            headers.remove("X-User-Role");
-                            headers.set("X-User-Role", role);
-                        })
-                        .build();
-                return chain.filter(exchange.mutate().request(mutatedRequest).build());
+                return chain.filter(exchange.mutate().request(injectUserHeaders(request, token)).build());
             }
             return chain.filter(exchange);
         }
@@ -116,18 +109,40 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
             return unauthorized(response, ErrorCode.TOKEN_INVALID, "Token无效或已过期");
         }
 
+        ServerHttpRequest mutatedRequest = injectUserHeaders(request, token);
+        return chain.filter(exchange.mutate().request(mutatedRequest).build());
+    }
+
+    /**
+     * 解析 Token 并注入内部信任头到下游服务
+     * <p>注入头：
+     * <ul>
+     *   <li>{@code X-User-Id}：用户 ID</li>
+     *   <li>{@code X-User-Role}：单值全局角色 code（迁移期兼容 AdminRoleFilter / AdminUserResolver）</li>
+     *   <li>{@code X-User-Roles}：逗号分隔的全局角色 code，供 HeaderAuthenticationFilter 转 ROLE_ 前缀</li>
+     *   <li>{@code X-User-Permissions}：逗号分隔的全局权限码，供 hasAuthority() 校验</li>
+     * </ul>
+     * <p>圈子内角色不注入（用户可能加入数十圈子，头装不下），由业务服务实时查库。
+     *
+     * @param request 原始请求
+     * @param token   已校验有效的 JWT Token
+     * @return 注入信任头后的新请求
+     */
+    private ServerHttpRequest injectUserHeaders(ServerHttpRequest request, String token) {
         Long userId = jwtUtil.getUserId(token);
         String role = jwtUtil.getRole(token);
-        ServerHttpRequest mutatedRequest = request.mutate()
+        List<String> permissions = jwtUtil.getPermissions(token);
+        String permissionsHeader = permissions.isEmpty() ? "" : String.join(",", permissions);
+        return request.mutate()
                 .headers(headers -> {
-                    headers.remove("X-User-Id");
                     headers.set("X-User-Id", String.valueOf(userId));
-                    headers.remove("X-User-Role");
+                    // 单值头：兼容迁移期 AdminRoleFilter / AdminUserResolver
                     headers.set("X-User-Role", role);
+                    // 多值头：RBAC 标准
+                    headers.set("X-User-Roles", role);
+                    headers.set("X-User-Permissions", permissionsHeader);
                 })
                 .build();
-
-        return chain.filter(exchange.mutate().request(mutatedRequest).build());
     }
 
     /**
@@ -154,9 +169,17 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         return response.writeWith(Mono.just(buffer));
     }
 
-    private boolean isWhitelisted(String path) {
+    private boolean isWhitelisted(String path, HttpMethod method) {
         for (String pattern : WHITELIST) {
             if (pathMatcher.match(pattern, path)) {
+                return true;
+            }
+        }
+        // 圈子详情和板块：GET /api/circle/{id} 和 GET /api/circle/{id}/sections 公开访问
+        if (method == HttpMethod.GET && path.startsWith("/api/circle/")) {
+            String sub = path.substring("/api/circle/".length());
+            if (sub.equals("joined")) return false;
+            if (sub.matches("\\d+") || sub.matches("\\d+/sections")) {
                 return true;
             }
         }

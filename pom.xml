@@ -13,6 +13,7 @@
 
     <modules>
         <module>cyxz-common</module>
+        <module>cyxz-security</module>
         <module>cyxz-user-api</module>
         <module>cyxz-auth-api</module>
         <module>cyxz-post-api</module>
@@ -82,6 +83,11 @@
             <dependency>
                 <groupId>com.cyxz</groupId>
                 <artifactId>cyxz-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.cyxz</groupId>
+                <artifactId>cyxz-security</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

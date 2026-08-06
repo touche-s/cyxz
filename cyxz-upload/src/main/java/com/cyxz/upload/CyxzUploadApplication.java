@@ -1,11 +1,13 @@
 package com.cyxz.upload;
 
+import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
  * 上传服务启动类
  */
+@MapperScan("com.cyxz.common.security.mapper")
 @SpringBootApplication(scanBasePackages = {"com.cyxz.upload", "com.cyxz.common"})
 public class CyxzUploadApplication {
 

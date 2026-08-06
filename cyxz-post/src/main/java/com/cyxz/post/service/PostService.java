@@ -239,6 +239,23 @@ public interface PostService {
     PageResult<PostVO> listPendingReview(int page, int size);
 
     /**
+     * 管理员帖子列表（全量，含各种状态）
+     *
+     * @param status  帖子状态筛选（null=全部）
+     * @param keyword 标题关键词（null=不筛选）
+     * @param page    页码
+     * @param size    每页条数
+     */
+    PageResult<PostVO> listAllForAdmin(Integer status, String keyword, int page, int size);
+
+    /**
+     * 管理员删除帖子（逻辑删除，不校验作者归属）
+     *
+     * @param postId 帖子 ID
+     */
+    void adminDeletePost(Long postId);
+
+    /**
      * 批量统计各圈子的已发布帖子数（内部接口）
      * <p>供 circle 服务定时刷新帖子数。
      * @param circleIds 圈子 ID 集合

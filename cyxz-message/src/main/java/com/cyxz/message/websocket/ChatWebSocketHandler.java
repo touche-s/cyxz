@@ -37,7 +37,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         Long userId = (Long) session.getAttributes().get("userId");
         if (userId != null) {
-            sessionManager.remove(userId);
+            sessionManager.remove(userId, session);
         }
     }
 }

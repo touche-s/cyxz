@@ -215,6 +215,23 @@ public class PostCommandService {
     }
 
     /**
+     * 管理员删除帖子（逻辑删除，不校验作者归属）
+     *
+     * @param postId 帖子 ID
+     */
+    public void adminDeletePost(Long postId) {
+        PostPO po = postMapper.selectById(postId);
+        if (po == null) {
+            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
+        }
+        po.setStatus(PostStatus.DELETED);
+        postMapper.updateById(po);
+        postQueryService.evictDetailCache(postId);
+        postEsSyncService.syncPostToEs(po);
+        log.info("管理员删除帖子: postId={}", postId);
+    }
+
+    /**
      * 彻底删除帖子（物理删除 + 级联清理关联数据）
      */
     @Transactional(rollbackFor = Exception.class)

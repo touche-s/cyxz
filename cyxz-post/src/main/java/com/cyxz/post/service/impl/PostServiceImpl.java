@@ -95,6 +95,16 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    public PageResult<PostVO> listAllForAdmin(Integer status, String keyword, int page, int size) {
+        return postQueryService.listAllForAdmin(status, keyword, page, size);
+    }
+
+    @Override
+    public void adminDeletePost(Long postId) {
+        postCommandService.adminDeletePost(postId);
+    }
+
+    @Override
     public void pinPost(Long userId, Long postId) {
         postCommandService.pinPost(userId, postId);
     }

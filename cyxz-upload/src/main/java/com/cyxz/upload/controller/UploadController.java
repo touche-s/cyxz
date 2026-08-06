@@ -1,8 +1,8 @@
 package com.cyxz.upload.controller;
 
 import com.cyxz.common.base.Result;
-import com.cyxz.common.web.AdminUser;
 import com.cyxz.common.web.CurrentUser;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.cyxz.upload.config.MinioConfig;
 import com.cyxz.upload.service.UploadService;
 import lombok.RequiredArgsConstructor;
@@ -86,20 +86,21 @@ public class UploadController {
 
     /**
      * 上传圈子资源（头像或封面）
+     * <p>站主/平台管理员可上传任意圈子资源；圈主/圈子管理员可上传自己圈子资源。
      *
      * @param file     图片文件
      * @param circleId 圈子 ID
      * @param type     资源类型：avatar 或 cover
      * @param userId   当前登录用户 ID（由 Gateway 注入）
-     * @param admin    当前管理员标识（由 Gateway 注入，用于鉴权）
      * @return 文件访问 URL
      */
+    @PreAuthorize("hasRole('SITE_OWNER') or hasRole('PLATFORM_ADMIN') or " +
+                  "@circlePerm.hasAuthority('circle:resource:upload', #circleId)")
     @PostMapping("/circle-resource")
     public Result<String> uploadCircleResource(@RequestParam("file") MultipartFile file,
                                                 @RequestParam("circleId") Long circleId,
                                                 @RequestParam("type") String type,
-                                                @CurrentUser Long userId,
-                                                @AdminUser Object admin) {
+                                                @CurrentUser Long userId) {
         String url = uploadService.uploadCircleResource(file, circleId, type);
         return Result.success("操作成功", url);
     }
