@@ -11,6 +11,8 @@ import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
 import com.cyxz.user.feign.UserFeignClient;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -22,6 +24,8 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -249,6 +253,28 @@ class AuthServiceImplTest {
     @DisplayName("register — 用户注册")
     class Register {
 
+        @BeforeEach
+        void initTxSynchronization() {
+            // register 现使用 @Transactional + afterCommit，单测需手动开启同步上下文
+            if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.initSynchronization();
+            }
+        }
+
+        @AfterEach
+        void clearTxSynchronization() {
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.clearSynchronization();
+            }
+        }
+
+        /** 模拟事务提交：触发所有 afterCommit 回调 */
+        private void triggerAfterCommit() {
+            for (TransactionSynchronization sync : TransactionSynchronizationManager.getSynchronizations()) {
+                sync.afterCommit();
+            }
+        }
+
         @Test
         @DisplayName("两次密码不一致被拒，抛 PARAM_ERROR")
         void shouldRejectWhenPasswordMismatch() {
@@ -293,6 +319,7 @@ class AuthServiceImplTest {
 
             try {
                 authService.register(req);
+                triggerAfterCommit();
 
                 verify(passwordEncoder).encode("pass123");
                 verify(sysUserMapper).insert(any(SysUserPO.class));
@@ -339,6 +366,7 @@ class AuthServiceImplTest {
 
             try {
                 authService.register(req);
+                triggerAfterCommit();
 
                 verify(sysUserMapper).insert(any(SysUserPO.class));
                 verify(userFeignClient).initDefaultProfile(USER_ID, "user123");

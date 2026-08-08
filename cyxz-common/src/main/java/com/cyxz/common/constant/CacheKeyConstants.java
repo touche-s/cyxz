@@ -144,6 +144,16 @@ public final class CacheKeyConstants {
     }
 
     /**
+     * 获取某用户所有圈子权限缓存的通配 Key（用于登出/权限变更时批量删除）
+     *
+     * @param userId 用户 ID
+     * @return Redis Key 模式（auth:circle:{userId}:*）
+     */
+    public static String getAuthCirclePattern(Long userId) {
+        return AUTH_CIRCLE_PREFIX + userId + ":*";
+    }
+
+    /**
      * 获取帖子详情缓存 Key
      *
      * @param postId 帖子 ID
@@ -181,5 +191,16 @@ public final class CacheKeyConstants {
      */
     public static String getLoginFailKey(String ip) {
         return LOGIN_FAIL_PREFIX + ip;
+    }
+
+    /**
+     * 获取帖子浏览去重 Key
+     *
+     * @param postId   帖子 ID
+     * @param identity 用户 ID 或 IP 组成的身份标识（如 "user:123" / "ip:1.2.3.4"）
+     * @return Redis Key
+     */
+    public static String getPostViewDedupKey(Long postId, String identity) {
+        return POST_VIEW_DEDUP_PREFIX + postId + ":" + identity;
     }
 }

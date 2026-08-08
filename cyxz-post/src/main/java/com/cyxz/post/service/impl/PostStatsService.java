@@ -109,17 +109,17 @@ public class PostStatsService {
     /**
      * 获取帖子信息（内部接口）
      */
-    public Map<String, Object> getPostInfo(Long postId) {
+    public PostInfoVO getPostInfo(Long postId) {
         PostPO po = postMapper.selectById(postId);
         if (po == null) {
-            return Collections.emptyMap();
+            return null;
         }
-        Map<String, Object> map = new HashMap<>();
-        map.put("postId", po.getId());
-        map.put("userId", po.getUserId());
-        map.put("title", po.getTitle());
-        map.put("circleId", po.getCircleId());
-        return map;
+        PostInfoVO vo = new PostInfoVO();
+        vo.setPostId(po.getId());
+        vo.setUserId(po.getUserId());
+        vo.setTitle(po.getTitle());
+        vo.setCircleId(po.getCircleId());
+        return vo;
     }
 
     /**

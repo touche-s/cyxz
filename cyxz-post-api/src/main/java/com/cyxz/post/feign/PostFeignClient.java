@@ -24,10 +24,10 @@ public interface PostFeignClient {
      * <p>用于评论服务批量查询帖子标题，填充收到的评论列表。
      *
      * @param postId 帖子 ID
-     * @return 帖子信息（postId, userId, title）
+     * @return 帖子信息（postId, userId, title, circleId）
      */
     @GetMapping("/internal/{postId}/info")
-    Result<Map<String, Object>> getPostInfo(@PathVariable("postId") Long postId);
+    Result<PostInfoVO> getPostInfo(@PathVariable("postId") Long postId);
 
     /**
      * 批量获取帖子简要信息（内部接口）

@@ -145,7 +145,7 @@ public interface PostService {
      * @param postId 帖子 ID
      * @return 帖子信息（标题、作者 ID 等）
      */
-    Map<String, Object> getPostInfo(Long postId);
+    PostInfoVO getPostInfo(Long postId);
 
     /**
      * 批量查询帖子简要信息（内部接口）

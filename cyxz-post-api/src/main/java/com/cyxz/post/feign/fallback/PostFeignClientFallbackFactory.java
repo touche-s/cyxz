@@ -1,5 +1,6 @@
 package com.cyxz.post.feign.fallback;
 
+import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.feign.AbstractFeignFallbackFactory;
 import com.cyxz.post.feign.PostFeignClient;
@@ -29,9 +30,14 @@ public class PostFeignClientFallbackFactory extends AbstractFeignFallbackFactory
     @Override
     protected PostFeignClient createFallback(Throwable cause) {
         return new PostFeignClient() {
+            /**
+             * 评论创建强依赖帖子信息——服务降级时返回失败，
+             * 由调用方根据 {@link Result#isSuccess()} 区分"服务降级"与"帖子不存在"。
+             */
             @Override
-            public Result<Map<String, Object>> getPostInfo(Long postId) {
-                return Result.success(Collections.emptyMap());
+            public Result<PostInfoVO> getPostInfo(Long postId) {
+                return Result.fail(ErrorCode.SERVICE_UNAVAILABLE.getCode(),
+                        ErrorCode.SERVICE_UNAVAILABLE.getMsg());
             }
 
             @Override

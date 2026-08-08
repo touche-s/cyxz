@@ -15,6 +15,7 @@ import com.cyxz.post.entity.PostPO;
 import com.cyxz.post.mapper.PostCollectMapper;
 import com.cyxz.post.mapper.PostLikeMapper;
 import com.cyxz.post.mapper.PostMapper;
+import com.cyxz.post.vo.PostInfoVO;
 import com.cyxz.post.service.AiReviewService.AiReviewResult;
 import com.cyxz.post.service.AiReviewService;
 import com.cyxz.post.service.SensitiveWordService;
@@ -565,13 +566,13 @@ class PostServiceImplTest {
     class InternalApi {
 
         @Test
-        @DisplayName("getPostInfo：帖子不存在返回空 Map")
-        void shouldReturnEmptyMapWhenPostMissing() {
+        @DisplayName("getPostInfo：帖子不存在返回 null")
+        void shouldReturnNullWhenPostMissing() {
             when(postMapper.selectById(POST_ID)).thenReturn(null);
 
-            Map<String, Object> info = postStatsService.getPostInfo(POST_ID);
+            PostInfoVO info = postStatsService.getPostInfo(POST_ID);
 
-            assertTrue(info.isEmpty());
+            assertNull(info);
         }
 
         @Test
@@ -580,12 +581,12 @@ class PostServiceImplTest {
             PostPO po = buildPost(PostStatus.APPROVED);
             when(postMapper.selectById(POST_ID)).thenReturn(po);
 
-            Map<String, Object> info = postStatsService.getPostInfo(POST_ID);
+            PostInfoVO info = postStatsService.getPostInfo(POST_ID);
 
-            assertEquals(POST_ID, ((Number) info.get("postId")).longValue());
-            assertEquals(USER_ID, ((Number) info.get("userId")).longValue());
-            assertEquals("测试帖子", info.get("title"));
-            assertEquals(CIRCLE_ID, info.get("circleId"));
+            assertEquals(POST_ID, info.getPostId());
+            assertEquals(USER_ID, info.getUserId());
+            assertEquals("测试帖子", info.getTitle());
+            assertEquals(CIRCLE_ID, info.getCircleId());
         }
 
         @Test

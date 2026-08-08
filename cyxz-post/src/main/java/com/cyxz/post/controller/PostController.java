@@ -7,6 +7,7 @@ import com.cyxz.common.web.CurrentUser;
 import org.springframework.security.access.prepost.PreAuthorize;
 import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
+import com.cyxz.post.constant.PostStatus;
 import com.cyxz.post.service.PostInteractionService;
 import com.cyxz.post.service.PostService;
 import com.cyxz.post.service.SensitiveWordService;
@@ -62,7 +63,7 @@ public class PostController {
     @PostMapping("/draft")
     public Result<Long> saveDraft(@Valid @RequestBody CreatePostRequest request,
                                   @CurrentUser Long userId) {
-        request.setStatus(0);
+        request.setStatus(PostStatus.DRAFT);
         Long postId = postService.createPost(userId, request);
         return Result.success("草稿保存成功", postId);
     }
@@ -354,7 +355,7 @@ public class PostController {
      * @return 帖子信息（标题、作者 ID 等）
      */
     @GetMapping("/internal/{postId}/info")
-    public Result<Map<String, Object>> getPostInfo(@PathVariable("postId") Long postId) {
+    public Result<PostInfoVO> getPostInfo(@PathVariable("postId") Long postId) {
         return Result.success(postService.getPostInfo(postId));
     }
 

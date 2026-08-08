@@ -20,6 +20,8 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Duration;
 
@@ -143,7 +145,7 @@ public class PostInteractionServiceImpl implements PostInteractionService {
         }
 
         String identity = (userId != null) ? "user:" + userId : "ip:" + IpUtil.getClientIp(request);
-        String dedupKey = CacheKeyConstants.POST_VIEW_DEDUP_PREFIX + postId + ":" + identity;
+        String dedupKey = CacheKeyConstants.getPostViewDedupKey(postId, identity);
 
         Boolean firstView = stringRedisTemplate.opsForValue()
                 .setIfAbsent(dedupKey, "1", Duration.ofMinutes(CacheKeyConstants.POST_VIEW_DEDUP_MINUTES));
@@ -186,7 +188,12 @@ public class PostInteractionServiceImpl implements PostInteractionService {
             .targetId(postId)
             .createTime(System.currentTimeMillis())
             .build();
-        NotificationPublisher.publish(rabbitTemplate, event);
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                NotificationPublisher.publish(rabbitTemplate, event);
+            }
+        });
     }
 
 }

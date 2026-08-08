@@ -26,6 +26,9 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -189,11 +192,14 @@ public class AuthServiceImpl implements AuthService {
 
     /**
      * 用户注册
-     * <p>1. 校验验证码 2. 校验两次密码一致 3. 查重 4. BCrypt 加密入库
+     * <p>1. 校验验证码 2. 校验两次密码一致 3. 查重 4. BCrypt 加密入库 5. 分配默认角色 6. 初始化用户资料
+     * <p>步骤 4-5 在同一事务内，确保用户记录与角色绑定原子性；
+     * 步骤 6（Feign 跨服务）放在事务提交后执行，避免分布式事务并保证库已落盘才发通知。
      *
      * @param request 注册请求
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void register(RegisterRequest request) {
         validateCaptcha(request.getCaptcha(), request.getCaptchaUuid());
 
@@ -232,11 +238,20 @@ public class AuthServiceImpl implements AuthService {
 
         log.info("用户注册成功: userId={}, username={}", user.getId(), user.getUsername());
 
-        // 初始化默认资料，失败不阻塞注册流程（降级由 FallbackFactory 处理）
-        Result<Void> initResult = userFeignClient.initDefaultProfile(user.getId(), user.getUsername());
-        if (initResult == null || !initResult.isSuccess()) {
-            log.error("初始化用户资料失败，需人工补偿: userId={}, username={}", user.getId(), user.getUsername());
-        }
+        // 初始化默认资料（Feign 跨服务）放到事务提交后执行：
+        // 1) 避免跨服务调用占用本事务的 DB 连接；
+        // 2) 保证用户与角色已落盘才触发下游，防止"幻影通知"。
+        final Long userId = user.getId();
+        final String username = user.getUsername();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                Result<Void> initResult = userFeignClient.initDefaultProfile(userId, username);
+                if (initResult == null || !initResult.isSuccess()) {
+                    log.error("初始化用户资料失败，需人工补偿: userId={}, username={}", userId, username);
+                }
+            }
+        });
     }
 
     /**
@@ -262,7 +277,7 @@ public class AuthServiceImpl implements AuthService {
      */
     private void clearCirclePermissionCache(Long userId) {
         try {
-            Set<String> keys = stringRedisTemplate.keys(CacheKeyConstants.AUTH_CIRCLE_PREFIX + userId + ":*");
+            Set<String> keys = stringRedisTemplate.keys(CacheKeyConstants.getAuthCirclePattern(userId));
             if (keys != null && !keys.isEmpty()) {
                 stringRedisTemplate.delete(keys);
             }

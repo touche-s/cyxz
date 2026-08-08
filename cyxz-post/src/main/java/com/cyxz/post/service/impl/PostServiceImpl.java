@@ -160,7 +160,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public Map<String, Object> getPostInfo(Long postId) {
+    public PostInfoVO getPostInfo(Long postId) {
         return postStatsService.getPostInfo(postId);
     }
 

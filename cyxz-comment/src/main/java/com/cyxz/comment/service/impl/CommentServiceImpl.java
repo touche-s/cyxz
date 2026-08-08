@@ -33,6 +33,9 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -52,6 +55,7 @@ public class CommentServiceImpl implements CommentService {
     private final CircleFeignClient circleFeignClient;
     private final StringRedisTemplate stringRedisTemplate;
     private final RabbitTemplate rabbitTemplate;
+    private final TransactionTemplate transactionTemplate;
 
     /**
      * 发表评论
@@ -65,7 +69,6 @@ public class CommentServiceImpl implements CommentService {
      * @return 新创建的评论视图对象（含完整用户信息）
      */
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public CommentVO createComment(Long userId, CreateCommentRequest request) {
         CommentPO po = new CommentPO();
         po.setPostId(request.getPostIdAsLong());
@@ -76,7 +79,7 @@ public class CommentServiceImpl implements CommentService {
         po.setLikes(0);
         po.setStatus(CommonStatus.ACTIVE);
 
-        // 校验 parentId：非空时校验父评论存在且属于同一帖子
+        // 校验 parentId：非空时校验父评论存在且属于同一帖子（只读 DB，无需事务）
         if (po.getParentId() != null) {
             CommentPO parent = commentMapper.selectById(po.getParentId());
             if (parent == null || parent.getStatus() == CommonStatus.DELETED) {
@@ -85,77 +88,93 @@ public class CommentServiceImpl implements CommentService {
             if (!parent.getPostId().equals(po.getPostId())) {
                 throw new BusinessException(ErrorCode.PARAM_ERROR, "父评论不属于该帖子");
             }
-            // B站模式：仅支持两级评论，parentId 必须指向顶级评论
-            // 回复子回复时 parentId 仍填顶级评论 ID，用 replyToUserId 区分被回复人
             if (parent.getParentId() != null) {
                 throw new BusinessException(ErrorCode.COMMENT_NO_MULTI_LEVEL, "不支持多级回复，请直接回复顶级评论");
             }
         }
 
-        // 一次 Feign 调用拿帖子作者 + 圈子 ID（替代原 getPostAuthor）
-        Result<Map<String, Object>> postInfoResult = postFeignClient.getPostInfo(request.getPostIdAsLong());
-        Map<String, Object> postInfo = FeignResults.unwrapOrNull(postInfoResult);
-        if (postInfo == null || postInfo.get("userId") == null) {
+        // Feign：拿帖子作者 + 圈子 ID（事务外，不占 DB 连接）
+        Result<PostInfoVO> postInfoResult = postFeignClient.getPostInfo(request.getPostIdAsLong());
+        if (postInfoResult == null || !postInfoResult.isSuccess()) {
+            log.warn("获取帖子信息失败(服务降级): postId={}, result={}", request.getPostId(), postInfoResult);
+            throw new BusinessException(ErrorCode.SERVICE_UNAVAILABLE, "帖子服务暂不可用，请稍后重试");
+        }
+        PostInfoVO postInfo = postInfoResult.getData();
+        if (postInfo == null || postInfo.getUserId() == null) {
             log.warn("获取帖子信息失败: postId={}, result={}", request.getPostId(), postInfoResult);
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
-        Long postAuthorId = ((Number) postInfo.get("userId")).longValue();
-        po.setPostAuthorId(postAuthorId);
+        po.setPostAuthorId(postInfo.getUserId());
 
-        // 校验评论者是否为帖子所属圈子成员（非成员只能看不能评）
-        Object circleIdObj = postInfo.get("circleId");
-        if (circleIdObj instanceof Number) {
-            Long circleId = ((Number) circleIdObj).longValue();
-            PublishableResult circleData = FeignResults.unwrapOrNull(circleFeignClient.checkPublishable(circleId, userId));
+        // Feign：校验圈子成员（事务外）
+        if (postInfo.getCircleId() != null) {
+            Long circleId = postInfo.getCircleId();
+            Result<PublishableResult> publishableResult = circleFeignClient.checkPublishable(circleId, userId);
+            // 服务降级：圈子服务不可用，不假成功避免越权评论
+            if (publishableResult == null || !publishableResult.isSuccess()) {
+                throw new BusinessException(ErrorCode.SERVICE_UNAVAILABLE, "圈子服务暂不可用，请稍后重试");
+            }
+            PublishableResult circleData = publishableResult.getData();
             if (circleData == null || !circleData.isJoined()) {
                 throw new BusinessException(ErrorCode.NOT_CIRCLE_MEMBER, "请先加入该圈子再评论");
             }
         }
 
-        commentMapper.insert(po);
-        // 发送帖子被评论通知 — MQ 异步
-        if (!userId.equals(po.getPostAuthorId())) {
-            NotificationEvent event = NotificationEvent.builder()
-                    .receiverId(po.getPostAuthorId())
-                    .senderId(userId)
-                    .type(NotificationType.POST_COMMENTED.name())
-                    .title("有人评论了你的帖子")
-                    .targetType("comment")
-                    .targetId(po.getId())
-                    .relatedId(po.getPostId())
-                    .content(request.getContent())
-                    .createTime(System.currentTimeMillis())
-                    .build();
-            NotificationPublisher.publish(rabbitTemplate, event);
-        }
-        // 发送回复通知 — MQ 异步
-        if (po.getReplyToUserId() != null && !userId.equals(po.getReplyToUserId())) {
-            NotificationEvent event = NotificationEvent.builder()
-                    .receiverId(po.getReplyToUserId())
-                    .senderId(userId)
-                    .type(NotificationType.COMMENT_REPLIED.name())
-                    .title("有人回复了你的评论")
-                    .targetType("comment")
-                    .targetId(po.getId())
-                    .relatedId(po.getPostId())
-                    .content(request.getContent())
-                    .createTime(System.currentTimeMillis())
-                    .build();
-            NotificationPublisher.publish(rabbitTemplate, event);
-        }
-        // Redis 增量：帖子评论数 +1
-        stringRedisTemplate.opsForHash()
-                .increment(CacheKeyConstants.POST_COMMENT_DELTA, po.getPostId().toString(), 1);
+        // DB 写 + Redis + 注册 afterCommit 发 MQ（编程式事务）
+        transactionTemplate.executeWithoutResult(status -> {
+            commentMapper.insert(po);
+
+            stringRedisTemplate.opsForHash()
+                    .increment(CacheKeyConstants.POST_COMMENT_DELTA, po.getPostId().toString(), 1);
+
+            List<NotificationEvent> events = new ArrayList<>();
+            if (!userId.equals(po.getPostAuthorId())) {
+                events.add(NotificationEvent.builder()
+                        .receiverId(po.getPostAuthorId())
+                        .senderId(userId)
+                        .type(NotificationType.POST_COMMENTED.name())
+                        .title("有人评论了你的帖子")
+                        .targetType("comment")
+                        .targetId(po.getId())
+                        .relatedId(po.getPostId())
+                        .content(request.getContent())
+                        .createTime(System.currentTimeMillis())
+                        .build());
+            }
+            if (po.getReplyToUserId() != null && !userId.equals(po.getReplyToUserId())) {
+                events.add(NotificationEvent.builder()
+                        .receiverId(po.getReplyToUserId())
+                        .senderId(userId)
+                        .type(NotificationType.COMMENT_REPLIED.name())
+                        .title("有人回复了你的评论")
+                        .targetType("comment")
+                        .targetId(po.getId())
+                        .relatedId(po.getPostId())
+                        .content(request.getContent())
+                        .createTime(System.currentTimeMillis())
+                        .build());
+            }
+
+            if (!events.isEmpty()) {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        events.forEach(e -> NotificationPublisher.publish(rabbitTemplate, e));
+                    }
+                });
+            }
+        });
+
         log.info("发表评论成功: commentId={}, postId={}, userId={}", po.getId(), po.getPostId(), userId);
 
-        // 组装完整 VO 返回给前端，前端可直接插入列表展示
+        // Feign：组装 VO（事务外）
         Set<Long> userIds = new LinkedHashSet<>();
         userIds.add(userId);
         if (po.getReplyToUserId() != null) {
             userIds.add(po.getReplyToUserId());
         }
         Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, userIds);
-        return toVO(po, userMap, Collections.emptySet()); // 刚创建，当前用户不可能已点赞
+        return toVO(po, userMap, Collections.emptySet());
     }
 
     /**
@@ -170,7 +189,7 @@ public class CommentServiceImpl implements CommentService {
     @Transactional(rollbackFor = Exception.class)
     public void deleteComment(Long userId, Long commentId) {
         CommentPO po = commentMapper.selectById(commentId);
-        if (po == null || po.getStatus() == 0) {
+        if (po == null || po.getStatus() == CommonStatus.DELETED) {
             throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
         }
         boolean isCommentAuthor = po.getUserId().equals(userId);

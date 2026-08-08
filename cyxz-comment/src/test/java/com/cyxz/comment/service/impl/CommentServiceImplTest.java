@@ -13,7 +13,9 @@ import com.cyxz.message.constant.NotificationConstants;
 import com.cyxz.message.enums.NotificationType;
 import com.cyxz.message.event.NotificationEvent;
 import com.cyxz.post.feign.PostFeignClient;
+import com.cyxz.post.vo.PostInfoVO;
 import com.cyxz.user.feign.UserFeignClient;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -25,6 +27,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import java.util.function.Consumer;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -34,9 +41,6 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
-import java.util.HashMap;
-import java.util.Map;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("CommentServiceImpl 评论创建与通知")
@@ -50,17 +54,18 @@ class CommentServiceImplTest {
     @Mock private StringRedisTemplate stringRedisTemplate;
     @Mock private RabbitTemplate rabbitTemplate;
     @Mock private HashOperations<String, Object, Object> hashOps;
+    @Mock private TransactionTemplate transactionTemplate;
 
     @InjectMocks
     private CommentServiceImpl commentService;
 
     @BeforeEach
     void setUp() {
-        Map<String, Object> postInfo = new HashMap<>();
-        postInfo.put("postId", 100L);
-        postInfo.put("userId", 999L);
-        postInfo.put("title", "测试帖子");
-        postInfo.put("circleId", 7L);
+        PostInfoVO postInfo = new PostInfoVO();
+        postInfo.setPostId(100L);
+        postInfo.setUserId(999L);
+        postInfo.setTitle("测试帖子");
+        postInfo.setCircleId(7L);
         when(postFeignClient.getPostInfo(any())).thenReturn(Result.success(postInfo));
 
         PublishableResult circleData = new PublishableResult();
@@ -78,6 +83,25 @@ class CommentServiceImplTest {
         lenient().when(commentMapper.selectById(100L)).thenReturn(parent);
 
         when(stringRedisTemplate.opsForHash()).thenReturn(hashOps);
+
+        // 模拟编程式事务：立即执行回调并触发 afterCommit（模拟事务提交成功）
+        lenient().when(transactionTemplate.executeWithoutResult(any())).thenAnswer(inv -> {
+            Consumer<org.springframework.transaction.TransactionStatus> consumer = inv.getArgument(0);
+            TransactionSynchronizationManager.initSynchronization();
+            consumer.accept(null);
+            for (TransactionSynchronization sync : TransactionSynchronizationManager.getSynchronizations()) {
+                sync.afterCommit();
+            }
+            TransactionSynchronizationManager.clearSynchronization();
+            return null;
+        });
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
     }
 
     @Nested

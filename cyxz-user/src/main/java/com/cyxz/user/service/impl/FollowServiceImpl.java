@@ -17,6 +17,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 import java.util.Set;
@@ -66,7 +68,12 @@ public class FollowServiceImpl implements FollowService {
                     .targetId(targetUserId)
                     .createTime(System.currentTimeMillis())
                     .build();
-            NotificationPublisher.publish(rabbitTemplate, event);
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    NotificationPublisher.publish(rabbitTemplate, event);
+                }
+            });
         } else if (rows == 2) {
             log.info("恢复关注: userId={}, followUserId={}", userId, targetUserId);
         }
