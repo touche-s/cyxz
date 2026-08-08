@@ -499,7 +499,7 @@ async function loadReviewPosts() {
 }
 
 async function approvePostAction(p: PostVO) {
-  try { await approvePostByCircle(currentCircleId.value, p.id); ElMessage.success('审核通过'); await loadReviewPosts() }
+  try { await approvePostByCircle(currentCircleId.value!, p.id); ElMessage.success('审核通过'); await loadReviewPosts() }
   catch { ElMessage.error('操作失败') }
 }
 
@@ -512,7 +512,7 @@ function openReject(p: PostVO) {
 async function confirmReject() {
   if (!rejectTarget.value || !rejectReason.value.trim()) { ElMessage.warning('请填写拒绝原因'); return }
   try {
-    await rejectPostByCircle(currentCircleId.value, rejectTarget.value.id, rejectReason.value.trim())
+    await rejectPostByCircle(currentCircleId.value!, rejectTarget.value.id, rejectReason.value.trim())
     ElMessage.success('已拒绝')
     showRejectModal.value = false
     rejectTarget.value = null
@@ -523,7 +523,7 @@ async function confirmReject() {
 async function deletePostAction(p: PostVO) {
   try {
     await ElMessageBox.confirm(`确定删除帖子"${p.title}"吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' })
-    await deletePostByCircle(currentCircleId.value, p.id)
+    await deletePostByCircle(currentCircleId.value!, p.id)
     ElMessage.success('已删除')
     await loadReviewPosts()
   } catch { /* 取消或失败 */ }
@@ -552,19 +552,19 @@ async function loadMembers() {
 }
 
 async function promoteMember(m: MemberVO) {
-  try { await appointAdmin(currentCircleId.value, m.userId); ElMessage.success('已任命为管理员'); await loadMembers() }
+  try { await appointAdmin(currentCircleId.value!, m.userId); ElMessage.success('已任命为管理员'); await loadMembers() }
   catch { ElMessage.error('操作失败') }
 }
 
 async function demoteMember(m: MemberVO) {
-  try { await removeAdmin(currentCircleId.value, m.userId); ElMessage.success('已撤销管理员'); await loadMembers() }
+  try { await removeAdmin(currentCircleId.value!, m.userId); ElMessage.success('已撤销管理员'); await loadMembers() }
   catch { ElMessage.error('操作失败') }
 }
 
 async function kickMemberAction(m: MemberVO) {
   try {
     await ElMessageBox.confirm(`确定将 ${m.nickname || m.username} 移出圈子吗？`, '确认移除', { confirmButtonText: '移除', cancelButtonText: '取消', type: 'warning' })
-    await kickMember(currentCircleId.value, m.userId)
+    await kickMember(currentCircleId.value!, m.userId)
     ElMessage.success('已移除成员')
     await loadMembers()
   } catch { /* 取消或失败 */ }
