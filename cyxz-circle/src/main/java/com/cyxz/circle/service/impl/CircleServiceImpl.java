@@ -17,6 +17,7 @@ import com.cyxz.circle.mapper.CircleMemberMapper;
 import com.cyxz.circle.service.CircleSectionService;
 import com.cyxz.circle.service.CircleService;
 import com.cyxz.circle.vo.CircleVO;
+import com.cyxz.circle.vo.MemberVO;
 import com.cyxz.circle.vo.PublishableResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -260,6 +261,86 @@ public class CircleServiceImpl implements CircleService {
         po.setStatus(status);
         circleMapper.updateById(po);
         log.info("更新圈子状态: circleId={}, status={}", circleId, status);
+    }
+
+    /**
+     * 管理员查询全量圈子列表（含禁用状态），用于平台管理后台
+     */
+    @Override
+    public List<CircleVO> listAllForAdmin() {
+        LambdaQueryWrapper<CirclePO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.orderByAsc(CirclePO::getSortOrder);
+        List<CirclePO> circles = circleMapper.selectList(wrapper);
+        return circles.stream()
+                .map(c -> convertToVO(c, Collections.emptySet()))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 查询圈子成员列表（含角色信息），按圈主→管理员→成员排序
+     */
+    @Override
+    public List<MemberVO> listMembers(Long circleId) {
+        return circleMapper.selectMembersByCircleId(circleId,
+                CircleRoleConstants.CIRCLE_OWNER_ROLE_ID,
+                CircleRoleConstants.CIRCLE_ADMIN_ROLE_ID,
+                CircleRoleConstants.CIRCLE_MEMBER_ROLE_ID);
+    }
+
+    /**
+     * 任命圈子管理员，仅圈主可操作，目标用户必须是圈子成员
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void appointAdmin(Long circleId, Long userId) {
+        // 校验目标用户是圈子成员
+        List<Long> roles = circleMapper.selectUserRoleIdsInCircle(userId, circleId);
+        if (roles.isEmpty()) {
+            throw new BusinessException(ErrorCode.NOT_CIRCLE_MEMBER);
+        }
+        // 已拥有管理员或圈主角色的无需重复分配
+        if (roles.contains(CircleRoleConstants.CIRCLE_ADMIN_ROLE_ID) ||
+            roles.contains(CircleRoleConstants.CIRCLE_OWNER_ROLE_ID)) {
+            return;
+        }
+        circleRoleAssignmentMapper.assignRole(userId, CircleRoleConstants.CIRCLE_ADMIN_ROLE_ID, circleId);
+        log.info("任命圈子管理员: circleId={}, userId={}", circleId, userId);
+    }
+
+    /**
+     * 撤销圈子管理员，降级为普通成员
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void removeAdmin(Long circleId, Long userId) {
+        List<Long> roles = circleMapper.selectUserRoleIdsInCircle(userId, circleId);
+        if (!roles.contains(CircleRoleConstants.CIRCLE_ADMIN_ROLE_ID)) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "该用户不是圈子管理员");
+        }
+        circleRoleAssignmentMapper.removeRole(userId, CircleRoleConstants.CIRCLE_ADMIN_ROLE_ID, circleId);
+        log.info("撤销圈子管理员: circleId={}, userId={}", circleId, userId);
+    }
+
+    /**
+     * 移除圈子成员，撤销该用户在该圈子中的所有角色，并递减成员数
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void kickMember(Long circleId, Long userId) {
+        List<Long> roles = circleMapper.selectUserRoleIdsInCircle(userId, circleId);
+        if (roles.isEmpty()) {
+            throw new BusinessException(ErrorCode.NOT_CIRCLE_MEMBER);
+        }
+        // 撤销该用户在该圈子中的所有角色（CIRCLE_OWNER/CIRCLE_ADMIN/CIRCLE_MEMBER）
+        for (Long roleId : roles) {
+            circleRoleAssignmentMapper.removeRole(userId, roleId, circleId);
+        }
+        // 更新成员关系表
+        int rows = circleMemberMapper.deactivateMember(circleId, userId);
+        if (rows > 0) {
+            circleMapper.updateMemberCount(circleId, -1);
+        }
+        log.info("移除圈子成员: circleId={}, userId={}, 撤销角色={}", circleId, userId, roles);
     }
 
     private List<CircleVO> toVOList(List<CirclePO> circles, Long currentUserId) {

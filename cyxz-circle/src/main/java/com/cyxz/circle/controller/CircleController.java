@@ -9,6 +9,7 @@ import com.cyxz.circle.service.CircleSectionService;
 import com.cyxz.circle.service.CircleService;
 import com.cyxz.circle.vo.CircleSectionVO;
 import com.cyxz.circle.vo.CircleVO;
+import com.cyxz.circle.vo.MemberVO;
 import com.cyxz.circle.vo.PublishableResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -38,6 +39,15 @@ public class CircleController {
     @GetMapping("/list")
     public Result<List<CircleVO>> list(@CurrentUser(required = false) Long currentUserId) {
         return Result.success(circleService.listAll(currentUserId));
+    }
+
+    /**
+     * 管理员全量圈子列表（含禁用状态），用于平台管理后台
+     */
+    @GetMapping("/admin/list")
+    @PreAuthorize("hasAuthority('circle:admin:list')")
+    public Result<List<CircleVO>> adminList() {
+        return Result.success(circleService.listAllForAdmin());
     }
 
     /**
@@ -100,11 +110,11 @@ public class CircleController {
 
     /**
      * 更新圈子资料
-     * <p>平台管理员可改任意圈子；圈主/管理员可改自己圈子（circle:manage:update）。
+     * <p>全局管理员（站主/平台管理员）可改任意圈子；圈主/管理员可改自己圈子（circle:manage:update）。
+     * <p>全局管理员短路由 {@link com.cyxz.common.security.CirclePermissionEvaluator} 内部处理。
      */
     @PutMapping("/{circleId}")
-    @PreAuthorize("hasRole('SITE_OWNER') or hasRole('PLATFORM_ADMIN') or " +
-                  "@circlePerm.hasAuthority('circle:manage:update', #circleId)")
+    @PreAuthorize("@circlePerm.hasAuthority('circle:manage:update', #circleId)")
     public Result<Void> update(@PathVariable Long circleId,
                                @RequestParam(required = false) String name,
                                @RequestParam(required = false) String intro,
@@ -144,7 +154,7 @@ public class CircleController {
      * @param body     请求体，包含 status（1=启用 0=禁用）
      */
     @PutMapping("/{circleId}/status")
-    @PreAuthorize("hasRole('SITE_OWNER') or hasRole('PLATFORM_ADMIN')")
+    @PreAuthorize("hasAuthority('circle:status:update')")
     public Result<Void> updateStatus(@PathVariable Long circleId, @RequestBody Map<String, Integer> body) {
         circleService.updateStatus(circleId, body.get("status"));
         return Result.success("状态更新成功");
@@ -179,11 +189,11 @@ public class CircleController {
     }
 
     /**
-     * 配置圈子板块（平台管理员或圈子管理员/圈主）
+     * 配置圈子板块（全局管理员或圈子管理员/圈主）
+     * <p>全局管理员短路由 {@link com.cyxz.common.security.CirclePermissionEvaluator} 内部处理。
      */
     @PutMapping("/{circleId}/sections")
-    @PreAuthorize("hasRole('SITE_OWNER') or hasRole('PLATFORM_ADMIN') or " +
-                  "@circlePerm.hasAuthority('circle:section:manage', #circleId)")
+    @PreAuthorize("@circlePerm.hasAuthority('circle:section:manage', #circleId)")
     public Result<Void> configureSections(@PathVariable Long circleId,
                                           @RequestBody List<SectionConfigRequest> configs) {
         circleSectionService.configureSections(circleId, configs);
@@ -198,5 +208,57 @@ public class CircleController {
     @GetMapping("/internal/section/batch-names")
     public Result<Map<Long, String>> batchSectionNames(@RequestParam Set<Long> sectionIds) {
         return Result.success(circleSectionService.batchGetSectionNames(sectionIds));
+    }
+
+    // ===== 圈子成员管理（仅圈主 circle:member:manage） =====
+
+    /**
+     * 查询圈子成员列表（含角色信息），按圈主→管理员→成员排序
+     */
+    @GetMapping("/{circleId}/members")
+    public Result<List<MemberVO>> listMembers(@PathVariable Long circleId) {
+        return Result.success(circleService.listMembers(circleId));
+    }
+
+    /**
+     * 任命圈子管理员
+     * <p>仅圈主可操作（{@code circle:member:manage}），目标用户必须是圈子成员。
+     *
+     * @param circleId 圈子 ID
+     * @param userId   目标用户 ID
+     */
+    @PreAuthorize("@circlePerm.hasAuthority('circle:member:manage', #circleId)")
+    @PutMapping("/{circleId}/members/{userId}/promote")
+    public Result<Void> appointAdmin(@PathVariable Long circleId, @PathVariable Long userId) {
+        circleService.appointAdmin(circleId, userId);
+        return Result.success("已任命为圈子管理员");
+    }
+
+    /**
+     * 撤销圈子管理员，降级为普通成员
+     * <p>仅圈主可操作（{@code circle:member:manage}）。
+     *
+     * @param circleId 圈子 ID
+     * @param userId   目标用户 ID
+     */
+    @PreAuthorize("@circlePerm.hasAuthority('circle:member:manage', #circleId)")
+    @PutMapping("/{circleId}/members/{userId}/demote")
+    public Result<Void> removeAdmin(@PathVariable Long circleId, @PathVariable Long userId) {
+        circleService.removeAdmin(circleId, userId);
+        return Result.success("已撤销管理员");
+    }
+
+    /**
+     * 移除圈子成员（踢出），撤销该用户在该圈子中的所有角色并更新成员数
+     * <p>仅圈主可操作（{@code circle:member:manage}），不可踢出圈主本人。
+     *
+     * @param circleId 圈子 ID
+     * @param userId   目标用户 ID
+     */
+    @PreAuthorize("@circlePerm.hasAuthority('circle:member:manage', #circleId)")
+    @DeleteMapping("/{circleId}/members/{userId}")
+    public Result<Void> kickMember(@PathVariable Long circleId, @PathVariable Long userId) {
+        circleService.kickMember(circleId, userId);
+        return Result.success("已移除成员");
     }
 }

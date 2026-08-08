@@ -239,6 +239,11 @@ public interface PostService {
     PageResult<PostVO> listPendingReview(int page, int size);
 
     /**
+     * 圈子维度的待审核帖子列表（圈子管理员/圈主使用）
+     */
+    PageResult<PostVO> listPendingReviewByCircle(Long circleId, int page, int size);
+
+    /**
      * 管理员帖子列表（全量，含各种状态）
      *
      * @param status  帖子状态筛选（null=全部）
@@ -254,6 +259,14 @@ public interface PostService {
      * @param postId 帖子 ID
      */
     void adminDeletePost(Long postId);
+
+    /**
+     * 圈子维度删帖（圈主/圈子管理员删除本圈帖子）
+     *
+     * @param circleId 圈子 ID
+     * @param postId   帖子 ID
+     */
+    void deletePostByCircle(Long circleId, Long postId);
 
     /**
      * 批量统计各圈子的已发布帖子数（内部接口）

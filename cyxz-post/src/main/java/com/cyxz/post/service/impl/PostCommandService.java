@@ -232,6 +232,27 @@ public class PostCommandService {
     }
 
     /**
+     * 圈子维度删帖（圈主/圈子管理员删除本圈帖子），校验帖子归属当前圈子
+     *
+     * @param circleId 圈子 ID
+     * @param postId   帖子 ID
+     */
+    public void deletePostByCircle(Long circleId, Long postId) {
+        PostPO po = postMapper.selectById(postId);
+        if (po == null) {
+            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
+        }
+        if (!circleId.equals(po.getCircleId())) {
+            throw new BusinessException(ErrorCode.POST_NOT_IN_CIRCLE);
+        }
+        po.setStatus(PostStatus.DELETED);
+        postMapper.updateById(po);
+        postQueryService.evictDetailCache(postId);
+        postEsSyncService.syncPostToEs(po);
+        log.info("圈子管理员删除帖子: circleId={}, postId={}", circleId, postId);
+    }
+
+    /**
      * 彻底删除帖子（物理删除 + 级联清理关联数据）
      */
     @Transactional(rollbackFor = Exception.class)

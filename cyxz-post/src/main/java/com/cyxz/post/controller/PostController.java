@@ -446,7 +446,7 @@ public class PostController {
      * @param size 每页条数（默认 10）
      * @return 待审核帖子分页列表
      */
-    @PreAuthorize("hasRole('SITE_OWNER') or hasRole('PLATFORM_ADMIN')")
+    @PreAuthorize("hasAuthority('post:review:list')")
     @GetMapping("/admin/review/pending")
     public Result<PageResult<PostVO>> listPendingReview(@RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
                                                          @RequestParam(value = "size", defaultValue = PageConstants.DEFAULT_SIZE_STR) int size) {
@@ -459,7 +459,7 @@ public class PostController {
      * @param postId 帖子 ID
      * @return 操作结果
      */
-    @PreAuthorize("hasRole('SITE_OWNER') or hasRole('PLATFORM_ADMIN')")
+    @PreAuthorize("hasAuthority('post:review:approve')")
     @PutMapping("/admin/review/{postId}/approve")
     public Result<Void> approvePost(@PathVariable Long postId) {
         postService.approvePost(postId);
@@ -473,11 +473,75 @@ public class PostController {
      * @param body   拒绝请求体，包含 reason（拒绝原因）
      * @return 操作结果
      */
-    @PreAuthorize("hasRole('SITE_OWNER') or hasRole('PLATFORM_ADMIN')")
+    @PreAuthorize("hasAuthority('post:review:reject')")
     @PutMapping("/admin/review/{postId}/reject")
     public Result<Void> rejectPost(@PathVariable Long postId, @RequestBody Map<String, String> body) {
         postService.rejectPost(postId, body.get("reason"));
         return Result.success("已拒绝");
+    }
+
+    // ===== 圈子维度审核接口（圈子管理员/圈主） =====
+
+    /**
+     * 圈子待审核帖子列表
+     * <p>圈子管理员/圈主审核自己圈子内的帖子，路径带 circleId 供 @circlePerm 校验。
+     *
+     * @param circleId 圈子 ID
+     * @param page     页码
+     * @param size     每页条数
+     * @return 待审核帖子分页列表
+     */
+    @PreAuthorize("@circlePerm.hasAuthority('circle:post:review', #circleId)")
+    @GetMapping("/circle/{circleId}/admin/review/pending")
+    public Result<PageResult<PostVO>> listPendingReviewByCircle(@PathVariable Long circleId,
+                                                                 @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
+                                                                 @RequestParam(value = "size", defaultValue = PageConstants.DEFAULT_SIZE_STR) int size) {
+        return Result.success(postService.listPendingReviewByCircle(circleId, page, size));
+    }
+
+    /**
+     * 圈子维度审核通过
+     *
+     * @param circleId 圈子 ID
+     * @param postId   帖子 ID
+     * @return 操作结果
+     */
+    @PreAuthorize("@circlePerm.hasAuthority('circle:post:review', #circleId)")
+    @PutMapping("/circle/{circleId}/admin/review/{postId}/approve")
+    public Result<Void> approvePostByCircle(@PathVariable Long circleId, @PathVariable Long postId) {
+        postService.approvePost(postId);
+        return Result.success("审核通过");
+    }
+
+    /**
+     * 圈子维度审核拒绝
+     *
+     * @param circleId 圈子 ID
+     * @param postId   帖子 ID
+     * @param body     拒绝请求体，包含 reason（拒绝原因）
+     * @return 操作结果
+     */
+    @PreAuthorize("@circlePerm.hasAuthority('circle:post:review', #circleId)")
+    @PutMapping("/circle/{circleId}/admin/review/{postId}/reject")
+    public Result<Void> rejectPostByCircle(@PathVariable Long circleId, @PathVariable Long postId,
+                                            @RequestBody Map<String, String> body) {
+        postService.rejectPost(postId, body.get("reason"));
+        return Result.success("已拒绝");
+    }
+
+    /**
+     * 圈子维度删帖（圈主/圈子管理员删除本圈帖子）
+     * <p>路径带 circleId 供 {@code @circlePerm} 校验 {@code circle:post:delete} 权限。
+     * 校验帖子归属当前圈子后才执行逻辑删除。
+     *
+     * @param circleId 圈子 ID
+     * @param postId   帖子 ID
+     */
+    @PreAuthorize("@circlePerm.hasAuthority('circle:post:delete', #circleId)")
+    @DeleteMapping("/circle/{circleId}/admin/{postId}")
+    public Result<Void> deletePostByCircle(@PathVariable Long circleId, @PathVariable Long postId) {
+        postService.deletePostByCircle(circleId, postId);
+        return Result.success("删除成功");
     }
 
     // ===== 帖子管理接口（平台管理员） =====
@@ -490,7 +554,7 @@ public class PostController {
      * @param page    页码
      * @param size    每页条数
      */
-    @PreAuthorize("hasRole('SITE_OWNER') or hasRole('PLATFORM_ADMIN')")
+    @PreAuthorize("hasAuthority('post:admin:list')")
     @GetMapping("/admin/list")
     public Result<PageResult<PostVO>> listAllForAdmin(@RequestParam(value = "status", required = false) Integer status,
                                                        @RequestParam(value = "keyword", required = false) String keyword,
@@ -504,7 +568,7 @@ public class PostController {
      *
      * @param postId 帖子 ID
      */
-    @PreAuthorize("hasRole('SITE_OWNER') or hasRole('PLATFORM_ADMIN')")
+    @PreAuthorize("hasAuthority('post:admin:delete')")
     @DeleteMapping("/admin/{postId}")
     public Result<Void> adminDeletePost(@PathVariable Long postId) {
         postService.adminDeletePost(postId);

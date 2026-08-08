@@ -250,6 +250,20 @@ public class PostQueryService {
     }
 
     /**
+     * 圈子维度的待审核帖子列表（圈子管理员/圈主使用）
+     */
+    public PageResult<PostVO> listPendingReviewByCircle(Long circleId, int page, int size) {
+        Page<PostPO> pageParam = PageConstants.pageOf(page, size);
+        LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PostPO::getStatus, PostStatus.PENDING)
+               .eq(PostPO::getCircleId, circleId);
+        wrapper.orderByAsc(PostPO::getCreateTime);
+        Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
+        List<PostVO> vos = fillPostVOList(result.getRecords(), null);
+        return PageResult.of(vos, result.getTotal(), page, size);
+    }
+
+    /**
      * 管理员帖子列表（全量，含各种状态）
      *
      * @param status  帖子状态筛选（null=全部）

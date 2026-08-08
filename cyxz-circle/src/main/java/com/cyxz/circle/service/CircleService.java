@@ -2,6 +2,7 @@ package com.cyxz.circle.service;
 
 import com.cyxz.common.base.PageResult;
 import com.cyxz.circle.vo.CircleVO;
+import com.cyxz.circle.vo.MemberVO;
 import com.cyxz.circle.vo.PublishableResult;
 
 import java.util.List;
@@ -114,4 +115,43 @@ public interface CircleService {
      * @param status   状态：1=启用 0=禁用
      */
     void updateStatus(Long circleId, Integer status);
+
+    /**
+     * 管理员查询全量圈子列表（含禁用状态），用于平台管理后台
+     * @return 全量圈子 VO 列表，按 sort_order 升序
+     */
+    List<CircleVO> listAllForAdmin();
+
+    /**
+     * 查询圈子成员列表（含角色信息）
+     * @param circleId 圈子 ID
+     * @return 成员 VO 列表，按圈主→管理员→成员排序
+     */
+    List<MemberVO> listMembers(Long circleId);
+
+    /**
+     * 任命圈子管理员
+     * <p>仅圈主可操作，目标用户必须是圈子成员。已拥有管理员/圈主角色的幂等跳过。
+     *
+     * @param circleId 圈子 ID
+     * @param userId   目标用户 ID
+     */
+    void appointAdmin(Long circleId, Long userId);
+
+    /**
+     * 撤销圈子管理员
+     * <p>仅圈主可操作，目标用户必须拥有 CIRCLE_ADMIN 角色。
+     *
+     * @param circleId 圈子 ID
+     * @param userId   目标用户 ID
+     */
+    void removeAdmin(Long circleId, Long userId);
+
+    /**
+     * 移除圈子成员（踢出），撤销该用户在该圈子中的所有角色并递减成员数
+     *
+     * @param circleId 圈子 ID
+     * @param userId   目标用户 ID
+     */
+    void kickMember(Long circleId, Long userId);
 }

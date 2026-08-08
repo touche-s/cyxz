@@ -95,6 +95,11 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    public PageResult<PostVO> listPendingReviewByCircle(Long circleId, int page, int size) {
+        return postQueryService.listPendingReviewByCircle(circleId, page, size);
+    }
+
+    @Override
     public PageResult<PostVO> listAllForAdmin(Integer status, String keyword, int page, int size) {
         return postQueryService.listAllForAdmin(status, keyword, page, size);
     }
@@ -102,6 +107,11 @@ public class PostServiceImpl implements PostService {
     @Override
     public void adminDeletePost(Long postId) {
         postCommandService.adminDeletePost(postId);
+    }
+
+    @Override
+    public void deletePostByCircle(Long circleId, Long postId) {
+        postCommandService.deletePostByCircle(circleId, postId);
     }
 
     @Override
