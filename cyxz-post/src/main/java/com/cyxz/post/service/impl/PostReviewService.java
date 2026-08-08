@@ -41,12 +41,14 @@ public class PostReviewService {
             throw new BusinessException(ErrorCode.PARAM_ERROR,
                     "不允许从 " + PostStatus.label(po.getStatus()) + " 直接变更为 " + PostStatus.label(PostStatus.APPROVED));
         }
+        int from = po.getStatus();
         po.setStatus(PostStatus.APPROVED);
         po.setReviewReason(null);
         postMapper.updateById(po);
         postQueryService.evictDetailCache(postId);
         postEsSyncService.syncPostToEs(po);
-        log.info("帖子审核通过: postId={}", postId);
+        log.info("帖子审核通过: postId={}, {}({})→{}({})", postId,
+                PostStatus.label(from), from, PostStatus.label(PostStatus.APPROVED), PostStatus.APPROVED);
     }
 
     /**
@@ -59,11 +61,13 @@ public class PostReviewService {
             throw new BusinessException(ErrorCode.PARAM_ERROR,
                     "不允许从 " + PostStatus.label(po.getStatus()) + " 直接变更为 " + PostStatus.label(PostStatus.REJECTED));
         }
+        int from = po.getStatus();
         po.setStatus(PostStatus.REJECTED);
         po.setReviewReason(reason);
         postMapper.updateById(po);
         postQueryService.evictDetailCache(postId);
-        log.info("帖子审核拒绝: postId={}, reason={}", postId, reason);
+        log.info("帖子审核拒绝: postId={}, {}({})→{}({}), reason={}", postId,
+                PostStatus.label(from), from, PostStatus.label(PostStatus.REJECTED), PostStatus.REJECTED, reason);
     }
 
     /**
@@ -110,7 +114,7 @@ public class PostReviewService {
         } catch (Exception ex) {
             log.error("标记人工审核失败: postId={}", postId, ex);
         }
-        log.warn("AI 审核异常，转人工审核: postId={}, error={}", postId, e.getMessage());
+        log.warn("AI 审核异常，转人工审核: postId={}", postId, e);
     }
 
     private void sendReviewNotify(Long receiverId, String type, String reason, Long postId, String title) {

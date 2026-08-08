@@ -83,7 +83,7 @@ public class AiReviewService {
         try {
             body = objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException e) {
-            log.error("AI 审核请求序列化失败: {}", e.getMessage());
+            log.error("AI 审核请求序列化失败", e);
             return new AiReviewResult(false, "审核服务异常");
         }
         HttpHeaders headers = new HttpHeaders();

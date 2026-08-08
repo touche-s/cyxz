@@ -2,6 +2,7 @@ package com.cyxz.circle.feign.fallback;
 
 import com.cyxz.circle.feign.CircleFeignClient;
 import com.cyxz.circle.vo.PublishableResult;
+import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.feign.AbstractFeignFallbackFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -24,10 +25,14 @@ public class CircleFeignClientFallbackFactory extends AbstractFeignFallbackFacto
     @Override
     protected CircleFeignClient createFallback(Throwable cause) {
         return new CircleFeignClient() {
+            /**
+             * 权限校验不可"假成功"——圈子服务宕机时返回失败，
+             * 由调用方根据 {@link Result#isSuccess()} 区分"服务降级"与"权限不足"。
+             */
             @Override
             public Result<PublishableResult> checkPublishable(Long circleId, Long userId) {
-                PublishableResult fallback = new PublishableResult();
-                return Result.success(fallback);
+                return Result.fail(ErrorCode.SERVICE_UNAVAILABLE.getCode(),
+                        ErrorCode.SERVICE_UNAVAILABLE.getMsg());
             }
 
             @Override

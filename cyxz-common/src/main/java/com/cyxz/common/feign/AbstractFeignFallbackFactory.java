@@ -16,7 +16,7 @@ public abstract class AbstractFeignFallbackFactory<T> implements FallbackFactory
 
     @Override
     public final T create(Throwable cause) {
-        log.warn("{} 调用降级: {}", serviceName(), cause.getMessage());
+        log.warn("{} 调用降级", serviceName(), cause);
         return createFallback(cause);
     }
 

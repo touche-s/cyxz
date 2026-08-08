@@ -5,7 +5,6 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
-import com.cyxz.common.utils.FeignResults;
 import com.cyxz.post.constant.PostStatus;
 import com.cyxz.circle.feign.CircleFeignClient;
 import com.cyxz.circle.vo.PublishableResult;
@@ -165,7 +164,14 @@ public class PostCommandService {
                .eq(PostPO::getStatus, originalStatus);
         int rows = postMapper.update(update, wrapper);
         if (rows == 0) {
+            log.warn("帖子状态迁移CAS失败(状态已被并发修改): postId={}, 期望原状态={}({})",
+                    po.getId(), PostStatus.label(originalStatus), originalStatus);
             throw new BusinessException(ErrorCode.POST_STATUS_CONFLICT, "帖子状态已被修改，请刷新后重试");
+        }
+        if (request.getStatus() != null && originalStatus != request.getStatus()) {
+            log.info("帖子状态迁移: postId={}, {}({})→{}({}), operatorId={}",
+                    po.getId(), PostStatus.label(originalStatus), originalStatus,
+                    PostStatus.label(request.getStatus()), request.getStatus(), userId);
         }
         postQueryService.evictDetailCache(po.getId());
         postEsSyncService.syncPostToEs(po);
@@ -394,7 +400,9 @@ public class PostCommandService {
             }
             if (!validPostIds.isEmpty()) {
                 // 仅草稿(DRAFT)帖子可转发布，防止已发布帖被打回 PENDING
-                postMapper.batchUpdateStatus(userId, validPostIds, PostStatus.PENDING, PostStatus.DRAFT);
+                int rows = postMapper.batchUpdateStatus(userId, validPostIds, PostStatus.PENDING, PostStatus.DRAFT);
+                log.info("批量发布状态迁移: 选中={}, 实际迁移(DRAFT→PENDING)={}, userId={}",
+                        validPostIds.size(), rows, userId);
             }
         } else if ("delete".equals(action)) {
             postMapper.batchUpdateStatus(userId, postIds, PostStatus.DELETED, null);
@@ -436,7 +444,12 @@ public class PostCommandService {
         if (isArticle && contentLen < 100) {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "长文正文至少100字");
         }
-        PublishableResult data = FeignResults.unwrapOrNull(circleFeignClient.checkPublishable(circleId, userId));
+        Result<PublishableResult> publishableResult = circleFeignClient.checkPublishable(circleId, userId);
+        // 服务降级：圈子服务不可用，不假成功避免越权发布
+        if (publishableResult == null || !publishableResult.isSuccess()) {
+            throw new BusinessException(ErrorCode.SERVICE_UNAVAILABLE, "圈子服务暂不可用，请稍后重试");
+        }
+        PublishableResult data = publishableResult.getData();
         if (data == null || !data.isPublishable()) {
             if (data != null && !data.isExists()) {
                 throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND);
