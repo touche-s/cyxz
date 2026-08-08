@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * 全局权限提供者实现（Cache-Aside 旁观策略）
  * <p>读链路：Redis 命中 → 直接返回；未命中 → 查 DB → 回写 Redis（TTL 对齐 JWT 过期时间）。
- * <p>降级：Redis 异常 → 查 DB 返回（不写缓存）；Redis + DB 都异常 → 返回空集（拒绝放行）。
+ * <p>降级：Redis 异常 → 查 DB 返回（不写缓存）；DB 异常 → 向上抛出，由 HeaderAuthenticationFilter 捕获后保持未认证状态（拒绝放行）。
  * <p>非自动注册组件：在需要完整权限的服务的 SecurityConfig 中通过 {@code @Bean} 手动声明。
  */
 @Slf4j
@@ -33,7 +33,7 @@ public class GlobalPermissionProviderImpl implements GlobalPermissionProvider {
         String key = CacheKeyConstants.getAuthGlobalKey(userId);
         try {
             String cached = (String) stringRedisTemplate.opsForHash().get(key, HASH_FIELD_ROLES);
-            if (cached != null && !cached.isEmpty()) {
+            if (cached != null) {
                 return parseCsv(cached);
             }
         } catch (Exception e) {
@@ -57,7 +57,7 @@ public class GlobalPermissionProviderImpl implements GlobalPermissionProvider {
         String key = CacheKeyConstants.getAuthGlobalKey(userId);
         try {
             String cached = (String) stringRedisTemplate.opsForHash().get(key, HASH_FIELD_PERMS);
-            if (cached != null && !cached.isEmpty()) {
+            if (cached != null) {
                 return parseCsv(cached);
             }
         } catch (Exception e) {

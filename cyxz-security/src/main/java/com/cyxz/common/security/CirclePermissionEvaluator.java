@@ -67,7 +67,7 @@ public class CirclePermissionEvaluator {
         // 尝试 Redis
         try {
             String cached = (String) stringRedisTemplate.opsForHash().get(key, "perms");
-            if (cached != null && !cached.isEmpty()) {
+            if (cached != null) {
                 return parseCsv(cached);
             }
         } catch (Exception e) {

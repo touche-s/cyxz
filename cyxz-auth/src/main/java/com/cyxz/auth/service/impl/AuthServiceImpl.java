@@ -5,8 +5,10 @@ import com.cyxz.auth.dto.AuthResponse;
 import com.cyxz.auth.dto.ChangePasswordRequest;
 import com.cyxz.auth.dto.LoginRequest;
 import com.cyxz.auth.dto.RegisterRequest;
+import com.cyxz.auth.entity.SysRolePO;
 import com.cyxz.auth.entity.SysUserPO;
 import com.cyxz.auth.entity.SysUserRolePO;
+import com.cyxz.auth.mapper.SysRoleMapper;
 import com.cyxz.auth.mapper.SysUserMapper;
 import com.cyxz.auth.mapper.SysUserRoleMapper;
 import com.cyxz.auth.service.AuthService;
@@ -30,6 +32,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -44,6 +47,7 @@ public class AuthServiceImpl implements AuthService {
 
     private final SysUserMapper sysUserMapper;
     private final SysUserRoleMapper sysUserRoleMapper;
+    private final SysRoleMapper sysRoleMapper;
     private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
     private final StringRedisTemplate stringRedisTemplate;
@@ -215,12 +219,16 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException(ErrorCode.USERNAME_EXISTS);
         }
 
-        // 分配默认全局 USER 角色（role_id=3, circle_id=0）
-        SysUserRolePO userRole = new SysUserRolePO();
-        userRole.setUserId(user.getId());
-        userRole.setRoleId(3L);
-        userRole.setCircleId(0L);
-        sysUserRoleMapper.insert(userRole);
+        // 分配默认全局 USER 角色（circle_id=0），按 code 查询避免硬编码 ID
+        SysRolePO userRole = sysRoleMapper.selectOne(
+                new LambdaQueryWrapper<SysRolePO>().eq(SysRolePO::getCode, "USER"));
+        if (userRole != null) {
+            SysUserRolePO ur = new SysUserRolePO();
+            ur.setUserId(user.getId());
+            ur.setRoleId(userRole.getId());
+            ur.setCircleId(0L);
+            sysUserRoleMapper.insert(ur);
+        }
 
         log.info("用户注册成功: userId={}, username={}", user.getId(), user.getUsername());
 
@@ -243,7 +251,24 @@ public class AuthServiceImpl implements AuthService {
         jwtUtil.blacklistToken(token);
         // 清除全局权限缓存
         stringRedisTemplate.delete(CacheKeyConstants.getAuthGlobalKey(userId));
+        // 清除该用户所有圈子权限缓存，避免重新登录后命中陈旧缓存
+        clearCirclePermissionCache(userId);
         log.info("用户登出成功: userId={}", userId);
+    }
+
+    /**
+     * 清除用户在所有圈子的权限缓存
+     * <p>按 userId 前缀匹配 auth:circle:{userId}:* 批量删除，Redis 异常不阻塞登出。
+     */
+    private void clearCirclePermissionCache(Long userId) {
+        try {
+            Set<String> keys = stringRedisTemplate.keys(CacheKeyConstants.AUTH_CIRCLE_PREFIX + userId + ":*");
+            if (keys != null && !keys.isEmpty()) {
+                stringRedisTemplate.delete(keys);
+            }
+        } catch (Exception e) {
+            log.warn("清理圈子权限缓存失败，等待 TTL 自然过期: userId={}", userId, e);
+        }
     }
 
     /**

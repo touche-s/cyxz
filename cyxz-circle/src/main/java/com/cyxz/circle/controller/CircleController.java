@@ -1,5 +1,7 @@
 package com.cyxz.circle.controller;
 
+import com.cyxz.common.base.BusinessException;
+import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.PageConstants;
@@ -156,7 +158,11 @@ public class CircleController {
     @PutMapping("/{circleId}/status")
     @PreAuthorize("hasAuthority('circle:status:update')")
     public Result<Void> updateStatus(@PathVariable Long circleId, @RequestBody Map<String, Integer> body) {
-        circleService.updateStatus(circleId, body.get("status"));
+        Integer status = body.get("status");
+        if (status == null || (status != 0 && status != 1)) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "status 必须为 0（禁用）或 1（启用）");
+        }
+        circleService.updateStatus(circleId, status);
         return Result.success("状态更新成功");
     }
 

@@ -71,7 +71,7 @@ public class SecurityConfig {
                         .anyRequest().denyAll()
                 )
                 .addFilterBefore(new HeaderAuthenticationFilter(permissionProvider), UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(new AdminRoleFilter(), HeaderAuthenticationFilter.class)
+                .addFilterAfter(new AdminRoleFilter(), HeaderAuthenticationFilter.class)
                 .anonymous(Customizer.withDefaults());
         return http.build();
     }

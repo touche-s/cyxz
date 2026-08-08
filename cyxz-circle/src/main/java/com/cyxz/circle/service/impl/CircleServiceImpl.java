@@ -7,6 +7,7 @@ import com.cyxz.circle.mapper.CircleRoleAssignmentMapper;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
+import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.constant.PageConstants;
 import com.cyxz.circle.constant.CircleRoleConstants;
@@ -21,6 +22,7 @@ import com.cyxz.circle.vo.MemberVO;
 import com.cyxz.circle.vo.PublishableResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -43,6 +45,7 @@ public class CircleServiceImpl implements CircleService {
     private final CircleMemberMapper circleMemberMapper;
     private final CircleRoleAssignmentMapper circleRoleAssignmentMapper;
     private final CircleSectionService circleSectionService;
+    private final StringRedisTemplate stringRedisTemplate;
 
     /**
      * 查询全量启用圈子列表并回填当前用户加入状态
@@ -99,6 +102,7 @@ public class CircleServiceImpl implements CircleService {
         }
         // 分配圈子成员角色（幂等），同一 MySQL 实例跨库写入参与本事务
         circleRoleAssignmentMapper.assignRole(userId, CircleRoleConstants.CIRCLE_MEMBER_ROLE_ID, circleId);
+        invalidateCirclePermissionCache(userId, circleId);
     }
 
     /**
@@ -114,6 +118,7 @@ public class CircleServiceImpl implements CircleService {
         }
         // 撤销圈子成员角色（不影响圈主/管理员角色）
         circleRoleAssignmentMapper.removeRole(userId, CircleRoleConstants.CIRCLE_MEMBER_ROLE_ID, circleId);
+        invalidateCirclePermissionCache(userId, circleId);
     }
 
     /**
@@ -304,6 +309,7 @@ public class CircleServiceImpl implements CircleService {
             return;
         }
         circleRoleAssignmentMapper.assignRole(userId, CircleRoleConstants.CIRCLE_ADMIN_ROLE_ID, circleId);
+        invalidateCirclePermissionCache(userId, circleId);
         log.info("任命圈子管理员: circleId={}, userId={}", circleId, userId);
     }
 
@@ -318,6 +324,7 @@ public class CircleServiceImpl implements CircleService {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "该用户不是圈子管理员");
         }
         circleRoleAssignmentMapper.removeRole(userId, CircleRoleConstants.CIRCLE_ADMIN_ROLE_ID, circleId);
+        invalidateCirclePermissionCache(userId, circleId);
         log.info("撤销圈子管理员: circleId={}, userId={}", circleId, userId);
     }
 
@@ -340,7 +347,20 @@ public class CircleServiceImpl implements CircleService {
         if (rows > 0) {
             circleMapper.updateMemberCount(circleId, -1);
         }
+        invalidateCirclePermissionCache(userId, circleId);
         log.info("移除圈子成员: circleId={}, userId={}, 撤销角色={}", circleId, userId, roles);
+    }
+
+    /**
+     * 失效用户在指定圈子的权限缓存（Cache-Aside 旁路删除）
+     * <p>角色分配/撤销后调用，Redis 异常不阻塞业务事务，等待 TTL 自然过期。
+     */
+    private void invalidateCirclePermissionCache(Long userId, Long circleId) {
+        try {
+            stringRedisTemplate.delete(CacheKeyConstants.getAuthCircleKey(userId, circleId));
+        } catch (Exception e) {
+            log.warn("圈子权限缓存失效失败，等待 TTL 自然过期: userId={}, circleId={}", userId, circleId, e);
+        }
     }
 
     private List<CircleVO> toVOList(List<CirclePO> circles, Long currentUserId) {
