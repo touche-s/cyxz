@@ -6,7 +6,7 @@
 
 ## 一、Docker 一键部署（推荐）
 
-只需安装 Docker Desktop，无需本地配置 JDK / MySQL / Redis 等环境。编排 17 个容器：6 基础设施 + 9 Java 微服务 + 前端 + AI 审核。
+只需安装 Docker Desktop，无需本地配置 JDK / MySQL / Redis 等环境。编排 18 个服务：7 基础设施（含 minio-init one-shot）+ 9 Java 微服务 + 前端 + AI 审核，稳态运行 17 个容器。
 
 ### 前置条件
 
@@ -36,7 +36,7 @@ cp .env.example .env
 
 # 4. 验证（首次构建约 10-15 分钟）
 docker compose ps
-#   全部 17 个容器 Up / Healthy 即成功
+#   17 个容器 Up / Healthy 即成功（minio-init 执行完退出，属正常）
 ```
 
 ### 访问地址

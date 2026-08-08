@@ -257,6 +257,8 @@ services:
       args:
         SERVICE_NAME: cyxz-upload
     depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
       minio: { condition: service_healthy }
       nacos: { condition: service_healthy }
 

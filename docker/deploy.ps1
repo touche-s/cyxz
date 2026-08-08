@@ -55,16 +55,21 @@ Write-Host ""
 Write-Host "Container Status:" -ForegroundColor Cyan
 docker compose ps --format "table {{.Name}}`t{{.Status}}`t{{.Ports}}"
 
+# minio-init 是 one-shot 容器，正常退出不算失败
 $running = (docker compose ps --status running -q 2>$null).Count
-$total = (docker compose ps -q 2>$null).Count
+$exited = (docker compose ps --status exited -q 2>$null).Count
+$total = $running + $exited
 Write-Host ""
 if ($total -eq 0) {
-    Write-Host "No containers running. Check: docker compose logs" -ForegroundColor Red
-} elseif ($running -eq $total) {
-    Write-Host "All $total containers running" -ForegroundColor Green
+    Write-Host "No containers found. Check: docker compose logs" -ForegroundColor Red
+} elseif ($running -ge 17) {
+    Write-Host "$running containers running" -ForegroundColor Green
+    if ($exited -gt 0) {
+        Write-Host "  ($exited one-shot init container(s) completed)" -ForegroundColor DarkGray
+    }
 } else {
-    $failed = $total - $running
-    Write-Host "$running/$total running, $failed failed" -ForegroundColor Red
+    $failed = 17 - $running
+    Write-Host "$running/17 running, $failed failed" -ForegroundColor Red
     Write-Host "Check logs: docker compose logs <service>" -ForegroundColor Yellow
 }
 
@@ -74,5 +79,5 @@ Write-Host "  Frontend:   http://localhost:80" -ForegroundColor White
 Write-Host "  Gateway:    http://localhost:8080" -ForegroundColor White
 Write-Host "  Nacos:      http://localhost:8848/nacos" -ForegroundColor White
 Write-Host "  RabbitMQ:   http://localhost:15672  (guest/guest)" -ForegroundColor White
-Write-Host "  MinIO:      http://localhost:9001  (admin/admin123456)" -ForegroundColor White
+Write-Host "  MinIO:      http://localhost:9001  (see .env for credentials)" -ForegroundColor White
 Write-Host ""
