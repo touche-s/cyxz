@@ -73,7 +73,7 @@ INSERT INTO sys_role(id, code, label, scope, description, built_in, sort) VALUES
 (5, 'CIRCLE_ADMIN',   '圈子管理员',    'CIRCLE', '圈子内管理权限，不可任命管理员',     1, 1),
 (6, 'CIRCLE_MEMBER',  '圈子成员',      'CIRCLE', '普通成员',                          1, 2);
 
--- ---- RBAC 预设数据：权限点（16 个） ----
+-- ---- RBAC 预设数据：权限点（22 个） ----
 INSERT INTO sys_permission(id, code, label, resource, action) VALUES
 (1,  'user:manage:list',         '查看用户列表',   'user',    'list'),
 (2,  'user:manage:disable',      '禁用用户',       'user',    'disable'),
@@ -90,15 +90,21 @@ INSERT INTO sys_permission(id, code, label, resource, action) VALUES
 (13, 'circle:template:manage',   '模板管理',       'circle',  'template'),
 (14, 'upload:admin:upload',      '管理员上传',     'upload',  'admin_upload'),
 (15, 'circle:post:create',       '圈子发帖',       'post',    'create'),
-(16, 'circle:comment:create',    '圈子评论',       'comment', 'create');
+(16, 'circle:comment:create',    '圈子评论',       'comment', 'create'),
+(17, 'circle:admin:list',        '圈子管理列表',   'circle',  'admin_list'),
+(18, 'circle:status:update',     '更新圈子状态',   'circle',  'status'),
+(19, 'post:review:approve',      '审核通过',       'post',    'approve'),
+(20, 'post:review:reject',       '审核拒绝',       'post',    'reject'),
+(21, 'post:admin:list',          '全局帖子列表',   'post',    'admin_list'),
+(22, 'post:admin:delete',        '全局删除帖子',   'post',    'admin_delete');
 
 -- ---- RBAC 预设数据：角色-权限分配 ----
--- 站主：全部权限（1-16）
+-- 站主：全部权限（1-22）
 INSERT INTO sys_role_permission(role_id, permission_id) VALUES
-(1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(1,8),(1,9),(1,10),(1,11),(1,12),(1,13),(1,14),(1,15),(1,16);
--- 平台管理员：全局管理权限（1-5,12-16），不能管理成员(9)
+(1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(1,8),(1,9),(1,10),(1,11),(1,12),(1,13),(1,14),(1,15),(1,16),(1,17),(1,18),(1,19),(1,20),(1,21),(1,22);
+-- 平台管理员：全局管理权限（1-5,12-22），不能管理成员(9)
 INSERT INTO sys_role_permission(role_id, permission_id) VALUES
-(2,1),(2,2),(2,3),(2,4),(2,5),(2,12),(2,13),(2,14),(2,15),(2,16);
+(2,1),(2,2),(2,3),(2,4),(2,5),(2,12),(2,13),(2,14),(2,15),(2,16),(2,17),(2,18),(2,19),(2,20),(2,21),(2,22);
 -- 圈主：圈子内全部管理权限（6-11,15-16）
 INSERT INTO sys_role_permission(role_id, permission_id) VALUES
 (4,6),(4,7),(4,8),(4,9),(4,10),(4,11),(4,15),(4,16);
