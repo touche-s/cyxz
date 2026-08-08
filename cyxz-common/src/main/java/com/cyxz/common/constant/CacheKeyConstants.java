@@ -69,6 +69,12 @@ public final class CacheKeyConstants {
     /** Token 黑名单前缀 */
     public static final String TOKEN_BLACKLIST_PREFIX = "token:blacklist:";
 
+    /** 全局权限缓存前缀（auth:global:{userId}） */
+    public static final String AUTH_GLOBAL_PREFIX = "auth:global:";
+
+    /** 圈子权限缓存前缀（auth:circle:{userId}:{circleId}） */
+    public static final String AUTH_CIRCLE_PREFIX = "auth:circle:";
+
     /** 图形验证码缓存前缀 */
     public static final String CAPTCHA_PREFIX = "captcha:";
 
@@ -114,6 +120,27 @@ public final class CacheKeyConstants {
      */
     public static String getTokenBlacklistKey(String jti) {
         return TOKEN_BLACKLIST_PREFIX + jti;
+    }
+
+    /**
+     * 获取全局权限缓存 Key
+     *
+     * @param userId 用户 ID
+     * @return Redis Key
+     */
+    public static String getAuthGlobalKey(Long userId) {
+        return AUTH_GLOBAL_PREFIX + userId;
+    }
+
+    /**
+     * 获取圈子权限缓存 Key
+     *
+     * @param userId   用户 ID
+     * @param circleId 圈子 ID
+     * @return Redis Key
+     */
+    public static String getAuthCircleKey(Long userId, Long circleId) {
+        return AUTH_CIRCLE_PREFIX + userId + ":" + circleId;
     }
 
     /**
