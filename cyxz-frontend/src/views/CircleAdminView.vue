@@ -188,13 +188,61 @@
                 <td>{{ p.authorName }}</td>
                 <td class="ca-td-time">{{ p.createTime?.slice(0, 10) }}</td>
                 <td class="ca-td-actions">
-                  <button class="ca-op-link ca-op-green" @click="approvePost(p)">通过</button>
+                  <button class="ca-op-link ca-op-green" @click="approvePostAction(p)">通过</button>
                   <button class="ca-op-link ca-op-danger" @click="openReject(p)">拒绝</button>
+                  <button class="ca-op-link ca-op-delete" @click="deletePostAction(p)">删除</button>
                 </td>
               </tr>
             </tbody>
           </table>
           <EmptyState v-if="reviewPosts.length === 0" title="暂无待审核内容" />
+        </div>
+      </section>
+
+      <!-- 成员管理 -->
+      <section v-if="activeTab === 'members'" class="ca-section">
+        <div class="ca-section-head">
+          <div>
+            <h2>成员管理</h2>
+            <p class="ca-section-desc">共 {{ members.length }} 位成员</p>
+          </div>
+          <button class="ca-toolbar-btn" @click="loadMembers" title="刷新"><Icon icon="ph:arrows-clockwise" /></button>
+        </div>
+        <LoadingSpinner v-if="memberLoading" text="加载中..." />
+        <div v-else class="ca-table-wrap">
+          <table v-if="members.length > 0" class="ca-table">
+            <thead>
+              <tr>
+                <th style="width: 100px;">ID</th>
+                <th>用户</th>
+                <th style="width: 90px;">角色</th>
+                <th style="width: 130px;">加入时间</th>
+                <th style="width: 160px;">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="m in members" :key="m.userId">
+                <td class="ca-td-id">{{ m.userId }}</td>
+                <td class="ca-td-user">
+                  <div class="ca-member-cell">
+                    <img v-if="m.avatar" :src="m.avatar" class="ca-member-avatar" />
+                    <span v-else class="ca-member-fb">{{ (m.nickname || m.username || '?').charAt(0) }}</span>
+                    <span>{{ m.nickname || m.username }}</span>
+                  </div>
+                </td>
+                <td>
+                  <span class="ca-role-tag" :class="'ca-role-' + roleClass(m.roleCode)">{{ m.roleLabel }}</span>
+                </td>
+                <td class="ca-td-time">{{ m.joinTime }}</td>
+                <td class="ca-td-actions">
+                  <button v-if="m.roleCode === 'CIRCLE_MEMBER'" class="ca-op-link ca-op-purple" @click="promoteMember(m)">任命管理</button>
+                  <button v-if="m.roleCode === 'CIRCLE_ADMIN'" class="ca-op-link" @click="demoteMember(m)">撤销管理</button>
+                  <button v-if="m.roleCode !== 'CIRCLE_OWNER'" class="ca-op-link ca-op-danger" @click="kickMemberAction(m)">踢出</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <EmptyState v-if="members.length === 0" title="暂无成员数据" />
         </div>
       </section>
     </main>
@@ -238,10 +286,10 @@ import { Icon } from '@iconify/vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useNavigate } from '@/composables/useNavigate'
 import { useUserStore } from '@/stores/user'
-import { getManagedCircles, getCircleDetail, updateCircle, getCircleSections } from '@/api/circle'
+import { getManagedCircles, getCircleDetail, updateCircle, getCircleSections, getCircleMembers, appointAdmin, removeAdmin, kickMember } from '@/api/circle'
+import type { CircleVO, MemberVO } from '@/api/circle'
 import { uploadCircleResource } from '@/api/upload'
-import { listPendingReview, approvePost, rejectPost } from '@/api/post'
-import type { CircleVO } from '@/api/circle'
+import { listPendingReviewByCircle, approvePostByCircle, rejectPostByCircle, deletePostByCircle } from '@/api/post'
 import type { PostVO } from '@/api/post'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -274,13 +322,14 @@ const tabs = [
   { key: 'profile', label: '圈子资料', icon: 'ph:gear' },
   { key: 'sections', label: '板块管理', icon: 'ph:stack' },
   { key: 'review', label: '帖子审核', icon: 'ph:shield-check' },
+  { key: 'members', label: '成员管理', icon: 'ph:users-three' },
 ] as const
 
 const managedCircles = ref<CircleVO[]>([])
 const circleLoading = ref(false)
 const currentCircleId = ref<number | null>(null)
 const currentCircle = ref<CircleVO | null>(null)
-const activeTab = ref<'profile' | 'sections' | 'review'>('profile')
+const activeTab = ref<'profile' | 'sections' | 'review' | 'members'>('profile')
 
 // ===== 圈子资料 =====
 const profileForm = ref({ name: '', intro: '', avatar: '', cover: '' })
@@ -440,9 +489,8 @@ async function loadReviewPosts() {
   if (!currentCircleId.value) return
   reviewLoading.value = true
   try {
-    const res = await listPendingReview({ page: 1, size: 100 })
-    // 按当前圈子过滤（审核列表是全局的，圈子管理员只看自己圈子）
-    reviewPosts.value = (res.records || []).filter((p) => p.circleId === currentCircleId.value)
+    const res = await listPendingReviewByCircle(currentCircleId.value, { page: 1, size: 100 })
+    reviewPosts.value = res.records || []
   } catch {
     reviewPosts.value = []
   } finally {
@@ -451,7 +499,7 @@ async function loadReviewPosts() {
 }
 
 async function approvePostAction(p: PostVO) {
-  try { await approvePost(p.id); ElMessage.success('审核通过'); await loadReviewPosts() }
+  try { await approvePostByCircle(currentCircleId.value, p.id); ElMessage.success('审核通过'); await loadReviewPosts() }
   catch { ElMessage.error('操作失败') }
 }
 
@@ -464,7 +512,7 @@ function openReject(p: PostVO) {
 async function confirmReject() {
   if (!rejectTarget.value || !rejectReason.value.trim()) { ElMessage.warning('请填写拒绝原因'); return }
   try {
-    await rejectPost(rejectTarget.value.id, rejectReason.value.trim())
+    await rejectPostByCircle(currentCircleId.value, rejectTarget.value.id, rejectReason.value.trim())
     ElMessage.success('已拒绝')
     showRejectModal.value = false
     rejectTarget.value = null
@@ -472,10 +520,61 @@ async function confirmReject() {
   } catch { ElMessage.error('操作失败') }
 }
 
+async function deletePostAction(p: PostVO) {
+  try {
+    await ElMessageBox.confirm(`确定删除帖子"${p.title}"吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' })
+    await deletePostByCircle(currentCircleId.value, p.id)
+    ElMessage.success('已删除')
+    await loadReviewPosts()
+  } catch { /* 取消或失败 */ }
+}
+
+// ===== 成员管理 =====
+const members = ref<MemberVO[]>([])
+const memberLoading = ref(false)
+
+function roleClass(code: string) {
+  if (code === 'CIRCLE_OWNER') return 'owner'
+  if (code === 'CIRCLE_ADMIN') return 'admin'
+  return 'member'
+}
+
+async function loadMembers() {
+  if (!currentCircleId.value) return
+  memberLoading.value = true
+  try {
+    members.value = await getCircleMembers(currentCircleId.value)
+  } catch {
+    members.value = []
+  } finally {
+    memberLoading.value = false
+  }
+}
+
+async function promoteMember(m: MemberVO) {
+  try { await appointAdmin(currentCircleId.value, m.userId); ElMessage.success('已任命为管理员'); await loadMembers() }
+  catch { ElMessage.error('操作失败') }
+}
+
+async function demoteMember(m: MemberVO) {
+  try { await removeAdmin(currentCircleId.value, m.userId); ElMessage.success('已撤销管理员'); await loadMembers() }
+  catch { ElMessage.error('操作失败') }
+}
+
+async function kickMemberAction(m: MemberVO) {
+  try {
+    await ElMessageBox.confirm(`确定将 ${m.nickname || m.username} 移出圈子吗？`, '确认移除', { confirmButtonText: '移除', cancelButtonText: '取消', type: 'warning' })
+    await kickMember(currentCircleId.value, m.userId)
+    ElMessage.success('已移除成员')
+    await loadMembers()
+  } catch { /* 取消或失败 */ }
+}
+
 // 切换 tab 时懒加载对应数据
 watch(activeTab, (tab) => {
   if (tab === 'sections' && sectionTemplates.value.length === 0) loadSections()
   if (tab === 'review' && reviewPosts.value.length === 0) loadReviewPosts()
+  if (tab === 'members' && members.value.length === 0) loadMembers()
 })
 
 // 切换圈子时重置各 tab 数据
@@ -484,8 +583,10 @@ watch(currentCircleId, () => {
   sectionChecked.value = new Set()
   sectionDefault.value = null
   reviewPosts.value = []
+  members.value = []
   if (activeTab.value === 'sections') loadSections()
   if (activeTab.value === 'review') loadReviewPosts()
+  if (activeTab.value === 'members') loadMembers()
 })
 
 onMounted(() => {
@@ -1085,4 +1186,46 @@ html.dark .ca-cancel-btn:hover { border-color: var(--text-dim); color: var(--tex
 html.dark .ca-upload-btn:hover { border-color: var(--pink); color: var(--pink); }
 html.dark .ca-avatar-fb { color: #fff; }
 html.dark .ca-hd-fb { color: #fff; }
+
+/* 成员管理 */
+.ca-member-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ca-member-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.ca-member-fb {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--gradient-brand);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.ca-role-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+.ca-role-owner { background: #fef3c7; color: #b45309; }
+.ca-role-admin { background: #ede9fe; color: #6d28d9; }
+.ca-role-member { background: var(--bg); color: var(--text-dim); }
+
+html.dark .ca-role-owner { background: #451a03; color: #fcd34d; }
+html.dark .ca-role-admin { background: #2e1065; color: #c4b5fd; }
+html.dark .ca-role-member { background: var(--card); }
+
+.ca-op-link.ca-op-delete { color: var(--text-dim); }
+.ca-op-link.ca-op-delete:hover { color: var(--danger); }
+.ca-op-link.ca-op-purple { color: var(--pink); }
+.ca-op-link.ca-op-purple:hover { color: var(--pink-light); }
 </style>

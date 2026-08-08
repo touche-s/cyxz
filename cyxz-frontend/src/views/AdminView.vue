@@ -569,7 +569,7 @@ import { Icon } from '@iconify/vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useNavigate } from '@/composables/useNavigate'
 import { useUserStore } from '@/stores/user'
-import { getCircleList, updateCircle as apiUpdateCircle } from '@/api/circle'
+import { getAdminCircleList, updateCircle as apiUpdateCircle } from '@/api/circle'
 import { uploadCircleResource } from '@/api/upload'
 import type { CircleVO } from '@/api/circle'
 import { listPendingReview, approvePost, rejectPost } from '@/api/post'
@@ -639,7 +639,7 @@ const circleCoverPreview = ref('')
 
 async function loadCircles() {
   circleLoading.value = true
-  try { circles.value = await getCircleList() } catch { /* ignore */ }
+  try { circles.value = await getAdminCircleList() } catch { /* ignore */ }
   finally { circleLoading.value = false }
 }
 

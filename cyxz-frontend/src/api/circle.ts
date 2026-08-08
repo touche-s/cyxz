@@ -9,6 +9,7 @@ export interface CircleVO {
   cover: string
   postCount: number
   memberCount: number
+  status: number
   joined: boolean
 }
 
@@ -45,6 +46,11 @@ export const getManagedCircles = (): Promise<CircleVO[]> => {
   return request.get('/circle/managed')
 }
 
+/** 管理员全量圈子列表（含禁用状态），用于平台管理后台 */
+export const getAdminCircleList = (): Promise<CircleVO[]> => {
+  return request.get('/circle/admin/list')
+}
+
 export interface CircleSectionVO {
   /** circle_section 主键 */
   id: number
@@ -67,4 +73,36 @@ export interface CircleSectionVO {
 /** 获取圈子已启用的板块列表，发帖选择板块时调用 */
 export const getCircleSections = (circleId: number): Promise<CircleSectionVO[]> => {
   return request.get(`/circle/${circleId}/sections`)
+}
+
+// ===== 圈子成员管理 =====
+
+export interface MemberVO {
+  userId: number
+  username: string
+  nickname: string
+  avatar: string
+  roleCode: string  // CIRCLE_OWNER / CIRCLE_ADMIN / CIRCLE_MEMBER
+  roleLabel: string // 圈主 / 圈子管理员 / 圈子成员
+  joinTime: string
+}
+
+/** 查询圈子成员列表 */
+export const getCircleMembers = (circleId: number): Promise<MemberVO[]> => {
+  return request.get(`/circle/${circleId}/members`)
+}
+
+/** 任命圈子管理员 */
+export const appointAdmin = (circleId: number, userId: number) => {
+  return request.put(`/circle/${circleId}/members/${userId}/promote`)
+}
+
+/** 撤销圈子管理员 */
+export const removeAdmin = (circleId: number, userId: number) => {
+  return request.put(`/circle/${circleId}/members/${userId}/demote`)
+}
+
+/** 移除圈子成员（踢出） */
+export const kickMember = (circleId: number, userId: number) => {
+  return request.delete(`/circle/${circleId}/members/${userId}`)
 }
