@@ -87,6 +87,8 @@ public class CircleServiceImpl implements CircleService {
 
     /**
      * 加入圈子，幂等处理成员关系并维护 member_count，同时分配 CIRCLE_MEMBER 角色
+     * <p>事务跨 cyxz_circle（circle_member/circle）与 cyxz_auth（sys_user_role）两库，
+     * 依赖同一 MySQL 实例保证原子性；如未来拆库需改用 MQ 最终一致性。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -107,6 +109,8 @@ public class CircleServiceImpl implements CircleService {
 
     /**
      * 退出圈子，软删成员关系并递减 member_count，同时撤销 CIRCLE_MEMBER 角色
+     * <p>事务跨 cyxz_circle（circle_member/circle）与 cyxz_auth（sys_user_role）两库，
+     * 依赖同一 MySQL 实例保证原子性；如未来拆库需改用 MQ 最终一致性。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -116,7 +120,7 @@ public class CircleServiceImpl implements CircleService {
             circleMapper.updateMemberCount(circleId, -1);
             log.info("退出圈子: userId={}, circleId={}", userId, circleId);
         }
-        // 撤销圈子成员角色（不影响圈主/管理员角色）
+        // 撤销圈子成员角色（不影响圈主/管理员角色），同一 MySQL 实例跨库写入参与本事务
         circleRoleAssignmentMapper.removeRole(userId, CircleRoleConstants.CIRCLE_MEMBER_ROLE_ID, circleId);
         invalidateCirclePermissionCache(userId, circleId);
     }
@@ -202,6 +206,8 @@ public class CircleServiceImpl implements CircleService {
 
     /**
      * 创建圈子并初始化默认板块，同时将创建者设为圈主（写 owner_id + 分配 CIRCLE_OWNER 角色）
+     * <p>事务跨 cyxz_circle（circle/circle_section）与 cyxz_auth（sys_user_role）两库，
+     * 依赖同一 MySQL 实例保证原子性；如未来拆库需改用 MQ 最终一致性。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -223,7 +229,8 @@ public class CircleServiceImpl implements CircleService {
         circleMapper.insert(po);
         circleSectionService.initDefaultSections(po.getId());
 
-        // 分配圈主角色给创建者（幂等），权限校验以 sys_user_role 为准
+        // 分配圈主角色给创建者（幂等），权限校验以 sys_user_role 为准；
+        // 同一 MySQL 实例跨库写入参与本事务
         if (ownerId != null) {
             circleRoleAssignmentMapper.assignRole(ownerId, CircleRoleConstants.CIRCLE_OWNER_ROLE_ID, po.getId());
         }
@@ -330,6 +337,8 @@ public class CircleServiceImpl implements CircleService {
 
     /**
      * 移除圈子成员，撤销该用户在该圈子中的所有角色，并递减成员数
+     * <p>事务跨 cyxz_circle（circle_member/circle）与 cyxz_auth（sys_user_role）两库，
+     * 依赖同一 MySQL 实例保证原子性；如未来拆库需改用 MQ 最终一致性。
      */
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -338,7 +347,8 @@ public class CircleServiceImpl implements CircleService {
         if (roles.isEmpty()) {
             throw new BusinessException(ErrorCode.NOT_CIRCLE_MEMBER);
         }
-        // 撤销该用户在该圈子中的所有角色（CIRCLE_OWNER/CIRCLE_ADMIN/CIRCLE_MEMBER）
+        // 撤销该用户在该圈子中的所有角色（CIRCLE_OWNER/CIRCLE_ADMIN/CIRCLE_MEMBER），
+        // 同一 MySQL 实例跨库写入参与本事务
         for (Long roleId : roles) {
             circleRoleAssignmentMapper.removeRole(userId, roleId, circleId);
         }
