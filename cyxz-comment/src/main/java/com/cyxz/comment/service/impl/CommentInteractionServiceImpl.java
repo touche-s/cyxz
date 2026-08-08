@@ -7,6 +7,7 @@ import com.cyxz.comment.service.CommentInteractionService;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.constant.CacheKeyConstants;
+import com.cyxz.common.constant.CommonStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -35,7 +36,7 @@ public class CommentInteractionServiceImpl implements CommentInteractionService 
     @Transactional(rollbackFor = Exception.class)
     public void likeComment(Long userId, Long commentId) {
         CommentPO po = commentMapper.selectById(commentId);
-        if (po == null || po.getStatus() == 0) {
+        if (po == null || po.getStatus() == CommonStatus.DELETED) {
             throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
         }
 
@@ -54,7 +55,7 @@ public class CommentInteractionServiceImpl implements CommentInteractionService 
     @Transactional(rollbackFor = Exception.class)
     public void unlikeComment(Long userId, Long commentId) {
         CommentPO po = commentMapper.selectById(commentId);
-        if (po == null || po.getStatus() == 0) {
+        if (po == null || po.getStatus() == CommonStatus.DELETED) {
             throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
         }
 

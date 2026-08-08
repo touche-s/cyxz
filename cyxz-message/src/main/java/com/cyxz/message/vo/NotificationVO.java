@@ -1,5 +1,6 @@
 package com.cyxz.message.vo;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -42,6 +43,7 @@ public class NotificationVO {
     private String content;
 
     /** 是否已读 */
+    @JsonProperty("isRead")
     private Boolean isRead;
 
     /** 创建时间 */

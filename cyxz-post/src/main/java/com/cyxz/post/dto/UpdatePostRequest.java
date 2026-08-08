@@ -1,5 +1,6 @@
 package com.cyxz.post.dto;
 
+import com.cyxz.common.utils.IdUtil;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -51,8 +52,9 @@ public class UpdatePostRequest {
 
     /**
      * 解析帖子 ID 为 Long，供业务层使用。
+     * <p>统一走 {@link IdUtil}，非法格式抛 PARAM_ERROR 而非 NumberFormatException（500）。
      */
     public Long getIdAsLong() {
-        return Long.parseLong(id.trim());
+        return IdUtil.asLongRequired(id, "帖子ID");
     }
 }

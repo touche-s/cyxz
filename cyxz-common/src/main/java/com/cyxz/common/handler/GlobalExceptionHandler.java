@@ -6,7 +6,6 @@ import com.cyxz.common.base.Result;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -33,26 +32,16 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 处理 @Valid @RequestBody 校验失败
-     */
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public Result<Void> handleValidation(MethodArgumentNotValidException e) {
-        String msg = e.getBindingResult().getFieldErrors().stream()
-                .map(f -> f.getField() + ": " + f.getDefaultMessage())
-                .collect(Collectors.joining(", "));
-        log.warn("参数校验失败: {}", msg);
-        return Result.fail(ErrorCode.PARAM_ERROR.getCode(), msg);
-    }
-
-    /**
-     * 处理 @Valid 表单参数校验失败
+     * 处理 @Valid 校验失败
+     * <p>统一覆盖 @RequestBody（MethodArgumentNotValidException，Spring 6 起继承自 BindException）
+     * 与表单参数（BindException）两类绑定异常，聚合字段错误信息返回 400。
      */
     @ExceptionHandler(BindException.class)
     public Result<Void> handleBind(BindException e) {
         String msg = e.getFieldErrors().stream()
                 .map(f -> f.getField() + ": " + f.getDefaultMessage())
                 .collect(Collectors.joining(", "));
-        log.warn("参数绑定失败: {}", msg);
+        log.warn("参数校验失败: {}", msg);
         return Result.fail(ErrorCode.PARAM_ERROR.getCode(), msg);
     }
 
