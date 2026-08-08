@@ -154,10 +154,16 @@ public class PostCommandService {
         }
 
         // CAS 更新：带原 status 条件，防止并发请求互相覆盖状态
+        // 用最小化实体只更新业务字段，不携带 views/likes 等计数字段，避免覆盖并发原子递增
+        PostPO update = new PostPO();
+        applyContentUpdate(update, request);
+        if (request.getStatus() != null) {
+            update.setStatus(po.getStatus());
+        }
         LambdaUpdateWrapper<PostPO> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(PostPO::getId, po.getId())
                .eq(PostPO::getStatus, originalStatus);
-        int rows = postMapper.update(po, wrapper);
+        int rows = postMapper.update(update, wrapper);
         if (rows == 0) {
             throw new BusinessException(ErrorCode.POST_STATUS_CONFLICT, "帖子状态已被修改，请刷新后重试");
         }
