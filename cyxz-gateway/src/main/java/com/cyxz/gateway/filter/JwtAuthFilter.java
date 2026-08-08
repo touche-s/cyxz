@@ -24,7 +24,6 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 
 /**
  * JWT 认证全局过滤器
@@ -80,9 +79,6 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         request = request.mutate()
                 .headers(headers -> {
                     headers.remove("X-User-Id");
-                    headers.remove("X-User-Role");
-                    headers.remove("X-User-Roles");
-                    headers.remove("X-User-Permissions");
                 })
                 .build();
         exchange = exchange.mutate().request(request).build();
@@ -115,14 +111,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
     /**
      * 解析 Token 并注入内部信任头到下游服务
-     * <p>注入头：
-     * <ul>
-     *   <li>{@code X-User-Id}：用户 ID</li>
-     *   <li>{@code X-User-Role}：单值全局角色 code（迁移期兼容 AdminRoleFilter / AdminUserResolver）</li>
-     *   <li>{@code X-User-Roles}：逗号分隔的全局角色 code，供 HeaderAuthenticationFilter 转 ROLE_ 前缀</li>
-     *   <li>{@code X-User-Permissions}：逗号分隔的全局权限码，供 hasAuthority() 校验</li>
-     * </ul>
-     * <p>圈子内角色不注入（用户可能加入数十圈子，头装不下），由业务服务实时查库。
+     * <p>仅注入 {@code X-User-Id}，角色和权限码由下游服务的 Security 层从 Redis/DB 加载。
      *
      * @param request 原始请求
      * @param token   已校验有效的 JWT Token
@@ -130,17 +119,9 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
      */
     private ServerHttpRequest injectUserHeaders(ServerHttpRequest request, String token) {
         Long userId = jwtUtil.getUserId(token);
-        String role = jwtUtil.getRole(token);
-        List<String> permissions = jwtUtil.getPermissions(token);
-        String permissionsHeader = permissions.isEmpty() ? "" : String.join(",", permissions);
         return request.mutate()
                 .headers(headers -> {
                     headers.set("X-User-Id", String.valueOf(userId));
-                    // 单值头：兼容迁移期 AdminRoleFilter / AdminUserResolver
-                    headers.set("X-User-Role", role);
-                    // 多值头：RBAC 标准
-                    headers.set("X-User-Roles", role);
-                    headers.set("X-User-Permissions", permissionsHeader);
                 })
                 .build();
     }

@@ -92,7 +92,7 @@ public class AuthServiceImpl implements AuthService {
 
         String role = getGlobalRoleCode(user.getId());
         List<String> permissions = getGlobalPermissionCodes(user.getId());
-        String token = jwtUtil.generateToken(user.getId(), role, permissions);
+        String token = jwtUtil.generateToken(user.getId());
         long expiresIn = jwtUtil.getExpirationSeconds();
 
         log.info("用户登录成功: userId={}, username={}, role={}", user.getId(), user.getUsername(), role);
@@ -233,14 +233,17 @@ public class AuthServiceImpl implements AuthService {
 
     /**
      * 用户登出
-     * <p>Token 加入 Redis 黑名单。
+     * <p>Token 加入 Redis 黑名单，同时清除全局权限缓存。
      *
      * @param token 待失效的 Token
      */
     @Override
     public void logout(String token) {
+        Long userId = jwtUtil.getUserId(token);
         jwtUtil.blacklistToken(token);
-        log.info("用户登出成功: userId={}", jwtUtil.getUserId(token));
+        // 清除全局权限缓存
+        stringRedisTemplate.delete(CacheKeyConstants.getAuthGlobalKey(userId));
+        log.info("用户登出成功: userId={}", userId);
     }
 
     /**
@@ -316,7 +319,7 @@ public class AuthServiceImpl implements AuthService {
 
         String role = getGlobalRoleCode(userId);
         List<String> permissions = getGlobalPermissionCodes(userId);
-        String newToken = jwtUtil.generateToken(userId, role, permissions);
+        String newToken = jwtUtil.generateToken(userId);
         long expiresIn = jwtUtil.getExpirationSeconds();
         return new AuthResponse(newToken, "Bearer", expiresIn, userId, user.getUsername(), role, permissions);
     }

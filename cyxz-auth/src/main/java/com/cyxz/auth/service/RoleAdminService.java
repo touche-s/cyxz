@@ -13,8 +13,10 @@ import com.cyxz.auth.vo.PermissionVO;
 import com.cyxz.auth.vo.RoleVO;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
+import com.cyxz.common.constant.CacheKeyConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +36,7 @@ public class RoleAdminService {
     private final SysPermissionMapper sysPermissionMapper;
     private final SysRolePermissionMapper sysRolePermissionMapper;
     private final SysUserRoleMapper sysUserRoleMapper;
+    private final StringRedisTemplate stringRedisTemplate;
 
     /**
      * 查询全部角色列表（按 sort 排序）
@@ -87,6 +90,30 @@ public class RoleAdminService {
         }
         log.info("更新角色权限: roleId={}, roleCode={}, permissionCount={}", roleId, role.getCode(),
                 permissionIds != null ? permissionIds.size() : 0);
+
+        // Cache-Aside 旁路失效：查 DB 找出受影响用户 → 逐个删 key
+        invalidateRolePermissionCache(roleId);
+    }
+
+    /**
+     * 角色权限配置变更后，逐个删除受影响用户的权限缓存
+     */
+    private void invalidateRolePermissionCache(Long roleId) {
+        try {
+            List<SysUserRolePO> entries = sysUserRoleMapper.selectList(
+                    new LambdaQueryWrapper<SysUserRolePO>().eq(SysUserRolePO::getRoleId, roleId)
+            );
+            for (SysUserRolePO entry : entries) {
+                if (entry.getCircleId() != null && entry.getCircleId() == 0L) {
+                    stringRedisTemplate.delete(CacheKeyConstants.getAuthGlobalKey(entry.getUserId()));
+                } else if (entry.getCircleId() != null) {
+                    stringRedisTemplate.delete(CacheKeyConstants.getAuthCircleKey(entry.getUserId(), entry.getCircleId()));
+                }
+            }
+            log.info("角色权限缓存失效完成: roleId={}, affectedUsers={}", roleId, entries.size());
+        } catch (Exception e) {
+            log.warn("角色权限缓存失效失败，等待 TTL 自然过期: roleId={}", roleId, e);
+        }
     }
 
     /**
@@ -116,6 +143,8 @@ public class RoleAdminService {
         ur.setRoleId(roleId);
         ur.setCircleId(0L);
         sysUserRoleMapper.insert(ur);
+        // 清除该用户的全局权限缓存
+        stringRedisTemplate.delete(CacheKeyConstants.getAuthGlobalKey(userId));
         log.info("分配用户全局角色: userId={}, roleId={}, roleCode={}", userId, roleId, role.getCode());
     }
 

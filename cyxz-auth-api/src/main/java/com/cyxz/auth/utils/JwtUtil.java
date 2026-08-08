@@ -12,10 +12,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.Date;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -87,30 +84,25 @@ public class JwtUtil {
     }
 
     /**
-     * 生成 JWT Token（含角色 + 全局权限码）
-     * <p>Payload 包含 userId(sub)、role、perms(逗号分隔的全局权限码)、jti、iat、exp。
-     * <p>圈子内权限不写入 JWT（每圈子不同且动态变化），由业务服务实时查库校验。
+     * 生成 JWT Token（仅存 userId）
+     * <p>Payload 包含 userId(sub)、jti、iat、exp，不存角色和权限码。
+     * <p>角色和权限码由 Security 层通过 Redis/DB 加载，不再写入 JWT。
      *
-     * @param userId      用户 ID
-     * @param role        用户全局角色 code
-     * @param permissions 全局权限码列表（如 user:manage:list），空列表则不写 perms claim
+     * @param userId 用户 ID
      * @return JWT Token 字符串
      */
-    public String generateToken(Long userId, String role, List<String> permissions) {
+    public String generateToken(Long userId) {
         String jti = UUID.randomUUID().toString().replace("-", "");
         Date now = new Date();
         Date expiration = new Date(now.getTime() + expirationSeconds * 1000);
 
-        var builder = Jwts.builder()
+        return Jwts.builder()
                 .subject(String.valueOf(userId))
-                .claim("role", role)
                 .id(jti)
                 .issuedAt(now)
-                .expiration(expiration);
-        if (permissions != null && !permissions.isEmpty()) {
-            builder.claim("perms", String.join(",", permissions));
-        }
-        return builder.signWith(getSigningKey()).compact();
+                .expiration(expiration)
+                .signWith(getSigningKey())
+                .compact();
     }
 
     /**
@@ -136,33 +128,6 @@ public class JwtUtil {
     public Long getUserId(String token) {
         Claims claims = parseToken(token);
         return Long.parseLong(claims.getSubject());
-    }
-
-    /**
-     * 从 Token 中提取用户角色
-     *
-     * @param token JWT Token
-     * @return 角色字符串，默认 "user"
-     */
-    public String getRole(String token) {
-        Claims claims = parseToken(token);
-        String role = claims.get("role", String.class);
-        return role != null ? role : "user";
-    }
-
-    /**
-     * 从 Token 中提取全局权限码列表
-     *
-     * @param token JWT Token
-     * @return 权限码列表，无 perms claim 时返回空列表
-     */
-    public List<String> getPermissions(String token) {
-        Claims claims = parseToken(token);
-        String perms = claims.get("perms", String.class);
-        if (perms == null || perms.isEmpty()) {
-            return Collections.emptyList();
-        }
-        return Arrays.asList(perms.split(","));
     }
 
     /**
