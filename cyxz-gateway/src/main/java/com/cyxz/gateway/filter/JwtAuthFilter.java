@@ -80,6 +80,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         request = request.mutate()
                 .headers(headers -> {
                     headers.remove("X-User-Id");
+                    headers.remove("X-Token-Remaining");
                 })
                 .build();
         exchange = exchange.mutate().request(request).build();
@@ -112,7 +113,8 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
     /**
      * 解析 Token 并注入内部信任头到下游服务
-     * <p>仅注入 {@code X-User-Id}，角色和权限码由下游服务的 Security 层从 Redis/DB 加载。
+     * <p>注入 {@code X-User-Id} 和 {@code X-Token-Remaining}（Token 剩余秒数），
+     * 角色和权限码由下游服务的 Security 层从 Redis/DB 加载，缓存 TTL 对齐 Token 剩余时间。
      *
      * @param request 原始请求
      * @param token   已校验有效的 JWT Token
@@ -120,9 +122,11 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
      */
     private ServerHttpRequest injectUserHeaders(ServerHttpRequest request, String token) {
         Long userId = jwtUtil.getUserId(token);
+        long remainingSeconds = jwtUtil.getRemainingSeconds(token);
         return request.mutate()
                 .headers(headers -> {
                     headers.set("X-User-Id", String.valueOf(userId));
+                    headers.set("X-Token-Remaining", String.valueOf(remainingSeconds));
                 })
                 .build();
     }

@@ -162,6 +162,18 @@ public class JwtUtil {
     }
 
     /**
+     * 获取 Token 的剩余有效秒数
+     *
+     * @param token JWT Token
+     * @return 剩余秒数，已过期返回 0
+     */
+    public long getRemainingSeconds(String token) {
+        Date expiration = getExpiration(token);
+        long remaining = (expiration.getTime() - System.currentTimeMillis()) / 1000;
+        return Math.max(remaining, 0);
+    }
+
+    /**
      * 校验 Token 是否有效
      * <p>同时检查黑名单和过期状态，验签失败也视为无效。
      *
@@ -172,7 +184,7 @@ public class JwtUtil {
         try {
             return !isBlacklisted(token) && !isExpired(token);
         } catch (Exception e) {
-            log.warn("Token 验签失败: {}", e.getMessage());
+            log.warn("Token 验签失败", e);
             return false;
         }
     }
@@ -222,7 +234,7 @@ public class JwtUtil {
             String key = CacheKeyConstants.getTokenBlacklistKey(jti);
             return Boolean.TRUE.equals(redisTemplate.hasKey(key));
         } catch (Exception e) {
-            log.warn("检查黑名单失败: {}", e.getMessage());
+            log.warn("检查黑名单失败", e);
             return true;
         }
     }

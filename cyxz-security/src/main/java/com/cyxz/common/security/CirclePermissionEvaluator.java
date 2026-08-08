@@ -29,7 +29,6 @@ public class CirclePermissionEvaluator {
 
     private final PermissionQueryMapper permissionQueryMapper;
     private final StringRedisTemplate stringRedisTemplate;
-    private final long ttlSeconds;
 
     /**
      * 校验当前用户在指定圈子内是否拥有某权限码
@@ -60,7 +59,7 @@ public class CirclePermissionEvaluator {
     }
 
     /**
-     * Cache-Aside 加载用户在圈子内的权限码集合
+     * Cache-Aside 加载用户在圈子内的权限码集合，TTL 对齐当前 Token 剩余时间
      */
     private Set<String> loadCirclePermissions(Long userId, Long circleId) {
         String key = CacheKeyConstants.getAuthCircleKey(userId, circleId);
@@ -84,7 +83,10 @@ public class CirclePermissionEvaluator {
         // 回写 Redis
         try {
             stringRedisTemplate.opsForHash().put(key, "perms", String.join(",", permissions));
-            stringRedisTemplate.expire(key, ttlSeconds, TimeUnit.SECONDS);
+            long ttl = TokenTtlContext.get();
+            if (ttl > 0) {
+                stringRedisTemplate.expire(key, ttl, TimeUnit.SECONDS);
+            }
         } catch (Exception e) {
             log.warn("Redis 回写圈子权限失败: userId={}, circleId={}", userId, circleId, e);
         }

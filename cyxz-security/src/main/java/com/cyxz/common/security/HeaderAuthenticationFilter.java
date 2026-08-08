@@ -21,8 +21,9 @@ import java.util.Set;
 
 /**
  * 信任头认证过滤器
- * <p>读取 Gateway 注入的 {@code X-User-Id}，通过 {@link GlobalPermissionProvider} 从 Redis/DB 加载
- * 全局角色和权限码，组装 Spring Security 的 {@link Authentication} 写入 SecurityContext。
+ * <p>读取 Gateway 注入的 {@code X-User-Id} 和 {@code X-Token-Remaining}，通过 {@link GlobalPermissionProvider}
+ * 从 Redis/DB 加载全局角色和权限码，组装 Spring Security 的 {@link Authentication} 写入 SecurityContext。
+ * <p>Token 剩余秒数存入 {@link TokenTtlContext}，供权限缓存层回写 Redis 时对齐 TTL。
  * <p>圈子内权限不进 SecurityContext，由 {@code @circlePerm} 实时查库校验。
  */
 @Slf4j
@@ -30,6 +31,7 @@ import java.util.Set;
 public class HeaderAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String USER_ID_HEADER = "X-User-Id";
+    private static final String TOKEN_REMAINING_HEADER = "X-Token-Remaining";
 
     private final GlobalPermissionProvider globalPermissionProvider;
 
@@ -41,6 +43,8 @@ public class HeaderAuthenticationFilter extends OncePerRequestFilter {
         if (StringUtils.hasText(userIdHeader)) {
             try {
                 Long userId = Long.valueOf(userIdHeader);
+                long remainingSeconds = parseRemainingSeconds(request.getHeader(TOKEN_REMAINING_HEADER));
+                TokenTtlContext.set(remainingSeconds);
                 SecurityContextHolder.getContext().setAuthentication(
                         new UsernamePasswordAuthenticationToken(userId, null, buildAuthorities(userId)));
             } catch (NumberFormatException ignored) {
@@ -49,7 +53,22 @@ public class HeaderAuthenticationFilter extends OncePerRequestFilter {
                 log.warn("加载用户权限失败，保持未认证状态: userIdHeader={}", userIdHeader, e);
             }
         }
-        filterChain.doFilter(request, response);
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            TokenTtlContext.clear();
+        }
+    }
+
+    private long parseRemainingSeconds(String header) {
+        if (!StringUtils.hasText(header)) {
+            return 0;
+        }
+        try {
+            return Long.parseLong(header);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     /**

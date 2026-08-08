@@ -1,6 +1,5 @@
 package com.cyxz.auth.config;
 
-import com.cyxz.auth.utils.JwtUtil;
 import com.cyxz.common.security.GlobalPermissionProvider;
 import com.cyxz.common.security.GlobalPermissionProviderImpl;
 import com.cyxz.common.security.HeaderAuthenticationFilter;
@@ -42,9 +41,8 @@ public class SecurityConfig {
 
     @Bean
     public GlobalPermissionProvider globalPermissionProvider(PermissionQueryMapper mapper,
-                                                              StringRedisTemplate redisTemplate,
-                                                              JwtUtil jwtUtil) {
-        return new GlobalPermissionProviderImpl(mapper, redisTemplate, jwtUtil.getExpirationSeconds());
+                                                              StringRedisTemplate redisTemplate) {
+        return new GlobalPermissionProviderImpl(mapper, redisTemplate);
     }
 
     @Bean
