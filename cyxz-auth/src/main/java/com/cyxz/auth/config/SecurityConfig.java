@@ -66,6 +66,15 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/auth/captcha/**").permitAll()
                         .requestMatchers("/auth/admin/**").permitAll()
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/doc.html",
+                                "/webjars/**",
+                                "/favicon.ico",
+                                "/swagger-resources/**"
+                        ).permitAll()
                         .anyRequest().denyAll()
                 )
                 .addFilterBefore(new HeaderAuthenticationFilter(permissionProvider), UsernamePasswordAuthenticationFilter.class)

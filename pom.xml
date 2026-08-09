@@ -48,6 +48,7 @@
         <mybatis-spring.version>3.0.3</mybatis-spring.version>
         <mysql.version>8.0.33</mysql.version>
         <minio.version>8.5.7</minio.version>
+        <knife4j.version>4.5.0</knife4j.version>
     </properties>
 
     <dependencyManagement>
@@ -179,6 +180,13 @@
                 <groupId>io.minio</groupId>
                 <artifactId>minio</artifactId>
                 <version>${minio.version}</version>
+            </dependency>
+
+            <!-- Knife4j (SpringDoc OpenAPI 3 增强 UI) -->
+            <dependency>
+                <groupId>com.github.xiaoymin</groupId>
+                <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+                <version>${knife4j.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

@@ -45,3 +45,15 @@ mybatis-plus:
   type-aliases-package: com.cyxz.comment.entity
   configuration:
     map-underscore-to-camel-case: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+  default-flat-param-object: true
+
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
