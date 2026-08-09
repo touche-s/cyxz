@@ -19,6 +19,7 @@ import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.utils.FeignResults;
 import com.cyxz.circle.feign.CircleFeignClient;
 import com.cyxz.circle.vo.PublishableResult;
+import com.cyxz.message.enums.NotificationTargetType;
 import com.cyxz.message.enums.NotificationType;
 import com.cyxz.message.event.NotificationEvent;
 import com.cyxz.message.utils.NotificationPublisher;
@@ -129,30 +130,16 @@ public class CommentServiceImpl implements CommentService {
 
             List<NotificationEvent> events = new ArrayList<>();
             if (!userId.equals(po.getPostAuthorId())) {
-                events.add(NotificationEvent.builder()
-                        .receiverId(po.getPostAuthorId())
-                        .senderId(userId)
-                        .type(NotificationType.POST_COMMENTED.name())
-                        .title("有人评论了你的帖子")
-                        .targetType("comment")
-                        .targetId(po.getId())
-                        .relatedId(po.getPostId())
-                        .content(request.getContent())
-                        .createTime(System.currentTimeMillis())
-                        .build());
+                events.add(NotificationPublisher.of(
+                        po.getPostAuthorId(), userId, NotificationType.POST_COMMENTED,
+                        "有人评论了你的帖子", NotificationTargetType.COMMENT,
+                        po.getId(), po.getPostId(), request.getContent()));
             }
             if (po.getReplyToUserId() != null && !userId.equals(po.getReplyToUserId())) {
-                events.add(NotificationEvent.builder()
-                        .receiverId(po.getReplyToUserId())
-                        .senderId(userId)
-                        .type(NotificationType.COMMENT_REPLIED.name())
-                        .title("有人回复了你的评论")
-                        .targetType("comment")
-                        .targetId(po.getId())
-                        .relatedId(po.getPostId())
-                        .content(request.getContent())
-                        .createTime(System.currentTimeMillis())
-                        .build());
+                events.add(NotificationPublisher.of(
+                        po.getReplyToUserId(), userId, NotificationType.COMMENT_REPLIED,
+                        "有人回复了你的评论", NotificationTargetType.COMMENT,
+                        po.getId(), po.getPostId(), request.getContent()));
             }
 
             if (!events.isEmpty()) {

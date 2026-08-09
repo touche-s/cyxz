@@ -6,6 +6,8 @@ import com.cyxz.post.constant.PostStatus;
 import com.cyxz.post.entity.PostPO;
 import com.cyxz.post.mapper.PostMapper;
 import com.cyxz.post.service.AiReviewService.AiReviewResult;
+import com.cyxz.message.enums.NotificationTargetType;
+import com.cyxz.message.enums.NotificationType;
 import com.cyxz.message.event.NotificationEvent;
 import com.cyxz.message.utils.NotificationPublisher;
 import lombok.RequiredArgsConstructor;
@@ -87,14 +89,14 @@ public class PostReviewService {
             postMapper.updateById(po);
             postQueryService.evictDetailCache(postId);
             postEsSyncService.syncPostToEs(po);
-            sendReviewNotify(authorId, "POST_APPROVED", null, postId, title);
+            sendReviewNotify(authorId, NotificationType.POST_APPROVED, null, postId, title);
             log.info("AI 审核通过: postId={}", postId);
         } else {
             po.setStatus(PostStatus.REJECTED);
             po.setReviewReason(result.getReason());
             postMapper.updateById(po);
             postQueryService.evictDetailCache(postId);
-            sendReviewNotify(authorId, "POST_REJECTED", result.getReason(), postId, title);
+            sendReviewNotify(authorId, NotificationType.POST_REJECTED, result.getReason(), postId, title);
             log.warn("AI 审核拒绝: postId={}, reason={}", postId, result.getReason());
         }
     }
@@ -117,20 +119,13 @@ public class PostReviewService {
         log.warn("AI 审核异常，转人工审核: postId={}", postId, e);
     }
 
-    private void sendReviewNotify(Long receiverId, String type, String reason, Long postId, String title) {
-        String content = "POST_APPROVED".equals(type)
+    private void sendReviewNotify(Long receiverId, NotificationType type, String reason, Long postId, String title) {
+        String content = type == NotificationType.POST_APPROVED
                 ? "你的帖子《" + title + "》审核通过，已公开发布"
                 : "你的帖子《" + title + "》未通过审核" + (reason != null ? "：" + reason : "");
-        NotificationEvent event = NotificationEvent.builder()
-                .receiverId(receiverId)
-                .senderId(0L)
-                .type(type)
-                .title("审核结果")
-                .content(content)
-                .targetType("post")
-                .targetId(postId)
-                .createTime(System.currentTimeMillis())
-                .build();
+        NotificationEvent event = NotificationPublisher.of(
+                receiverId, 0L, type, "审核结果",
+                NotificationTargetType.POST, postId, null, content);
         NotificationPublisher.publish(rabbitTemplate, event);
     }
 }

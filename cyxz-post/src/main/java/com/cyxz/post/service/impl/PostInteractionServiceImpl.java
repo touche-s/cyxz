@@ -5,6 +5,7 @@ import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.post.constant.PostStatus;
 import com.cyxz.common.utils.IpUtil;
+import com.cyxz.message.enums.NotificationTargetType;
 import com.cyxz.message.enums.NotificationType;
 import com.cyxz.message.event.NotificationEvent;
 import com.cyxz.message.utils.NotificationPublisher;
@@ -179,15 +180,9 @@ public class PostInteractionServiceImpl implements PostInteractionService {
      * @param po     帖子实体（用于获取帖子作者作为接收者）
      */
     private void sendLikeNotification(Long postId, Long userId, PostPO po) {
-        NotificationEvent event = NotificationEvent.builder()
-            .receiverId(po.getUserId())
-            .senderId(userId)
-            .type(NotificationType.POST_LIKED.name())
-            .title("有人赞了你的帖子")
-            .targetType("post")
-            .targetId(postId)
-            .createTime(System.currentTimeMillis())
-            .build();
+        NotificationEvent event = NotificationPublisher.of(
+                po.getUserId(), userId, NotificationType.POST_LIKED,
+                "有人赞了你的帖子", NotificationTargetType.POST, postId);
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
