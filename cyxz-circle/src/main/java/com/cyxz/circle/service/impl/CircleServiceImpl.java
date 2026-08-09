@@ -10,6 +10,7 @@ import com.cyxz.common.base.PageResult;
 import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.constant.PageConstants;
+import com.cyxz.common.utils.TransactionUtils;
 import com.cyxz.circle.constant.CircleRoleConstants;
 import com.cyxz.circle.entity.CircleMemberPO;
 import com.cyxz.circle.entity.CirclePO;
@@ -368,13 +369,16 @@ public class CircleServiceImpl implements CircleService {
     /**
      * 失效用户在指定圈子的权限缓存（Cache-Aside 旁路删除）
      * <p>角色分配/撤销后调用，Redis 异常不阻塞业务事务，等待 TTL 自然过期。
+     * <p>缓存删除放到事务提交后执行，避免 T1 删缓存→T2 读旧值回写→T1 提交导致的缓存-DB 不一致。
      */
     private void invalidateCirclePermissionCache(Long userId, Long circleId) {
-        try {
-            stringRedisTemplate.delete(CacheKeyConstants.getAuthCircleKey(userId, circleId));
-        } catch (Exception e) {
-            log.warn("圈子权限缓存失效失败，等待 TTL 自然过期: userId={}, circleId={}", userId, circleId, e);
-        }
+        TransactionUtils.afterCommit(() -> {
+            try {
+                stringRedisTemplate.delete(CacheKeyConstants.getAuthCircleKey(userId, circleId));
+            } catch (Exception e) {
+                log.warn("圈子权限缓存失效失败，等待 TTL 自然过期: userId={}, circleId={}", userId, circleId, e);
+            }
+        });
     }
 
     private List<CircleVO> toVOList(List<CirclePO> circles, Long currentUserId) {
