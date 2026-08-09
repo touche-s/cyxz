@@ -1,18 +1,18 @@
 package com.cyxz.circle.controller;
 
-import com.cyxz.common.base.BusinessException;
-import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.web.CurrentUser;
 import com.cyxz.circle.dto.SectionConfigRequest;
+import com.cyxz.circle.dto.UpdateCircleStatusRequest;
 import com.cyxz.circle.service.CircleSectionService;
 import com.cyxz.circle.service.CircleService;
 import com.cyxz.circle.vo.CircleSectionVO;
 import com.cyxz.circle.vo.CircleVO;
 import com.cyxz.circle.vo.MemberVO;
 import com.cyxz.circle.vo.PublishableResult;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -157,12 +157,8 @@ public class CircleController {
      */
     @PutMapping("/{circleId}/status")
     @PreAuthorize("hasAuthority('circle:status:update')")
-    public Result<Void> updateStatus(@PathVariable Long circleId, @RequestBody Map<String, Integer> body) {
-        Integer status = body.get("status");
-        if (status == null || (status != 0 && status != 1)) {
-            throw new BusinessException(ErrorCode.PARAM_ERROR, "status 必须为 0（禁用）或 1（启用）");
-        }
-        circleService.updateStatus(circleId, status);
+    public Result<Void> updateStatus(@PathVariable Long circleId, @Valid @RequestBody UpdateCircleStatusRequest request) {
+        circleService.updateStatus(circleId, request.getStatus());
         return Result.success("状态更新成功");
     }
 

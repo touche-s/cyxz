@@ -266,6 +266,10 @@ public class CircleServiceImpl implements CircleService {
      */
     @Override
     public void updateStatus(Long circleId, Integer status) {
+        // 圈子状态：1=启用 0=禁用，与 CommonStatus.ACTIVE/DELETED 数值一致但语义不同，保留字面量更直观
+        if (status == null || (status != 1 && status != 0)) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "status 必须为 0（禁用）或 1（启用）");
+        }
         CirclePO po = circleMapper.selectById(circleId);
         if (po == null) {
             throw new BusinessException(ErrorCode.CIRCLE_NOT_FOUND);

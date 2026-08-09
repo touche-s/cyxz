@@ -5,7 +5,10 @@ import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.web.CurrentUser;
 import org.springframework.security.access.prepost.PreAuthorize;
+import com.cyxz.post.dto.BatchOperateRequest;
+import com.cyxz.post.dto.CheckSensitiveRequest;
 import com.cyxz.post.dto.CreatePostRequest;
+import com.cyxz.post.dto.RejectPostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
 import com.cyxz.post.constant.PostStatus;
 import com.cyxz.post.service.PostInteractionService;
@@ -48,7 +51,7 @@ public class PostController {
     @PostMapping
     public Result<Long> create(@Valid @RequestBody CreatePostRequest request,
                                @CurrentUser Long userId) {
-        request.setStatus(1);
+        request.setStatus(PostStatus.PENDING);
         Long postId = postService.createPost(userId, request);
         return Result.success("发布成功", postId);
     }
@@ -430,11 +433,8 @@ public class PostController {
      * @return 操作结果
      */
     @PostMapping("/batch")
-    public Result<Void> batchOperate(@CurrentUser Long userId, @RequestBody Map<String, Object> body) {
-        @SuppressWarnings("unchecked")
-        List<Long> postIds = ((List<String>) body.get("postIds")).stream().map(Long::valueOf).toList();
-        String action = (String) body.get("action");
-        postService.batchOperate(userId, postIds, action);
+    public Result<Void> batchOperate(@CurrentUser Long userId, @Valid @RequestBody BatchOperateRequest request) {
+        postService.batchOperate(userId, request.getPostIds(), request.getAction());
         return Result.success("批量操作成功");
     }
 
@@ -476,8 +476,8 @@ public class PostController {
      */
     @PreAuthorize("hasAuthority('post:review:reject')")
     @PutMapping("/admin/review/{postId}/reject")
-    public Result<Void> rejectPost(@PathVariable Long postId, @RequestBody Map<String, String> body) {
-        postService.rejectPost(postId, body.get("reason"));
+    public Result<Void> rejectPost(@PathVariable Long postId, @Valid @RequestBody RejectPostRequest request) {
+        postService.rejectPost(postId, request.getReason());
         return Result.success("已拒绝");
     }
 
@@ -525,8 +525,8 @@ public class PostController {
     @PreAuthorize("@circlePerm.hasAuthority('circle:post:review', #circleId)")
     @PutMapping("/circle/{circleId}/admin/review/{postId}/reject")
     public Result<Void> rejectPostByCircle(@PathVariable Long circleId, @PathVariable Long postId,
-                                            @RequestBody Map<String, String> body) {
-        postService.rejectPost(postId, body.get("reason"));
+                                            @Valid @RequestBody RejectPostRequest request) {
+        postService.rejectPost(postId, request.getReason());
         return Result.success("已拒绝");
     }
 
@@ -584,9 +584,9 @@ public class PostController {
      * @return 命中的敏感词集合，为空表示无敏感词
      */
     @PostMapping("/check-sensitive")
-    public Result<Set<String>> checkSensitive(@RequestBody Map<String, String> body) {
-        String title = body.getOrDefault("title", "");
-        String content = body.getOrDefault("content", "");
-        return Result.success(sensitiveWordService.check(title, content));
+    public Result<Set<String>> checkSensitive(@Valid @RequestBody CheckSensitiveRequest request) {
+        return Result.success(sensitiveWordService.check(
+                request.getTitle() != null ? request.getTitle() : "",
+                request.getContent() != null ? request.getContent() : ""));
     }
 }
