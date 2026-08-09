@@ -1,5 +1,6 @@
 package com.cyxz.post.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.cyxz.common.base.BaseEntity;
@@ -67,7 +68,8 @@ public class PostPO extends BaseEntity {
     private Integer collections;
 
     /** 是否置顶：0=否 1=是 */
-    private Integer isPinned;
+    @TableField("is_pinned")
+    private Integer pinned;
 
     /** 置顶时间 */
     private LocalDateTime pinnedTime;

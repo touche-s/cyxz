@@ -6,6 +6,7 @@ import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
 import com.cyxz.post.constant.PostStatus;
+import com.cyxz.post.constant.PostType;
 import com.cyxz.circle.feign.CircleFeignClient;
 import com.cyxz.circle.vo.PublishableResult;
 import com.cyxz.comment.feign.CommentFeignClient;
@@ -80,7 +81,7 @@ public class PostCommandService {
         if (request.getTags() != null && !request.getTags().isEmpty()) {
             po.setTags(String.join(",", request.getTags()));
         }
-        String postType = request.getPostType() != null ? request.getPostType() : "NORMAL";
+        String postType = request.getPostType() != null ? request.getPostType() : PostType.NORMAL;
         po.setPostType(postType);
         po.setStatus(request.getStatus() != null ? request.getStatus() : PostStatus.DRAFT);
         po.setLikes(0);
@@ -219,10 +220,7 @@ public class PostCommandService {
         if (!po.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.NOT_POST_OWNER);
         }
-        po.setStatus(PostStatus.DELETED);
-        postMapper.updateById(po);
-        postQueryService.evictDetailCache(postId);
-        postEsSyncService.syncPostToEs(po);
+        softDelete(po);
         log.info("软删除帖子成功: postId={}, userId={}", postId, userId);
     }
 
@@ -236,10 +234,7 @@ public class PostCommandService {
         if (po == null) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
-        po.setStatus(PostStatus.DELETED);
-        postMapper.updateById(po);
-        postQueryService.evictDetailCache(postId);
-        postEsSyncService.syncPostToEs(po);
+        softDelete(po);
         log.info("管理员删除帖子: postId={}", postId);
     }
 
@@ -257,11 +252,21 @@ public class PostCommandService {
         if (!circleId.equals(po.getCircleId())) {
             throw new BusinessException(ErrorCode.POST_NOT_IN_CIRCLE);
         }
+        softDelete(po);
+        log.info("圈子管理员删除帖子: circleId={}, postId={}", circleId, postId);
+    }
+
+    /**
+     * 软删帖子公共逻辑：置状态为 DELETED → 更新 → 清缓存 → 同步 ES
+     * <p>调用方负责 select、权限/归属校验与日志输出。
+     *
+     * @param po 已加载并校验通过的帖子实体
+     */
+    private void softDelete(PostPO po) {
         po.setStatus(PostStatus.DELETED);
         postMapper.updateById(po);
-        postQueryService.evictDetailCache(postId);
+        postQueryService.evictDetailCache(po.getId());
         postEsSyncService.syncPostToEs(po);
-        log.info("圈子管理员删除帖子: circleId={}, postId={}", circleId, postId);
     }
 
     /**
@@ -332,7 +337,7 @@ public class PostCommandService {
         // 原子置顶：SQL 层校验已置顶数 < 3，避免 TOCTOU 竞态
         int rows = postMapper.pinPost(userId, postId);
         if (rows == 0) {
-            if (po.getIsPinned() != null && po.getIsPinned() == 1) {
+            if (po.getPinned() != null && po.getPinned() == 1) {
                 throw new BusinessException(ErrorCode.PARAM_ERROR, "该帖子已置顶");
             }
             throw new BusinessException(ErrorCode.PARAM_ERROR, "最多置顶 3 条帖子");
@@ -425,10 +430,10 @@ public class PostCommandService {
         if (content == null || content.isBlank()) {
             throw new BusinessException(ErrorCode.PARAM_MISSING, "发布时正文不能为空");
         }
-        if (!"ARTICLE".equals(postType) && (images == null || images.isEmpty())) {
+        if (!PostType.ARTICLE.equals(postType) && (images == null || images.isEmpty())) {
             throw new BusinessException(ErrorCode.PARAM_MISSING, "图文帖发布时至少需要一张图片");
         }
-        boolean isArticle = "ARTICLE".equals(postType);
+        boolean isArticle = PostType.ARTICLE.equals(postType);
         int titleLen = title.length();
         int maxTitleLen = isArticle ? 50 : 30;
         if (titleLen > maxTitleLen) {

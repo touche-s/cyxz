@@ -11,6 +11,7 @@ import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.utils.FeignResults;
 import com.cyxz.post.utils.RequestContextUtil;
 import com.cyxz.post.constant.PostStatus;
+import com.cyxz.post.constant.PostType;
 import com.cyxz.post.entity.PostCollectPO;
 import com.cyxz.post.entity.PostLikePO;
 import com.cyxz.post.entity.PostPO;
@@ -342,7 +343,7 @@ public class PostQueryService {
         PostVO vo = new PostVO();
         vo.setId(po.getId());
         vo.setUserId(po.getUserId());
-        vo.setPostType(po.getPostType() != null ? po.getPostType() : "NORMAL");
+        vo.setPostType(po.getPostType() != null ? po.getPostType() : PostType.NORMAL);
         vo.setCircleId(po.getCircleId());
         vo.setSectionId(po.getSectionId());
         vo.setTitle(po.getTitle());
@@ -366,7 +367,7 @@ public class PostQueryService {
         vo.setViews(po.getViews());
         vo.setCollections(po.getCollections());
         vo.setCollected(collectedPostIds.contains(po.getId()));
-        vo.setPinned(po.getIsPinned() != null && po.getIsPinned() == 1);
+        vo.setPinned(po.getPinned() != null && po.getPinned() == 1);
         vo.setPinnedTime(po.getPinnedTime());
         vo.setCreateTime(po.getCreateTime());
         vo.setUpdateTime(po.getUpdateTime());

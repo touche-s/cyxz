@@ -138,7 +138,7 @@ class PostServiceImplTest {
         po.setTitle("测试帖子");
         po.setContent("内容");
         po.setStatus(status);
-        po.setIsPinned(0);
+        po.setPinned(0);
         return po;
     }
 
@@ -432,7 +432,7 @@ class PostServiceImplTest {
         @DisplayName("已达 3 条上限：rows=0 抛最多置顶 3 条")
         void shouldRejectWhenReachLimit() {
             PostPO po = buildPost(PostStatus.APPROVED);
-            po.setIsPinned(0);
+            po.setPinned(0);
             when(postMapper.selectById(POST_ID)).thenReturn(po);
             when(postMapper.pinPost(USER_ID, POST_ID)).thenReturn(0);
 
@@ -445,7 +445,7 @@ class PostServiceImplTest {
         @DisplayName("已置顶帖子重复置顶：rows=0 抛该帖子已置顶")
         void shouldRejectWhenAlreadyPinned() {
             PostPO po = buildPost(PostStatus.APPROVED);
-            po.setIsPinned(1);
+            po.setPinned(1);
             when(postMapper.selectById(POST_ID)).thenReturn(po);
             when(postMapper.pinPost(USER_ID, POST_ID)).thenReturn(0);
 
@@ -481,7 +481,7 @@ class PostServiceImplTest {
         @DisplayName("取消置顶正常调用 mapper")
         void shouldUnpinSuccessfully() {
             PostPO po = buildPost(PostStatus.APPROVED);
-            po.setIsPinned(1);
+            po.setPinned(1);
             when(postMapper.selectById(POST_ID)).thenReturn(po);
 
             postCommandService.unpinPost(USER_ID, POST_ID);
