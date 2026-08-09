@@ -64,11 +64,11 @@ public class PostInteractionServiceImpl implements PostInteractionService {
         int rows = postLikeMapper.upsertLike(postId, userId);
         if (rows == 1) {
             incrementLikeDelta(postId, 1);
-            log.info("点赞帖子: postId={}, userId={}", postId, userId);
+            log.debug("点赞帖子: postId={}, userId={}", postId, userId);
             sendLikeNotification(postId, userId, po);
         } else if (rows == 2) {
             incrementLikeDelta(postId, 1);
-            log.info("点赞帖子(恢复): postId={}, userId={}", postId, userId);
+            log.debug("点赞帖子(恢复): postId={}, userId={}", postId, userId);
         }
     }
 
@@ -87,7 +87,7 @@ public class PostInteractionServiceImpl implements PostInteractionService {
         int rows = postLikeMapper.deactivateLike(postId, userId);
         if (rows > 0) {
             incrementLikeDelta(postId, -1);
-            log.info("取消点赞帖子: postId={}, userId={}", postId, userId);
+            log.debug("取消点赞帖子: postId={}, userId={}", postId, userId);
         }
     }
 
@@ -108,7 +108,7 @@ public class PostInteractionServiceImpl implements PostInteractionService {
         int rows = postCollectMapper.upsertCollect(postId, userId);
         if (rows > 0) {
             incrementCollectDelta(postId, 1);
-            log.info("收藏帖子{}: postId={}, userId={}", rows == 1 ? "" : "(恢复)", postId, userId);
+            log.debug("收藏帖子{}: postId={}, userId={}", rows == 1 ? "" : "(恢复)", postId, userId);
         }
     }
 
