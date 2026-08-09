@@ -58,3 +58,6 @@ dependency-reduced-pom.xml
 # Internal docs (not for public display)
 docs-internal/
 docs/工程审查/
+
+# Database local dumps (含本地测试数据，不入库；init.sql 与 migrations/ 仍纳入版本管理)
+db/cyxz_*.sql
