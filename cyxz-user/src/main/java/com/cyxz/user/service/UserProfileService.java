@@ -25,7 +25,7 @@ public interface UserProfileService {
      * @param userIds 用户 ID 列表
      * @return userId → UserProfileVO 映射
      */
-    Map<Long, UserProfileVO> batchGetByUserIds(List<Long> userIds);
+    Map<Long, UserProfileVO> batchGetUserProfiles(List<Long> userIds);
 
     /**
      * 修改用户资料

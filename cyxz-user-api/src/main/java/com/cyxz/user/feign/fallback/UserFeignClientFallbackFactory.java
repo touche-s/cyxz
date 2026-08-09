@@ -36,7 +36,7 @@ public class UserFeignClientFallbackFactory extends AbstractFeignFallbackFactory
             }
 
             @Override
-            public Result<Map<Long, UserProfileVO>> batchGetByIds(List<Long> userIds) {
+            public Result<Map<Long, UserProfileVO>> batchGetUserProfiles(List<Long> userIds) {
                 return Result.success(Collections.emptyMap());
             }
 

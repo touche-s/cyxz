@@ -32,7 +32,7 @@ public interface UserFeignClient {
      * @return userId → UserProfileVO 映射
      */
     @PostMapping("/user/internal/profile/batch")
-    Result<Map<Long, UserProfileVO>> batchGetByIds(@RequestBody List<Long> userIds);
+    Result<Map<Long, UserProfileVO>> batchGetUserProfiles(@RequestBody List<Long> userIds);
 
     /**
      * 查询用户关注的用户 ID 列表（内部接口，供 post 服务拉取关注动态）

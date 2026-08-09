@@ -27,6 +27,6 @@ public final class UserFeignHelper {
         if (userIds == null || userIds.isEmpty()) {
             return Collections.emptyMap();
         }
-        return FeignResults.unwrapOrEmptyMap(client.batchGetByIds(new ArrayList<>(userIds)));
+        return FeignResults.unwrapOrEmptyMap(client.batchGetUserProfiles(new ArrayList<>(userIds)));
     }
 }

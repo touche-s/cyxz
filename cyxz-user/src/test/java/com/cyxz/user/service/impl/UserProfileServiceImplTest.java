@@ -33,7 +33,7 @@ import static org.mockito.Mockito.when;
 /**
  * UserProfileServiceImpl 单元测试
  * <p>覆盖用户资料查询、批量查询、更新、初始化与兜底初始化等场景。
- * <p>注意：使用 LambdaQueryWrapper 的方法（batchGetByUserIds / initDefaultProfile / getOrInitMyProfile）
+ * <p>注意：使用 LambdaQueryWrapper 的方法（batchGetUserProfiles / initDefaultProfile / getOrInitMyProfile）
  * 在纯单测环境可能触发 MybatisPlus lambda cache 未初始化异常，已用 try-catch 兜底。
  */
 @ExtendWith(MockitoExtension.class)
@@ -95,16 +95,16 @@ class UserProfileServiceImplTest {
         }
     }
 
-    // ==================== batchGetByUserIds ====================
+    // ==================== batchGetUserProfiles ====================
 
     @Nested
-    @DisplayName("batchGetByUserIds — 批量查询用户资料")
-    class BatchGetByUserIds {
+    @DisplayName("batchGetUserProfiles — 批量查询用户资料")
+    class BatchGetUserProfiles {
 
         @Test
         @DisplayName("空列表返回空 Map")
         void shouldReturnEmptyMapForEmptyList() {
-            Map<Long, UserProfileVO> result = profileService.batchGetByUserIds(Collections.emptyList());
+            Map<Long, UserProfileVO> result = profileService.batchGetUserProfiles(Collections.emptyList());
 
             assertTrue(result.isEmpty());
             verify(profileMapper, never()).selectList(any());
@@ -118,7 +118,7 @@ class UserProfileServiceImplTest {
             lenient().when(profileMapper.selectList(any())).thenReturn(List.of(po1, po2));
 
             try {
-                Map<Long, UserProfileVO> result = profileService.batchGetByUserIds(List.of(1L, 2L, 1L));
+                Map<Long, UserProfileVO> result = profileService.batchGetUserProfiles(List.of(1L, 2L, 1L));
 
                 assertEquals(2, result.size());
                 assertEquals("用户1", result.get(1L).getNickname());

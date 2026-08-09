@@ -72,8 +72,8 @@ public class UserProfileController {
      * @return userId → UserProfileVO 映射
      */
     @PostMapping("/internal/profile/batch")
-    public Result<Map<Long, UserProfileVO>> batchGet(@RequestBody List<Long> userIds) {
-        return Result.success(profileService.batchGetByUserIds(userIds));
+    public Result<Map<Long, UserProfileVO>> batchGetUserProfiles(@RequestBody List<Long> userIds) {
+        return Result.success(profileService.batchGetUserProfiles(userIds));
     }
 
     /**
