@@ -21,8 +21,8 @@ import com.cyxz.post.mapper.PostMapper;
 import com.cyxz.post.service.AiReviewService;
 import com.cyxz.post.service.AiReviewService.AiReviewResult;
 import com.cyxz.post.service.SensitiveWordService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -31,15 +31,16 @@ import org.springframework.util.StringUtils;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 /**
  * 帖子写操作服务
  * <p>负责帖子的创建、更新、删除、置顶、批量操作，依赖 EsSyncService 同步索引、
  * ReviewService 处理异步 AI 审核结果、QueryService 清理缓存。
+ * <p>AI 审核走 {@code aiReviewExecutor} 慢任务池，避免拖累 {@link PostQueryService} 的并行查询。
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class PostCommandService {
 
     private final PostMapper postMapper;
@@ -52,6 +53,31 @@ public class PostCommandService {
     private final PostEsSyncService postEsSyncService;
     private final PostReviewService postReviewService;
     private final PostQueryService postQueryService;
+    private final ExecutorService aiReviewExecutor;
+
+    public PostCommandService(PostMapper postMapper,
+                              PostLikeMapper postLikeMapper,
+                              PostCollectMapper postCollectMapper,
+                              CommentFeignClient commentFeignClient,
+                              CircleFeignClient circleFeignClient,
+                              SensitiveWordService sensitiveWordService,
+                              AiReviewService aiReviewService,
+                              PostEsSyncService postEsSyncService,
+                              PostReviewService postReviewService,
+                              PostQueryService postQueryService,
+                              @Qualifier("aiReviewExecutor") ExecutorService aiReviewExecutor) {
+        this.postMapper = postMapper;
+        this.postLikeMapper = postLikeMapper;
+        this.postCollectMapper = postCollectMapper;
+        this.commentFeignClient = commentFeignClient;
+        this.circleFeignClient = circleFeignClient;
+        this.sensitiveWordService = sensitiveWordService;
+        this.aiReviewService = aiReviewService;
+        this.postEsSyncService = postEsSyncService;
+        this.postReviewService = postReviewService;
+        this.postQueryService = postQueryService;
+        this.aiReviewExecutor = aiReviewExecutor;
+    }
 
     /**
      * 创建帖子
@@ -102,7 +128,7 @@ public class PostCommandService {
                 } catch (Exception e) {
                     postReviewService.handleReviewFailure(postId, e);
                 }
-            });
+            }, aiReviewExecutor);
         }
         log.info("创建帖子成功: postId={}, userId={}", po.getId(), userId);
         return po.getId();
@@ -189,7 +215,7 @@ public class PostCommandService {
                 } catch (Exception e) {
                     postReviewService.handleReviewFailure(postId, e);
                 }
-            });
+            }, aiReviewExecutor);
         }
 
         log.info("{}帖子成功: postId={}, userId={}", isPublishAction ? "发布" : "更新", po.getId(), userId);
@@ -299,14 +325,13 @@ public class PostCommandService {
         // 3. 删除帖子主表
         postMapper.deleteById(postId);
         postQueryService.evictDetailCache(postId);
-        // ES 同步删除
-        postEsSyncService.syncPostToEsDelete(postId);
 
-        // 跨服务调用（评论清理）放到事务提交后执行，避免长事务持有 DB 连接
-        // 失败时仅记日志，由人工或对账补偿（与原逻辑一致，但不再阻塞事务）
+        // ES 同步删除 + 跨服务评论清理均放到事务提交后执行：
+        // 避免事务回滚后 ES 已删/评论已清导致的不可恢复不一致，同时缩短事务持有 DB 连接的时间
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
+                postEsSyncService.syncPostToEsDelete(postId);
                 try {
                     Result<Void> commentResult = commentFeignClient.deleteByPostId(postId);
                     if (commentResult == null || !commentResult.isSuccess()) {
@@ -399,7 +424,7 @@ public class PostCommandService {
                             } catch (Exception e) {
                                 postReviewService.handleReviewFailure(pid, e);
                             }
-                        });
+                        }, aiReviewExecutor);
                     }
                 });
             }

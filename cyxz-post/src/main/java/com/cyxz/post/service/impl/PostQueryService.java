@@ -23,8 +23,8 @@ import com.cyxz.user.feign.UserFeignClient;
 import com.cyxz.user.utils.UserFeignHelper;
 import com.cyxz.user.vo.UserProfileVO;
 import com.cyxz.post.vo.PostVO;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -33,15 +33,16 @@ import org.springframework.util.StringUtils;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 /**
  * 帖子查询服务
  * <p>负责帖子详情、列表查询及 VO 填充。VO 填充与缓存清理方法对同包子 Service 开放。
+ * <p>详情列表的并行查询走 {@code postQueryExecutor} 快任务池，与 AI 审核慢池隔离。
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class PostQueryService {
 
     private final PostMapper postMapper;
@@ -50,6 +51,23 @@ public class PostQueryService {
     private final UserFeignClient userFeignClient;
     private final CircleFeignClient circleFeignClient;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final ExecutorService postQueryExecutor;
+
+    public PostQueryService(PostMapper postMapper,
+                            PostLikeMapper postLikeMapper,
+                            PostCollectMapper postCollectMapper,
+                            UserFeignClient userFeignClient,
+                            CircleFeignClient circleFeignClient,
+                            RedisTemplate<String, Object> redisTemplate,
+                            @Qualifier("postQueryExecutor") ExecutorService postQueryExecutor) {
+        this.postMapper = postMapper;
+        this.postLikeMapper = postLikeMapper;
+        this.postCollectMapper = postCollectMapper;
+        this.userFeignClient = userFeignClient;
+        this.circleFeignClient = circleFeignClient;
+        this.redisTemplate = redisTemplate;
+        this.postQueryExecutor = postQueryExecutor;
+    }
 
     /** 帖子详情缓存 TTL（分钟），默认 30 */
     @Value("${spring.data.redis.cache-ttl-minutes:30}")
@@ -300,15 +318,15 @@ public class PostQueryService {
         Set<Long> postIds = posts.stream().map(PostPO::getId).collect(Collectors.toSet());
 
         CompletableFuture<Map<Long, UserProfileVO>> userFuture =
-                CompletableFuture.supplyAsync(RequestContextUtil.wrap(() -> UserFeignHelper.batchGetUsers(userFeignClient, userIds)));
+                CompletableFuture.supplyAsync(RequestContextUtil.wrap(() -> UserFeignHelper.batchGetUsers(userFeignClient, userIds)), postQueryExecutor);
         CompletableFuture<Map<Long, String>> circleFuture =
-                CompletableFuture.supplyAsync(RequestContextUtil.wrap(() -> extractCircleNameMap(posts)));
+                CompletableFuture.supplyAsync(RequestContextUtil.wrap(() -> extractCircleNameMap(posts)), postQueryExecutor);
         CompletableFuture<Map<Long, String>> sectionFuture =
-                CompletableFuture.supplyAsync(RequestContextUtil.wrap(() -> extractSectionNameMap(posts)));
+                CompletableFuture.supplyAsync(RequestContextUtil.wrap(() -> extractSectionNameMap(posts)), postQueryExecutor);
         CompletableFuture<Set<Long>> likedIdFuture =
-                CompletableFuture.supplyAsync(() -> getLikedPostIds(currentUserId, postIds));
+                CompletableFuture.supplyAsync(() -> getLikedPostIds(currentUserId, postIds), postQueryExecutor);
         CompletableFuture<Set<Long>> collectedIdFuture =
-                CompletableFuture.supplyAsync(() -> getCollectedPostIds(currentUserId, postIds));
+                CompletableFuture.supplyAsync(() -> getCollectedPostIds(currentUserId, postIds), postQueryExecutor);
 
         CompletableFuture.allOf(userFuture, circleFuture, sectionFuture, likedIdFuture, collectedIdFuture).join();
 

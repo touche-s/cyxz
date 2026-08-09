@@ -74,6 +74,14 @@ class PostServiceImplTest {
     private PostReviewService reviewService;
     private PostStatsService postStatsService;
 
+    /** AI 审核执行池：测试用直接执行（同步），避免异步不确定性 */
+    private final java.util.concurrent.ExecutorService aiReviewExecutor =
+            java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "test-ai-review");
+                t.setDaemon(true);
+                return t;
+            });
+
     private static final Long USER_ID = 100L;
     private static final Long OTHER_USER_ID = 200L;
     private static final Long POST_ID = 1000L;
@@ -81,12 +89,13 @@ class PostServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        // PostCommandService：依赖 mock 的 EsSync/Review/Query
+        // PostCommandService：依赖 mock 的 EsSync/Review/Query，AI 审核执行池用单线程池
         postCommandService = new PostCommandService(
                 postMapper, postLikeMapper, postCollectMapper,
                 commentFeignClient, circleFeignClient,
                 sensitiveWordService, aiReviewService,
-                postEsSyncService, postReviewService, postQueryService);
+                postEsSyncService, postReviewService, postQueryService,
+                aiReviewExecutor);
         // PostReviewService：真实对象，依赖 mock 的 EsSync/Query
         reviewService = new PostReviewService(
                 postMapper, rabbitTemplate, postEsSyncService, postQueryService);
@@ -105,6 +114,7 @@ class PostServiceImplTest {
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.clearSynchronization();
         }
+        aiReviewExecutor.shutdownNow();
     }
 
     // ==================== 辅助方法 ====================
