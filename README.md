@@ -127,7 +127,10 @@ cyxz/
 - **RabbitMQ 异步解耦**：通知发送、ES 索引同步、AI 审核走 MQ，死信队列兜底消费失败消息
 - **Feign 服务间调用**：`FallbackFactory` 统一降级，返回安全默认值，避免调用方异常处理模板
 - **帖子状态机**：`PostStatus` 流转规则表 + `canTransition` 校验，乐观锁条件更新防止并发覆盖
-- **跨服务最终一致性**：`TransactionSynchronizationManager.afterCommit` 事务提交后执行 Feign 调用，避免长事务持有 DB 连接
+- **跨服务最终一致性**：`TransactionSynchronizationManager.afterCommit` 事务提交后执行 Feign 调用与 MQ 发送，避免长事务持有 DB 连接及事务回滚后的幻象副作用；权限缓存删除统一走 `TransactionUtils.afterCommit` 封装
+- **线程池隔离防雪崩**：AI 审核（秒级慢 HTTP）与帖子详情并行查询（毫秒级快任务）使用独立线程池（`aiReviewExecutor` / `postQueryExecutor`），避免 `ForkJoinPool.commonPool` 快慢任务混跑导致雪崩；RestTemplate 强制超时防止线程无限阻塞
+- **ES 同步失败补偿**：MQ 发送失败时写入 Redis 失败队列，定时任务自动重试，避免生产端发送失败导致 DB-ES 永久不一致
+- **权限提升防护**：站主（SITE_OWNER）账号禁止被平台管理员禁用/提权，内置角色权限禁止修改，角色分配受层级约束
 - **MyBatis-Plus 自动填充**：`BaseEntity` 抽取公共字段 + `MyMetaObjectHandler` 自动填充创建/更新时间
 - **定时计数汇总**：帖子/评论/圈子计数异步累加 + 定时刷库，避免实时写压力
 - **Docker 一键部署**：多阶段构建 + maven-deps 依赖预构建镜像，17 容器一键编排，拉代码即跑
@@ -184,9 +187,6 @@ cd docker && docker compose up -d mysql redis rabbitmq nacos elasticsearch minio
 - `权限缓存设计.md` — Cache-Aside 权限缓存方案与失效策略
 - `社区氛围功能设计.md` — 互动反馈层已实现 + 签到/成就/排行规划
 - `多语言演进路线图.md` — 跨语言架构现状（Java + Python）与演进规划
-
-### 工程审查（`docs/工程审查/`）
-- `修复与优化.md` — 代码审查问题修复记录与待修项追踪
 
 ## License
 
