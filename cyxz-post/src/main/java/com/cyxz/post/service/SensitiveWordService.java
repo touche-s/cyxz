@@ -1,5 +1,6 @@
 package com.cyxz.post.service;
 
+import com.cyxz.post.utils.AcTrie;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
@@ -12,13 +13,16 @@ import java.util.*;
 
 /**
  * 敏感词检测服务（基于 classpath:sensitive_words.txt）
- * <p>发布时做快速拦截，命中则拒绝。深度审核由 AI 服务负责。
+ * <p>采用 AC 自动机多模式串匹配，扫描文本一次即可返回所有命中敏感词，
+ * 复杂度 O(N)。深度审核由 AI 服务负责。
+ * <p>词库加载后构建不可变 AcTrie，热更新通过 volatile 引用替换实现。
  */
 @Slf4j
 @Service
 public class SensitiveWordService {
 
-    private Set<String> words = Collections.emptySet();
+    /** volatile 保证多线程可见性，热更新时整体替换引用 */
+    private volatile AcTrie trie = new AcTrie(Collections.emptySet());
 
     @PostConstruct
     void load() {
@@ -34,8 +38,8 @@ public class SensitiveWordService {
                     set.add(line.toLowerCase());
                 }
             }
-            words = Collections.unmodifiableSet(set);
-            log.info("敏感词库加载完成，共 {} 个词", words.size());
+            trie = new AcTrie(set);
+            log.info("敏感词库加载完成，共 {} 个词", set.size());
         } catch (Exception e) {
             log.error("敏感词库加载失败，降级为空词库", e);
         }
@@ -47,16 +51,11 @@ public class SensitiveWordService {
      * @return 命中的敏感词集合，为空表示通过
      */
     public Set<String> check(String... texts) {
-        if (words.isEmpty()) return Collections.emptySet();
         Set<String> hits = new LinkedHashSet<>();
+        AcTrie snapshot = trie;
         for (String text : texts) {
             if (text == null || text.isEmpty()) continue;
-            String lower = text.toLowerCase();
-            for (String w : words) {
-                if (lower.contains(w)) {
-                    hits.add(w);
-                }
-            }
+            hits.addAll(snapshot.scan(text.toLowerCase()));
         }
         return hits;
     }
