@@ -3,6 +3,7 @@ package com.cyxz.user.controller;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.PageConstants;
+import com.cyxz.common.annotation.PreventRepeat;
 import com.cyxz.common.web.CurrentUser;
 import com.cyxz.user.dto.UpdateProfileRequest;
 import com.cyxz.user.service.FollowService;
@@ -96,6 +97,7 @@ public class UserProfileController {
      * @param userId       当前登录用户 ID（由 Gateway 注入）
      * @return 操作结果
      */
+    @PreventRepeat(interval = 2)
     @PostMapping("/{targetUserId}/follow")
     public Result<Void> follow(@PathVariable("targetUserId") Long targetUserId,
                                @CurrentUser Long userId) {

@@ -3,6 +3,7 @@ package com.cyxz.comment.controller;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.PageConstants;
+import com.cyxz.common.annotation.PreventRepeat;
 import com.cyxz.common.web.CurrentUser;
 import com.cyxz.comment.dto.CreateCommentRequest;
 import com.cyxz.comment.service.CommentInteractionService;
@@ -30,6 +31,7 @@ public class CommentController {
      * @param userId  当前登录用户 ID（由 Gateway 注入）
      * @return 新创建的评论视图对象（含完整用户信息，前端可直接插入列表展示）
      */
+    @PreventRepeat(interval = 3)
     @PostMapping
     public Result<CommentVO> create(@Valid @RequestBody CreateCommentRequest request,
                                @CurrentUser Long userId) {
@@ -92,6 +94,7 @@ public class CommentController {
      * @param userId    当前登录用户 ID（由 Gateway 注入）
      * @return 操作结果
      */
+    @PreventRepeat(interval = 2)
     @PutMapping("/{commentId}/like")
     public Result<Void> like(@PathVariable("commentId") Long commentId,
                              @CurrentUser Long userId) {

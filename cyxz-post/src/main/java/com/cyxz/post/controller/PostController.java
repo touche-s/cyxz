@@ -3,6 +3,7 @@ package com.cyxz.post.controller;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.PageConstants;
+import com.cyxz.common.annotation.PreventRepeat;
 import com.cyxz.common.web.CurrentUser;
 import org.springframework.security.access.prepost.PreAuthorize;
 import com.cyxz.post.dto.BatchOperateRequest;
@@ -48,6 +49,7 @@ public class PostController {
      * @param userId  当前登录用户 ID（由 Gateway 注入）
      * @return 新创建的帖子 ID
      */
+    @PreventRepeat(interval = 5)
     @PostMapping
     public Result<Long> create(@Valid @RequestBody CreatePostRequest request,
                                @CurrentUser Long userId) {
@@ -224,6 +226,7 @@ public class PostController {
      * @param userId 当前登录用户 ID（由 Gateway 注入）
      * @return 操作结果
      */
+    @PreventRepeat(interval = 2)
     @PutMapping("/{postId}/like")
     public Result<Void> like(@PathVariable("postId") Long postId,
                              @CurrentUser Long userId) {
@@ -252,6 +255,7 @@ public class PostController {
      * @param userId 当前登录用户 ID（由 Gateway 注入）
      * @return 操作结果
      */
+    @PreventRepeat(interval = 2)
     @PutMapping("/{postId}/collect")
     public Result<Void> collect(@PathVariable("postId") Long postId,
                                 @CurrentUser Long userId) {

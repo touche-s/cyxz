@@ -90,6 +90,9 @@ public final class CacheKeyConstants {
     /** 登录失败最大次数，超过则锁定 */
     public static final int LOGIN_FAIL_MAX_ATTEMPTS = 10;
 
+    /** 防重复提交 Key 前缀（prevent:repeat:{userId}:{uri}:{argsHash}） */
+    public static final String PREVENT_REPEAT_PREFIX = "prevent:repeat:";
+
     /**
      * 获取用户点赞 Key
      *
