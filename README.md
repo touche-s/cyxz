@@ -176,15 +176,13 @@ cd docker && docker compose up -d mysql redis rabbitmq nacos elasticsearch minio
 
 ### 产品设计（`docs/产品设计/`）
 - `产品设计.md` — 产品方向、用户画像、差异化定位与功能矩阵
-- `次元小站后续规划.md` — 已实现能力盘点与后续迭代路线图
 
 ### 功能设计（`docs/功能设计/`）
 - `圈子化设计.md` — 圈子领域模型（模板 + 关联两层结构）与计数同步
 - `消息通知与关注动态方案.md` — MQ 异步通知 + WebSocket 实时推送 + 私信
 - `AI能力设计.md` — Python AI 审核服务（文本 + 图片多模态）与 fail-closed 策略
 - `管理后台设计.md` — 两段式管理员鉴权 + 帖子状态机审核流程
-- `权限体系设计.md` — JWT 精简 + 角色权限模型 + 圈子权限体系
-- `权限缓存设计.md` — Cache-Aside 权限缓存方案与失效策略
+- `权限设计.md` — 多租户 RBAC + SpringSecurity 方法级授权 + Cache-Aside 权限缓存
 - `社区氛围功能设计.md` — 互动反馈层已实现 + 签到/成就/排行规划
 - `多语言演进路线图.md` — 跨语言架构现状（Java + Python）与演进规划
 

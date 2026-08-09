@@ -204,6 +204,8 @@ public AiReviewResult review(Long postId, String title, String content, List<Str
 
 ## 三、技术亮点（简历视角）
 
+> 技术亮点总览见 [README](../../README.md#技术亮点)，以下为本模块特有亮点。
+
 1. **跨语言架构**：Java 主业务 + Python AI 服务，HTTP 解耦，各自用最擅长的语言
 2. **fail-closed 安全策略**：AI 不可用时拒绝发布，绝不让违规内容自动放行
 3. **异步审核**：`CompletableFuture.runAsync` 不阻塞发帖响应，用户体验好
