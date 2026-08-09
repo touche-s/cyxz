@@ -13,6 +13,8 @@ import com.cyxz.user.vo.UserProfileVO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.List;
 import java.util.Map;
@@ -20,6 +22,7 @@ import java.util.Map;
 /**
  * 用户资料控制器
  */
+@Tag(name = "用户资料服务", description = "用户资料控制器")
 @RestController
 @RequestMapping("/user")
 @RequiredArgsConstructor
@@ -34,6 +37,7 @@ public class UserProfileController {
      * @param userId 用户 ID
      * @return 用户资料
      */
+    @Operation(summary = "查询用户资料")
     @GetMapping("/{userId}")
     public Result<UserProfileVO> getById(@PathVariable("userId") Long userId) {
         return Result.success(profileService.getByUserId(userId));
@@ -46,6 +50,7 @@ public class UserProfileController {
      * @param userId  当前登录用户 ID（由 Gateway 注入）
      * @return 操作结果
      */
+    @Operation(summary = "修改用户资料")
     @PutMapping("/profile")
     public Result<Void> update(@Valid @RequestBody UpdateProfileRequest request,
                                 @CurrentUser Long userId) {
@@ -61,6 +66,7 @@ public class UserProfileController {
      * @param userId 当前登录用户 ID（由 Gateway 注入）
      * @return 当前用户资料
      */
+    @Operation(summary = "查询当前登录用户的资料（兜底初始化）")
     @GetMapping("/profile/me")
     public Result<UserProfileVO> getMyProfile(@CurrentUser Long userId) {
         return Result.success(profileService.getOrInitMyProfile(userId));
@@ -72,6 +78,7 @@ public class UserProfileController {
      * @param userIds 用户 ID 列表
      * @return userId → UserProfileVO 映射
      */
+    @Operation(summary = "批量查询用户资料（内部接口，供 post/comment 等服务通过 Feign 调用）")
     @PostMapping("/internal/profile/batch")
     public Result<Map<Long, UserProfileVO>> batchGetUserProfiles(@RequestBody List<Long> userIds) {
         return Result.success(profileService.batchGetUserProfiles(userIds));
@@ -84,6 +91,7 @@ public class UserProfileController {
      * @param username 用户名
      * @return 操作结果
      */
+    @Operation(summary = "创建默认资料（内部接口，注册时 auth 服务通过 Feign 调用）")
     @PostMapping("/internal/profile/init/{userId}/{username}")
     public Result<Void> initDefault(@PathVariable("userId") Long userId, @PathVariable("username") String username) {
         profileService.initDefaultProfile(userId, username);
@@ -97,6 +105,7 @@ public class UserProfileController {
      * @param userId       当前登录用户 ID（由 Gateway 注入）
      * @return 操作结果
      */
+    @Operation(summary = "关注用户")
     @PreventRepeat(interval = 2)
     @PostMapping("/{targetUserId}/follow")
     public Result<Void> follow(@PathVariable("targetUserId") Long targetUserId,
@@ -112,6 +121,7 @@ public class UserProfileController {
      * @param userId       当前登录用户 ID（由 Gateway 注入）
      * @return 操作结果
      */
+    @Operation(summary = "取消关注用户")
     @DeleteMapping("/{targetUserId}/follow")
     public Result<Void> unfollow(@PathVariable("targetUserId") Long targetUserId,
                                  @CurrentUser Long userId) {
@@ -126,6 +136,7 @@ public class UserProfileController {
      * @param userId       当前登录用户 ID（由 Gateway 注入）
      * @return 是否关注
      */
+    @Operation(summary = "查询当前用户是否关注了目标用户")
     @GetMapping("/{targetUserId}/is-following")
     public Result<Boolean> isFollowing(@PathVariable("targetUserId") Long targetUserId,
                                        @CurrentUser Long userId) {
@@ -140,6 +151,7 @@ public class UserProfileController {
      * @param userId       当前登录用户 ID（由 Gateway 注入）
      * @return 是否互相关注
      */
+    @Operation(summary = "查询两个用户是否互相关注")
     @GetMapping("/{targetUserId}/is-mutual-following")
     public Result<Boolean> isMutualFollowing(@PathVariable("targetUserId") Long targetUserId,
                                               @CurrentUser Long userId) {
@@ -154,6 +166,7 @@ public class UserProfileController {
      * @param size   每页条数
      * @return 关注用户列表
      */
+    @Operation(summary = "查询当前用户的关注列表")
     @GetMapping("/following")
     public Result<PageResult<FollowUserVO>> listFollowing(@CurrentUser Long userId,
                                                      @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
@@ -169,6 +182,7 @@ public class UserProfileController {
      * @param size   每页条数
      * @return 粉丝列表
      */
+    @Operation(summary = "查询当前用户的粉丝列表")
     @GetMapping("/followers")
     public Result<PageResult<FollowUserVO>> listFollowers(@CurrentUser Long userId,
                                                      @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
@@ -182,6 +196,7 @@ public class UserProfileController {
      * @param userId 当前登录用户 ID（由 Gateway 注入）
      * @return 关注数和粉丝数
      */
+    @Operation(summary = "查询当前用户的关注数和粉丝数")
     @GetMapping("/follow-stats")
     public Result<Map<String, Integer>> getFollowStats(@CurrentUser Long userId) {
         return Result.success(Map.of(
@@ -197,6 +212,7 @@ public class UserProfileController {
      * @param userId 用户 ID
      * @return 该用户关注的目标用户 ID 列表
      */
+    @Operation(summary = "查询关注用户 ID 列表（内部接口，供 post 服务拉取关注动态）")
     @GetMapping("/internal/following-ids")
     public Result<List<Long>> listFollowingUserIds(@RequestParam("userId") Long userId) {
         return Result.success(followService.listFollowingUserIds(userId));

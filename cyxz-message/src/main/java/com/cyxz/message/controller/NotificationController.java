@@ -7,11 +7,14 @@ import com.cyxz.message.vo.NotificationVO;
 import com.cyxz.message.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 /**
  * 通知控制器
  * <p>提供通知列表查询、未读统计、已读标记等接口。
  */
+@Tag(name = "通知服务", description = "通知控制器")
 @RestController
 @RequestMapping("/message")
 @RequiredArgsConstructor
@@ -29,6 +32,7 @@ public class NotificationController {
      * @param size   每页条数
      * @return 通知分页结果
      */
+    @Operation(summary = "获取通知列表")
     @GetMapping("/notifications")
     public Result<PageResult<NotificationVO>> list(
             @CurrentUser Long userId,
@@ -44,6 +48,7 @@ public class NotificationController {
      * @param userId 当前登录用户 ID
      * @return 未读通知数量
      */
+    @Operation(summary = "获取未读数量")
     @GetMapping("/unread-count")
     public Result<Integer> unreadCount(@CurrentUser Long userId) {
         return Result.success(notificationService.unreadCount(userId));
@@ -56,6 +61,7 @@ public class NotificationController {
      * @param id     通知 ID
      * @return 操作结果
      */
+    @Operation(summary = "标记单条已读")
     @PutMapping("/{id}/read")
     public Result<Void> markRead(@CurrentUser Long userId, @PathVariable Long id) {
         notificationService.markRead(userId, id);
@@ -68,6 +74,7 @@ public class NotificationController {
      * @param userId 当前登录用户 ID
      * @return 操作结果
      */
+    @Operation(summary = "全部已读")
     @PutMapping("/read-all")
     public Result<Void> markAllRead(@CurrentUser Long userId) {
         notificationService.markAllRead(userId);

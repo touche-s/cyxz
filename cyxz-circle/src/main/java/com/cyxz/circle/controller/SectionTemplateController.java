@@ -4,6 +4,8 @@ import com.cyxz.common.base.Result;
 import com.cyxz.circle.dto.SectionTemplateRequest;
 import com.cyxz.circle.service.SectionTemplateService;
 import com.cyxz.circle.vo.SectionTemplateVO;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,6 +19,7 @@ import java.util.List;
  * {@code circle:section:manage}（圈主/圈子管理员配置本圈板块）任一权限码即可读。
  * <p>增删改接口由 {@code circle:template:manage} 权限码控制（仅站主/平台管理员）。
  */
+@Tag(name = "板块模板管理", description = "板块模板管理接口")
 @RestController
 @RequestMapping("/admin/section-template")
 @RequiredArgsConstructor
@@ -25,6 +28,7 @@ public class SectionTemplateController {
     private final SectionTemplateService sectionTemplateService;
 
     /** 获取所有板块模板，平台管理员（管理模板）或圈主/圈子管理员（配置板块）可读 */
+    @Operation(summary = "获取所有板块模板，平台管理员（管理模板）或圈主/圈子管理员（配置板块）可读")
     @PreAuthorize("hasAuthority('circle:template:manage') or hasAuthority('circle:section:manage')")
     @GetMapping("/list")
     public Result<List<SectionTemplateVO>> list() {
@@ -32,6 +36,7 @@ public class SectionTemplateController {
     }
 
     /** 创建板块模板（仅站主/平台管理员） */
+    @Operation(summary = "创建板块模板（仅站主/平台管理员）")
     @PreAuthorize("hasAuthority('circle:template:manage')")
     @PostMapping
     public Result<SectionTemplateVO> create(@Valid @RequestBody SectionTemplateRequest dto) {
@@ -39,6 +44,7 @@ public class SectionTemplateController {
     }
 
     /** 更新板块模板（仅站主/平台管理员） */
+    @Operation(summary = "更新板块模板（仅站主/平台管理员）")
     @PreAuthorize("hasAuthority('circle:template:manage')")
     @PutMapping("/{id}")
     public Result<SectionTemplateVO> update(@PathVariable Long id, @Valid @RequestBody SectionTemplateRequest dto) {
@@ -46,6 +52,7 @@ public class SectionTemplateController {
     }
 
     /** 删除板块模板（仅站主/平台管理员） */
+    @Operation(summary = "删除板块模板（仅站主/平台管理员）")
     @PreAuthorize("hasAuthority('circle:template:manage')")
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id) {

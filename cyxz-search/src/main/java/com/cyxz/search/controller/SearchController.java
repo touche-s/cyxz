@@ -5,6 +5,8 @@ import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.PageConstants;
 import com.cyxz.search.document.PostDocument;
 import com.cyxz.search.repository.PostSearchRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -28,6 +30,7 @@ import java.util.List;
 /**
  * 搜索接口
  */
+@Tag(name = "搜索服务", description = "搜索接口")
 @Slf4j
 @RestController
 @RequestMapping("/search")
@@ -46,6 +49,7 @@ public class SearchController {
      * @param size 每页大小，限制在 1~MAX_SIZE
      * @return 命中帖子分页，title/content 字段替换为高亮内容
      */
+    @Operation(summary = "全文搜索帖子，支持标题/正文匹配、高亮、圈子过滤与热度/时间排序")
     @GetMapping("/post")
     public Result<PageResult<PostDocument>> search(
             @RequestParam String keyword,
