@@ -8,6 +8,7 @@ import com.cyxz.auth.mapper.SysUserRoleMapper;
 import com.cyxz.auth.vo.UserAdminVO;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
+import com.cyxz.common.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -50,6 +51,7 @@ public class UserAdminService {
 
     /**
      * 禁用指定用户
+     * <p>保护站主：非站主本人不能禁用站主账号，避免 PLATFORM_ADMIN 通过禁用站主实现权限接管。
      *
      * @param id 用户 ID
      */
@@ -59,6 +61,7 @@ public class UserAdminService {
         if (user == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
         }
+        guardSiteOwner(id);
         user.setStatus(0);
         sysUserMapper.updateById(user);
         log.info("管理员禁用用户: userId={}, username={}", id, user.getUsername());
@@ -66,6 +69,7 @@ public class UserAdminService {
 
     /**
      * 启用指定用户
+     * <p>同样受 {@link #guardSiteOwner} 保护，保持与 disable 一致。
      *
      * @param id 用户 ID
      */
@@ -75,9 +79,21 @@ public class UserAdminService {
         if (user == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
         }
+        guardSiteOwner(id);
         user.setStatus(1);
         sysUserMapper.updateById(user);
         log.info("管理员启用用户: userId={}, username={}", id, user.getUsername());
+    }
+
+    /**
+     * 站主保护：目标用户是 SITE_OWNER 时，仅当前用户也是 SITE_OWNER 才放行
+     */
+    private void guardSiteOwner(Long targetUserId) {
+        Set<String> targetRoles = sysUserRoleMapper.selectGlobalRoleCodes(targetUserId)
+                .stream().collect(Collectors.toSet());
+        if (targetRoles.contains("SITE_OWNER") && !SecurityUtils.currentRoles().contains("SITE_OWNER")) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "不能操作站主账号");
+        }
     }
 
     private UserAdminVO toVO(SysUserPO po, String roleCode) {
