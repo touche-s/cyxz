@@ -1,5 +1,6 @@
 package com.cyxz.upload.controller;
 
+import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.web.CurrentUser;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -63,7 +64,7 @@ public class UploadController {
     public Result<Void> deleteFile(@RequestParam("url") String url, @CurrentUser Long userId) {
         String prefix = minioConfig.getEndpoint() + "/" + minioConfig.getBucketName() + "/";
         if (!url.startsWith(prefix)) {
-            return Result.fail("非法的文件地址");
+            return Result.fail(ErrorCode.PARAM_ERROR.getCode(), "非法的文件地址");
         }
         String objectName = url.substring(prefix.length());
 
@@ -75,7 +76,7 @@ public class UploadController {
             if (slashIdx > 0) {
                 String ownerIdStr = remaining.substring(0, slashIdx);
                 if (!String.valueOf(userId).equals(ownerIdStr)) {
-                    return Result.fail("无权删除他人的文件");
+                    return Result.fail(ErrorCode.FORBIDDEN.getCode(), "无权删除他人的文件");
                 }
             }
         }

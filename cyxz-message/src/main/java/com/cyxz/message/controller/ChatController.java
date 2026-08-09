@@ -2,6 +2,7 @@ package com.cyxz.message.controller;
 
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
+import com.cyxz.common.annotation.PreventRepeat;
 import com.cyxz.common.web.CurrentUser;
 import com.cyxz.message.dto.SendMessageRequest;
 import com.cyxz.message.vo.ChatMessageVO;
@@ -46,6 +47,7 @@ public class ChatController {
     /**
      * 发送私信
      */
+    @PreventRepeat(interval = 2)
     @PostMapping("/send")
     public Result<ChatMessageVO> send(@CurrentUser Long userId, @Valid @RequestBody SendMessageRequest request) {
         return Result.success(chatService.sendMessage(userId, request.getReceiverId(), request.getContent()));

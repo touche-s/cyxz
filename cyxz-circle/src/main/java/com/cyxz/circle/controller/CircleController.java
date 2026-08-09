@@ -13,8 +13,11 @@ import com.cyxz.circle.vo.CircleVO;
 import com.cyxz.circle.vo.MemberVO;
 import com.cyxz.circle.vo.PublishableResult;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -30,6 +33,7 @@ import java.util.Set;
 @RestController
 @RequestMapping("/circle")
 @RequiredArgsConstructor
+@Validated
 public class CircleController {
 
     private final CircleService circleService;
@@ -131,8 +135,8 @@ public class CircleController {
      */
     @PostMapping
     @PreAuthorize("hasAuthority('circle:manage:create')")
-    public Result<CircleVO> create(@RequestParam String name,
-                                   @RequestParam(required = false) String intro,
+    public Result<CircleVO> create(@RequestParam @NotBlank(message = "圈子名称不能为空") @Size(max = 30, message = "圈子名称最长30字") String name,
+                                   @RequestParam(required = false) @Size(max = 100, message = "圈子简介最长100字") String intro,
                                    @RequestParam(required = false) String avatar,
                                    @RequestParam(required = false) String cover,
                                    @CurrentUser Long ownerId) {
@@ -197,7 +201,7 @@ public class CircleController {
     @PutMapping("/{circleId}/sections")
     @PreAuthorize("@circlePerm.hasAuthority('circle:section:manage', #circleId)")
     public Result<Void> configureSections(@PathVariable Long circleId,
-                                          @RequestBody List<SectionConfigRequest> configs) {
+                                          @Valid @RequestBody List<SectionConfigRequest> configs) {
         circleSectionService.configureSections(circleId, configs);
         return Result.success("配置成功");
     }

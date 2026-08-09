@@ -4,6 +4,7 @@ import com.cyxz.common.base.Result;
 import com.cyxz.circle.dto.SectionTemplateRequest;
 import com.cyxz.circle.service.SectionTemplateService;
 import com.cyxz.circle.vo.SectionTemplateVO;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -33,14 +34,14 @@ public class SectionTemplateController {
     /** 创建板块模板（仅站主/平台管理员） */
     @PreAuthorize("hasAuthority('circle:template:manage')")
     @PostMapping
-    public Result<SectionTemplateVO> create(@RequestBody SectionTemplateRequest dto) {
+    public Result<SectionTemplateVO> create(@Valid @RequestBody SectionTemplateRequest dto) {
         return Result.success(sectionTemplateService.create(dto));
     }
 
     /** 更新板块模板（仅站主/平台管理员） */
     @PreAuthorize("hasAuthority('circle:template:manage')")
     @PutMapping("/{id}")
-    public Result<SectionTemplateVO> update(@PathVariable Long id, @RequestBody SectionTemplateRequest dto) {
+    public Result<SectionTemplateVO> update(@PathVariable Long id, @Valid @RequestBody SectionTemplateRequest dto) {
         return Result.success(sectionTemplateService.update(id, dto));
     }
 
