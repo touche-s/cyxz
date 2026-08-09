@@ -34,6 +34,15 @@ public enum ErrorCode {
     /** 缺少必填参数 */
     PARAM_MISSING(400001, "缺少必填参数"),
 
+    /** 请求体格式错误（JSON 解析失败） */
+    REQUEST_BODY_INVALID(400002, "请求体格式错误"),
+
+    /** 请求路径不存在 */
+    PATH_NOT_FOUND(404001, "请求路径不存在"),
+
+    /** 上传文件过大 */
+    UPLOAD_TOO_LARGE(400003, "上传文件过大"),
+
     /** 未登录 */
     UNAUTHORIZED(401000, "未登录"),
 

@@ -82,6 +82,14 @@ class PostServiceImplTest {
                 return t;
             });
 
+    /** 查询执行池：测试用直接执行，避免异步不确定性 */
+    private final java.util.concurrent.ExecutorService postQueryExecutor =
+            java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "test-post-query");
+                t.setDaemon(true);
+                return t;
+            });
+
     private static final Long USER_ID = 100L;
     private static final Long OTHER_USER_ID = 200L;
     private static final Long POST_ID = 1000L;
@@ -99,9 +107,10 @@ class PostServiceImplTest {
         // PostReviewService：真实对象，依赖 mock 的 EsSync/Query
         reviewService = new PostReviewService(
                 postMapper, rabbitTemplate, postEsSyncService, postQueryService);
-        // PostStatsService：真实对象，依赖 mock 的 Query
+        // PostStatsService：真实对象，依赖 mock 的 Query，并行查询用单线程池
         postStatsService = new PostStatsService(
-                postMapper, postLikeMapper, userFeignClient, commentFeignClient, postQueryService);
+                postMapper, postLikeMapper, userFeignClient, commentFeignClient, postQueryService,
+                postQueryExecutor);
 
         // 手动开启事务同步，供 hardDeletePost / batchOperate 注册 afterCommit 回调
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
@@ -115,6 +124,7 @@ class PostServiceImplTest {
             TransactionSynchronizationManager.clearSynchronization();
         }
         aiReviewExecutor.shutdownNow();
+        postQueryExecutor.shutdownNow();
     }
 
     // ==================== 辅助方法 ====================

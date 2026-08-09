@@ -176,11 +176,10 @@ CREATE TABLE IF NOT EXISTS post (
     pinned_time DATETIME NULL COMMENT '置顶时间',
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    INDEX idx_user_id (user_id),
-    INDEX idx_circle_id (circle_id),
-    INDEX idx_section_id (section_id),
-    INDEX idx_status (status),
-    INDEX idx_create_time (create_time)
+    INDEX idx_user_status_time (user_id, status, create_time),
+    INDEX idx_circle_status_time (circle_id, status, create_time),
+    INDEX idx_user_pinned (user_id, status, is_pinned, pinned_time),
+    INDEX idx_section_id (section_id)
 ) ENGINE=InnoDB COMMENT='帖子表';
 
 CREATE TABLE IF NOT EXISTS post_like (

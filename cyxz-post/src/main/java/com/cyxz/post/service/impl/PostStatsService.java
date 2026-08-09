@@ -10,21 +10,23 @@ import com.cyxz.post.entity.PostPO;
 import com.cyxz.post.mapper.PostLikeMapper;
 import com.cyxz.post.mapper.PostMapper;
 import com.cyxz.post.vo.*;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 /**
  * 帖子统计服务
  * <p>负责数据中心仪表盘、作品排行、今日互动、收到的点赞、批量帖子信息等统计查询。
  * 复用 QueryService 的 VO 填充能力。
+ * <p>仪表盘 4 个独立查询用 {@code postQueryExecutor} 并行执行，避免串行累加延迟。
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class PostStatsService {
 
     private final PostMapper postMapper;
@@ -32,6 +34,21 @@ public class PostStatsService {
     private final UserFeignClient userFeignClient;
     private final CommentFeignClient commentFeignClient;
     private final PostQueryService postQueryService;
+    private final ExecutorService postQueryExecutor;
+
+    public PostStatsService(PostMapper postMapper,
+                            PostLikeMapper postLikeMapper,
+                            UserFeignClient userFeignClient,
+                            CommentFeignClient commentFeignClient,
+                            PostQueryService postQueryService,
+                            @Qualifier("postQueryExecutor") ExecutorService postQueryExecutor) {
+        this.postMapper = postMapper;
+        this.postLikeMapper = postLikeMapper;
+        this.userFeignClient = userFeignClient;
+        this.commentFeignClient = commentFeignClient;
+        this.postQueryService = postQueryService;
+        this.postQueryExecutor = postQueryExecutor;
+    }
 
     /**
      * SQL 聚合统计用户帖子数据
@@ -81,28 +98,36 @@ public class PostStatsService {
 
     /**
      * 获取数据中心仪表盘数据
+     * <p>4 个独立查询并行执行（总览统计 / 月度趋势 / 日度趋势 / Top 作品），
+     * 总延迟从 4 次串行 DB 往返降为 1 次往返（取最慢者）。
      */
     public DashboardVO getDashboard(Long userId) {
-        PostStatsVO summary = postMapper.selectStatsByUserId(userId);
-        if (summary == null) {
-            summary = new PostStatsVO();
-        }
-        List<DashboardVO.MonthlyTrendVO> trends = postMapper.selectMonthlyTrends(userId);
-        if (trends == null) {
-            trends = Collections.emptyList();
-        }
-        List<DashboardVO.DailyTrendVO> dailyTrends = postMapper.selectDailyTrends(userId);
-        if (dailyTrends == null) {
-            dailyTrends = Collections.emptyList();
-        }
-        List<PostVO> topPosts = getTopPosts(userId, 5);
+        CompletableFuture<PostStatsVO> summaryFuture =
+                CompletableFuture.supplyAsync(() -> {
+                    PostStatsVO s = postMapper.selectStatsByUserId(userId);
+                    return s != null ? s : new PostStatsVO();
+                }, postQueryExecutor);
+        CompletableFuture<List<DashboardVO.MonthlyTrendVO>> trendsFuture =
+                CompletableFuture.supplyAsync(() -> {
+                    List<DashboardVO.MonthlyTrendVO> t = postMapper.selectMonthlyTrends(userId);
+                    return t != null ? t : Collections.<DashboardVO.MonthlyTrendVO>emptyList();
+                }, postQueryExecutor);
+        CompletableFuture<List<DashboardVO.DailyTrendVO>> dailyFuture =
+                CompletableFuture.supplyAsync(() -> {
+                    List<DashboardVO.DailyTrendVO> d = postMapper.selectDailyTrends(userId);
+                    return d != null ? d : Collections.<DashboardVO.DailyTrendVO>emptyList();
+                }, postQueryExecutor);
+        CompletableFuture<List<PostVO>> topFuture =
+                CompletableFuture.supplyAsync(() -> getTopPosts(userId, 5), postQueryExecutor);
+
+        CompletableFuture.allOf(summaryFuture, trendsFuture, dailyFuture, topFuture).join();
 
         DashboardVO dashboard = new DashboardVO();
-        dashboard.setSummary(summary);
-        dashboard.setMonthlyTrends(trends);
-        dashboard.setDailyTrends(dailyTrends);
+        dashboard.setSummary(summaryFuture.join());
+        dashboard.setMonthlyTrends(trendsFuture.join());
+        dashboard.setDailyTrends(dailyFuture.join());
         dashboard.setSectionDistribution(Collections.emptyList());
-        dashboard.setTopPosts(topPosts);
+        dashboard.setTopPosts(topFuture.join());
         return dashboard;
     }
 
