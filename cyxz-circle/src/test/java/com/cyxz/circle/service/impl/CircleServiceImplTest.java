@@ -254,7 +254,7 @@ class CircleServiceImplTest {
                 return 1;
             }).when(circleMapper).insert(any(CirclePO.class));
 
-            CircleVO vo = circleService.createCircle("新圈子", "简介", null, null);
+            CircleVO vo = circleService.createCircle("新圈子", "简介", null, null, null);
 
             assertEquals("新圈子", vo.getName());
             assertEquals(CommonStatus.ACTIVE, buildCircle(CommonStatus.ACTIVE).getStatus());
@@ -265,7 +265,7 @@ class CircleServiceImplTest {
         @DisplayName("空名称被拒")
         void shouldRejectEmptyName() {
             BusinessException ex = assertThrows(BusinessException.class,
-                    () -> circleService.createCircle("", null, null, null));
+                    () -> circleService.createCircle("", null, null, null, null));
 
             assertEquals(ErrorCode.PARAM_ERROR.getCode(), ex.getCode());
             verify(circleMapper, never()).insert(any());

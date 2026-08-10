@@ -1,9 +1,9 @@
 server:
-  port: 9005
+  port: 9006
 
 spring:
   application:
-    name: cyxz-circle
+    name: cyxz-governance
   cloud:
     nacos:
       discovery:
@@ -15,7 +15,7 @@ spring:
     import:
       - "optional:nacos:${spring.application.name}.yml"
   datasource:
-    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/cyxz_circle?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/cyxz_governance?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -34,7 +34,7 @@ spring:
 
 mybatis-plus:
   mapper-locations: classpath*:mapper/**/*.xml
-  type-aliases-package: com.cyxz.circle.entity
+  type-aliases-package: com.cyxz.governance.entity
   configuration:
     map-underscore-to-camel-case: true
 
