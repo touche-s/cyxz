@@ -1,6 +1,8 @@
 package com.cyxz.post.service.impl;
 
 import com.cyxz.common.constant.EsSyncConstants;
+import com.cyxz.common.constant.PostCountConstants;
+import com.cyxz.common.event.PostCountEvent;
 import com.cyxz.common.event.PostEsSyncEvent;
 import com.cyxz.post.constant.PostStatus;
 import com.cyxz.post.entity.PostPO;
@@ -148,5 +150,27 @@ public class PostEsSyncService {
                         ? po.getCreateTime().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
                         : System.currentTimeMillis())
                 .build();
+    }
+
+    /**
+     * 发送帖子计数变更事件，由 cyxz-circle 消费更新 post_count
+     *
+     * @param po     帖子实体（需有 id 和 circleId）
+     * @param action {@link PostCountConstants#ACTION_PUBLISH} 或 {@link PostCountConstants#ACTION_DELETE}
+     */
+    public void publishCountEvent(PostPO po, String action) {
+        if (po.getCircleId() == null) {
+            return;
+        }
+        try {
+            PostCountEvent event = PostCountEvent.builder()
+                    .action(action)
+                    .postId(po.getId())
+                    .circleId(po.getCircleId())
+                    .build();
+            rabbitTemplate.convertAndSend(PostCountConstants.EXCHANGE, PostCountConstants.ROUTING_KEY, event);
+        } catch (Exception e) {
+            log.error("发送帖子计数事件失败: postId={}, circleId={}, action={}", po.getId(), po.getCircleId(), action, e);
+        }
     }
 }

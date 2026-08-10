@@ -2,6 +2,7 @@ package com.cyxz.post.service.impl;
 
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
+import com.cyxz.common.constant.PostCountConstants;
 import com.cyxz.post.constant.PostStatus;
 import com.cyxz.post.entity.PostPO;
 import com.cyxz.post.mapper.PostMapper;
@@ -49,6 +50,7 @@ public class PostReviewService {
         postMapper.updateById(po);
         postQueryService.evictDetailCache(postId);
         postEsSyncService.syncPostToEs(po);
+        postEsSyncService.publishCountEvent(po, PostCountConstants.ACTION_PUBLISH);
         log.info("帖子审核通过: postId={}, {}({})→{}({})", postId,
                 PostStatus.label(from), from, PostStatus.label(PostStatus.APPROVED), PostStatus.APPROVED);
     }
@@ -89,6 +91,7 @@ public class PostReviewService {
             postMapper.updateById(po);
             postQueryService.evictDetailCache(postId);
             postEsSyncService.syncPostToEs(po);
+            postEsSyncService.publishCountEvent(po, PostCountConstants.ACTION_PUBLISH);
             sendReviewNotify(authorId, NotificationType.POST_APPROVED, null, postId, title);
             log.info("AI 审核通过: postId={}", postId);
         } else {

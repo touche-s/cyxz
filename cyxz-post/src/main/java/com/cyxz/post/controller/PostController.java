@@ -473,52 +473,6 @@ public class PostController {
         return Result.success("批量操作成功");
     }
 
-    // ===== 审核接口（平台管理员） =====
-
-    /**
-     * 待审核帖子列表
-     *
-     * @param page 页码（从 1 开始，默认 1）
-     * @param size 每页条数（默认 10）
-     * @return 待审核帖子分页列表
-     */
-    @Operation(summary = "待审核帖子列表")
-    @PreAuthorize("hasAuthority('post:review:list')")
-    @GetMapping("/admin/review/pending")
-    public Result<PageResult<PostVO>> listPendingReview(@RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
-                                                         @RequestParam(value = "size", defaultValue = PageConstants.DEFAULT_SIZE_STR) int size) {
-        return Result.success(postService.listPendingReview(page, size));
-    }
-
-    /**
-     * 审核通过
-     *
-     * @param postId 帖子 ID
-     * @return 操作结果
-     */
-    @Operation(summary = "审核通过")
-    @PreAuthorize("hasAuthority('post:review:approve')")
-    @PutMapping("/admin/review/{postId}/approve")
-    public Result<Void> approvePost(@PathVariable Long postId) {
-        postService.approvePost(postId);
-        return Result.success("审核通过");
-    }
-
-    /**
-     * 审核拒绝
-     *
-     * @param postId 帖子 ID
-     * @param body   拒绝请求体，包含 reason（拒绝原因）
-     * @return 操作结果
-     */
-    @Operation(summary = "审核拒绝")
-    @PreAuthorize("hasAuthority('post:review:reject')")
-    @PutMapping("/admin/review/{postId}/reject")
-    public Result<Void> rejectPost(@PathVariable Long postId, @Valid @RequestBody RejectPostRequest request) {
-        postService.rejectPost(postId, request.getReason());
-        return Result.success("已拒绝");
-    }
-
     // ===== 圈子维度审核接口（圈子管理员/圈主） =====
 
     /**
@@ -584,39 +538,6 @@ public class PostController {
     @DeleteMapping("/circle/{circleId}/admin/{postId}")
     public Result<Void> deletePostByCircle(@PathVariable Long circleId, @PathVariable Long postId) {
         postService.deletePostByCircle(circleId, postId);
-        return Result.success("删除成功");
-    }
-
-    // ===== 帖子管理接口（平台管理员） =====
-
-    /**
-     * 管理员帖子列表（全量，含各种状态）
-     *
-     * @param status  帖子状态筛选（null=全部：0=草稿 1=待审核 2=已通过 3=拒绝 4=已删除）
-     * @param keyword 标题关键词
-     * @param page    页码
-     * @param size    每页条数
-     */
-    @Operation(summary = "管理员帖子列表（全量，含各种状态）")
-    @PreAuthorize("hasAuthority('post:admin:list')")
-    @GetMapping("/admin/list")
-    public Result<PageResult<PostVO>> listAllForAdmin(@RequestParam(value = "status", required = false) Integer status,
-                                                       @RequestParam(value = "keyword", required = false) String keyword,
-                                                       @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
-                                                       @RequestParam(value = "size", defaultValue = PageConstants.DEFAULT_SIZE_STR) int size) {
-        return Result.success(postService.listAllForAdmin(status, keyword, page, size));
-    }
-
-    /**
-     * 管理员删除帖子（逻辑删除，不校验作者归属）
-     *
-     * @param postId 帖子 ID
-     */
-    @Operation(summary = "管理员删除帖子（逻辑删除，不校验作者归属）")
-    @PreAuthorize("hasAuthority('post:admin:delete')")
-    @DeleteMapping("/admin/{postId}")
-    public Result<Void> adminDeletePost(@PathVariable Long postId) {
-        postService.adminDeletePost(postId);
         return Result.success("删除成功");
     }
 

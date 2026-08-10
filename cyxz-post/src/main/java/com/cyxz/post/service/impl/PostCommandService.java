@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
+import com.cyxz.common.constant.PostCountConstants;
 import com.cyxz.post.constant.PostStatus;
 import com.cyxz.post.constant.PostType;
 import com.cyxz.circle.feign.CircleFeignClient;
@@ -283,16 +284,21 @@ public class PostCommandService {
     }
 
     /**
-     * 软删帖子公共逻辑：置状态为 DELETED → 更新 → 清缓存 → 同步 ES
+     * 软删帖子公共逻辑：置状态为 DELETED → 更新 → 清缓存 → 同步 ES → 发计数事件
      * <p>调用方负责 select、权限/归属校验与日志输出。
+     * <p>仅原状态为 APPROVED 时发 DELETE 计数事件（圈子 post_count -1）。
      *
      * @param po 已加载并校验通过的帖子实体
      */
     private void softDelete(PostPO po) {
+        boolean wasApproved = po.getStatus() == PostStatus.APPROVED;
         po.setStatus(PostStatus.DELETED);
         postMapper.updateById(po);
         postQueryService.evictDetailCache(po.getId());
         postEsSyncService.syncPostToEs(po);
+        if (wasApproved) {
+            postEsSyncService.publishCountEvent(po, PostCountConstants.ACTION_DELETE);
+        }
     }
 
     /**
@@ -435,7 +441,16 @@ public class PostCommandService {
                         validPostIds.size(), rows, userId);
             }
         } else if ("delete".equals(action)) {
+            // 先查出 APPROVED 状态的帖子，批量删除后发计数事件（post_count -1）
+            List<PostPO> approvedPosts = postMapper.selectList(
+                    new LambdaQueryWrapper<PostPO>()
+                            .eq(PostPO::getUserId, userId)
+                            .in(PostPO::getId, postIds)
+                            .eq(PostPO::getStatus, PostStatus.APPROVED));
             postMapper.batchUpdateStatus(userId, postIds, PostStatus.DELETED, null);
+            for (PostPO po : approvedPosts) {
+                postEsSyncService.publishCountEvent(po, PostCountConstants.ACTION_DELETE);
+            }
         } else {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "不支持的操作类型: " + action);
         }
