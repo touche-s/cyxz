@@ -121,6 +121,7 @@ public class ReportServiceImpl implements ReportService {
                     .targetId(po.getTargetId())
                     .reportId(po.getId())
                     .operatorId(operatorId)
+                    .reporterId(po.getReporterId())
                     .build();
             rabbitTemplate.convertAndSend(GovernanceConstants.EXCHANGE, GovernanceConstants.ROUTING_KEY, event);
         } catch (Exception e) {

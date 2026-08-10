@@ -37,4 +37,7 @@ public class ContentTakedownEvent implements Serializable {
 
     /** 处理人（管理员）用户 ID */
     private Long operatorId;
+
+    /** 举报人用户 ID（用于通知举报人处理结果） */
+    private Long reporterId;
 }
