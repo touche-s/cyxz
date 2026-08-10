@@ -305,6 +305,39 @@ INSERT INTO section_template (id, name, applicable_type, description, sort_order
 (7, '安利推荐', 'ALL',     '作品推荐与评测',     7, NOW(), NOW()),
 (8, '日常分享', 'ALL',     '水区与日常杂谈',     8, NOW(), NOW());
 
+CREATE TABLE IF NOT EXISTS circle_application (
+    id            BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '申请 ID',
+    applicant_id  BIGINT       NOT NULL COMMENT '申请人用户ID',
+    name          VARCHAR(50)  NOT NULL COMMENT '圈子名称',
+    intro         VARCHAR(100) NULL     COMMENT '圈子简介',
+    avatar        VARCHAR(500) NULL     COMMENT '圈子头像 URL',
+    cover         VARCHAR(500) NULL     COMMENT '圈子封面 URL',
+    status        VARCHAR(20)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING / APPROVED / REJECTED',
+    reviewer_id   BIGINT       NULL     COMMENT '审核人用户ID',
+    review_note   VARCHAR(500) NULL     COMMENT '审核意见',
+    reviewed_at   DATETIME     NULL     COMMENT '审核时间',
+    create_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_status (status, create_time),
+    INDEX idx_applicant (applicant_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='圈子创建申请';
+
+CREATE TABLE IF NOT EXISTS circle_join_application (
+    id            BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '申请 ID',
+    applicant_id  BIGINT       NOT NULL COMMENT '申请人用户ID',
+    circle_id     BIGINT       NOT NULL COMMENT '要加入的圈子ID',
+    reason        VARCHAR(200) NULL     COMMENT '申请理由',
+    status        VARCHAR(20)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING / APPROVED / REJECTED',
+    reviewer_id   BIGINT       NULL     COMMENT '审核人用户ID',
+    review_note   VARCHAR(500) NULL     COMMENT '审核意见',
+    reviewed_at   DATETIME     NULL     COMMENT '审核时间',
+    create_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_status (status, create_time),
+    INDEX idx_circle (circle_id),
+    INDEX idx_applicant (applicant_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='入圈申请';
+
 -- ---- 每个圈子默认启用「综合讨论」+「日常分享」 ----
 INSERT INTO circle_section (id, circle_id, template_id, is_default, sort_order, status, create_time, update_time)
 SELECT c.id * 100 + t.id, c.id, t.id,
@@ -430,36 +463,3 @@ CREATE TABLE IF NOT EXISTS report (
     INDEX idx_reporter (reporter_id),
     UNIQUE KEY uk_reporter_target (reporter_id, target_type, target_id) COMMENT '同一用户对同一对象仅可举报一次'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='举报记录';
-
-CREATE TABLE IF NOT EXISTS circle_application (
-    id            BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '申请 ID',
-    applicant_id  BIGINT       NOT NULL COMMENT '申请人用户ID',
-    name          VARCHAR(50)  NOT NULL COMMENT '圈子名称',
-    intro         VARCHAR(100) NULL     COMMENT '圈子简介',
-    avatar        VARCHAR(500) NULL     COMMENT '圈子头像 URL',
-    cover         VARCHAR(500) NULL     COMMENT '圈子封面 URL',
-    status        VARCHAR(20)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING / APPROVED / REJECTED',
-    reviewer_id   BIGINT       NULL     COMMENT '审核人用户ID',
-    review_note   VARCHAR(500) NULL     COMMENT '审核意见',
-    reviewed_at   DATETIME     NULL     COMMENT '审核时间',
-    create_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    INDEX idx_status (status, create_time),
-    INDEX idx_applicant (applicant_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='圈子创建申请';
-
-CREATE TABLE IF NOT EXISTS circle_join_application (
-    id            BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '申请 ID',
-    applicant_id  BIGINT       NOT NULL COMMENT '申请人用户ID',
-    circle_id     BIGINT       NOT NULL COMMENT '要加入的圈子ID',
-    reason        VARCHAR(200) NULL     COMMENT '申请理由',
-    status        VARCHAR(20)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING / APPROVED / REJECTED',
-    reviewer_id   BIGINT       NULL     COMMENT '审核人用户ID',
-    review_note   VARCHAR(500) NULL     COMMENT '审核意见',
-    reviewed_at   DATETIME     NULL     COMMENT '审核时间',
-    create_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    INDEX idx_status (status, create_time),
-    INDEX idx_circle (circle_id),
-    INDEX idx_applicant (applicant_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='入圈申请';
