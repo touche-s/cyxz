@@ -195,6 +195,35 @@ public enum ErrorCode {
     /** 文件像素过大 */
     UPLOAD_PIXEL_TOO_LARGE(400703, "图片像素过大"),
 
+    // ==================== 治理模块 (800) ====================
+
+    /** 举报记录不存在 */
+    REPORT_NOT_FOUND(404800, "举报记录不存在"),
+
+    /** 举报已处理 */
+    REPORT_ALREADY_HANDLED(409800, "举报已处理"),
+
+    /** 已举报过该内容 */
+    REPORT_DUPLICATE(409801, "已举报过该内容"),
+
+    /** 建圈申请不存在 */
+    CIRCLE_APPLICATION_NOT_FOUND(404810, "建圈申请不存在"),
+
+    /** 建圈申请已处理 */
+    CIRCLE_APPLICATION_ALREADY_HANDLED(409810, "建圈申请已处理"),
+
+    /** 已有待审核的建圈申请 */
+    CIRCLE_APPLICATION_DUPLICATE(409811, "已有待审核的建圈申请"),
+
+    /** 入圈申请不存在 */
+    CIRCLE_JOIN_APPLICATION_NOT_FOUND(404820, "入圈申请不存在"),
+
+    /** 入圈申请已处理 */
+    CIRCLE_JOIN_APPLICATION_ALREADY_HANDLED(409820, "入圈申请已处理"),
+
+    /** 已有待审核的入圈申请 */
+    CIRCLE_JOIN_APPLICATION_DUPLICATE(409821, "已申请加入该圈子，待审核"),
+
     ;
 
     private final int code;

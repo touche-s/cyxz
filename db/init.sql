@@ -406,3 +406,60 @@ CREATE TABLE IF NOT EXISTS private_message (
     INDEX idx_conversation_time (conversation_id, create_time),
     INDEX idx_receiver_read (receiver_id, is_read)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='私信消息表';
+
+-- ============================================================
+-- 内容治理中心库
+-- ============================================================
+CREATE DATABASE IF NOT EXISTS cyxz_governance DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+
+USE cyxz_governance;
+
+CREATE TABLE IF NOT EXISTS report (
+    id           BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '举报 ID',
+    reporter_id  BIGINT       NOT NULL COMMENT '举报人用户ID',
+    target_type  VARCHAR(20)  NOT NULL COMMENT '举报对象类型：POST / COMMENT',
+    target_id    BIGINT       NOT NULL COMMENT '举报对象ID',
+    reason       VARCHAR(200) NOT NULL COMMENT '举报原因',
+    status       VARCHAR(20)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING / APPROVED / REJECTED',
+    handler_id   BIGINT       NULL     COMMENT '处理人用户ID',
+    handler_note VARCHAR(500) NULL     COMMENT '处理意见',
+    handled_at   DATETIME     NULL     COMMENT '处理时间',
+    create_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_status (status, create_time),
+    INDEX idx_reporter (reporter_id),
+    UNIQUE KEY uk_reporter_target (reporter_id, target_type, target_id) COMMENT '同一用户对同一对象仅可举报一次'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='举报记录';
+
+CREATE TABLE IF NOT EXISTS circle_application (
+    id            BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '申请 ID',
+    applicant_id  BIGINT       NOT NULL COMMENT '申请人用户ID',
+    name          VARCHAR(50)  NOT NULL COMMENT '圈子名称',
+    intro         VARCHAR(100) NULL     COMMENT '圈子简介',
+    avatar        VARCHAR(500) NULL     COMMENT '圈子头像 URL',
+    cover         VARCHAR(500) NULL     COMMENT '圈子封面 URL',
+    status        VARCHAR(20)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING / APPROVED / REJECTED',
+    reviewer_id   BIGINT       NULL     COMMENT '审核人用户ID',
+    review_note   VARCHAR(500) NULL     COMMENT '审核意见',
+    reviewed_at   DATETIME     NULL     COMMENT '审核时间',
+    create_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_status (status, create_time),
+    INDEX idx_applicant (applicant_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='圈子创建申请';
+
+CREATE TABLE IF NOT EXISTS circle_join_application (
+    id            BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '申请 ID',
+    applicant_id  BIGINT       NOT NULL COMMENT '申请人用户ID',
+    circle_id     BIGINT       NOT NULL COMMENT '要加入的圈子ID',
+    reason        VARCHAR(200) NULL     COMMENT '申请理由',
+    status        VARCHAR(20)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING / APPROVED / REJECTED',
+    reviewer_id   BIGINT       NULL     COMMENT '审核人用户ID',
+    review_note   VARCHAR(500) NULL     COMMENT '审核意见',
+    reviewed_at   DATETIME     NULL     COMMENT '审核时间',
+    create_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    INDEX idx_status (status, create_time),
+    INDEX idx_circle (circle_id),
+    INDEX idx_applicant (applicant_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='入圈申请';
