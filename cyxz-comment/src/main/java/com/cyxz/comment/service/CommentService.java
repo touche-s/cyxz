@@ -84,6 +84,14 @@ public interface CommentService {
     void deleteCommentsByPostId(Long postId);
 
     /**
+     * 管理员删除评论（逻辑删除，不校验归属权）
+     * <p>用于内容治理中心举报通过后自动处置违规评论。
+     *
+     * @param commentId 评论 ID
+     */
+    void adminDeleteComment(Long commentId);
+
+    /**
      * 统计今日某用户帖子收到的新评论数
      *
      * @param postAuthorId 帖子作者 ID

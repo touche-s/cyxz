@@ -195,6 +195,27 @@ public class CommentServiceImpl implements CommentService {
     }
 
     /**
+     * 管理员删除评论（逻辑删除，不校验归属权）
+     * <p>用于治理中心举报通过后自动处置违规评论，与普通删除逻辑一致但不做权限校验。
+     *
+     * @param commentId 评论 ID
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void adminDeleteComment(Long commentId) {
+        CommentPO po = commentMapper.selectById(commentId);
+        if (po == null || po.getStatus() == CommonStatus.DELETED) {
+            return; // 幂等：已删除的评论不再重复处理
+        }
+        po.setStatus(CommonStatus.DELETED);
+        commentMapper.updateById(po);
+        int replyCount = commentMapper.cascadeDeleteReplies(commentId);
+        stringRedisTemplate.opsForHash()
+                .increment(CacheKeyConstants.POST_COMMENT_DELTA, po.getPostId().toString(), -(1 + replyCount));
+        log.info("管理员删除评论: commentId={}, 级联删除子回复={}", commentId, replyCount);
+    }
+
+    /**
      * 分页查询帖子的顶级评论列表（按需加载子回复）
      * <p>仅返回顶级评论自身，不预加载子回复。
      * <p>子回复总数通过 COUNT 统计写入 totalReplies，前端按需调用 /comment/replies 加载。
