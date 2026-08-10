@@ -20,6 +20,7 @@
         <module>cyxz-comment-api</module>
         <module>cyxz-message-api</module>
         <module>cyxz-circle-api</module>
+        <module>cyxz-governance-api</module>
         <module>cyxz-gateway</module>
         <module>cyxz-auth</module>
         <module>cyxz-user</module>
@@ -29,6 +30,7 @@
         <module>cyxz-search</module>
         <module>cyxz-upload</module>
         <module>cyxz-circle</module>
+        <module>cyxz-governance</module>
     </modules>
 
     <properties>
@@ -119,6 +121,11 @@
             <dependency>
                 <groupId>com.cyxz</groupId>
                 <artifactId>cyxz-circle-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.cyxz</groupId>
+                <artifactId>cyxz-governance-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
