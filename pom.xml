@@ -21,6 +21,7 @@
         <module>cyxz-message-api</module>
         <module>cyxz-circle-api</module>
         <module>cyxz-governance-api</module>
+        <module>cyxz-audit-api</module>
         <module>cyxz-gateway</module>
         <module>cyxz-auth</module>
         <module>cyxz-user</module>
@@ -31,6 +32,8 @@
         <module>cyxz-upload</module>
         <module>cyxz-circle</module>
         <module>cyxz-governance</module>
+        <module>cyxz-audit</module>
+        <module>cyxz-analytics</module>
     </modules>
 
     <properties>
@@ -126,6 +129,11 @@
             <dependency>
                 <groupId>com.cyxz</groupId>
                 <artifactId>cyxz-governance-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.cyxz</groupId>
+                <artifactId>cyxz-audit-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
