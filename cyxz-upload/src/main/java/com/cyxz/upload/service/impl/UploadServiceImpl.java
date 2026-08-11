@@ -17,6 +17,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -39,9 +40,17 @@ public class UploadServiceImpl implements UploadService {
     private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of(".jpg", ".jpeg", ".png", ".gif");
     private static final Set<String> ALLOWED_IMAGE_CONTENT_TYPES = Set.of("image/jpeg", "image/png", "image/gif");
 
+    /** 图片像素上限（宽×高），防止解压炸弹耗尽内存 */
+    private static final int MAX_PIXELS = 4096 * 4096;
+
     private final MinioClient minioClient;
     private final MinioConfig minioConfig;
 
+    /**
+     * 上传用户头像
+     *
+     * @return 头像文件访问 URL
+     */
     @Override
     public String uploadAvatar(MultipartFile file, Long userId) {
         validateImage(file, "头像");
@@ -49,6 +58,11 @@ public class UploadServiceImpl implements UploadService {
         return upload(file, objectName);
     }
 
+    /**
+     * 上传帖子图片
+     *
+     * @return 帖子图片访问 URL
+     */
     @Override
     public String uploadPostImage(MultipartFile file, Long userId) {
         validateImage(file, "帖子图片");
@@ -58,6 +72,9 @@ public class UploadServiceImpl implements UploadService {
         return upload(file, objectName);
     }
 
+    /**
+     * 删除文件
+     */
     @Override
     public void deleteFile(String objectName) {
         try {
@@ -70,10 +87,15 @@ public class UploadServiceImpl implements UploadService {
             log.info("文件已删除: {}", objectName);
         } catch (Exception e) {
             log.error("删除文件失败: {}", objectName, e);
-            throw new BusinessException(ErrorCode.FAIL, "文件删除失败");
+            throw new BusinessException(ErrorCode.UPLOAD_DELETE_FAILED, "文件删除失败");
         }
     }
 
+    /**
+     * 上传圈子资源（头像或封面）
+     *
+     * @return 圈子资源访问 URL
+     */
     @Override
     public String uploadCircleResource(MultipartFile file, Long circleId, String type) {
         validateImage(file, "圈子" + ("avatar".equals(type) ? "头像" : "封面"));
@@ -84,6 +106,11 @@ public class UploadServiceImpl implements UploadService {
         return upload(file, objectName);
     }
 
+    /**
+     * 列出用户历史头像
+     *
+     * @return 头像 URL 列表，按上传时间倒序
+     */
     @Override
     public List<String> listAvatarHistory(Long userId) {
         String prefix = "avatar/" + userId + "/";
@@ -129,7 +156,7 @@ public class UploadServiceImpl implements UploadService {
             return url;
         } catch (Exception e) {
             log.error("文件上传失败", e);
-            throw new BusinessException(ErrorCode.FAIL, "文件上传失败");
+            throw new BusinessException(ErrorCode.UPLOAD_FAILED, "文件上传失败");
         }
     }
 
@@ -156,22 +183,28 @@ public class UploadServiceImpl implements UploadService {
 
         String extension = getExtension(originalFilename);
         if (!ALLOWED_IMAGE_EXTENSIONS.contains(extension)) {
-            throw new BusinessException(ErrorCode.PARAM_ERROR, bizType + "仅支持 jpg、jpeg、png、gif 格式");
+            throw new BusinessException(ErrorCode.UPLOAD_TYPE_INVALID, bizType + "仅支持 jpg、jpeg、png、gif 格式");
         }
 
         String contentType = normalizeContentType(file.getContentType());
         if (!ALLOWED_IMAGE_CONTENT_TYPES.contains(contentType)) {
-            throw new BusinessException(ErrorCode.PARAM_ERROR, bizType + "类型不合法");
+            throw new BusinessException(ErrorCode.UPLOAD_CONTENT_INVALID, bizType + "类型不合法");
         }
 
         try (InputStream inputStream = file.getInputStream()) {
-            if (ImageIO.read(inputStream) == null) {
-                throw new BusinessException(ErrorCode.PARAM_ERROR, bizType + "内容不合法");
+            BufferedImage image = ImageIO.read(inputStream);
+            if (image == null) {
+                throw new BusinessException(ErrorCode.UPLOAD_CONTENT_INVALID, bizType + "内容不合法");
+            }
+            // 防解压炸弹：限制像素总数
+            long pixels = (long) image.getWidth() * image.getHeight();
+            if (pixels > MAX_PIXELS) {
+                throw new BusinessException(ErrorCode.UPLOAD_PIXEL_TOO_LARGE, bizType + "图片像素过大，最长边不超过4096");
             }
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            throw new BusinessException(ErrorCode.PARAM_ERROR, bizType + "内容不合法", e);
+            throw new BusinessException(ErrorCode.UPLOAD_CONTENT_INVALID, bizType + "内容不合法", e);
         }
     }
 

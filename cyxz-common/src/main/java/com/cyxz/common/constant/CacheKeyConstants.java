@@ -69,11 +69,29 @@ public final class CacheKeyConstants {
     /** Token 黑名单前缀 */
     public static final String TOKEN_BLACKLIST_PREFIX = "token:blacklist:";
 
+    /** 全局权限缓存前缀（auth:global:{userId}） */
+    public static final String AUTH_GLOBAL_PREFIX = "auth:global:";
+
+    /** 圈子权限缓存前缀（auth:circle:{userId}:{circleId}） */
+    public static final String AUTH_CIRCLE_PREFIX = "auth:circle:";
+
     /** 图形验证码缓存前缀 */
     public static final String CAPTCHA_PREFIX = "captcha:";
 
     /** 图形验证码过期时间（分钟） */
     public static final long CAPTCHA_EXPIRE_MINUTES = 5;
+
+    /** 登录失败计数前缀（login:fail:{ip}） */
+    public static final String LOGIN_FAIL_PREFIX = "login:fail:";
+
+    /** 登录失败计数窗口（分钟） */
+    public static final long LOGIN_FAIL_WINDOW_MINUTES = 5;
+
+    /** 登录失败最大次数，超过则锁定 */
+    public static final int LOGIN_FAIL_MAX_ATTEMPTS = 10;
+
+    /** 防重复提交 Key 前缀（prevent:repeat:{userId}:{uri}:{argsHash}） */
+    public static final String PREVENT_REPEAT_PREFIX = "prevent:repeat:";
 
     /**
      * 获取用户点赞 Key
@@ -108,6 +126,37 @@ public final class CacheKeyConstants {
     }
 
     /**
+     * 获取全局权限缓存 Key
+     *
+     * @param userId 用户 ID
+     * @return Redis Key
+     */
+    public static String getAuthGlobalKey(Long userId) {
+        return AUTH_GLOBAL_PREFIX + userId;
+    }
+
+    /**
+     * 获取圈子权限缓存 Key
+     *
+     * @param userId   用户 ID
+     * @param circleId 圈子 ID
+     * @return Redis Key
+     */
+    public static String getAuthCircleKey(Long userId, Long circleId) {
+        return AUTH_CIRCLE_PREFIX + userId + ":" + circleId;
+    }
+
+    /**
+     * 获取某用户所有圈子权限缓存的通配 Key（用于登出/权限变更时批量删除）
+     *
+     * @param userId 用户 ID
+     * @return Redis Key 模式（auth:circle:{userId}:*）
+     */
+    public static String getAuthCirclePattern(Long userId) {
+        return AUTH_CIRCLE_PREFIX + userId + ":*";
+    }
+
+    /**
      * 获取帖子详情缓存 Key
      *
      * @param postId 帖子 ID
@@ -135,5 +184,26 @@ public final class CacheKeyConstants {
      */
     public static String getUserLikesCountKey(Long userId) {
         return USER_LIKES_COUNT_PREFIX + userId;
+    }
+
+    /**
+     * 获取登录失败计数 Key
+     *
+     * @param ip 客户端 IP
+     * @return Redis Key
+     */
+    public static String getLoginFailKey(String ip) {
+        return LOGIN_FAIL_PREFIX + ip;
+    }
+
+    /**
+     * 获取帖子浏览去重 Key
+     *
+     * @param postId   帖子 ID
+     * @param identity 用户 ID 或 IP 组成的身份标识（如 "user:123" / "ip:1.2.3.4"）
+     * @return Redis Key
+     */
+    public static String getPostViewDedupKey(Long postId, String identity) {
+        return POST_VIEW_DEDUP_PREFIX + postId + ":" + identity;
     }
 }

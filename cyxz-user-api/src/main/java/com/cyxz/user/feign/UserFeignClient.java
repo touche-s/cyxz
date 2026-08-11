@@ -26,22 +26,13 @@ public interface UserFeignClient {
     Result<Void> initDefaultProfile(@PathVariable("userId") Long userId, @PathVariable("username") String username);
 
     /**
-     * 根据用户 ID 查询资料
-     *
-     * @param userId 用户 ID
-     * @return 用户资料
-     */
-    @GetMapping("/user/{userId}")
-    Result<UserProfileVO> getById(@PathVariable("userId") Long userId);
-
-    /**
      * 批量查询用户资料（内部接口，供 post/comment 等服务调用）
      *
      * @param userIds 用户 ID 列表（最多 200 个）
      * @return userId → UserProfileVO 映射
      */
     @PostMapping("/user/internal/profile/batch")
-    Result<Map<Long, UserProfileVO>> batchGetByIds(@RequestBody List<Long> userIds);
+    Result<Map<Long, UserProfileVO>> batchGetUserProfiles(@RequestBody List<Long> userIds);
 
     /**
      * 查询用户关注的用户 ID 列表（内部接口，供 post 服务拉取关注动态）

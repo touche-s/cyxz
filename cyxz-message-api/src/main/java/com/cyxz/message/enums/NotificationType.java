@@ -15,7 +15,10 @@ public enum NotificationType {
     POST_COLLECTED("收藏了你的帖子", "collect"),
     USER_FOLLOWED("关注了你", "follow"),
     POST_APPROVED("你的帖子审核通过", "system"),
-    POST_REJECTED("你的帖子未通过审核", "system");
+    POST_REJECTED("你的帖子未通过审核", "system"),
+    POST_TAKEDOWN("你的帖子因违规被下架", "system"),
+    COMMENT_TAKEDOWN("你的评论因违规被删除", "system"),
+    REPORT_RESULT("你的举报已处理", "system");
 
     /** 动作文案（前端展示用） */
     private final String actionText;

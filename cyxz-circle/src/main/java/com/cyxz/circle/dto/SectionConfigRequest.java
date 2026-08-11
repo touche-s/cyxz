@@ -1,5 +1,6 @@
 package com.cyxz.circle.dto;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 /**
@@ -10,6 +11,7 @@ import lombok.Data;
 public class SectionConfigRequest {
 
     /** 板块模板 ID */
+    @NotNull(message = "模板ID不能为空")
     private Long templateId;
     /** 是否默认板块：1=是，0=否。发帖时默认选中该板块 */
     private Integer isDefault;

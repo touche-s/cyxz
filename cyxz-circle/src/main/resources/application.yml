@@ -25,9 +25,27 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
       database: ${REDIS_DB:0}
+    rabbitmq:
+      host: ${RABBITMQ_HOST:127.0.0.1}
+      port: ${RABBITMQ_PORT:5672}
+      username: ${RABBITMQ_USERNAME:guest}
+      password: ${RABBITMQ_PASSWORD:guest}
+      virtual-host: ${RABBITMQ_VHOST:/}
 
 mybatis-plus:
   mapper-locations: classpath*:mapper/**/*.xml
   type-aliases-package: com.cyxz.circle.entity
   configuration:
     map-underscore-to-camel-case: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+  default-flat-param-object: true
+
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn

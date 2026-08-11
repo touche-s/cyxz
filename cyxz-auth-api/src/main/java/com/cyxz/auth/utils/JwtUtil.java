@@ -84,31 +84,20 @@ public class JwtUtil {
     }
 
     /**
-     * 生成 JWT Token
-     * <p>Payload 包含 userId(sub)、jti、iat、exp，使用 HMAC-SHA256 签名。
+     * 生成 JWT Token（仅存 userId）
+     * <p>Payload 包含 userId(sub)、jti、iat、exp，不存角色和权限码。
+     * <p>角色和权限码由 Security 层通过 Redis/DB 加载，不再写入 JWT。
      *
      * @param userId 用户 ID
      * @return JWT Token 字符串
      */
     public String generateToken(Long userId) {
-        return generateToken(userId, "user");
-    }
-
-    /**
-     * 生成 JWT Token（含角色）
-     *
-     * @param userId 用户 ID
-     * @param role   用户角色
-     * @return JWT Token 字符串
-     */
-    public String generateToken(Long userId, String role) {
         String jti = UUID.randomUUID().toString().replace("-", "");
         Date now = new Date();
         Date expiration = new Date(now.getTime() + expirationSeconds * 1000);
 
         return Jwts.builder()
                 .subject(String.valueOf(userId))
-                .claim("role", role)
                 .id(jti)
                 .issuedAt(now)
                 .expiration(expiration)
@@ -139,18 +128,6 @@ public class JwtUtil {
     public Long getUserId(String token) {
         Claims claims = parseToken(token);
         return Long.parseLong(claims.getSubject());
-    }
-
-    /**
-     * 从 Token 中提取用户角色
-     *
-     * @param token JWT Token
-     * @return 角色字符串，默认 "user"
-     */
-    public String getRole(String token) {
-        Claims claims = parseToken(token);
-        String role = claims.get("role", String.class);
-        return role != null ? role : "user";
     }
 
     /**
@@ -185,6 +162,18 @@ public class JwtUtil {
     }
 
     /**
+     * 获取 Token 的剩余有效秒数
+     *
+     * @param token JWT Token
+     * @return 剩余秒数，已过期返回 0
+     */
+    public long getRemainingSeconds(String token) {
+        Date expiration = getExpiration(token);
+        long remaining = (expiration.getTime() - System.currentTimeMillis()) / 1000;
+        return Math.max(remaining, 0);
+    }
+
+    /**
      * 校验 Token 是否有效
      * <p>同时检查黑名单和过期状态，验签失败也视为无效。
      *
@@ -195,7 +184,7 @@ public class JwtUtil {
         try {
             return !isBlacklisted(token) && !isExpired(token);
         } catch (Exception e) {
-            log.warn("Token 验签失败: {}", e.getMessage());
+            log.warn("Token 验签失败", e);
             return false;
         }
     }
@@ -245,7 +234,7 @@ public class JwtUtil {
             String key = CacheKeyConstants.getTokenBlacklistKey(jti);
             return Boolean.TRUE.equals(redisTemplate.hasKey(key));
         } catch (Exception e) {
-            log.warn("检查黑名单失败: {}", e.getMessage());
+            log.warn("检查黑名单失败", e);
             return true;
         }
     }

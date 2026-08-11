@@ -200,11 +200,6 @@ export const getReceivedLikes = (params: { page?: number; size?: number }) => {
   return request.get('/post/received-likes', { params })
 }
 
-/** 搜索帖子（标题+正文模糊匹配） */
-export const searchPosts = (params: { keyword: string; page?: number; size?: number }) => {
-  return request.get('/post/search', { params })
-}
-
 /** 数据中心月度趋势 */
 export interface MonthlyTrendVO {
   month: string
@@ -283,6 +278,28 @@ export const approvePost = (postId: string) => {
 /** 审核拒绝 */
 export const rejectPost = (postId: string, reason: string) => {
   return request.put(`/post/admin/review/${postId}/reject`, { reason })
+}
+
+// ===== 圈子维度审核（圈子管理员/圈主） =====
+
+/** 圈子待审核帖子列表 */
+export const listPendingReviewByCircle = (circleId: number, params: { page?: number; size?: number }): Promise<PageResult<PostVO>> => {
+  return request.get(`/post/circle/${circleId}/admin/review/pending`, { params })
+}
+
+/** 圈子维度审核通过 */
+export const approvePostByCircle = (circleId: number, postId: string) => {
+  return request.put(`/post/circle/${circleId}/admin/review/${postId}/approve`)
+}
+
+/** 圈子维度审核拒绝 */
+export const rejectPostByCircle = (circleId: number, postId: string, reason: string) => {
+  return request.put(`/post/circle/${circleId}/admin/review/${postId}/reject`, { reason })
+}
+
+/** 圈子维度删帖（圈主/圈子管理员） */
+export const deletePostByCircle = (circleId: number, postId: string) => {
+  return request.delete(`/post/circle/${circleId}/admin/${postId}`)
 }
 
 /** 敏感词检测，返回命中的敏感词列表 */

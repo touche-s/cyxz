@@ -5,22 +5,38 @@ import com.cyxz.auth.dto.AuthResponse;
 import com.cyxz.auth.dto.ChangePasswordRequest;
 import com.cyxz.auth.dto.LoginRequest;
 import com.cyxz.auth.dto.RegisterRequest;
+import com.cyxz.auth.entity.SysRolePO;
 import com.cyxz.auth.entity.SysUserPO;
+import com.cyxz.auth.entity.SysUserRolePO;
+import com.cyxz.auth.mapper.SysRoleMapper;
 import com.cyxz.auth.mapper.SysUserMapper;
+import com.cyxz.auth.mapper.SysUserRoleMapper;
 import com.cyxz.auth.service.AuthService;
 import com.cyxz.auth.utils.JwtUtil;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.CacheKeyConstants;
+import com.cyxz.common.utils.IpUtil;
 import com.cyxz.user.feign.UserFeignClient;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 认证服务实现
@@ -33,20 +49,32 @@ import org.springframework.util.StringUtils;
 public class AuthServiceImpl implements AuthService {
 
     private final SysUserMapper sysUserMapper;
+    private final SysUserRoleMapper sysUserRoleMapper;
+    private final SysRoleMapper sysRoleMapper;
     private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
     private final StringRedisTemplate stringRedisTemplate;
     private final UserFeignClient userFeignClient;
+    private final RabbitTemplate rabbitTemplate;
+
+    /** dummy BCrypt 哈希，用于用户不存在时平衡响应时间（防时间侧信道），懒加载 */
+    private volatile String dummyHash;
 
     /**
      * 用户登录
-     * <p>1. 校验验证码 2. 查用户 3. BCrypt 比对密码 4. 签发 JWT
+     * <p>1. IP 失败次数限流 2. 校验验证码 3. 查用户 4. BCrypt 比对密码 5. 签发 JWT
+     * <p>用户不存在时跑一次 dummy BCrypt 平衡响应时间，防止通过响应耗时探测账号是否存在。
+     * <p>同一 IP 在 5 分钟内登录失败超过 10 次将被锁定。
      *
      * @param request 登录请求
      * @return 认证响应（token + userId + username）
      */
     @Override
     public AuthResponse login(LoginRequest request) {
+        String clientIp = getClientIp();
+        // IP 失败次数限流：超过阈值直接拒绝
+        checkLoginFailLimit(clientIp);
+
         validateCaptcha(request.getCaptcha(), request.getCaptchaUuid());
 
         SysUserPO user = sysUserMapper.selectOne(
@@ -54,30 +82,125 @@ public class AuthServiceImpl implements AuthService {
                         .eq(SysUserPO::getUsername, request.getUsername())
         );
         if (user == null) {
+            // 跑一次 dummy BCrypt 平衡响应时间，防时间侧信道
+            passwordEncoder.matches(request.getPassword(), getDummyHash());
+            recordLoginFail(clientIp);
             throw new BusinessException(ErrorCode.PASSWORD_ERROR, "账号或密码错误");
         }
         if (user.getStatus() != null && user.getStatus() != 1) {
             throw new BusinessException(ErrorCode.USER_DISABLED);
         }
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            recordLoginFail(clientIp);
             throw new BusinessException(ErrorCode.PASSWORD_ERROR, "账号或密码错误");
         }
 
-        String role = user.getRole() != null ? user.getRole() : "user";
-        String token = jwtUtil.generateToken(user.getId(), role);
+        // 登录成功，清空失败计数
+        clearLoginFail(clientIp);
+
+        String role = getGlobalRoleCode(user.getId());
+        List<String> permissions = getGlobalPermissionCodes(user.getId());
+        String token = jwtUtil.generateToken(user.getId());
         long expiresIn = jwtUtil.getExpirationSeconds();
 
         log.info("用户登录成功: userId={}, username={}, role={}", user.getId(), user.getUsername(), role);
-        return new AuthResponse(token, "Bearer", expiresIn, user.getId(), user.getUsername(), role);
+        return new AuthResponse(token, "Bearer", expiresIn, user.getId(), user.getUsername(), role, permissions);
+    }
+
+    /**
+     * 检查 IP 登录失败次数是否超限，超限抛 FORBIDDEN
+     */
+    private void checkLoginFailLimit(String ip) {
+        if (ip == null) {
+            return;
+        }
+        String key = CacheKeyConstants.getLoginFailKey(ip);
+        String count = stringRedisTemplate.opsForValue().get(key);
+        if (count != null && Integer.parseInt(count) >= CacheKeyConstants.LOGIN_FAIL_MAX_ATTEMPTS) {
+            log.warn("IP 登录失败次数超限，临时锁定: ip={}, count={}", ip, count);
+            throw new BusinessException(ErrorCode.FORBIDDEN, "登录失败次数过多，请稍后再试");
+        }
+    }
+
+    /**
+     * 记录一次登录失败，计数 +1 并设置窗口过期
+     */
+    private void recordLoginFail(String ip) {
+        if (ip == null) {
+            return;
+        }
+        String key = CacheKeyConstants.getLoginFailKey(ip);
+        Long count = stringRedisTemplate.opsForValue().increment(key);
+        if (count != null && count == 1L) {
+            stringRedisTemplate.expire(key, CacheKeyConstants.LOGIN_FAIL_WINDOW_MINUTES, TimeUnit.MINUTES);
+        }
+    }
+
+    /**
+     * 登录成功后清空失败计数
+     */
+    private void clearLoginFail(String ip) {
+        if (ip == null) {
+            return;
+        }
+        stringRedisTemplate.delete(CacheKeyConstants.getLoginFailKey(ip));
+    }
+
+    /**
+     * 从当前请求上下文获取客户端 IP
+     */
+    private String getClientIp() {
+        ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attrs == null) {
+            return null;
+        }
+        HttpServletRequest httpRequest = attrs.getRequest();
+        return IpUtil.getClientIp(httpRequest);
+    }
+
+    /**
+     * 查询用户的全局角色 code（circle_id=0）
+     * <p>用户应有且仅有一个全局角色（SITE_OWNER / PLATFORM_ADMIN / USER），
+     * 无记录时降级为 USER。
+     */
+    private String getGlobalRoleCode(Long userId) {
+        List<String> codes = sysUserRoleMapper.selectGlobalRoleCodes(userId);
+        return codes.isEmpty() ? "USER" : codes.get(0);
+    }
+
+    /**
+     * 查询用户的全局权限码列表（基于 circle_id=0 的全局角色）
+     * <p>登录时写入 JWT，普通用户无管理权限返回空列表。
+     */
+    private List<String> getGlobalPermissionCodes(Long userId) {
+        List<String> codes = sysUserRoleMapper.selectGlobalPermissionCodes(userId);
+        return codes.isEmpty() ? Collections.emptyList() : codes;
+    }
+
+    /**
+     * 懒加载生成一个 dummy BCrypt 哈希，用于平衡用户不存在时的响应时间
+     */
+    private String getDummyHash() {
+        if (dummyHash == null) {
+            synchronized (this) {
+                if (dummyHash == null) {
+                    dummyHash = passwordEncoder.encode("dummy-password-for-timing-balance");
+                }
+            }
+        }
+        return dummyHash;
     }
 
     /**
      * 用户注册
-     * <p>1. 校验验证码 2. 校验两次密码一致 3. 查重 4. BCrypt 加密入库
+     * <p>1. 校验验证码 2. 校验两次密码一致 3. 查重 4. BCrypt 加密入库 5. 分配默认角色 6. 初始化用户资料
+     * <p>步骤 4-5 在同一事务内，确保用户记录与角色绑定原子性；
+     * 步骤 6（Feign 跨服务）放在事务提交后执行，避免分布式事务并保证库已落盘才发通知。
      *
      * @param request 注册请求
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void register(RegisterRequest request) {
         validateCaptcha(request.getCaptcha(), request.getCaptchaUuid());
 
@@ -103,25 +226,76 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException(ErrorCode.USERNAME_EXISTS);
         }
 
+        // 分配默认全局 USER 角色（circle_id=0），按 code 查询避免硬编码 ID
+        SysRolePO userRole = sysRoleMapper.selectOne(
+                new LambdaQueryWrapper<SysRolePO>().eq(SysRolePO::getCode, "USER"));
+        if (userRole != null) {
+            SysUserRolePO ur = new SysUserRolePO();
+            ur.setUserId(user.getId());
+            ur.setRoleId(userRole.getId());
+            ur.setCircleId(0L);
+            sysUserRoleMapper.insert(ur);
+        }
+
         log.info("用户注册成功: userId={}, username={}", user.getId(), user.getUsername());
 
-        // 初始化默认资料，失败不阻塞注册流程（降级由 FallbackFactory 处理）
-        Result<Void> initResult = userFeignClient.initDefaultProfile(user.getId(), user.getUsername());
-        if (initResult == null || !initResult.isSuccess()) {
-            log.error("初始化用户资料失败，需人工补偿: userId={}, username={}", user.getId(), user.getUsername());
-        }
+        // 初始化默认资料（Feign 跨服务）放到事务提交后执行：
+        // 1) 避免跨服务调用占用本事务的 DB 连接；
+        // 2) 保证用户与角色已落盘才触发下游，防止"幻影通知"。
+        final Long userId = user.getId();
+        final String username = user.getUsername();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                Result<Void> initResult = userFeignClient.initDefaultProfile(userId, username);
+                if (initResult == null || !initResult.isSuccess()) {
+                    log.error("初始化用户资料失败，需人工补偿: userId={}, username={}", userId, username);
+                }
+                // 发布统计事件：新增用户数 +1
+                try {
+                    AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                            .metric(AnalyticsConstants.METRIC_NEW_USER)
+                            .value(1)
+                            .statDate(LocalDate.now())
+                            .build();
+                    rabbitTemplate.convertAndSend(AnalyticsConstants.EXCHANGE, AnalyticsConstants.ROUTING_KEY, analyticsEvent);
+                } catch (Exception e) {
+                    log.error("发布统计事件失败: metric={}", AnalyticsConstants.METRIC_NEW_USER, e);
+                }
+            }
+        });
     }
 
     /**
      * 用户登出
-     * <p>Token 加入 Redis 黑名单。
+     * <p>Token 加入 Redis 黑名单，同时清除全局权限缓存。
      *
      * @param token 待失效的 Token
      */
     @Override
     public void logout(String token) {
+        Long userId = jwtUtil.getUserId(token);
         jwtUtil.blacklistToken(token);
-        log.info("用户登出成功: userId={}", jwtUtil.getUserId(token));
+        // 清除全局权限缓存
+        stringRedisTemplate.delete(CacheKeyConstants.getAuthGlobalKey(userId));
+        // 清除该用户所有圈子权限缓存，避免重新登录后命中陈旧缓存
+        clearCirclePermissionCache(userId);
+        log.info("用户登出成功: userId={}", userId);
+    }
+
+    /**
+     * 清除用户在所有圈子的权限缓存
+     * <p>按 userId 前缀匹配 auth:circle:{userId}:* 批量删除，Redis 异常不阻塞登出。
+     */
+    private void clearCirclePermissionCache(Long userId) {
+        try {
+            Set<String> keys = stringRedisTemplate.keys(CacheKeyConstants.getAuthCirclePattern(userId));
+            if (keys != null && !keys.isEmpty()) {
+                stringRedisTemplate.delete(keys);
+            }
+        } catch (Exception e) {
+            log.warn("清理圈子权限缓存失败，等待 TTL 自然过期: userId={}", userId, e);
+        }
     }
 
     /**
@@ -158,6 +332,12 @@ public class AuthServiceImpl implements AuthService {
         log.info("用户修改密码成功: userId={}", userId);
     }
 
+    /**
+     * 从 Token 中提取用户 ID
+     *
+     * @param token JWT Token
+     * @return 用户 ID
+     */
     @Override
     public Long extractUserId(String token) {
         return jwtUtil.getUserId(token);
@@ -189,10 +369,11 @@ public class AuthServiceImpl implements AuthService {
 
         jwtUtil.blacklistToken(oldToken);
 
-        String role = user.getRole() != null ? user.getRole() : "user";
-        String newToken = jwtUtil.generateToken(userId, role);
+        String role = getGlobalRoleCode(userId);
+        List<String> permissions = getGlobalPermissionCodes(userId);
+        String newToken = jwtUtil.generateToken(userId);
         long expiresIn = jwtUtil.getExpirationSeconds();
-        return new AuthResponse(newToken, "Bearer", expiresIn, userId, user.getUsername(), role);
+        return new AuthResponse(newToken, "Bearer", expiresIn, userId, user.getUsername(), role, permissions);
     }
 
     /**

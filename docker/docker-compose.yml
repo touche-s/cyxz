@@ -1,0 +1,340 @@
+# ============================================================
+# Cyxz 一键部署 Docker Compose
+# 用法: cp .env.example .env && docker compose up -d
+# ============================================================
+
+name: cyxz
+
+# ---- 共享环境变量（所有微服务复用） ----
+x-common-env: &common-env
+  DB_HOST: mysql
+  DB_PORT: "3306"
+  DB_USERNAME: root
+  DB_PASSWORD: ${DB_PASSWORD:?请复制 .env.example 为 .env 并配置 DB_PASSWORD}
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+  REDIS_DB: "0"
+  NACOS_SERVER_ADDR: nacos:8848
+  RABBITMQ_HOST: rabbitmq
+  RABBITMQ_PORT: "5672"
+  RABBITMQ_USERNAME: guest
+  RABBITMQ_PASSWORD: guest
+  MINIO_ENDPOINT: http://minio:9000
+  MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?请复制 .env.example 为 .env 并配置 MINIO_ACCESS_KEY}
+  MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?请复制 .env.example 为 .env 并配置 MINIO_SECRET_KEY}
+  MINIO_BUCKET_NAME: cyxz
+  ES_HOST: elasticsearch
+  ES_PORT: "9200"
+  JWT_SECRET: ${JWT_SECRET:?请复制 .env.example 为 .env 并配置 JWT_SECRET（至少 32 字节）}
+  JWT_EXPIRATION: ${JWT_EXPIRATION:-86400}
+
+# ---- 微服务模板 ----
+x-microservice: &microservice
+  environment:
+    <<: *common-env
+  restart: unless-stopped
+  networks:
+    - cyxz-net
+
+services:
+  # ============================
+  # 基础设施层
+  # ============================
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?请复制 .env.example 为 .env 并配置 DB_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ../db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - cyxz-net
+
+  redis:
+    image: redis:7-alpine
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+    command: redis-server ${REDIS_PASSWORD:+-a $REDIS_PASSWORD}
+    volumes:
+      - redis-data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD-SHELL", 'redis-cli $${REDIS_PASSWORD:+-a "$$REDIS_PASSWORD"} ping | grep -q PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cyxz-net
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    ports:
+      - "5672:5672"
+      - "${RABBITMQ_CONSOLE_PORT:-15672}:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - cyxz-net
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?请复制 .env.example 为 .env 并配置 MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?请复制 .env.example 为 .env 并配置 MINIO_SECRET_KEY}
+    volumes:
+      - minio-data:/data
+    ports:
+      - "9000:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cyxz-net
+
+  # MinIO bucket 自动初始化（one-shot）
+  minio-init:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set myminio http://minio:9000 ${MINIO_ACCESS_KEY:?请配置 MINIO_ACCESS_KEY} ${MINIO_SECRET_KEY:?请配置 MINIO_SECRET_KEY} &&
+      mc mb myminio/cyxz --ignore-existing &&
+      mc anonymous set download myminio/cyxz &&
+      echo 'Bucket cyxz created and set to public read.'
+      "
+    restart: "no"
+    networks:
+      - cyxz-net
+
+  elasticsearch:
+    build:
+      context: .
+      dockerfile: es.Dockerfile
+    image: cyxz-elasticsearch:8.13.0-ik
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms256m -Xmx256m"
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    ports:
+      - "${ES_PORT:-9200}:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - cyxz-net
+
+  nacos:
+    image: nacos/nacos-server:v2.3.2
+    environment:
+      MODE: standalone
+      JVM_XMS: 256m
+      JVM_XMX: 256m
+      JVM_XMN: 128m
+    volumes:
+      - nacos-data:/home/nacos/data
+    ports:
+      - "${NACOS_PORT:-8848}:8848"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8848/nacos/v1/console/health/readiness || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    networks:
+      - cyxz-net
+
+  # ============================
+  # 微服务层
+  # ============================
+  gateway:
+    <<: *microservice
+    build:
+      context: ..
+      dockerfile: docker/microservice.Dockerfile
+      args:
+        SERVICE_NAME: cyxz-gateway
+    ports:
+      - "${GATEWAY_PORT:-8080}:8080"
+    depends_on:
+      redis: { condition: service_healthy }
+      nacos: { condition: service_healthy }
+
+  auth:
+    <<: *microservice
+    build:
+      context: ..
+      dockerfile: docker/microservice.Dockerfile
+      args:
+        SERVICE_NAME: cyxz-auth
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      nacos: { condition: service_healthy }
+
+  user:
+    <<: *microservice
+    build:
+      context: ..
+      dockerfile: docker/microservice.Dockerfile
+      args:
+        SERVICE_NAME: cyxz-user
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      nacos: { condition: service_healthy }
+
+  post:
+    <<: *microservice
+    build:
+      context: ..
+      dockerfile: docker/microservice.Dockerfile
+      args:
+        SERVICE_NAME: cyxz-post
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      nacos: { condition: service_healthy }
+
+  comment:
+    <<: *microservice
+    build:
+      context: ..
+      dockerfile: docker/microservice.Dockerfile
+      args:
+        SERVICE_NAME: cyxz-comment
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      nacos: { condition: service_healthy }
+
+  circle:
+    <<: *microservice
+    build:
+      context: ..
+      dockerfile: docker/microservice.Dockerfile
+      args:
+        SERVICE_NAME: cyxz-circle
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      nacos: { condition: service_healthy }
+
+  upload:
+    <<: *microservice
+    build:
+      context: ..
+      dockerfile: docker/microservice.Dockerfile
+      args:
+        SERVICE_NAME: cyxz-upload
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
+      nacos: { condition: service_healthy }
+
+  message:
+    <<: *microservice
+    build:
+      context: ..
+      dockerfile: docker/microservice.Dockerfile
+      args:
+        SERVICE_NAME: cyxz-message
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      nacos: { condition: service_healthy }
+
+  search:
+    <<: *microservice
+    build:
+      context: ..
+      dockerfile: docker/microservice.Dockerfile
+      args:
+        SERVICE_NAME: cyxz-search
+    depends_on:
+      elasticsearch: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      nacos: { condition: service_healthy }
+
+  # ============================
+  # AI 审核服务
+  # ============================
+  ai:
+    build:
+      context: ..
+      dockerfile: docker/ai.Dockerfile
+    environment:
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_API_URL: ${LLM_API_URL:-https://api.deepseek.com/v1/chat/completions}
+      LLM_MODEL: ${LLM_MODEL:-deepseek-chat}
+      AUTO_PASS_WITHOUT_KEY: ${AUTO_PASS_WITHOUT_KEY:-true}
+      QWEN_VL_API_KEY: ${QWEN_VL_API_KEY:-}
+      QWEN_VL_API_URL: ${QWEN_VL_API_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions}
+      QWEN_VL_MODEL: ${QWEN_VL_MODEL:-qwen3.7-plus}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+    restart: unless-stopped
+    networks:
+      - cyxz-net
+
+  # ============================
+  # 前端
+  # ============================
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/frontend.Dockerfile
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      - gateway
+    restart: unless-stopped
+    networks:
+      - cyxz-net
+
+networks:
+  cyxz-net:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:
+  rabbitmq-data:
+  minio-data:
+  es-data:
+  nacos-data:

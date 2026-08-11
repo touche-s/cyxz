@@ -17,4 +17,7 @@ public class PostInfoVO {
 
     /** 帖子标题 */
     private String title;
+
+    /** 所属圈子 ID（供评论服务校验成员关系） */
+    private Long circleId;
 }

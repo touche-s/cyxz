@@ -6,17 +6,14 @@ import org.springframework.util.StringUtils;
 /**
  * IP 工具类
  * <p>从 HttpServletRequest 中提取客户端真实 IP，优先读取反向代理透传的头。
+ * <p>仅信任标准反向代理头（X-Forwarded-For / X-Real-IP），避免客户端伪造。
  */
 public final class IpUtil {
 
     private static final String UNKNOWN = "unknown";
     private static final String[] IP_HEADERS = {
             "X-Forwarded-For",
-            "X-Real-IP",
-            "Proxy-Client-IP",
-            "WL-Proxy-Client-IP",
-            "HTTP_CLIENT_IP",
-            "HTTP_X_FORWARDED_FOR"
+            "X-Real-IP"
     };
 
     private IpUtil() {

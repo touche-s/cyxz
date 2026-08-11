@@ -139,22 +139,6 @@ public class CircleSectionServiceImpl implements CircleSectionService {
     }
 
     /**
-     * 校验板块是否属于指定圈子且已启用
-     * <p>供 post 模块在发布/更新帖子时通过 Feign 调用来校验 sectionId 合法性
-     */
-    @Override
-    public boolean validateSection(Long sectionId, Long circleId) {
-        if (sectionId == null || circleId == null) {
-            return false;
-        }
-        LambdaQueryWrapper<CircleSectionPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(CircleSectionPO::getId, sectionId)
-                .eq(CircleSectionPO::getCircleId, circleId)
-                .eq(CircleSectionPO::getStatus, CommonStatus.ACTIVE);
-        return circleSectionMapper.selectCount(wrapper) > 0;
-    }
-
-    /**
      * 创建圈子时自动初始化默认板块
      * <p>取 applicable_type=ALL 的模板作为初始板块，首个设为默认
      */
@@ -226,7 +210,7 @@ public class CircleSectionServiceImpl implements CircleSectionService {
                 .last("LIMIT 1");
         SectionTemplatePO template = sectionTemplateMapper.selectOne(templateWrapper);
         if (template == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "板块模板为空，请先初始化板块模板");
+            throw new BusinessException(ErrorCode.SECTION_TEMPLATE_NOT_FOUND, "板块模板为空，请先初始化板块模板");
         }
 
         CircleSectionPO section = new CircleSectionPO();

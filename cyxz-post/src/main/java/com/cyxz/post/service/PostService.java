@@ -140,20 +140,12 @@ public interface PostService {
     List<PostVO> getTopPosts(Long userId, int limit);
 
     /**
-     * 查询帖子作者 ID（内部接口）
-     *
-     * @param postId 帖子 ID
-     * @return 帖子作者 ID
-     */
-    Long getPostAuthor(Long postId);
-
-    /**
      * 查询帖子信息（内部接口）
      *
      * @param postId 帖子 ID
      * @return 帖子信息（标题、作者 ID 等）
      */
-    Map<String, Object> getPostInfo(Long postId);
+    PostInfoVO getPostInfo(Long postId);
 
     /**
      * 批量查询帖子简要信息（内部接口）
@@ -173,18 +165,6 @@ public interface PostService {
      * @return 分页结果
      */
     PageResult<ReceivedLikeVO> getReceivedLikes(Long userId, int page, int size);
-
-    /**
-     * 搜索帖子（仅已发布）
-     * <p>按标题和正文模糊匹配，按创建时间倒序。
-     *
-     * @param keyword       搜索关键词
-     * @param page          页码（从 1 开始）
-     * @param size          每页条数
-     * @param currentUserId 当前登录用户 ID（可为 null）
-     * @return 分页结果（含总条数）
-     */
-    PageResult<PostVO> searchPosts(String keyword, int page, int size, Long currentUserId);
 
     /**
      * 获取数据中心仪表盘数据
@@ -244,6 +224,7 @@ public interface PostService {
 
     /**
      * 审核通过帖子
+     * @param postId 帖子 ID
      */
     void approvePost(Long postId);
 
@@ -258,8 +239,40 @@ public interface PostService {
     PageResult<PostVO> listPendingReview(int page, int size);
 
     /**
+     * 圈子维度的待审核帖子列表（圈子管理员/圈主使用）
+     */
+    PageResult<PostVO> listPendingReviewByCircle(Long circleId, int page, int size);
+
+    /**
+     * 管理员帖子列表（全量，含各种状态）
+     *
+     * @param status  帖子状态筛选（null=全部）
+     * @param keyword 标题关键词（null=不筛选）
+     * @param page    页码
+     * @param size    每页条数
+     */
+    PageResult<PostVO> listAllForAdmin(Integer status, String keyword, int page, int size);
+
+    /**
+     * 管理员删除帖子（逻辑删除，不校验作者归属）
+     *
+     * @param postId 帖子 ID
+     */
+    void adminDeletePost(Long postId);
+
+    /**
+     * 圈子维度删帖（圈主/圈子管理员删除本圈帖子）
+     *
+     * @param circleId 圈子 ID
+     * @param postId   帖子 ID
+     */
+    void deletePostByCircle(Long circleId, Long postId);
+
+    /**
      * 批量统计各圈子的已发布帖子数（内部接口）
      * <p>供 circle 服务定时刷新帖子数。
+     * @param circleIds 圈子 ID 集合
+     * @return 圈子 ID 到帖子数的映射（无帖子的圈子返回 0）
      */
     Map<Long, Integer> batchCountByCircle(Set<Long> circleIds);
 }

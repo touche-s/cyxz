@@ -38,3 +38,15 @@ mybatis-plus:
 jwt:
   secret: ${JWT_SECRET}
   expiration: ${JWT_EXPIRATION:86400}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+  default-flat-param-object: true
+
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn

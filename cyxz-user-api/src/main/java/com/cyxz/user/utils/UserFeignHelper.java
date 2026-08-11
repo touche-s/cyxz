@@ -1,10 +1,13 @@
 package com.cyxz.user.utils;
 
-import com.cyxz.common.base.Result;
+import com.cyxz.common.utils.FeignResults;
 import com.cyxz.user.feign.UserFeignClient;
 import com.cyxz.user.vo.UserProfileVO;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
 
 /**
  * UserFeignClient 调用工具
@@ -24,7 +27,6 @@ public final class UserFeignHelper {
         if (userIds == null || userIds.isEmpty()) {
             return Collections.emptyMap();
         }
-        Result<Map<Long, UserProfileVO>> result = client.batchGetByIds(new ArrayList<>(userIds));
-        return result != null && result.getData() != null ? result.getData() : Collections.emptyMap();
+        return FeignResults.unwrapOrEmptyMap(client.batchGetUserProfiles(new ArrayList<>(userIds)));
     }
 }

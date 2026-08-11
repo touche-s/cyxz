@@ -6,12 +6,16 @@ import com.cyxz.comment.mapper.CommentLikeMapper;
 import com.cyxz.comment.mapper.CommentMapper;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.CacheKeyConstants;
+import com.cyxz.common.constant.CommonStatus;
+import com.cyxz.circle.feign.CircleFeignClient;
+import com.cyxz.circle.vo.PublishableResult;
 import com.cyxz.message.constant.NotificationConstants;
 import com.cyxz.message.enums.NotificationType;
 import com.cyxz.message.event.NotificationEvent;
-import com.cyxz.message.feign.MessageFeignClient;
 import com.cyxz.post.feign.PostFeignClient;
+import com.cyxz.post.vo.PostInfoVO;
 import com.cyxz.user.feign.UserFeignClient;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -23,10 +27,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import java.util.function.Consumer;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,18 +50,58 @@ class CommentServiceImplTest {
     @Mock private CommentLikeMapper commentLikeMapper;
     @Mock private UserFeignClient userFeignClient;
     @Mock private PostFeignClient postFeignClient;
+    @Mock private CircleFeignClient circleFeignClient;
     @Mock private StringRedisTemplate stringRedisTemplate;
-    @Mock private MessageFeignClient messageFeignClient;
     @Mock private RabbitTemplate rabbitTemplate;
     @Mock private HashOperations<String, Object, Object> hashOps;
+    @Mock private TransactionTemplate transactionTemplate;
 
     @InjectMocks
     private CommentServiceImpl commentService;
 
     @BeforeEach
     void setUp() {
-        when(postFeignClient.getPostAuthor(any())).thenReturn(Result.ok(999L));
+        PostInfoVO postInfo = new PostInfoVO();
+        postInfo.setPostId(100L);
+        postInfo.setUserId(999L);
+        postInfo.setTitle("测试帖子");
+        postInfo.setCircleId(7L);
+        when(postFeignClient.getPostInfo(any())).thenReturn(Result.success(postInfo));
+
+        PublishableResult circleData = new PublishableResult();
+        circleData.setExists(true);
+        circleData.setEnabled(true);
+        circleData.setJoined(true);
+        circleData.setPublishable(true);
+        when(circleFeignClient.checkPublishable(any(), any())).thenReturn(Result.success(circleData));
+
+        // 父评论 mock（回复类测试用，顶级评论测试不会触发）
+        CommentPO parent = new CommentPO();
+        parent.setId(100L);
+        parent.setPostId(100L);
+        parent.setStatus(CommonStatus.ACTIVE);
+        lenient().when(commentMapper.selectById(100L)).thenReturn(parent);
+
         when(stringRedisTemplate.opsForHash()).thenReturn(hashOps);
+
+        // 模拟编程式事务：立即执行回调并触发 afterCommit（模拟事务提交成功）
+        lenient().when(transactionTemplate.executeWithoutResult(any())).thenAnswer(inv -> {
+            Consumer<org.springframework.transaction.TransactionStatus> consumer = inv.getArgument(0);
+            TransactionSynchronizationManager.initSynchronization();
+            consumer.accept(null);
+            for (TransactionSynchronization sync : TransactionSynchronizationManager.getSynchronizations()) {
+                sync.afterCommit();
+            }
+            TransactionSynchronizationManager.clearSynchronization();
+            return null;
+        });
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
     }
 
     @Nested
@@ -133,8 +184,9 @@ class CommentServiceImplTest {
                 po.setId(10L);
                 return 1;
             });
-            when(rabbitTemplate.convertAndSend(any(String.class), any(String.class), any(Object.class)))
-                    .thenThrow(new RuntimeException("MQ down"));
+            doThrow(new RuntimeException("MQ down"))
+                    .when(rabbitTemplate)
+                    .convertAndSend(any(String.class), any(String.class), any(Object.class));
 
             commentService.createComment(1L, request);
         }

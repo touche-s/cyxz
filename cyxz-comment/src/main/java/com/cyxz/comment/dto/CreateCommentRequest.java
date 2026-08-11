@@ -1,7 +1,9 @@
 package com.cyxz.comment.dto;
 
+import com.cyxz.common.utils.IdUtil;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
@@ -16,6 +18,7 @@ public class CreateCommentRequest {
 
     /** 评论内容 */
     @NotBlank(message = "评论内容不能为空")
+    @Size(max = 500, message = "评论内容最长500字")
     private String content;
 
     /** 父评论 ID（回复评论时传入，顶级评论不传） */
@@ -27,23 +30,14 @@ public class CreateCommentRequest {
     // ==== 内部解析后的 Long 值 ====
 
     public Long getPostIdAsLong() {
-        return parseLong(postId);
+        return IdUtil.asLongRequired(postId, "帖子ID");
     }
 
     public Long getParentIdAsLong() {
-        return parseLong(parentId);
+        return IdUtil.asLong(parentId);
     }
 
     public Long getReplyToUserIdAsLong() {
-        return parseLong(replyToUserId);
-    }
-
-    private Long parseLong(String value) {
-        if (value == null || value.isBlank()) return null;
-        try {
-            return Long.parseLong(value.trim());
-        } catch (NumberFormatException e) {
-            return null;
-        }
+        return IdUtil.asLong(replyToUserId);
     }
 }

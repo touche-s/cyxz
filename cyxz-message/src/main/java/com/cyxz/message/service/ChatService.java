@@ -33,6 +33,8 @@ public interface ChatService {
 
     /**
      * 查询当前用户的私信总未读数
+     * @param userId 当前用户 ID
+     * @return 未读总数
      */
     int unreadTotal(Long userId);
 }

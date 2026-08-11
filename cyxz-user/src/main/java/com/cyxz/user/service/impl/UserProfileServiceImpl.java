@@ -63,7 +63,7 @@ public class UserProfileServiceImpl implements UserProfileService {
      * @return userId → UserProfileVO 映射
      */
     @Override
-    public Map<Long, UserProfileVO> batchGetByUserIds(List<Long> userIds) {
+    public Map<Long, UserProfileVO> batchGetUserProfiles(List<Long> userIds) {
         if (userIds == null || userIds.isEmpty()) {
             return Collections.emptyMap();
         }

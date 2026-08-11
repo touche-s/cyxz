@@ -37,7 +37,7 @@
           />
         </div>
 
-        <EmptyState v-else title="暂无圈子" :description="emptyDesc" />
+        <EmptyState v-else icon="ph:circles-four" title="暂无圈子" :hint="emptyDesc" />
       </template>
 
     </div>

@@ -4,8 +4,7 @@
       <aside class="uc-sidebar">
         <div class="sidebar-user">
           <div class="sidebar-avatar" @click="activeTab = 'avatar'">
-            <img v-if="profile.avatar" :src="profile.avatar" alt="" />
-            <span v-else class="sidebar-avatar-fallback">{{ (profile.nickname || 'U').charAt(0) }}</span>
+            <UserAvatar :src="profile.avatar" :name="profile.nickname" :size="48" />
           </div>
           <div class="sidebar-user-text">
             <span class="sidebar-nick">{{ profile.nickname || '未设置昵称' }}</span>
@@ -87,8 +86,7 @@
         <template v-if="activeTab === 'home'">
           <div class="card profile-summary">
             <div class="summary-avatar" @click="activeTab = 'avatar'">
-              <img v-if="profile.avatar" :src="profile.avatar" alt="" />
-              <span v-else class="summary-avatar-fb">{{ (profile.nickname || 'U').charAt(0) }}</span>
+              <UserAvatar :src="profile.avatar" :name="profile.nickname" :size="72" />
             </div>
             <div class="summary-info">
               <h2>{{ profile.nickname || '未设置昵称' }}</h2>
@@ -163,8 +161,8 @@
               <div class="form-field">
                 <label class="ff-label">昵称</label>
                 <div class="ff-input-wrap">
-                  <input v-model="infoForm.nickname" type="text" class="ff-input" maxlength="7" placeholder="输入你的昵称" />
-                  <span class="ff-count">{{ infoForm.nickname.length }}/7</span>
+                  <input v-model="infoForm.nickname" type="text" class="ff-input" maxlength="20" placeholder="输入你的昵称" />
+                  <span class="ff-count">{{ infoForm.nickname.length }}/20</span>
                 </div>
               </div>
               <div class="form-field">
@@ -174,8 +172,8 @@
               <div class="form-field form-field-full">
                 <label class="ff-label">个性签名</label>
                 <div class="ff-input-wrap">
-                  <textarea v-model="infoForm.bio" class="ff-input ff-textarea" maxlength="50" rows="3" placeholder="介绍一下自己吧~"></textarea>
-                  <span class="ff-count">{{ infoForm.bio.length }}/50</span>
+                  <textarea v-model="infoForm.bio" class="ff-input ff-textarea" maxlength="200" rows="3" placeholder="介绍一下自己吧~"></textarea>
+                  <span class="ff-count">{{ infoForm.bio.length }}/200</span>
                 </div>
               </div>
               <div class="form-field form-field-full">
@@ -259,10 +257,7 @@
             </div>
           </div>
           <div v-else class="card empty-card">
-            <div class="empty-state">
-              <Icon icon="ph:image" class="empty-icon" />
-              <p>还没有历史头像，上传第一张吧~</p>
-            </div>
+            <EmptyState icon="ph:image" title="还没有历史头像，上传第一张吧~" />
           </div>
         </template>
 
@@ -363,7 +358,8 @@
             </div>
             <div class="password-field">
               <label>新密码</label>
-              <input v-model="passwordForm.newPassword" type="password" class="form-input" placeholder="6-20位新密码" maxlength="20" />
+              <input v-model="passwordForm.newPassword" type="password" class="form-input" placeholder="6-20位新密码" minlength="6" maxlength="20" />
+              <span class="password-hint">密码长度 6-20 位</span>
             </div>
             <div class="password-field">
               <label>确认新密码</label>
@@ -393,7 +389,10 @@ import type { UserInfo } from '@/api/user'
 import { uploadAvatar, getAvatarHistory, deleteUploadedFile } from '@/api/upload'
 import { useUserStore } from '@/stores/user'
 import { formatDate } from '@/utils/format'
+import { pickApiMessage } from '@/utils/errorCode'
 import ImageCropper from '@/components/ImageCropper.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const userStore = useUserStore()
 const route = useRoute()
@@ -612,8 +611,8 @@ async function onAvatarCrop(blob: Blob) {
       ElMessage.success('头像更换成功')
       loadHistory()
     }
-  } catch {
-    ElMessage.error('头像上传失败')
+  } catch (e) {
+    ElMessage.error(pickApiMessage(e, '头像上传失败'))
   }
 }
 
@@ -1471,6 +1470,13 @@ html.dark .form-sticky {
   margin-bottom: 6px;
 }
 
+.password-hint {
+  display: block;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 6px;
+}
+
 .modal-footer {
   display: flex;
   gap: 10px;
@@ -1745,25 +1751,6 @@ html.dark .avatar-ring {
 
 .empty-card {
   padding: 40px 24px;
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  color: var(--text-dim);
-}
-
-.empty-icon {
-  width: 48px;
-  height: 48px;
-  opacity: 0.4;
-}
-
-.empty-state p {
-  font-size: 14px;
-  margin: 0;
 }
 
 @media (max-width: 1024px) {

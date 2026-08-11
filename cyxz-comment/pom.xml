@@ -27,6 +27,11 @@
         </dependency>
 
         <dependency>
+            <groupId>com.github.xiaoymin</groupId>
+            <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>
         </dependency>
@@ -88,7 +93,17 @@
 
         <dependency>
             <groupId>com.cyxz</groupId>
+            <artifactId>cyxz-circle-api</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.cyxz</groupId>
             <artifactId>cyxz-message-api</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.cyxz</groupId>
+            <artifactId>cyxz-governance-api</artifactId>
         </dependency>
 
         <dependency>

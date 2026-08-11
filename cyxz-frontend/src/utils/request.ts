@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import router from '@/router'
+import { isSuccessCode, isAuthError } from '@/utils/errorCode'
 
 export class ApiError extends Error {
   code: number
@@ -12,6 +13,28 @@ export class ApiError extends Error {
 }
 
 let handlingUnauthorized = false
+
+/** 统一处理登录失效：清空登录态、跳转首页、提示（1 秒内去重） */
+async function handleUnauthorized(): Promise<void> {
+  if (handlingUnauthorized) return
+  handlingUnauthorized = true
+
+  const { useUserStore } = await import('@/stores/user')
+  useUserStore().clearAuth()
+  localStorage.removeItem('token')
+  localStorage.removeItem('userInfo')
+
+  const currentPath = router.currentRoute.value.path
+  if (currentPath !== '/') {
+    router.push('/')
+  }
+
+  ElMessage.error('登录已过期，请重新登录')
+
+  setTimeout(() => {
+    handlingUnauthorized = false
+  }, 1000)
+}
 
 const request = axios.create({
   baseURL: '/api',
@@ -29,8 +52,12 @@ request.interceptors.request.use((config) => {
 request.interceptors.response.use(
   (res) => {
     const body = res.data
-    if (body && body.code === 200) {
+    if (body && isSuccessCode(body.code)) {
       return body.data
+    }
+    // 业务层返回的认证类错误（如 TOKEN_EXPIRED），统一走登出逻辑
+    if (body && isAuthError(body.code)) {
+      handleUnauthorized().catch(() => {})
     }
     return Promise.reject(new ApiError(body?.code ?? -1, body?.message ?? '请求失败'))
   },
@@ -38,32 +65,16 @@ request.interceptors.response.use(
     if (err instanceof ApiError) {
       return Promise.reject(err)
     }
-    if (err.response?.status === 401) {
-      if (handlingUnauthorized) {
-        return Promise.reject(err)
-      }
-
-      handlingUnauthorized = true
-
-      // 延迟导入避免 Pinia 未安装时调用
-      const { useUserStore } = await import('@/stores/user')
-      useUserStore().clearAuth()
-      localStorage.removeItem('token')
-      localStorage.removeItem('userInfo')
-
-      const currentPath = router.currentRoute.value.path
-      if (currentPath !== '/') {
-        router.push('/')
-      }
-
-      ElMessage.error('登录已过期，请重新登录')
-
-      setTimeout(() => {
-        handlingUnauthorized = false
-      }, 1000)
+    // 网关层返回 HTTP 401/403，body 中也携带 6 位 code
+    const bodyCode = err.response?.data?.code
+    if (bodyCode && isAuthError(bodyCode)) {
+      await handleUnauthorized()
+    } else if (err.response?.status === 401) {
+      await handleUnauthorized()
     }
-    return Promise.reject(err)
-  }
+    const msg = err.response?.data?.message || err.message || '请求失败'
+    return Promise.reject(new ApiError(bodyCode ?? -1, msg))
+  },
 )
 
 export default request as unknown as {

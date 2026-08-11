@@ -8,6 +8,8 @@ import org.apache.ibatis.annotations.Update;
 
 /**
  * 评论 Mapper
+ * <p>对应 comment 表，维护帖子评论及回复的增删改查与点赞数同步，
+ * 继承 MyBatis-Plus BaseMapper 获得通用增删改查能力。
  */
 public interface CommentMapper extends BaseMapper<CommentPO> {
 

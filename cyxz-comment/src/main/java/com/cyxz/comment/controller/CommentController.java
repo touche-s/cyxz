@@ -3,11 +3,14 @@ package com.cyxz.comment.controller;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.PageConstants;
+import com.cyxz.common.annotation.PreventRepeat;
 import com.cyxz.common.web.CurrentUser;
 import com.cyxz.comment.dto.CreateCommentRequest;
 import com.cyxz.comment.service.CommentInteractionService;
 import com.cyxz.comment.service.CommentService;
 import com.cyxz.comment.vo.CommentVO;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 /**
  * 评论控制器
  */
+@Tag(name = "评论服务", description = "评论控制器")
 @RestController
 @RequestMapping("/comment")
 @RequiredArgsConstructor
@@ -30,6 +34,8 @@ public class CommentController {
      * @param userId  当前登录用户 ID（由 Gateway 注入）
      * @return 新创建的评论视图对象（含完整用户信息，前端可直接插入列表展示）
      */
+    @Operation(summary = "发表评论")
+    @PreventRepeat(interval = 3)
     @PostMapping
     public Result<CommentVO> create(@Valid @RequestBody CreateCommentRequest request,
                                @CurrentUser Long userId) {
@@ -44,6 +50,7 @@ public class CommentController {
      * @param userId    当前登录用户 ID（由 Gateway 注入）
      * @return 操作结果
      */
+    @Operation(summary = "删除评论（逻辑删除）")
     @DeleteMapping("/{commentId}")
     public Result<Void> delete(@PathVariable("commentId") Long commentId,
                                @CurrentUser Long userId) {
@@ -60,6 +67,7 @@ public class CommentController {
      * @param currentUserId 当前登录用户 ID（由 Gateway 注入，游客为 null）
      * @return 评论列表（含嵌套子回复，子回复默认带第一页）
      */
+    @Operation(summary = "分页查询帖子的评论列表（仅顶级评论）")
     @GetMapping("/list")
     public Result<PageResult<CommentVO>> list(@RequestParam("postId") Long postId,
                                         @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
@@ -77,6 +85,7 @@ public class CommentController {
      * @param currentUserId 当前登录用户 ID（由 Gateway 注入，游客为 null）
      * @return 子回复列表
      */
+    @Operation(summary = "分页查询某条评论的子回复")
     @GetMapping("/replies")
     public Result<PageResult<CommentVO>> replies(@RequestParam("parentId") Long parentId,
                                            @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
@@ -92,6 +101,8 @@ public class CommentController {
      * @param userId    当前登录用户 ID（由 Gateway 注入）
      * @return 操作结果
      */
+    @Operation(summary = "点赞评论（幂等）")
+    @PreventRepeat(interval = 2)
     @PutMapping("/{commentId}/like")
     public Result<Void> like(@PathVariable("commentId") Long commentId,
                              @CurrentUser Long userId) {
@@ -106,6 +117,7 @@ public class CommentController {
      * @param userId    当前登录用户 ID（由 Gateway 注入）
      * @return 操作结果
      */
+    @Operation(summary = "取消点赞评论（幂等）")
     @DeleteMapping("/{commentId}/like")
     public Result<Void> unlike(@PathVariable("commentId") Long commentId,
                                @CurrentUser Long userId) {
@@ -122,6 +134,7 @@ public class CommentController {
      * @param size   每页条数（默认 20）
      * @return 评论列表
      */
+    @Operation(summary = "查询用户收到的评论列表（对用户帖子的评论）")
     @GetMapping("/received")
     public Result<PageResult<CommentVO>> received(@CurrentUser Long userId,
                                                   @RequestParam(value = "page", defaultValue = PageConstants.DEFAULT_PAGE_STR) int page,
@@ -139,6 +152,7 @@ public class CommentController {
      * @param size   每页条数（默认 20）
      * @return 评论列表（含帖子标题、回复目标用户昵称）
      */
+    @Operation(summary = "评论管理：分页查询当前用户自己帖子下的评论")
     @GetMapping("/manage")
     public Result<PageResult<CommentVO>> manage(@CurrentUser Long userId,
                                                  @RequestParam(value = "postId", required = false) Long postId,
@@ -155,6 +169,7 @@ public class CommentController {
      * @param postId 帖子 ID
      * @return 操作结果
      */
+    @Operation(summary = "删除帖子下的所有评论及评论点赞（内部接口）")
     @DeleteMapping("/internal/post/{postId}")
     public Result<Void> deleteByPostId(@PathVariable("postId") Long postId) {
         commentService.deleteCommentsByPostId(postId);
@@ -167,6 +182,7 @@ public class CommentController {
      * @param postAuthorId 帖子作者 ID
      * @return 今日新增评论数
      */
+    @Operation(summary = "查询今日新增评论数（内部接口）")
     @GetMapping("/internal/today")
     public Result<Integer> todayComments(@RequestParam("postAuthorId") Long postAuthorId) {
         return Result.success(commentService.countTodayComments(postAuthorId));

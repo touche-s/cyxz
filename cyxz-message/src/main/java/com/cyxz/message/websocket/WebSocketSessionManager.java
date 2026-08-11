@@ -25,19 +25,15 @@ public class WebSocketSessionManager {
     private final Map<Long, WebSocketSession> sessions = new ConcurrentHashMap<>();
 
     public void add(Long userId, WebSocketSession session) {
-        WebSocketSession old = sessions.put(userId, session);
-        if (old != null && old.isOpen()) {
-            try {
-                old.close();
-            } catch (Exception e) {
-                log.warn("关闭旧连接失败: userId={}", userId, e);
-            }
-        }
+        sessions.put(userId, session);
         log.info("WebSocket 连接建立: userId={}, 当前在线: {}", userId, sessions.size());
     }
 
-    public void remove(Long userId) {
-        sessions.remove(userId);
+    /**
+     * 移除会话（仅当 map 中存的正是该 session 时才移除，避免并发新连接被误删）
+     */
+    public void remove(Long userId, WebSocketSession session) {
+        sessions.remove(userId, session);
         log.info("WebSocket 连接断开: userId={}, 当前在线: {}", userId, sessions.size());
     }
 
@@ -69,14 +65,14 @@ public class WebSocketSessionManager {
         }
         sessions.forEach((userId, session) -> {
             if (!session.isOpen()) {
-                sessions.remove(userId);
+                sessions.remove(userId, session);
                 return;
             }
             try {
                 session.sendMessage(PING);
             } catch (Exception e) {
                 log.info("心跳失败，清理连接: userId={}", userId);
-                sessions.remove(userId);
+                sessions.remove(userId, session);
                 try {
                     session.close();
                 } catch (Exception ignored) {

@@ -1,13 +1,20 @@
 <template>
   <div class="layout">
     <div class="bg-layer"></div>
-    <HeaderBar />
+    <HeaderBar v-if="!hideHeader" />
     <slot />
   </div>
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import HeaderBar from '@/components/HeaderBar.vue'
+
+const route = useRoute()
+const hideHeader = computed(() =>
+  route.path === '/admin' || /^\/circle\/\d+\/admin$/.test(route.path)
+)
 </script>
 
 <style scoped>

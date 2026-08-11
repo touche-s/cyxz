@@ -24,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
 import java.util.*;
@@ -44,6 +45,7 @@ public class ChatServiceImpl implements ChatService {
     private final UserFeignClient userFeignClient;
     private final WebSocketSessionManager sessionManager;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate transactionTemplate;
 
     @Override
     public List<ConversationVO> listConversations(Long userId) {
@@ -69,10 +71,10 @@ public class ChatServiceImpl implements ChatService {
     public PageResult<ChatMessageVO> listMessages(Long userId, Long conversationId, int page, int size) {
         ConversationPO conv = conversationMapper.selectById(conversationId);
         if (conv == null) {
-            throw new BusinessException(ErrorCode.PARAM_ERROR, "会话不存在");
+            throw new BusinessException(ErrorCode.CONVERSATION_NOT_FOUND);
         }
         if (!conv.getUserId1().equals(userId) && !conv.getUserId2().equals(userId)) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "无权查看此会话");
+            throw new BusinessException(ErrorCode.NOT_CONVERSATION_MEMBER, "无权查看此会话");
         }
 
         LambdaQueryWrapper<PrivateMessagePO> wrapper = new LambdaQueryWrapper<>();
@@ -87,7 +89,6 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    @Transactional(rollbackFor = Exception.class)
     public ChatMessageVO sendMessage(Long senderId, Long receiverId, String content) {
         if (senderId.equals(receiverId)) {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "不能给自己发私信");
@@ -96,36 +97,37 @@ public class ChatServiceImpl implements ChatService {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "消息内容不能为空");
         }
 
-        // 校验互相关注
+        // 校验互相关注（事务外，不占 DB 连接）
         Result<Boolean> mutualResult = userFeignClient.isMutualFollowing(senderId, receiverId);
         if (mutualResult == null || !Boolean.TRUE.equals(mutualResult.getData())) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "需要互相关注后才能私信");
+            throw new BusinessException(ErrorCode.NOT_MUTUAL_FOLLOW, "需要互相关注后才能私信");
         }
 
-        // 获取或创建会话
-        ConversationPO conv = getOrCreateConversation(senderId, receiverId);
+        // DB 操作（编程式事务，快进快出）
+        ChatMessageVO vo = transactionTemplate.execute(status -> {
+            ConversationPO conv = getOrCreateConversation(senderId, receiverId);
 
-        // 消息落库
-        PrivateMessagePO msg = new PrivateMessagePO();
-        msg.setConversationId(conv.getId());
-        msg.setSenderId(senderId);
-        msg.setReceiverId(receiverId);
-        msg.setContent(content);
-        msg.setIsRead(0);
-        messageMapper.insert(msg);
+            PrivateMessagePO msg = new PrivateMessagePO();
+            msg.setConversationId(conv.getId());
+            msg.setSenderId(senderId);
+            msg.setReceiverId(receiverId);
+            msg.setContent(content);
+            msg.setIsRead(0);
+            messageMapper.insert(msg);
 
-        // 更新会话最后消息 + 对方未读数
-        conv.setLastMessage(content);
-        conv.setLastMessageAt(msg.getCreateTime());
-        if (conv.getUserId1().equals(receiverId)) {
-            conv.setUnreadCount1(conv.getUnreadCount1() + 1);
-        } else {
-            conv.setUnreadCount2(conv.getUnreadCount2() + 1);
-        }
-        conversationMapper.updateById(conv);
+            conv.setLastMessage(content);
+            conv.setLastMessageAt(msg.getCreateTime());
+            if (conv.getUserId1().equals(receiverId)) {
+                conv.setUnreadCount1(conv.getUnreadCount1() + 1);
+            } else {
+                conv.setUnreadCount2(conv.getUnreadCount2() + 1);
+            }
+            conversationMapper.updateById(conv);
 
-        // WebSocket 推送在线对方
-        ChatMessageVO vo = toMessageVO(msg);
+            return toMessageVO(msg);
+        });
+
+        // WebSocket 推送（事务已提交，回滚不会误推）
         if (sessionManager.isOnline(receiverId)) {
             try {
                 Map<String, Object> envelope = new HashMap<>();
@@ -137,7 +139,7 @@ public class ChatServiceImpl implements ChatService {
             }
         }
 
-        log.info("私信发送: senderId={}, receiverId={}, msgId={}", senderId, receiverId, msg.getId());
+        log.info("私信发送: senderId={}, receiverId={}", senderId, receiverId);
         return vo;
     }
 
@@ -149,7 +151,7 @@ public class ChatServiceImpl implements ChatService {
             return;
         }
         if (!conv.getUserId1().equals(userId) && !conv.getUserId2().equals(userId)) {
-            throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作此会话");
+            throw new BusinessException(ErrorCode.NOT_CONVERSATION_MEMBER, "无权操作此会话");
         }
 
         // 标记消息已读
@@ -169,6 +171,7 @@ public class ChatServiceImpl implements ChatService {
         conversationMapper.updateById(conv);
     }
 
+    /** 查询当前用户的私信总未读数 */
     @Override
     public int unreadTotal(Long userId) {
         LambdaQueryWrapper<ConversationPO> wrapper = new LambdaQueryWrapper<>();

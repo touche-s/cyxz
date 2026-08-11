@@ -19,6 +19,9 @@ import org.springframework.util.StringUtils;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * 板块模板服务实现，负责模板的增删改查
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -26,6 +29,9 @@ public class SectionTemplateServiceImpl implements SectionTemplateService {
 
     private final SectionTemplateMapper sectionTemplateMapper;
 
+    /**
+     * 查询全部模板，按 sort_order 升序
+     */
     @Override
     public List<SectionTemplateVO> listAll() {
         LambdaQueryWrapper<SectionTemplatePO> wrapper = new LambdaQueryWrapper<>();
@@ -34,6 +40,9 @@ public class SectionTemplateServiceImpl implements SectionTemplateService {
         return templates.stream().map(this::toVO).collect(Collectors.toList());
     }
 
+    /**
+     * 创建板块模板，未指定类型时默认 ALL，未指定排序时默认 0
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public SectionTemplateVO create(SectionTemplateRequest dto) {
@@ -51,24 +60,30 @@ public class SectionTemplateServiceImpl implements SectionTemplateService {
         return toVO(po);
     }
 
+    /**
+     * 更新板块模板，模板不存在时抛出业务异常
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public SectionTemplateVO update(Long id, SectionTemplateRequest dto) {
         SectionTemplatePO po = sectionTemplateMapper.selectById(id);
         if (po == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "板块模板不存在");
+            throw new BusinessException(ErrorCode.SECTION_TEMPLATE_NOT_FOUND);
         }
         BeanUtils.copyProperties(dto, po, "id", "createTime");
         sectionTemplateMapper.updateById(po);
         return toVO(po);
     }
 
+    /**
+     * 删除板块模板，模板不存在时抛出业务异常
+     */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void delete(Long id) {
         SectionTemplatePO po = sectionTemplateMapper.selectById(id);
         if (po == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "板块模板不存在");
+            throw new BusinessException(ErrorCode.SECTION_TEMPLATE_NOT_FOUND);
         }
         sectionTemplateMapper.deleteById(id);
     }

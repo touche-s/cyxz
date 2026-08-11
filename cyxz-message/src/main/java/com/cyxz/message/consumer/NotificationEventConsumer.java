@@ -1,5 +1,6 @@
 package com.cyxz.message.consumer;
 
+import com.cyxz.common.consumer.AbstractManualAckRabbitListener;
 import com.cyxz.message.constant.NotificationConstants;
 import com.cyxz.message.event.NotificationEvent;
 import com.cyxz.message.service.impl.NotificationServiceImpl;
@@ -20,7 +21,7 @@ import java.util.Map;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class NotificationEventConsumer {
+public class NotificationEventConsumer extends AbstractManualAckRabbitListener<NotificationEvent> {
 
     private final NotificationServiceImpl notificationService;
     private final WebSocketSessionManager sessionManager;
@@ -28,18 +29,21 @@ public class NotificationEventConsumer {
 
     @RabbitListener(queues = NotificationConstants.QUEUE, ackMode = "MANUAL")
     public void onEvent(NotificationEvent event, Channel channel, @Header(AmqpHeaders.DELIVERY_TAG) long tag) throws IOException {
-        try {
-            boolean ok = notificationService.createByEvent(event);
-            if (ok) {
-                log.info("事件消费成功: type={}, receiverId={}", event.getType(), event.getReceiverId());
-                pushIfOnline(event);
-            }
-        } catch (Exception e) {
-            log.error("事件消费失败，进入死信: type={}", event.getType(), e);
-            channel.basicReject(tag, false);
-            return;
+        processWithManualAck(event, channel, tag);
+    }
+
+    @Override
+    protected void handle(NotificationEvent event) throws Exception {
+        boolean ok = notificationService.createByEvent(event);
+        if (ok) {
+            log.info("事件消费成功: type={}, receiverId={}", event.getType(), event.getReceiverId());
+            pushIfOnline(event);
         }
-        channel.basicAck(tag, false);
+    }
+
+    @Override
+    protected String describe(NotificationEvent event) {
+        return "type=" + event.getType() + ", receiverId=" + event.getReceiverId();
     }
 
     /**

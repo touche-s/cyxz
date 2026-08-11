@@ -98,6 +98,7 @@ import { Icon } from '@iconify/vue'
 import { ElMessage } from 'element-plus'
 import { useApi } from '@/composables/useApi'
 import { uploadPostImage, deleteUploadedFile } from '@/api/upload'
+import { pickApiMessage } from '@/utils/errorCode'
 import ImageCropper from '@/components/ImageCropper.vue'
 
 defineEmits<{
@@ -185,14 +186,14 @@ async function uploadAndReplace(index: number, file: File) {
     images.value[index] = newUrl
     deleteUploadedFile(oldUrl).catch(() => {})
     ElMessage.success('裁剪完成')
-  }, { onError: () => ElMessage.error('图片上传失败') })
+  }, { onError: (e) => ElMessage.error(pickApiMessage(e, '图片上传失败')) })
 }
 
 const uploadImage = async (file: File) => {
   await upload(async () => {
     const url = await uploadPostImage(file)
     images.value.push(url)
-  }, { onError: () => ElMessage.error('图片上传失败') })
+  }, { onError: (e) => ElMessage.error(pickApiMessage(e, '图片上传失败')) })
 }
 
 const removeImage = (index: number) => {

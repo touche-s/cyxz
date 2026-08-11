@@ -13,7 +13,7 @@
         <p class="article-summary">{{ articleSummary }}</p>
         <div class="article-meta">
           <div class="card-author">
-            <img :src="avatarUrl(post.authorAvatar)" class="card-avatar clickable" alt="avatar" @click.stop="goToAuthor" />
+            <UserAvatar :src="post.authorAvatar" :name="post.authorName" :user-id="post.userId" :size="avatarSize" border="white" shadow="sm" stop-propagation fallback="image" />
             <span class="card-author-name clickable" @click.stop="goToAuthor">{{ post.authorName || '匿名用户' }}</span>
           </div>
           <div class="card-stats">
@@ -57,7 +57,7 @@
       </div>
       <div class="card-meta">
         <div class="card-author">
-          <img :src="avatarUrl(post.authorAvatar)" class="card-avatar clickable" alt="avatar" @click.stop="goToAuthor" />
+          <UserAvatar :src="post.authorAvatar" :name="post.authorName" :user-id="post.userId" :size="avatarSize" border="white" shadow="sm" stop-propagation fallback="image" />
           <span class="card-author-name clickable" @click.stop="goToAuthor">{{ post.authorName || '匿名用户' }}</span>
         </div>
         <div class="card-stats">
@@ -83,8 +83,8 @@ import { ref, reactive, computed } from 'vue'
 import { Icon } from '@iconify/vue'
 import type { PostVO } from '@/api/post'
 import { formatNumber } from '@/utils/format'
-import { avatarUrl } from '@/utils/avatar'
 import { useNavigate } from '@/composables/useNavigate'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const props = defineProps<{
   post: PostVO
@@ -95,6 +95,8 @@ const props = defineProps<{
 }>()
 
 const { open } = useNavigate()
+
+const avatarSize = computed(() => (props.size === 'small' ? 22 : 26))
 
 const emit = defineEmits<{
   click: [post: PostVO]
@@ -323,14 +325,6 @@ const getGradient = (id: string | number) => {
 
 .card-author { display: flex; align-items: center; gap: 8px; }
 
-.card-avatar {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  border: 2px solid white;
-  box-shadow: 0 1px 4px var(--shadow);
-}
-
 .card-author-name {
   font-size: 12px;
   color: var(--text-dim);
@@ -341,14 +335,6 @@ const getGradient = (id: string | number) => {
   color: var(--pink);
 }
 .card-author-name.clickable { cursor: pointer; }
-
-.card-avatar.clickable {
-  cursor: pointer;
-  transition: opacity 0.15s;
-}
-.card-avatar.clickable:hover {
-  opacity: 0.75;
-}
 
 .card-stats {
   display: flex;
@@ -414,11 +400,6 @@ const getGradient = (id: string | number) => {
 .card--small .card-title {
   font-size: 13px;
   margin-bottom: 8px;
-}
-
-.card--small .card-avatar {
-  width: 22px;
-  height: 22px;
 }
 
 .card--small .card-author-name {

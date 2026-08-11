@@ -32,4 +32,7 @@ public class CirclePO extends BaseEntity {
     private Integer postCount;
 
     private Integer memberCount;
+
+    /** 圈主用户 ID（创建时写入，业务查询冗余字段，权限校验仍以 sys_user_role 为准） */
+    private Long ownerId;
 }

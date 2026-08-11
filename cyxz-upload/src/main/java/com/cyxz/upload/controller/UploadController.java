@@ -1,8 +1,11 @@
 package com.cyxz.upload.controller;
 
+import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
-import com.cyxz.common.web.AdminUser;
 import com.cyxz.common.web.CurrentUser;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.cyxz.upload.config.MinioConfig;
 import com.cyxz.upload.service.UploadService;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +18,7 @@ import java.util.List;
  * 文件上传控制器
  * <p>提供头像和帖子图片的上传接口。
  */
+@Tag(name = "文件上传服务", description = "文件上传控制器")
 @RestController
 @RequestMapping("/upload")
 @RequiredArgsConstructor
@@ -30,6 +34,7 @@ public class UploadController {
      * @param userId 当前登录用户 ID（由 Gateway 注入）
      * @return 文件访问 URL
      */
+    @Operation(summary = "上传用户头像")
     @PostMapping("/avatar")
     public Result<String> uploadAvatar(@RequestParam("file") MultipartFile file,
                                        @CurrentUser Long userId) {
@@ -43,6 +48,7 @@ public class UploadController {
      * @param file 图片文件
      * @return 文件访问 URL
      */
+    @Operation(summary = "上传帖子图片")
     @PostMapping("/post-image")
     public Result<String> uploadPostImage(@RequestParam("file") MultipartFile file,
                                           @CurrentUser Long userId) {
@@ -59,11 +65,12 @@ public class UploadController {
      * @param userId 当前登录用户 ID（由 Gateway 注入）
      * @return 操作结果
      */
+    @Operation(summary = "删除已上传的文件")
     @DeleteMapping("/file")
     public Result<Void> deleteFile(@RequestParam("url") String url, @CurrentUser Long userId) {
         String prefix = minioConfig.getEndpoint() + "/" + minioConfig.getBucketName() + "/";
         if (!url.startsWith(prefix)) {
-            return Result.fail("非法的文件地址");
+            return Result.fail(ErrorCode.PARAM_ERROR.getCode(), "非法的文件地址");
         }
         String objectName = url.substring(prefix.length());
 
@@ -75,7 +82,7 @@ public class UploadController {
             if (slashIdx > 0) {
                 String ownerIdStr = remaining.substring(0, slashIdx);
                 if (!String.valueOf(userId).equals(ownerIdStr)) {
-                    return Result.fail("无权删除他人的文件");
+                    return Result.fail(ErrorCode.FORBIDDEN.getCode(), "无权删除他人的文件");
                 }
             }
         }
@@ -86,6 +93,8 @@ public class UploadController {
 
     /**
      * 上传圈子资源（头像或封面）
+     * <p>全局管理员（站主/平台管理员）可上传任意圈子资源；圈主/圈子管理员可上传自己圈子资源。
+     * <p>全局管理员短路由 {@link com.cyxz.common.security.CirclePermissionEvaluator} 内部处理。
      *
      * @param file     图片文件
      * @param circleId 圈子 ID
@@ -93,16 +102,24 @@ public class UploadController {
      * @param userId   当前登录用户 ID（由 Gateway 注入）
      * @return 文件访问 URL
      */
+    @Operation(summary = "上传圈子资源（头像或封面）")
+    @PreAuthorize("@circlePerm.hasAuthority('circle:resource:upload', #circleId)")
     @PostMapping("/circle-resource")
     public Result<String> uploadCircleResource(@RequestParam("file") MultipartFile file,
                                                 @RequestParam("circleId") Long circleId,
                                                 @RequestParam("type") String type,
-                                                @CurrentUser Long userId,
-                                                @AdminUser Object admin) {
+                                                @CurrentUser Long userId) {
         String url = uploadService.uploadCircleResource(file, circleId, type);
         return Result.success("操作成功", url);
     }
 
+    /**
+     * 查询当前登录用户的头像上传历史
+     *
+     * @param userId 当前登录用户 ID（由 Gateway 注入）
+     * @return 头像文件访问 URL 列表，按上传时间倒序
+     */
+    @Operation(summary = "查询当前登录用户的头像上传历史")
     @GetMapping("/avatar-history")
     public Result<List<String>> getAvatarHistory(@CurrentUser Long userId) {
         List<String> urls = uploadService.listAvatarHistory(userId);

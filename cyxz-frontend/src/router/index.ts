@@ -1,6 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
+import { useUserStore } from '@/stores/user'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -90,6 +91,12 @@ const routes: RouteRecordRaw[] = [
     path: '/admin',
     name: 'Admin',
     component: () => import('@/views/AdminView.vue'),
+    meta: { requiresAuth: true, requiresPlatformAdmin: true },
+  },
+  {
+    path: '/circle/:id/admin',
+    name: 'CircleAdmin',
+    component: () => import('@/views/CircleAdminView.vue'),
     meta: { requiresAuth: true },
   },
   {
@@ -109,6 +116,13 @@ router.beforeEach((to) => {
   if (to.meta.requiresAuth) {
     const { requireLogin } = useAuth()
     if (!requireLogin()) {
+      return '/'
+    }
+  }
+  // 平台管理后台：仅站主/平台管理员可进
+  if (to.meta.requiresPlatformAdmin) {
+    const userStore = useUserStore()
+    if (!userStore.isAdmin) {
       return '/'
     }
   }

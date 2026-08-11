@@ -15,10 +15,10 @@
               type="text"
               class="form-input"
               placeholder="给你的长文起个吸引人的标题吧~"
-              maxlength="100"
+              :maxlength="titleMaxLength"
               required
             />
-            <span class="char-count">{{ editor.form.value.title.length }}/100</span>
+            <span class="char-count">{{ editor.form.value.title.length }}/{{ titleMaxLength }}</span>
           </div>
         </div>
 
@@ -37,6 +37,7 @@
               @upload-image="handleMdImageUpload"
             ></v-md-editor>
           </div>
+          <span class="field-hint">正文最长 {{ contentMaxLength }} 字，至少需 100 字</span>
         </div>
 
         <!-- 圈子 -->
@@ -163,10 +164,11 @@
 import { Icon } from '@iconify/vue'
 import { ElMessage } from 'element-plus'
 import { usePostEditor } from '@/composables/usePostEditor'
-import { watch, ref } from 'vue'
+import { watch, ref, computed } from 'vue'
 import { uploadPostImage } from '@/api/upload'
 import { useApi } from '@/composables/useApi'
 import { checkSensitive } from '@/api/post'
+import { pickApiMessage } from '@/utils/errorCode'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import VMdEditor from '@kangc/v-md-editor/lib/base-editor'
 import githubTheme from '@kangc/v-md-editor/lib/theme/github.js'
@@ -180,6 +182,12 @@ const emit = defineEmits<{
 }>()
 
 const editor = usePostEditor('ARTICLE')
+
+// 根据帖子类型动态计算标题/正文的字数上限，与后端 DTO 校验保持一致
+// 图文(NORMAL)：标题 30 / 正文 10000；长文(ARTICLE)：标题 50 / 正文 50000
+const isArticle = computed(() => editor.form.value.postType === 'ARTICLE')
+const titleMaxLength = computed(() => (isArticle.value ? 50 : 30))
+const contentMaxLength = computed(() => (isArticle.value ? 50000 : 10000))
 
 // 敏感词检测
 const checkingSensitive = ref(false)
@@ -242,8 +250,8 @@ const handleMdImageUpload = async (_event: any, insertImage: Function, files: Fi
     const url = await uploadPostImage(file)
     insertImage({ url, desc: '' })
     ElMessage.success('图片已插入')
-  } catch {
-    ElMessage.error('图片上传失败')
+  } catch (e) {
+    ElMessage.error(pickApiMessage(e, '图片上传失败'))
   }
 }
 

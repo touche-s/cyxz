@@ -3,13 +3,12 @@ package com.cyxz.post.service.impl;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.constant.CacheKeyConstants;
-import com.cyxz.common.constant.PostStatus;
+import com.cyxz.post.constant.PostStatus;
 import com.cyxz.common.utils.IpUtil;
-import com.cyxz.message.dto.CreateNotificationRequest;
+import com.cyxz.message.enums.NotificationTargetType;
 import com.cyxz.message.enums.NotificationType;
-import com.cyxz.message.constant.NotificationConstants;
 import com.cyxz.message.event.NotificationEvent;
-import com.cyxz.message.feign.MessageFeignClient;
+import com.cyxz.message.utils.NotificationPublisher;
 import com.cyxz.post.entity.PostPO;
 import com.cyxz.post.mapper.PostCollectMapper;
 import com.cyxz.post.mapper.PostLikeMapper;
@@ -22,13 +21,15 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Duration;
 
 /**
  * 帖子互动服务实现
  * <p>管理点赞、收藏、浏览等互动操作。
- * <p>计数方案：关系表照常写，计数通过 Redis Hash 增量记录，由 CountFlushTask 定时刷库。
+ * <p>计数方案：关系表照常写，计数通过 Redis Hash 增量记录，由 PostCountFlushTask 定时刷库。
  */
 @Slf4j
 @Service
@@ -39,7 +40,6 @@ public class PostInteractionServiceImpl implements PostInteractionService {
     private final PostLikeMapper postLikeMapper;
     private final PostCollectMapper postCollectMapper;
     private final StringRedisTemplate stringRedisTemplate;
-    private final MessageFeignClient messageFeignClient;
     private final RabbitTemplate rabbitTemplate;
 
     /** 帖子是否允许互动（仅已发布 PostStatus.APPROVED） */
@@ -64,11 +64,11 @@ public class PostInteractionServiceImpl implements PostInteractionService {
         int rows = postLikeMapper.upsertLike(postId, userId);
         if (rows == 1) {
             incrementLikeDelta(postId, 1);
-            log.info("点赞帖子: postId={}, userId={}", postId, userId);
+            log.debug("点赞帖子: postId={}, userId={}", postId, userId);
             sendLikeNotification(postId, userId, po);
         } else if (rows == 2) {
             incrementLikeDelta(postId, 1);
-            log.info("点赞帖子(恢复): postId={}, userId={}", postId, userId);
+            log.debug("点赞帖子(恢复): postId={}, userId={}", postId, userId);
         }
     }
 
@@ -87,7 +87,7 @@ public class PostInteractionServiceImpl implements PostInteractionService {
         int rows = postLikeMapper.deactivateLike(postId, userId);
         if (rows > 0) {
             incrementLikeDelta(postId, -1);
-            log.info("取消点赞帖子: postId={}, userId={}", postId, userId);
+            log.debug("取消点赞帖子: postId={}, userId={}", postId, userId);
         }
     }
 
@@ -108,7 +108,7 @@ public class PostInteractionServiceImpl implements PostInteractionService {
         int rows = postCollectMapper.upsertCollect(postId, userId);
         if (rows > 0) {
             incrementCollectDelta(postId, 1);
-            log.info("收藏帖子{}: postId={}, userId={}", rows == 1 ? "" : "(恢复)", postId, userId);
+            log.debug("收藏帖子{}: postId={}, userId={}", rows == 1 ? "" : "(恢复)", postId, userId);
         }
     }
 
@@ -146,7 +146,7 @@ public class PostInteractionServiceImpl implements PostInteractionService {
         }
 
         String identity = (userId != null) ? "user:" + userId : "ip:" + IpUtil.getClientIp(request);
-        String dedupKey = CacheKeyConstants.POST_VIEW_DEDUP_PREFIX + postId + ":" + identity;
+        String dedupKey = CacheKeyConstants.getPostViewDedupKey(postId, identity);
 
         Boolean firstView = stringRedisTemplate.opsForValue()
                 .setIfAbsent(dedupKey, "1", Duration.ofMinutes(CacheKeyConstants.POST_VIEW_DEDUP_MINUTES));
@@ -173,30 +173,22 @@ public class PostInteractionServiceImpl implements PostInteractionService {
 
     /**
      * 发送点赞通知
-     * <p>通过 Feign 调用消息服务创建点赞通知，失败仅记录日志不影响主流程。
+     * <p>通过 MQ 异步发布点赞通知，失败仅记录日志不影响主流程。
      *
      * @param postId 帖子 ID
      * @param userId 点赞用户 ID
      * @param po     帖子实体（用于获取帖子作者作为接收者）
      */
     private void sendLikeNotification(Long postId, Long userId, PostPO po) {
-        try {
-            rabbitTemplate.convertAndSend(
-                NotificationConstants.EXCHANGE,
-                NotificationConstants.ROUTING_KEY,
-                NotificationEvent.builder()
-                    .receiverId(po.getUserId())
-                    .senderId(userId)
-                    .type(NotificationType.POST_LIKED.name())
-                    .title("有人赞了你的帖子")
-                    .targetType("post")
-                    .targetId(postId)
-                    .createTime(System.currentTimeMillis())
-                    .build()
-            );
-        } catch (Exception e) {
-            log.warn("MQ 发布点赞通知失败: postId={}, userId={}", postId, userId, e);
-        }
+        NotificationEvent event = NotificationPublisher.of(
+                po.getUserId(), userId, NotificationType.POST_LIKED,
+                "有人赞了你的帖子", NotificationTargetType.POST, postId);
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                NotificationPublisher.publish(rabbitTemplate, event);
+            }
+        });
     }
 
 }

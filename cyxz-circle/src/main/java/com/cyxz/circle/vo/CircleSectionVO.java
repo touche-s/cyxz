@@ -1,5 +1,6 @@
 package com.cyxz.circle.vo;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 /**
@@ -20,6 +21,7 @@ public class CircleSectionVO {
     /** 适用类型，来自 section_template.applicable_type。ALL/NORMAL/ARTICLE */
     private String applicableType;
     /** 是否默认板块：1=是 */
+    @JsonProperty("isDefault")
     private Integer isDefault;
     /** 排序值，数字越小越靠前 */
     private Integer sortOrder;

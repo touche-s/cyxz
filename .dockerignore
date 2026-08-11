@@ -1,0 +1,22 @@
+# Maven 构建产物（Dockerfile 内会重新构建）
+**/target/
+
+# 前端依赖（Dockerfile 内会 npm ci）
+**/node_modules/
+
+# Git / IDE
+.git/
+.idea/
+*.iml
+.vscode/
+
+# 环境变量（不进镜像）
+**/.env
+**/.env.local
+
+# 文档（不进镜像）
+docs/
+*.md
+
+# Docker 自身（不进镜像，但 nginx.conf 例外需保留）
+docker/.env

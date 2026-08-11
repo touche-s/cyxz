@@ -49,7 +49,7 @@ public class Result<T> implements Serializable {
      * 成功（无数据）
      */
     public static <T> Result<T> success() {
-        return new Result<>(200, "操作成功", null);
+        return new Result<>(ErrorCode.SUCCESS.getCode(), ErrorCode.SUCCESS.getMsg(), null);
     }
 
     /**
@@ -58,7 +58,7 @@ public class Result<T> implements Serializable {
      * @param data 业务数据
      */
     public static <T> Result<T> success(T data) {
-        return new Result<>(200, "操作成功", data);
+        return new Result<>(ErrorCode.SUCCESS.getCode(), ErrorCode.SUCCESS.getMsg(), data);
     }
 
     /**
@@ -77,7 +77,7 @@ public class Result<T> implements Serializable {
      * @param data    业务数据
      */
     public static <T> Result<T> success(String message, T data) {
-        return new Result<>(200, message, data);
+        return new Result<>(ErrorCode.SUCCESS.getCode(), message, data);
     }
 
     /**

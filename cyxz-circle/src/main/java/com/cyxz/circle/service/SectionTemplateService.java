@@ -14,6 +14,7 @@ public interface SectionTemplateService {
 
     /**
      * 获取所有模板列表，按 sort_order 升序
+     * @return 模板 VO 列表，按 sort_order 升序
      */
     List<SectionTemplateVO> listAll();
 

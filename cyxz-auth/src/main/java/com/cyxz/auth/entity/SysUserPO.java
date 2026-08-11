@@ -25,9 +25,6 @@ public class SysUserPO extends BaseEntity {
     /** 状态：1-正常 0-禁用 */
     private Integer status;
 
-    /** 角色：admin / user */
-    private String role;
-
     @TableLogic
     private Integer deleted;
 }

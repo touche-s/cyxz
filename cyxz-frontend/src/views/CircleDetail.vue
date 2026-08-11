@@ -30,6 +30,10 @@
             <Icon icon="ph:pencil-simple" />
             圈内创作
           </button>
+          <button v-if="canManage" class="btn-manage" @click="goManage">
+            <Icon icon="ph:gear-six" />
+            管理圈子
+          </button>
           <button class="btn-join" :class="{ joined: circle.joined }" :disabled="joinLoading" @click="toggleJoin">
             {{ circle.joined ? '已加入' : '加入' }}
           </button>
@@ -82,7 +86,7 @@
 
     <LoadingSpinner v-else text="加载中..." />
 
-    <EmptyState v-if="!loading && posts.length === 0" title="这个圈子还没有内容" description="来做第一个发帖的人吧" />
+    <EmptyState v-if="!loading && posts.length === 0" icon="ph:chat-circle-dots" title="这个圈子还没有内容" hint="来做第一个发帖的人吧" />
 
     </div>
   </main>
@@ -92,13 +96,14 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
-import { getCircleDetail, joinCircle, leaveCircle, getCircleSections } from '@/api/circle'
+import { getCircleDetail, joinCircle, leaveCircle, getCircleSections, getManagedCircles } from '@/api/circle'
 import type { CircleVO, CircleSectionVO } from '@/api/circle'
 import { getPostList, likePost, unlikePost, collectPost, uncollectPost } from '@/api/post'
 import type { PostVO } from '@/api/post'
 import { useNavigate } from '@/composables/useNavigate'
 import { useAuth } from '@/composables/useAuth'
 import { useUserStore } from '@/stores/user'
+import { createToggleAction } from '@/composables/useToggleInteraction'
 import PostCard from '@/components/PostCard.vue'
 import UnderlineTabs from '@/components/UnderlineTabs.vue'
 import PillTabs from '@/components/PillTabs.vue'
@@ -118,6 +123,7 @@ const circle = ref<CircleVO | null>(null)
 const posts = ref<PostVO[]>([])
 const loading = ref(false)
 const joinLoading = ref(false)
+const canManage = ref(false)
 const sortBy = ref('latest')
 const sortTabs = [
   { key: 'hot', label: '热门', icon: 'ph:fire' },
@@ -206,35 +212,39 @@ function goPublish() {
   to('/creator')
 }
 
+function goManage() {
+  open(`/circle/${circleId}/admin`)
+}
+
 function viewPost(post: PostVO) {
   if (!requireLogin()) return
   open(`/post/${post.id}`)
 }
 
-const toggleSave = async (post: PostVO) => {
+const toggleLike = createToggleAction<PostVO>({
+  likedField: 'liked',
+  countField: 'likes',
+  likeApi: (id) => likePost(id),
+  unlikeApi: (id) => unlikePost(id),
+  idGetter: (p) => p.id,
+})
+
+const toggleCollect = createToggleAction<PostVO>({
+  likedField: 'collected',
+  countField: 'collections',
+  likeApi: (id) => collectPost(id),
+  unlikeApi: (id) => uncollectPost(id),
+  idGetter: (p) => p.id,
+})
+
+function handlePostLike(post: PostVO) {
   if (!requireLogin()) return
-  const old = post.collected
-  post.collected = !old
-  post.collections = old ? Math.max(post.collections - 1, 0) : post.collections + 1
-  try {
-    old ? await uncollectPost(post.id) : await collectPost(post.id)
-  } catch {
-    post.collected = old
-    post.collections = old ? post.collections + 1 : Math.max(post.collections - 1, 0)
-  }
+  toggleLike(post)
 }
 
-const handlePostLike = async (post: PostVO) => {
+function toggleSave(post: PostVO) {
   if (!requireLogin()) return
-  const old = post.liked
-  post.liked = !old
-  post.likes = old ? Math.max(post.likes - 1, 0) : post.likes + 1
-  try {
-    old ? await unlikePost(post.id) : await likePost(post.id)
-  } catch {
-    post.liked = old
-    post.likes = old ? post.likes + 1 : Math.max(post.likes - 1, 0)
-  }
+  toggleCollect(post)
 }
 
 watch(sortBy, () => loadPosts())
@@ -243,6 +253,14 @@ onMounted(() => {
   loadCircle()
   loadSections()
   loadPosts()
+  // 判断当前用户是否有该圈子的管理权限（平台管理员默认放行）
+  if (userStore.isAdmin) {
+    canManage.value = true
+  } else if (userStore.isLoggedIn) {
+    getManagedCircles()
+      .then((circles) => { canManage.value = circles.some((c) => c.id === circleId) })
+      .catch(() => { canManage.value = false })
+  }
 })
 </script>
 
@@ -393,6 +411,28 @@ onMounted(() => {
 }
 
 .btn-publish:active { transform: scale(0.97); }
+
+.btn-manage {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border-radius: 14px;
+  border: 1.5px solid var(--purple);
+  background: transparent;
+  color: var(--purple);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.22s ease-out;
+}
+
+.btn-manage:hover {
+  background: rgba(180, 132, 255, 0.08);
+  transform: scale(1.04);
+}
+
+.btn-manage:active { transform: scale(0.97); }
 
 .btn-join {
   padding: 8px 16px;

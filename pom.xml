@@ -13,12 +13,15 @@
 
     <modules>
         <module>cyxz-common</module>
+        <module>cyxz-security</module>
         <module>cyxz-user-api</module>
         <module>cyxz-auth-api</module>
         <module>cyxz-post-api</module>
         <module>cyxz-comment-api</module>
         <module>cyxz-message-api</module>
         <module>cyxz-circle-api</module>
+        <module>cyxz-governance-api</module>
+        <module>cyxz-audit-api</module>
         <module>cyxz-gateway</module>
         <module>cyxz-auth</module>
         <module>cyxz-user</module>
@@ -28,6 +31,9 @@
         <module>cyxz-search</module>
         <module>cyxz-upload</module>
         <module>cyxz-circle</module>
+        <module>cyxz-governance</module>
+        <module>cyxz-audit</module>
+        <module>cyxz-analytics</module>
     </modules>
 
     <properties>
@@ -47,6 +53,7 @@
         <mybatis-spring.version>3.0.3</mybatis-spring.version>
         <mysql.version>8.0.33</mysql.version>
         <minio.version>8.5.7</minio.version>
+        <knife4j.version>4.5.0</knife4j.version>
     </properties>
 
     <dependencyManagement>
@@ -86,6 +93,11 @@
             </dependency>
             <dependency>
                 <groupId>com.cyxz</groupId>
+                <artifactId>cyxz-security</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.cyxz</groupId>
                 <artifactId>cyxz-user-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -112,6 +124,16 @@
             <dependency>
                 <groupId>com.cyxz</groupId>
                 <artifactId>cyxz-circle-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.cyxz</groupId>
+                <artifactId>cyxz-governance-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.cyxz</groupId>
+                <artifactId>cyxz-audit-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
@@ -173,6 +195,13 @@
                 <groupId>io.minio</groupId>
                 <artifactId>minio</artifactId>
                 <version>${minio.version}</version>
+            </dependency>
+
+            <!-- Knife4j (SpringDoc OpenAPI 3 增强 UI) -->
+            <dependency>
+                <groupId>com.github.xiaoymin</groupId>
+                <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+                <version>${knife4j.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

@@ -6,7 +6,10 @@ import com.cyxz.auth.dto.LoginRequest;
 import com.cyxz.auth.dto.RegisterRequest;
 import com.cyxz.auth.service.AuthService;
 import com.cyxz.common.utils.TokenUtil;
+import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
  * 认证接口控制器
  * <p>处理用户登录、注册、登出和 Token 刷新等认证相关请求。
  */
+@Tag(name = "认证服务", description = "认证接口控制器")
 @RestController
 @RequestMapping("/auth")
 @RequiredArgsConstructor
@@ -29,6 +33,7 @@ public class AuthController {
      * @param request 登录请求（username + password + captcha）
      * @return 包含 accessToken 和用户信息的认证响应
      */
+    @Operation(summary = "用户登录")
     @PostMapping("/login")
     public Result<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
@@ -42,6 +47,7 @@ public class AuthController {
      * @param request 注册请求
      * @return 操作结果
      */
+    @Operation(summary = "用户注册")
     @PostMapping("/register")
     public Result<Void> register(@Valid @RequestBody RegisterRequest request) {
         authService.register(request);
@@ -55,11 +61,12 @@ public class AuthController {
      * @param authHeader Authorization 请求头
      * @return 操作结果
      */
+    @Operation(summary = "用户登出")
     @PostMapping("/logout")
     public Result<Void> logout(@RequestHeader(value = "Authorization", required = false) String authHeader) {
         String token = TokenUtil.extractBearerToken(authHeader);
         if (token == null) {
-            return Result.fail(401, "无效的Token");
+            return Result.fail(ErrorCode.TOKEN_INVALID.getCode(), "无效的Token");
         }
         authService.logout(token);
         return Result.success("登出成功");
@@ -73,12 +80,13 @@ public class AuthController {
      * @param authHeader   Authorization 请求头
      * @return 操作结果
      */
+    @Operation(summary = "修改密码")
     @PutMapping("/password")
     public Result<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request,
                                        @RequestHeader(value = "Authorization", required = false) String authHeader) {
         String token = TokenUtil.extractBearerToken(authHeader);
         if (token == null) {
-            return Result.fail(401, "无效的Token");
+            return Result.fail(ErrorCode.TOKEN_INVALID.getCode(), "无效的Token");
         }
         Long userId = authService.extractUserId(token);
         authService.changePassword(userId, request);
@@ -92,11 +100,12 @@ public class AuthController {
      * @param authHeader Authorization 请求头
      * @return 新的认证响应
      */
+    @Operation(summary = "刷新 Token")
     @PostMapping("/refresh")
     public Result<AuthResponse> refreshToken(@RequestHeader(value = "Authorization", required = false) String authHeader) {
         String token = TokenUtil.extractBearerToken(authHeader);
         if (token == null) {
-            return Result.fail(401, "无效的Token");
+            return Result.fail(ErrorCode.TOKEN_INVALID.getCode(), "无效的Token");
         }
         AuthResponse response = authService.refreshToken(token);
         return Result.success("刷新成功", response);
