@@ -463,3 +463,42 @@ CREATE TABLE IF NOT EXISTS report (
     INDEX idx_reporter (reporter_id),
     UNIQUE KEY uk_reporter_target (reporter_id, target_type, target_id) COMMENT '同一用户对同一对象仅可举报一次'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='举报记录';
+
+-- ============================================================
+-- 审计日志库
+-- ============================================================
+CREATE DATABASE IF NOT EXISTS cyxz_audit DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+
+USE cyxz_audit;
+
+CREATE TABLE IF NOT EXISTS audit_log (
+    id            BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '审计日志 ID',
+    operator_id   BIGINT       NOT NULL COMMENT '操作人用户 ID',
+    operator_name VARCHAR(50)  NULL     COMMENT '操作人名称（冗余）',
+    action        VARCHAR(50)  NOT NULL COMMENT '操作类型（如 POST_DELETE / USER_DISABLE）',
+    target_type   VARCHAR(20)  NULL     COMMENT '目标类型（POST/COMMENT/USER/CIRCLE/REPORT）',
+    target_id     BIGINT       NULL     COMMENT '目标 ID',
+    detail        TEXT         NULL     COMMENT '操作详情 JSON',
+    ip            VARCHAR(50)  NULL     COMMENT '操作 IP',
+    create_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '记录时间',
+    INDEX idx_operator (operator_id),
+    INDEX idx_action (action),
+    INDEX idx_create_time (create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='管理员操作审计日志';
+
+-- ============================================================
+-- 数据统计库
+-- ============================================================
+CREATE DATABASE IF NOT EXISTS cyxz_analytics DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+
+USE cyxz_analytics;
+
+CREATE TABLE IF NOT EXISTS daily_statistic (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键（雪花算法）',
+    stat_date   DATE        NOT NULL COMMENT '统计日期',
+    metric      VARCHAR(50) NOT NULL COMMENT '指标名（如 NEW_USER / NEW_POST）',
+    value       INT         NOT NULL DEFAULT 0 COMMENT '当日累计值',
+    create_time DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    UNIQUE KEY uk_date_metric (stat_date, metric)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='日统计表';
