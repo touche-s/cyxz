@@ -36,6 +36,26 @@
           <Icon icon="ph:article" class="nav-icon" />
           <span>帖子管理</span>
         </button>
+        <button class="nav-item" :class="{ active: activeTab === 'reports' }" @click="activeTab = 'reports'">
+          <Icon icon="ph:flag" class="nav-icon" />
+          <span>举报管理</span>
+        </button>
+        <button class="nav-item" :class="{ active: activeTab === 'audit' }" @click="activeTab = 'audit'">
+          <Icon icon="ph:clipboard-text" class="nav-icon" />
+          <span>审计日志</span>
+        </button>
+        <button class="nav-item" :class="{ active: activeTab === 'dashboard' }" @click="activeTab = 'dashboard'">
+          <Icon icon="ph:chart-bar" class="nav-icon" />
+          <span>数据看板</span>
+        </button>
+        <button class="nav-item" :class="{ active: activeTab === 'circleApps' }" @click="activeTab = 'circleApps'">
+          <Icon icon="ph:buildings" class="nav-icon" />
+          <span>建圈申请</span>
+        </button>
+        <button class="nav-item" :class="{ active: activeTab === 'joinApps' }" @click="activeTab = 'joinApps'">
+          <Icon icon="ph:user-plus" class="nav-icon" />
+          <span>入圈申请</span>
+        </button>
         <button class="nav-item" :class="{ active: activeTab === 'roles' }" @click="activeTab = 'roles'">
           <Icon icon="ph:shield-star" class="nav-icon" />
           <span>角色权限</span>
@@ -411,6 +431,20 @@
           </div>
         </div>
       </section>
+      <!-- 举报管理 -->
+      <ReportManagement v-if="activeTab === 'reports'" v-model:search-keyword="searchKeyword" />
+
+      <!-- 审计日志 -->
+      <AuditLog v-if="activeTab === 'audit'" v-model:search-keyword="searchKeyword" />
+
+      <!-- 数据看板 -->
+      <AnalyticsDashboard v-if="activeTab === 'dashboard'" :search-keyword="searchKeyword" />
+
+      <!-- 建圈申请审核 -->
+      <CircleApplicationReview v-if="activeTab === 'circleApps'" v-model:search-keyword="searchKeyword" />
+
+      <!-- 入圈申请审核 -->
+      <CircleJoinApplicationReview v-if="activeTab === 'joinApps'" v-model:search-keyword="searchKeyword" />
     </main>
 
     <!-- 圈子编辑/新建弹窗 -->
@@ -577,13 +611,18 @@ import type { PostVO } from '@/api/post'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SearchInput from '@/components/SearchInput.vue'
+import ReportManagement from '@/views/admin/ReportManagement.vue'
+import AuditLog from '@/views/admin/AuditLog.vue'
+import AnalyticsDashboard from '@/views/admin/AnalyticsDashboard.vue'
+import CircleApplicationReview from '@/views/admin/CircleApplicationReview.vue'
+import CircleJoinApplicationReview from '@/views/admin/CircleJoinApplicationReview.vue'
 import request from '@/utils/request'
 import { pickApiMessage } from '@/utils/errorCode'
 
 const { to } = useNavigate()
 const userStore = useUserStore()
 
-const activeTab = ref<'circles' | 'sectionTemplates' | 'review' | 'users' | 'posts' | 'roles'>('circles')
+const activeTab = ref<'circles' | 'sectionTemplates' | 'review' | 'users' | 'posts' | 'roles' | 'reports' | 'audit' | 'dashboard' | 'circleApps' | 'joinApps'>('circles')
 
 // 暗色模式
 const isDark = ref(false)
@@ -605,6 +644,10 @@ const searchPlaceholder = computed(() => {
     users: '搜索用户名或昵称...',
     posts: '搜索帖子标题...',
     roles: '搜索角色...',
+    reports: '搜索举报原因...',
+    audit: '搜索操作人或详情...',
+    circleApps: '搜索圈子名称...',
+    joinApps: '搜索申请理由...',
   }
   return map[activeTab.value] || '搜索...'
 })
@@ -617,6 +660,11 @@ function refreshCurrentTab() {
     users: loadUsers,
     posts: loadAdminPosts,
     roles: () => { if (roles.value.length === 0) loadRoles() },
+    reports: () => {},
+    audit: () => {},
+    dashboard: () => {},
+    circleApps: () => {},
+    joinApps: () => {},
   }
   loader[activeTab.value]?.()
 }
@@ -1087,6 +1135,11 @@ watch(activeTab, (tab) => {
     users: () => { if (users.value.length === 0) loadUsers() },
     posts: loadAdminPosts,
     roles: () => { if (roles.value.length === 0) loadRoles() },
+    reports: () => {},
+    audit: () => {},
+    dashboard: () => {},
+    circleApps: () => {},
+    joinApps: () => {},
   }
   loaders[tab]?.()
 })

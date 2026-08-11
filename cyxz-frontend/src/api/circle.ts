@@ -106,3 +106,74 @@ export const removeAdmin = (circleId: number, userId: number) => {
 export const kickMember = (circleId: number, userId: number) => {
   return request.delete(`/circle/${circleId}/members/${userId}`)
 }
+
+// ===== 建圈申请审核（管理员） =====
+
+export interface CircleApplicationVO {
+  id: number
+  applicantId: number
+  name: string
+  intro: string
+  avatar: string
+  cover: string
+  status: string
+  reviewerId: number | null
+  reviewNote: string | null
+  reviewedAt: string | null
+  createTime: string
+}
+
+export const getCircleApplications = (params: {
+  status?: string
+  page?: number
+  size?: number
+}) => {
+  return request.get('/admin/circle-application/list', { params })
+}
+
+export const getCircleApplicationDetail = (id: number): Promise<CircleApplicationVO> => {
+  return request.get(`/admin/circle-application/${id}`)
+}
+
+export const approveCircleApplication = (id: number, note: string) => {
+  return request.put(`/admin/circle-application/${id}/approve`, { note })
+}
+
+export const rejectCircleApplication = (id: number, note: string) => {
+  return request.put(`/admin/circle-application/${id}/reject`, { note })
+}
+
+// ===== 入圈申请审核（管理员） =====
+
+export interface CircleJoinApplicationVO {
+  id: number
+  applicantId: number
+  circleId: number
+  reason: string
+  status: string
+  reviewerId: number | null
+  reviewNote: string | null
+  reviewedAt: string | null
+  createTime: string
+}
+
+export const getCircleJoinApplications = (params: {
+  status?: string
+  circleId?: number
+  page?: number
+  size?: number
+}) => {
+  return request.get('/admin/circle-join-application/list', { params })
+}
+
+export const getCircleJoinApplicationDetail = (id: number): Promise<CircleJoinApplicationVO> => {
+  return request.get(`/admin/circle-join-application/${id}`)
+}
+
+export const approveCircleJoinApplication = (id: number, note: string) => {
+  return request.put(`/admin/circle-join-application/${id}/approve`, { note })
+}
+
+export const rejectCircleJoinApplication = (id: number, note: string) => {
+  return request.put(`/admin/circle-join-application/${id}/reject`, { note })
+}
