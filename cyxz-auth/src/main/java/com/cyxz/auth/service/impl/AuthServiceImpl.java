@@ -55,6 +55,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final StringRedisTemplate stringRedisTemplate;
     private final UserFeignClient userFeignClient;
+    private final RabbitTemplate rabbitTemplate;
 
     /** dummy BCrypt 哈希，用于用户不存在时平衡响应时间（防时间侧信道），懒加载 */
     private volatile String dummyHash;
@@ -249,6 +250,17 @@ public class AuthServiceImpl implements AuthService {
                 Result<Void> initResult = userFeignClient.initDefaultProfile(userId, username);
                 if (initResult == null || !initResult.isSuccess()) {
                     log.error("初始化用户资料失败，需人工补偿: userId={}, username={}", userId, username);
+                }
+                // 发布统计事件：新增用户数 +1
+                try {
+                    AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                            .metric(AnalyticsConstants.METRIC_NEW_USER)
+                            .value(1)
+                            .statDate(LocalDate.now())
+                            .build();
+                    rabbitTemplate.convertAndSend(AnalyticsConstants.EXCHANGE, AnalyticsConstants.ROUTING_KEY, analyticsEvent);
+                } catch (Exception e) {
+                    log.error("发布统计事件失败: metric={}", AnalyticsConstants.METRIC_NEW_USER, e);
                 }
             }
         });

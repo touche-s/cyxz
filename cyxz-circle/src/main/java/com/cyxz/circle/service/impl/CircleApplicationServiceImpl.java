@@ -2,9 +2,13 @@ package com.cyxz.circle.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cyxz.audit.api.constant.AuditConstants;
+import com.cyxz.audit.api.event.AuditEvent;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
+import com.cyxz.common.constant.AnalyticsConstants;
+import com.cyxz.common.event.AnalyticsEvent;
 import com.cyxz.circle.constant.CircleApplicationConstants;
 import com.cyxz.circle.dto.CreateCircleApplicationRequest;
 import com.cyxz.circle.entity.CircleApplicationPO;
@@ -14,6 +18,7 @@ import com.cyxz.circle.service.CircleService;
 import com.cyxz.circle.vo.CircleApplicationVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +39,7 @@ public class CircleApplicationServiceImpl implements CircleApplicationService {
 
     private final CircleApplicationMapper applicationMapper;
     private final CircleService circleService;
+    private final RabbitTemplate rabbitTemplate;
 
     /**
      * 提交建圈申请
@@ -134,6 +140,33 @@ public class CircleApplicationServiceImpl implements CircleApplicationService {
         applicationMapper.updateById(po);
         // 同模块内同步建圈，事务保证一致性
         circleService.createCircle(po.getName(), po.getIntro(), po.getAvatar(), po.getCover(), po.getApplicantId());
+        // 发布审计事件：建圈申请审核通过
+        try {
+            AuditEvent auditEvent = AuditEvent.builder()
+                    .operatorId(reviewerId)
+                    .operatorName(null)
+                    .action(AuditConstants.ACTION_CIRCLE_APPROVE)
+                    .targetType("CIRCLE")
+                    .targetId(po.getId())
+                    .detail(null)
+                    .ip(null)
+                    .createTime(LocalDateTime.now())
+                    .build();
+            rabbitTemplate.convertAndSend(AuditConstants.EXCHANGE, AuditConstants.ROUTING_KEY, auditEvent);
+        } catch (Exception e) {
+            log.error("发布审计事件失败: action={}, targetId={}", AuditConstants.ACTION_CIRCLE_APPROVE, po.getId(), e);
+        }
+        // 发布统计事件：新增圈子数 +1
+        try {
+            AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                    .metric(AnalyticsConstants.METRIC_NEW_CIRCLE)
+                    .value(1)
+                    .statDate(LocalDate.now())
+                    .build();
+            rabbitTemplate.convertAndSend(AnalyticsConstants.EXCHANGE, AnalyticsConstants.ROUTING_KEY, analyticsEvent);
+        } catch (Exception e) {
+            log.error("发布统计事件失败: metric={}", AnalyticsConstants.METRIC_NEW_CIRCLE, e);
+        }
         log.info("建圈申请审核通过并建圈完成: applicationId={}, reviewerId={}, name={}",
                 id, reviewerId, po.getName());
     }
@@ -153,6 +186,22 @@ public class CircleApplicationServiceImpl implements CircleApplicationService {
         po.setReviewNote(reviewNote);
         po.setReviewedAt(LocalDateTime.now());
         applicationMapper.updateById(po);
+        // 发布审计事件：建圈申请审核驳回
+        try {
+            AuditEvent auditEvent = AuditEvent.builder()
+                    .operatorId(reviewerId)
+                    .operatorName(null)
+                    .action(AuditConstants.ACTION_CIRCLE_REJECT)
+                    .targetType("CIRCLE")
+                    .targetId(po.getId())
+                    .detail(null)
+                    .ip(null)
+                    .createTime(LocalDateTime.now())
+                    .build();
+            rabbitTemplate.convertAndSend(AuditConstants.EXCHANGE, AuditConstants.ROUTING_KEY, auditEvent);
+        } catch (Exception e) {
+            log.error("发布审计事件失败: action={}, targetId={}", AuditConstants.ACTION_CIRCLE_REJECT, po.getId(), e);
+        }
         log.info("建圈申请审核驳回: applicationId={}, reviewerId={}", id, reviewerId);
     }
 

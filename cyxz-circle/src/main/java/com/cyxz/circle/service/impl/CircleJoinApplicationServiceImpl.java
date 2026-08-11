@@ -2,9 +2,13 @@ package com.cyxz.circle.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cyxz.audit.api.constant.AuditConstants;
+import com.cyxz.audit.api.event.AuditEvent;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
+import com.cyxz.common.constant.AnalyticsConstants;
+import com.cyxz.common.event.AnalyticsEvent;
 import com.cyxz.circle.constant.CircleApplicationConstants;
 import com.cyxz.circle.dto.CreateCircleJoinRequest;
 import com.cyxz.circle.entity.CircleJoinApplicationPO;
@@ -34,6 +38,7 @@ public class CircleJoinApplicationServiceImpl implements CircleJoinApplicationSe
 
     private final CircleJoinApplicationMapper applicationMapper;
     private final CircleService circleService;
+    private final RabbitTemplate rabbitTemplate;
 
     /**
      * 提交入圈申请
@@ -135,6 +140,33 @@ public class CircleJoinApplicationServiceImpl implements CircleJoinApplicationSe
         applicationMapper.updateById(po);
         // 同模块内同步加入圈子，事务保证一致性
         circleService.joinCircle(po.getApplicantId(), po.getCircleId());
+        // 发布审计事件：入圈申请审核通过
+        try {
+            AuditEvent auditEvent = AuditEvent.builder()
+                    .operatorId(reviewerId)
+                    .operatorName(null)
+                    .action(AuditConstants.ACTION_CIRCLE_JOIN_APPROVE)
+                    .targetType("CIRCLE")
+                    .targetId(po.getCircleId())
+                    .detail(null)
+                    .ip(null)
+                    .createTime(LocalDateTime.now())
+                    .build();
+            rabbitTemplate.convertAndSend(AuditConstants.EXCHANGE, AuditConstants.ROUTING_KEY, auditEvent);
+        } catch (Exception e) {
+            log.error("发布审计事件失败: action={}, targetId={}", AuditConstants.ACTION_CIRCLE_JOIN_APPROVE, po.getCircleId(), e);
+        }
+        // 发布统计事件：新增加入圈子数 +1
+        try {
+            AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                    .metric(AnalyticsConstants.METRIC_NEW_JOIN)
+                    .value(1)
+                    .statDate(LocalDate.now())
+                    .build();
+            rabbitTemplate.convertAndSend(AnalyticsConstants.EXCHANGE, AnalyticsConstants.ROUTING_KEY, analyticsEvent);
+        } catch (Exception e) {
+            log.error("发布统计事件失败: metric={}", AnalyticsConstants.METRIC_NEW_JOIN, e);
+        }
         log.info("入圈申请审核通过并加入圈子完成: applicationId={}, reviewerId={}, circleId={}, applicantId={}",
                 id, reviewerId, po.getCircleId(), po.getApplicantId());
     }
@@ -154,6 +186,22 @@ public class CircleJoinApplicationServiceImpl implements CircleJoinApplicationSe
         po.setReviewNote(reviewNote);
         po.setReviewedAt(LocalDateTime.now());
         applicationMapper.updateById(po);
+        // 发布审计事件：入圈申请审核驳回
+        try {
+            AuditEvent auditEvent = AuditEvent.builder()
+                    .operatorId(reviewerId)
+                    .operatorName(null)
+                    .action(AuditConstants.ACTION_CIRCLE_JOIN_REJECT)
+                    .targetType("CIRCLE")
+                    .targetId(po.getCircleId())
+                    .detail(null)
+                    .ip(null)
+                    .createTime(LocalDateTime.now())
+                    .build();
+            rabbitTemplate.convertAndSend(AuditConstants.EXCHANGE, AuditConstants.ROUTING_KEY, auditEvent);
+        } catch (Exception e) {
+            log.error("发布审计事件失败: action={}, targetId={}", AuditConstants.ACTION_CIRCLE_JOIN_REJECT, po.getCircleId(), e);
+        }
         log.info("入圈申请审核驳回: applicationId={}, reviewerId={}", id, reviewerId);
     }
 

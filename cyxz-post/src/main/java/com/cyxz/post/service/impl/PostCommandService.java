@@ -2,6 +2,8 @@ package com.cyxz.post.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.cyxz.audit.api.constant.AuditConstants;
+import com.cyxz.audit.api.event.AuditEvent;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
@@ -23,6 +25,7 @@ import com.cyxz.post.service.AiReviewService;
 import com.cyxz.post.service.AiReviewService.AiReviewResult;
 import com.cyxz.post.service.SensitiveWordService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +33,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -55,6 +59,7 @@ public class PostCommandService {
     private final PostReviewService postReviewService;
     private final PostQueryService postQueryService;
     private final ExecutorService aiReviewExecutor;
+    private final RabbitTemplate rabbitTemplate;
 
     public PostCommandService(PostMapper postMapper,
                               PostLikeMapper postLikeMapper,
@@ -66,7 +71,8 @@ public class PostCommandService {
                               PostEsSyncService postEsSyncService,
                               PostReviewService postReviewService,
                               PostQueryService postQueryService,
-                              @Qualifier("aiReviewExecutor") ExecutorService aiReviewExecutor) {
+                              @Qualifier("aiReviewExecutor") ExecutorService aiReviewExecutor,
+                              RabbitTemplate rabbitTemplate) {
         this.postMapper = postMapper;
         this.postLikeMapper = postLikeMapper;
         this.postCollectMapper = postCollectMapper;
@@ -78,6 +84,7 @@ public class PostCommandService {
         this.postReviewService = postReviewService;
         this.postQueryService = postQueryService;
         this.aiReviewExecutor = aiReviewExecutor;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     /**
@@ -262,6 +269,22 @@ public class PostCommandService {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
         softDelete(po);
+        // 发布审计事件：管理员删除帖子（操作人为系统）
+        try {
+            AuditEvent auditEvent = AuditEvent.builder()
+                    .operatorId(0L)
+                    .operatorName(null)
+                    .action(AuditConstants.ACTION_POST_DELETE)
+                    .targetType("POST")
+                    .targetId(postId)
+                    .detail(null)
+                    .ip(null)
+                    .createTime(LocalDateTime.now())
+                    .build();
+            rabbitTemplate.convertAndSend(AuditConstants.EXCHANGE, AuditConstants.ROUTING_KEY, auditEvent);
+        } catch (Exception e) {
+            log.error("发布审计事件失败: action={}, targetId={}", AuditConstants.ACTION_POST_DELETE, postId, e);
+        }
         log.info("管理员删除帖子: postId={}", postId);
     }
 

@@ -103,7 +103,7 @@ class PostServiceImplTest {
                 commentFeignClient, circleFeignClient,
                 sensitiveWordService, aiReviewService,
                 postEsSyncService, postReviewService, postQueryService,
-                aiReviewExecutor);
+                aiReviewExecutor, rabbitTemplate);
         // PostReviewService：真实对象，依赖 mock 的 EsSync/Query
         reviewService = new PostReviewService(
                 postMapper, rabbitTemplate, postEsSyncService, postQueryService);

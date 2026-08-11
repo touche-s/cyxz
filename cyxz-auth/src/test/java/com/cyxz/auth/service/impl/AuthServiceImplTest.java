@@ -20,6 +20,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -51,6 +52,7 @@ class AuthServiceImplTest {
     @Mock private JwtUtil jwtUtil;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private StringRedisTemplate stringRedisTemplate;
+    @Mock private RabbitTemplate rabbitTemplate;
     @Mock private UserFeignClient userFeignClient;
     @Mock private ValueOperations<String, String> valueOps;
 

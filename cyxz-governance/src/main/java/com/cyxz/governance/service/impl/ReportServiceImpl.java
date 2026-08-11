@@ -19,6 +19,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -88,6 +89,33 @@ public class ReportServiceImpl implements ReportService {
         po.setHandledAt(LocalDateTime.now());
         reportMapper.updateById(po);
         publishTakedownEvent(po, handlerId);
+        // 发布审计事件：举报审核通过
+        try {
+            AuditEvent auditEvent = AuditEvent.builder()
+                    .operatorId(handlerId)
+                    .operatorName(null)
+                    .action(AuditConstants.ACTION_REPORT_APPROVE)
+                    .targetType(po.getTargetType())
+                    .targetId(po.getTargetId())
+                    .detail(null)
+                    .ip(null)
+                    .createTime(LocalDateTime.now())
+                    .build();
+            rabbitTemplate.convertAndSend(AuditConstants.EXCHANGE, AuditConstants.ROUTING_KEY, auditEvent);
+        } catch (Exception e) {
+            log.error("发布审计事件失败: action={}, targetId={}", AuditConstants.ACTION_REPORT_APPROVE, po.getTargetId(), e);
+        }
+        // 发布统计事件：举报处理数 +1
+        try {
+            AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                    .metric(AnalyticsConstants.METRIC_REPORT_HANDLED)
+                    .value(1)
+                    .statDate(LocalDate.now())
+                    .build();
+            rabbitTemplate.convertAndSend(AnalyticsConstants.EXCHANGE, AnalyticsConstants.ROUTING_KEY, analyticsEvent);
+        } catch (Exception e) {
+            log.error("发布统计事件失败: metric={}", AnalyticsConstants.METRIC_REPORT_HANDLED, e);
+        }
         log.info("举报审核通过: reportId={}, handlerId={}, targetType={}, targetId={}",
                 id, handlerId, po.getTargetType(), po.getTargetId());
     }
@@ -100,6 +128,22 @@ public class ReportServiceImpl implements ReportService {
         po.setHandlerNote(note);
         po.setHandledAt(LocalDateTime.now());
         reportMapper.updateById(po);
+        // 发布审计事件：举报审核驳回
+        try {
+            AuditEvent auditEvent = AuditEvent.builder()
+                    .operatorId(handlerId)
+                    .operatorName(null)
+                    .action(AuditConstants.ACTION_REPORT_REJECT)
+                    .targetType(po.getTargetType())
+                    .targetId(po.getTargetId())
+                    .detail(null)
+                    .ip(null)
+                    .createTime(LocalDateTime.now())
+                    .build();
+            rabbitTemplate.convertAndSend(AuditConstants.EXCHANGE, AuditConstants.ROUTING_KEY, auditEvent);
+        } catch (Exception e) {
+            log.error("发布审计事件失败: action={}, targetId={}", AuditConstants.ACTION_REPORT_REJECT, po.getTargetId(), e);
+        }
         log.info("举报审核驳回: reportId={}, handlerId={}", id, handlerId);
     }
 

@@ -16,6 +16,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
 /**
  * 帖子审核服务
  * <p>处理人工审核与 AI 审核结果，包含状态流转、缓存清理、ES 同步与通知发送。
@@ -51,6 +54,33 @@ public class PostReviewService {
         postQueryService.evictDetailCache(postId);
         postEsSyncService.syncPostToEs(po);
         postEsSyncService.publishCountEvent(po, PostCountConstants.ACTION_PUBLISH);
+        // 发布审计事件：帖子审核通过（操作人为系统）
+        try {
+            AuditEvent auditEvent = AuditEvent.builder()
+                    .operatorId(0L)
+                    .operatorName(null)
+                    .action(AuditConstants.ACTION_POST_APPROVE)
+                    .targetType("POST")
+                    .targetId(postId)
+                    .detail(null)
+                    .ip(null)
+                    .createTime(LocalDateTime.now())
+                    .build();
+            rabbitTemplate.convertAndSend(AuditConstants.EXCHANGE, AuditConstants.ROUTING_KEY, auditEvent);
+        } catch (Exception e) {
+            log.error("发布审计事件失败: action={}, targetId={}", AuditConstants.ACTION_POST_APPROVE, postId, e);
+        }
+        // 发布统计事件：帖子审核通过数 +1
+        try {
+            AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                    .metric(AnalyticsConstants.METRIC_POST_APPROVED)
+                    .value(1)
+                    .statDate(LocalDate.now())
+                    .build();
+            rabbitTemplate.convertAndSend(AnalyticsConstants.EXCHANGE, AnalyticsConstants.ROUTING_KEY, analyticsEvent);
+        } catch (Exception e) {
+            log.error("发布统计事件失败: metric={}", AnalyticsConstants.METRIC_POST_APPROVED, e);
+        }
         log.info("帖子审核通过: postId={}, {}({})→{}({})", postId,
                 PostStatus.label(from), from, PostStatus.label(PostStatus.APPROVED), PostStatus.APPROVED);
     }
@@ -70,6 +100,33 @@ public class PostReviewService {
         po.setReviewReason(reason);
         postMapper.updateById(po);
         postQueryService.evictDetailCache(postId);
+        // 发布审计事件：帖子审核拒绝（操作人为系统）
+        try {
+            AuditEvent auditEvent = AuditEvent.builder()
+                    .operatorId(0L)
+                    .operatorName(null)
+                    .action(AuditConstants.ACTION_POST_REJECT)
+                    .targetType("POST")
+                    .targetId(postId)
+                    .detail(null)
+                    .ip(null)
+                    .createTime(LocalDateTime.now())
+                    .build();
+            rabbitTemplate.convertAndSend(AuditConstants.EXCHANGE, AuditConstants.ROUTING_KEY, auditEvent);
+        } catch (Exception e) {
+            log.error("发布审计事件失败: action={}, targetId={}", AuditConstants.ACTION_POST_REJECT, postId, e);
+        }
+        // 发布统计事件：帖子审核驳回数 +1
+        try {
+            AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                    .metric(AnalyticsConstants.METRIC_POST_REJECTED)
+                    .value(1)
+                    .statDate(LocalDate.now())
+                    .build();
+            rabbitTemplate.convertAndSend(AnalyticsConstants.EXCHANGE, AnalyticsConstants.ROUTING_KEY, analyticsEvent);
+        } catch (Exception e) {
+            log.error("发布统计事件失败: metric={}", AnalyticsConstants.METRIC_POST_REJECTED, e);
+        }
         log.info("帖子审核拒绝: postId={}, {}({})→{}({}), reason={}", postId,
                 PostStatus.label(from), from, PostStatus.label(PostStatus.REJECTED), PostStatus.REJECTED, reason);
     }

@@ -115,6 +115,10 @@
             <groupId>com.cyxz</groupId>
             <artifactId>cyxz-governance-api</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.cyxz</groupId>
+            <artifactId>cyxz-audit-api</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
