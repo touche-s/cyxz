@@ -287,6 +287,43 @@ services:
       rabbitmq: { condition: service_healthy }
       nacos: { condition: service_healthy }
 
+  governance:
+    <<: *microservice
+    build:
+      context: ..
+      dockerfile: docker/microservice.Dockerfile
+      args:
+        SERVICE_NAME: cyxz-governance
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      nacos: { condition: service_healthy }
+
+  audit:
+    <<: *microservice
+    build:
+      context: ..
+      dockerfile: docker/microservice.Dockerfile
+      args:
+        SERVICE_NAME: cyxz-audit
+    depends_on:
+      mysql: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      nacos: { condition: service_healthy }
+
+  analytics:
+    <<: *microservice
+    build:
+      context: ..
+      dockerfile: docker/microservice.Dockerfile
+      args:
+        SERVICE_NAME: cyxz-analytics
+    depends_on:
+      mysql: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      nacos: { condition: service_healthy }
+
   # ============================
   # AI 审核服务
   # ============================
