@@ -88,6 +88,30 @@
 
     <EmptyState v-if="!loading && posts.length === 0" icon="ph:chat-circle-dots" title="这个圈子还没有内容" hint="来做第一个发帖的人吧" />
 
+    <!-- 加入申请弹窗 -->
+    <Teleport to="body">
+      <div class="modal-overlay" v-if="showJoinModal" @click.self="showJoinModal = false">
+        <div class="modal-card" style="width:420px">
+          <div class="modal-header">
+            <h3>申请加入 - {{ circle?.name }}</h3>
+            <button class="modal-close" @click="showJoinModal = false">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-row">
+              <label>申请理由（选填）</label>
+              <textarea v-model="joinReason" class="form-textarea" rows="3" placeholder="介绍一下自己或说明加入原因..." maxlength="200"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="cancel-btn" @click="showJoinModal = false">取消</button>
+            <button class="submit-btn" @click="submitJoinApplication" :disabled="joinSubmitting">
+              {{ joinSubmitting ? '提交中...' : '提交申请' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     </div>
   </main>
 </template>
@@ -96,7 +120,8 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Icon } from '@iconify/vue'
-import { getCircleDetail, joinCircle, leaveCircle, getCircleSections, getManagedCircles } from '@/api/circle'
+import { ElMessage } from 'element-plus'
+import { getCircleDetail, joinCircle, leaveCircle, getCircleSections, getManagedCircles, submitCircleJoinApplication } from '@/api/circle'
 import type { CircleVO, CircleSectionVO } from '@/api/circle'
 import { getPostList, likePost, unlikePost, collectPost, uncollectPost } from '@/api/post'
 import type { PostVO } from '@/api/post'
@@ -123,6 +148,9 @@ const circle = ref<CircleVO | null>(null)
 const posts = ref<PostVO[]>([])
 const loading = ref(false)
 const joinLoading = ref(false)
+const showJoinModal = ref(false)
+const joinReason = ref('')
+const joinSubmitting = ref(false)
 const canManage = ref(false)
 const sortBy = ref('latest')
 const sortTabs = [
@@ -192,9 +220,10 @@ async function toggleJoin() {
       circle.value.joined = false
       circle.value.memberCount = Math.max(circle.value.memberCount - 1, 0)
     } else {
-      await joinCircle(circle.value.id)
-      circle.value.joined = true
-      circle.value.memberCount = circle.value.memberCount + 1
+      showJoinModal.value = true
+      joinReason.value = ''
+      joinLoading.value = false
+      return
     }
   } catch (e) {
     console.error('操作失败:', e)
@@ -203,6 +232,17 @@ async function toggleJoin() {
   } finally {
     joinLoading.value = false
   }
+}
+
+async function submitJoinApplication() {
+  if (!circle.value) return
+  joinSubmitting.value = true
+  try {
+    await submitCircleJoinApplication({ circleId: circle.value.id, reason: joinReason.value || undefined })
+    ElMessage.success('申请已提交，请等待审核')
+    showJoinModal.value = false
+  } catch { ElMessage.error('提交失败') }
+  finally { joinSubmitting.value = false }
 }
 
 function goPublish() {

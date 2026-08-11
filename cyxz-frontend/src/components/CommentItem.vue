@@ -45,6 +45,13 @@
           <span>回复</span>
         </button>
         <button
+          v-if="!isOwner"
+          class="comment-action-btn"
+          @click="showReportModal = true"
+        >
+          <span>举报</span>
+        </button>
+        <button
           v-if="isOwner"
           class="comment-action-btn delete-btn"
           :disabled="deleteLoading"
@@ -53,6 +60,30 @@
           <span>删除</span>
         </button>
       </div>
+
+      <!-- 举报弹窗 -->
+      <Teleport to="body">
+        <div class="modal-overlay" v-if="showReportModal" @click.self="showReportModal = false">
+          <div class="modal-card" style="width:400px">
+            <div class="modal-header">
+              <h3>举报评论</h3>
+              <button class="modal-close" @click="showReportModal = false">&times;</button>
+            </div>
+            <div class="modal-body">
+              <div class="form-row">
+                <label>举报原因</label>
+                <textarea v-model="reportReason" class="form-textarea" rows="3" placeholder="请描述举报原因..." maxlength="200"></textarea>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="cancel-btn" @click="showReportModal = false">取消</button>
+              <button class="submit-btn op-btn-danger-bg" @click="submitReportComment" :disabled="reportSubmitting">
+                {{ reportSubmitting ? '提交中...' : '提交举报' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
 
       <!-- 子回复入口（仅顶级评论、有回复时显示） -->
       <div v-if="isTopLevel && totalReplies > 0">
@@ -122,6 +153,7 @@
 import { ref, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { likeComment, unlikeComment, deleteComment, getCommentReplies } from '@/api/comment'
+import { submitReport } from '@/api/governance'
 import type { CommentVO } from '@/api/comment'
 import { useUserStore } from '@/stores/user'
 import { useNavigate } from '@/composables/useNavigate'
@@ -171,6 +203,21 @@ const likeInteraction = useToggleInteraction({
 
 // ===== 删除 =====
 const deleteLoading = ref(false)
+
+const showReportModal = ref(false)
+const reportReason = ref('')
+const reportSubmitting = ref(false)
+
+async function submitReportComment() {
+  if (!reportReason.value.trim()) { ElMessage.warning('请填写举报原因'); return }
+  reportSubmitting.value = true
+  try {
+    await submitReport({ targetType: 'COMMENT', targetId: Number(props.comment.id), reason: reportReason.value.trim() })
+    ElMessage.success('举报已提交')
+    showReportModal.value = false
+  } catch { ElMessage.error('举报失败') }
+  finally { reportSubmitting.value = false }
+}
 
 const isOwner = computed(() => {
   if (!props.currentUserId) return false

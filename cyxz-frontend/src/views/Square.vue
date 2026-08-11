@@ -6,6 +6,10 @@
       <div class="page-title">
         <h1>圈子</h1>
         <p>找到你喜欢的作品圈子，加入同好</p>
+        <button class="create-circle-btn" @click="showCreateModal = true">
+          <Icon icon="ph:plus" />
+          申请建圈
+        </button>
       </div>
 
       <!-- 搜索 -->
@@ -40,6 +44,34 @@
         <EmptyState v-else icon="ph:circles-four" title="暂无圈子" :hint="emptyDesc" />
       </template>
 
+      <!-- 申请建圈弹窗 -->
+      <Teleport to="body">
+        <div class="modal-overlay" v-if="showCreateModal" @click.self="showCreateModal = false">
+          <div class="modal-card" style="width:460px">
+            <div class="modal-header">
+              <h3>申请建圈</h3>
+              <button class="modal-close" @click="showCreateModal = false">&times;</button>
+            </div>
+            <div class="modal-body">
+              <div class="form-row">
+                <label>圈子名称 <span class="required">*</span></label>
+                <input v-model="createForm.name" class="form-input" placeholder="输入圈子名称" maxlength="30" />
+              </div>
+              <div class="form-row">
+                <label>圈子简介</label>
+                <textarea v-model="createForm.intro" class="form-textarea" rows="2" placeholder="一句话简介（选填）" maxlength="100"></textarea>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="cancel-btn" @click="showCreateModal = false">取消</button>
+              <button class="submit-btn" @click="submitCreateApplication" :disabled="createSubmitting">
+                {{ createSubmitting ? '提交中...' : '提交申请' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Teleport>
+
     </div>
   </main>
 </template>
@@ -47,15 +79,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getCircleList, getJoinedCircles, getHotCircles, joinCircle, leaveCircle } from '@/api/circle'
+import { useAuth } from '@/composables/useAuth'
+import { getCircleList, getJoinedCircles, getHotCircles, joinCircle, leaveCircle, submitCircleApplication } from '@/api/circle'
 import type { CircleVO } from '@/api/circle'
 import { useNavigate } from '@/composables/useNavigate'
-import { useAuth } from '@/composables/useAuth'
+import { Icon } from '@iconify/vue'
+import { ElMessage } from 'element-plus'
 import CircleCard from '@/components/CircleCard.vue'
 import UnderlineTabs from '@/components/UnderlineTabs.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import SearchInput from '@/components/SearchInput.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -75,6 +108,9 @@ const hotCircles = ref<CircleVO[]>([])
 const keyword = ref('')
 const loading = ref(false)
 const joinLoading = ref<Record<number, boolean>>({})
+const showCreateModal = ref(false)
+const createForm = ref({ name: '', intro: '' })
+const createSubmitting = ref(false)
 
 const filteredCircles = computed(() => {
   let list: CircleVO[] = []
@@ -111,6 +147,18 @@ async function loadTabData(key: string) {
   } else if (key === 'all' && circles.value.length === 0) {
     await loadAll()
   }
+}
+
+async function submitCreateApplication() {
+  if (!createForm.value.name.trim()) { ElMessage.warning('请输入圈子名称'); return }
+  createSubmitting.value = true
+  try {
+    await submitCircleApplication({ name: createForm.value.name.trim(), intro: createForm.value.intro || undefined })
+    ElMessage.success('建圈申请已提交，请等待审核')
+    showCreateModal.value = false
+    createForm.value = { name: '', intro: '' }
+  } catch { ElMessage.error('提交失败') }
+  finally { createSubmitting.value = false }
 }
 
 async function loadAll() {
@@ -231,6 +279,24 @@ watch(() => route.query.tab, (val) => {
   color: var(--text-dim);
   margin: 0;
 }
+
+.create-circle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 8px 20px;
+  border-radius: 10px;
+  background: var(--gradient-brand);
+  color: var(--white);
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.create-circle-btn:hover { opacity: 0.9; transform: translateY(-1px); }
 
 /* ===== Search ===== */
 .search-bar {

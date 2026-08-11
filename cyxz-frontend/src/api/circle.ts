@@ -123,6 +123,16 @@ export interface CircleApplicationVO {
   createTime: string
 }
 
+/** 提交建圈申请 */
+export const submitCircleApplication = (data: { name: string; intro?: string; avatar?: string; cover?: string }) => {
+  return request.post('/circle-application', data)
+}
+
+/** 我的建圈申请 */
+export const getMyCircleApplications = (params: { page?: number; size?: number }) => {
+  return request.get('/circle-application/mine', { params })
+}
+
 export const getCircleApplications = (params: {
   status?: string
   page?: number
@@ -155,6 +165,16 @@ export interface CircleJoinApplicationVO {
   reviewNote: string | null
   reviewedAt: string | null
   createTime: string
+}
+
+/** 提交入圈申请 */
+export const submitCircleJoinApplication = (data: { circleId: number; reason?: string }) => {
+  return request.post('/circle-join-application', data)
+}
+
+/** 我的入圈申请 */
+export const getMyCircleJoinApplications = (params: { page?: number; size?: number }) => {
+  return request.get('/circle-join-application/mine', { params })
 }
 
 export const getCircleJoinApplications = (params: {

@@ -212,6 +212,31 @@
         </div>
       </Transition>
     </Teleport>
+
+    <!-- 举报弹窗 -->
+    <Teleport to="body">
+      <div class="modal-overlay" v-if="showReportModal" @click.self="showReportModal = false">
+        <div class="modal-card" style="width:420px">
+          <div class="modal-header">
+            <h3>举报帖子</h3>
+            <button class="modal-close" @click="showReportModal = false">&times;</button>
+          </div>
+          <div class="modal-body">
+            <p class="modal-hint">标题：{{ post?.title }}</p>
+            <div class="form-row">
+              <label>举报原因</label>
+              <textarea v-model="reportReason" class="form-textarea" rows="3" placeholder="请描述举报原因..." maxlength="200"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="cancel-btn" @click="showReportModal = false">取消</button>
+            <button class="submit-btn op-btn-danger-bg" @click="submitReportPost" :disabled="reportSubmitting">
+              {{ reportSubmitting ? '提交中...' : '提交举报' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -221,6 +246,7 @@ import { useRoute } from 'vue-router'
 import { useNavigate } from '@/composables/useNavigate'
 import { ElMessage } from 'element-plus'
 import { getPostDetail, likePost, unlikePost, collectPost, uncollectPost, recordPostView } from '@/api/post'
+import { submitReport } from '@/api/governance'
 import { isPublished } from '@/utils/postStatus'
 import { formatDateTime, formatNumber } from '@/utils/format'
 import { ErrorCode } from '@/utils/errorCode'
@@ -465,10 +491,26 @@ const handleReport = () => {
 }
 
 const showReportMenu = ref(false)
+const showReportModal = ref(false)
+const reportReason = ref('')
+const reportSubmitting = ref(false)
 
 function handleReportFromMenu() {
   showReportMenu.value = false
-  ElMessage.info('举报功能即将上线。如遇违规内容，请联系管理员。')
+  reportReason.value = ''
+  showReportModal.value = true
+}
+
+async function submitReportPost() {
+  if (!post.value) return
+  if (!reportReason.value.trim()) { ElMessage.warning('请填写举报原因'); return }
+  reportSubmitting.value = true
+  try {
+    await submitReport({ targetType: 'POST', targetId: Number(post.value.id), reason: reportReason.value.trim() })
+    ElMessage.success('举报已提交')
+    showReportModal.value = false
+  } catch { ElMessage.error('举报失败') }
+  finally { reportSubmitting.value = false }
 }
 
 function onDocClick() {

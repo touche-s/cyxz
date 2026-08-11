@@ -14,6 +14,16 @@ export interface ReportVO {
   createTime: string
 }
 
+/** 提交举报 */
+export const submitReport = (data: { targetType: string; targetId: number; reason: string }) => {
+  return request.post('/report', data)
+}
+
+/** 我的举报记录 */
+export const getMyReports = (params: { status?: string; page?: number; size?: number }): Promise<PageResult<ReportVO>> => {
+  return request.get('/report/mine', { params })
+}
+
 export const getReportList = (params: {
   status?: string
   targetType?: string
