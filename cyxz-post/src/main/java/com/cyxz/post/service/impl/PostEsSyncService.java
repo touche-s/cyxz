@@ -6,6 +6,8 @@ import com.cyxz.common.event.PostCountEvent;
 import com.cyxz.common.event.PostEsSyncEvent;
 import com.cyxz.post.constant.PostStatus;
 import com.cyxz.post.entity.PostPO;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -29,6 +31,9 @@ public class PostEsSyncService {
 
     private final RabbitTemplate rabbitTemplate;
     private final StringRedisTemplate stringRedisTemplate;
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
+            .registerModule(new JavaTimeModule());
 
     /**
      * 同步帖子到 ES：APPROVED 状态写入，其他状态删除
@@ -103,30 +108,12 @@ public class PostEsSyncService {
     }
 
     private String toJson(PostEsSyncEvent event) {
-        // 简单 JSON 序列化：避免引入 Jackson 依赖到此处；重试任务的消费者按 JSON 字符串接收
-        StringBuilder sb = new StringBuilder("{");
-        sb.append("\"action\":\"").append(event.getAction()).append("\"");
-        sb.append(",\"postId\":").append(event.getPostId());
-        if (event.getUserId() != null) sb.append(",\"userId\":").append(event.getUserId());
-        if (event.getCircleId() != null) sb.append(",\"circleId\":").append(event.getCircleId());
-        if (event.getSectionId() != null) sb.append(",\"sectionId\":").append(event.getSectionId());
-        if (event.getPostType() != null) sb.append(",\"postType\":\"").append(event.getPostType()).append("\"");
-        if (event.getTitle() != null) sb.append(",\"title\":\"").append(escape(event.getTitle())).append("\"");
-        if (event.getContent() != null) sb.append(",\"content\":\"").append(escape(event.getContent())).append("\"");
-        if (event.getCover() != null) sb.append(",\"cover\":\"").append(escape(event.getCover())).append("\"");
-        if (event.getTags() != null) sb.append(",\"tags\":\"").append(escape(event.getTags())).append("\"");
-        if (event.getStatus() != null) sb.append(",\"status\":").append(event.getStatus());
-        if (event.getLikes() != null) sb.append(",\"likes\":").append(event.getLikes());
-        if (event.getComments() != null) sb.append(",\"comments\":").append(event.getComments());
-        if (event.getViews() != null) sb.append(",\"views\":").append(event.getViews());
-        if (event.getCollections() != null) sb.append(",\"collections\":").append(event.getCollections());
-        if (event.getCreateTime() != null) sb.append(",\"createTime\":").append(event.getCreateTime());
-        sb.append("}");
-        return sb.toString();
-    }
-
-    private String escape(String s) {
-        return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
+        try {
+            return OBJECT_MAPPER.writeValueAsString(event);
+        } catch (Exception e) {
+            log.error("PostEsSyncEvent 序列化失败: postId={}", event.getPostId(), e);
+            return "{}";
+        }
     }
 
     private PostEsSyncEvent buildSyncEvent(PostPO po, String action) {

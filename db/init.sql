@@ -102,15 +102,18 @@ INSERT INTO sys_permission(id, code, label, resource, action) VALUES
 (25, 'report:review:reject',        '举报审核拒绝',   'report',  'reject'),
 (26, 'circle:application:review:list',   '建圈申请列表',   'circle',   'application_list'),
 (27, 'circle:application:review:approve','建圈申请通过',   'circle',   'application_approve'),
-(28, 'circle:application:review:reject', '建圈申请拒绝',   'circle',   'application_reject');
+(28, 'circle:application:review:reject', '建圈申请拒绝',   'circle',   'application_reject'),
+(29, 'circle:join:review:list',         '入圈申请列表',   'circle',   'join_list'),
+(30, 'circle:join:review:approve',      '入圈申请通过',   'circle',   'join_approve'),
+(31, 'circle:join:review:reject',       '入圈申请拒绝',   'circle',   'join_reject');
 
 -- ---- RBAC 预设数据：角色-权限分配 ----
--- 站主：全部权限（1-28）
+-- 站主：全部权限（1-31）
 INSERT INTO sys_role_permission(role_id, permission_id) VALUES
-(1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(1,8),(1,9),(1,10),(1,11),(1,12),(1,13),(1,14),(1,15),(1,16),(1,17),(1,18),(1,19),(1,20),(1,21),(1,22),(1,23),(1,24),(1,25),(1,26),(1,27),(1,28);
--- 平台管理员：全局管理权限（1-5,12-28），不能管理圈子成员(9)
+(1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(1,8),(1,9),(1,10),(1,11),(1,12),(1,13),(1,14),(1,15),(1,16),(1,17),(1,18),(1,19),(1,20),(1,21),(1,22),(1,23),(1,24),(1,25),(1,26),(1,27),(1,28),(1,29),(1,30),(1,31);
+-- 平台管理员：全局管理权限（1-5,12-31），不能管理圈子成员(9)
 INSERT INTO sys_role_permission(role_id, permission_id) VALUES
-(2,1),(2,2),(2,3),(2,4),(2,5),(2,12),(2,13),(2,14),(2,15),(2,16),(2,17),(2,18),(2,19),(2,20),(2,21),(2,22),(2,23),(2,24),(2,25),(2,26),(2,27),(2,28);
+(2,1),(2,2),(2,3),(2,4),(2,5),(2,12),(2,13),(2,14),(2,15),(2,16),(2,17),(2,18),(2,19),(2,20),(2,21),(2,22),(2,23),(2,24),(2,25),(2,26),(2,27),(2,28),(2,29),(2,30),(2,31);
 -- 圈主：圈子内全部管理权限（6-11,15-16）
 INSERT INTO sys_role_permission(role_id, permission_id) VALUES
 (4,6),(4,7),(4,8),(4,9),(4,10),(4,11),(4,15),(4,16);
