@@ -32,7 +32,7 @@ public class RouteConfig {
                         .and().not(p -> p.path("/api/*/internal/**"))
                         .filters(f -> f.stripPrefix(1))
                         .uri("lb://cyxz-post"))
-                .route("circle", r -> r.path("/api/circle/**", "/api/section/**", "/api/admin/section-template/**",
+                .route("circle", r -> r.path("/api/circle/**", "/api/admin/circle/**", "/api/section/**", "/api/admin/section-template/**",
                                 "/api/circle-application/**", "/api/admin/circle-application/**",
                                 "/api/circle-join-application/**", "/api/admin/circle-join-application/**")
                         .and().not(p -> p.path("/api/*/internal/**"))

@@ -5,7 +5,6 @@ import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.web.CurrentUser;
 import com.cyxz.circle.dto.SectionConfigRequest;
-import com.cyxz.circle.dto.UpdateCircleStatusRequest;
 import com.cyxz.circle.service.CircleSectionService;
 import com.cyxz.circle.service.CircleService;
 import com.cyxz.circle.vo.CircleSectionVO;
@@ -15,8 +14,6 @@ import com.cyxz.circle.vo.PublishableResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -49,16 +46,6 @@ public class CircleController {
     @GetMapping("/list")
     public Result<List<CircleVO>> list(@CurrentUser(required = false) Long currentUserId) {
         return Result.success(circleService.listAll(currentUserId));
-    }
-
-    /**
-     * 管理员全量圈子列表（含禁用状态），用于平台管理后台
-     */
-    @Operation(summary = "管理员全量圈子列表（含禁用状态），用于平台管理后台")
-    @GetMapping("/admin/list")
-    @PreAuthorize("hasAuthority('circle:admin:list')")
-    public Result<List<CircleVO>> adminList() {
-        return Result.success(circleService.listAllForAdmin());
     }
 
     /**
@@ -140,45 +127,6 @@ public class CircleController {
                                @RequestParam(required = false) String cover) {
         circleService.updateCircle(circleId, name, intro, avatar, cover);
         return Result.success("更新成功");
-    }
-
-    /**
-     * 创建圈子，创建者成为圈主
-     */
-    @Operation(summary = "创建圈子，创建者成为圈主")
-    @PostMapping
-    @PreAuthorize("hasAuthority('circle:manage:create')")
-    public Result<CircleVO> create(@RequestParam @NotBlank(message = "圈子名称不能为空") @Size(max = 30, message = "圈子名称最长30字") String name,
-                                   @RequestParam(required = false) @Size(max = 100, message = "圈子简介最长100字") String intro,
-                                   @RequestParam(required = false) String avatar,
-                                   @RequestParam(required = false) String cover,
-                                   @CurrentUser Long ownerId) {
-        return Result.success(circleService.createCircle(name, intro, avatar, cover, ownerId));
-    }
-
-    /**
-     * 删除圈子（仅平台管理员）
-     */
-    @Operation(summary = "删除圈子（仅平台管理员）")
-    @DeleteMapping("/{circleId}")
-    @PreAuthorize("hasAuthority('circle:manage:delete')")
-    public Result<Void> delete(@PathVariable Long circleId) {
-        circleService.deleteCircle(circleId);
-        return Result.success("删除成功");
-    }
-
-    /**
-     * 更新圈子状态（启用/禁用，仅平台管理员）
-     *
-     * @param circleId 圈子 ID
-     * @param body     请求体，包含 status（1=启用 0=禁用）
-     */
-    @Operation(summary = "更新圈子状态（启用/禁用，仅平台管理员）")
-    @PutMapping("/{circleId}/status")
-    @PreAuthorize("hasAuthority('circle:status:update')")
-    public Result<Void> updateStatus(@PathVariable Long circleId, @Valid @RequestBody UpdateCircleStatusRequest request) {
-        circleService.updateStatus(circleId, request.getStatus());
-        return Result.success("状态更新成功");
     }
 
     /**
