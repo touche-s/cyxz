@@ -13,7 +13,6 @@ import com.cyxz.post.service.impl.PostCommandService;
 import com.rabbitmq.client.Channel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.AmqpHeaders;
@@ -39,8 +38,8 @@ public class PostTakedownConsumer extends AbstractManualAckRabbitListener<Conten
 
     @RabbitListener(queues = PostTakedownConstants.QUEUE, ackMode = "MANUAL")
     public void onEvent(ContentTakedownEvent event, Channel channel,
-                        @Header(AmqpHeaders.DELIVERY_TAG) long tag, Message message) throws IOException {
-        processWithManualAck(event, channel, tag, message);
+                        @Header(AmqpHeaders.DELIVERY_TAG) long tag) throws IOException {
+        processWithManualAck(event, channel, tag);
     }
 
     /**

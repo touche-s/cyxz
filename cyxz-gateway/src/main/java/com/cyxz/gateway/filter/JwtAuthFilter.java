@@ -25,7 +25,6 @@ import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * JWT 认证全局过滤器
@@ -71,15 +70,6 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         ServerHttpRequest request = exchange.getRequest();
         ServerHttpResponse response = exchange.getResponse();
         String path = request.getURI().getPath();
-
-        // 生成或提取 traceId 用于全链路追踪
-        String traceId = request.getHeaders().getFirst("X-Trace-Id");
-        if (traceId == null || traceId.isEmpty()) {
-            traceId = UUID.randomUUID().toString().replace("-", "");
-        }
-        response.getHeaders().set("X-Trace-Id", traceId);
-        request = request.mutate().header("X-Trace-Id", traceId).build();
-        exchange = exchange.mutate().request(request).build();
 
         // 拒绝外部直接访问内部接口（Feign 直调不经网关，不受影响）
         if (path.contains("/internal/")) {

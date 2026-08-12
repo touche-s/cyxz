@@ -7,7 +7,6 @@ import com.cyxz.search.service.PostIndexService;
 import com.rabbitmq.client.Channel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -27,8 +26,8 @@ public class PostEsSyncConsumer extends AbstractManualAckRabbitListener<PostEsSy
 
     @RabbitListener(queues = EsSyncConstants.QUEUE, ackMode = "MANUAL")
     public void onSyncEvent(PostEsSyncEvent event, Channel channel,
-                            @Header(AmqpHeaders.DELIVERY_TAG) long tag, Message message) throws IOException {
-        processWithManualAck(event, channel, tag, message);
+                            @Header(AmqpHeaders.DELIVERY_TAG) long tag) throws IOException {
+        processWithManualAck(event, channel, tag);
     }
 
     @Override
