@@ -7,8 +7,6 @@ import com.cyxz.audit.api.event.AuditEvent;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
-import com.cyxz.common.constant.AnalyticsConstants;
-import com.cyxz.common.event.AnalyticsEvent;
 import com.cyxz.circle.constant.CircleApplicationConstants;
 import com.cyxz.circle.dto.CreateCircleApplicationRequest;
 import com.cyxz.circle.entity.CircleApplicationPO;
@@ -146,26 +144,15 @@ public class CircleApplicationServiceImpl implements CircleApplicationService {
                     .operatorId(reviewerId)
                     .operatorName(null)
                     .action(AuditConstants.ACTION_CIRCLE_APPROVE)
-                    .targetType("CIRCLE")
-                    .targetId(po.getId())
+                    .targetType("CIRCLE_APPLICATION")
+                    .targetId(id)
                     .detail(null)
                     .ip(null)
                     .createTime(LocalDateTime.now())
                     .build();
             rabbitTemplate.convertAndSend(AuditConstants.EXCHANGE, AuditConstants.ROUTING_KEY, auditEvent);
         } catch (Exception e) {
-            log.error("发布审计事件失败: action={}, targetId={}", AuditConstants.ACTION_CIRCLE_APPROVE, po.getId(), e);
-        }
-        // 发布统计事件：新增圈子数 +1
-        try {
-            AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
-                    .metric(AnalyticsConstants.METRIC_NEW_CIRCLE)
-                    .value(1)
-                    .statDate(LocalDate.now())
-                    .build();
-            rabbitTemplate.convertAndSend(AnalyticsConstants.EXCHANGE, AnalyticsConstants.ROUTING_KEY, analyticsEvent);
-        } catch (Exception e) {
-            log.error("发布统计事件失败: metric={}", AnalyticsConstants.METRIC_NEW_CIRCLE, e);
+            log.error("发布审计事件失败: action={}, targetId={}", AuditConstants.ACTION_CIRCLE_APPROVE, id, e);
         }
         log.info("建圈申请审核通过并建圈完成: applicationId={}, reviewerId={}, name={}",
                 id, reviewerId, po.getName());
@@ -192,15 +179,15 @@ public class CircleApplicationServiceImpl implements CircleApplicationService {
                     .operatorId(reviewerId)
                     .operatorName(null)
                     .action(AuditConstants.ACTION_CIRCLE_REJECT)
-                    .targetType("CIRCLE")
-                    .targetId(po.getId())
+                    .targetType("CIRCLE_APPLICATION")
+                    .targetId(id)
                     .detail(null)
                     .ip(null)
                     .createTime(LocalDateTime.now())
                     .build();
             rabbitTemplate.convertAndSend(AuditConstants.EXCHANGE, AuditConstants.ROUTING_KEY, auditEvent);
         } catch (Exception e) {
-            log.error("发布审计事件失败: action={}, targetId={}", AuditConstants.ACTION_CIRCLE_REJECT, po.getId(), e);
+            log.error("发布审计事件失败: action={}, targetId={}", AuditConstants.ACTION_CIRCLE_REJECT, id, e);
         }
         log.info("建圈申请审核驳回: applicationId={}, reviewerId={}", id, reviewerId);
     }

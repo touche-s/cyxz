@@ -1,6 +1,8 @@
 package com.cyxz.auth.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.cyxz.audit.api.constant.AuditConstants;
+import com.cyxz.audit.api.event.AuditEvent;
 import com.cyxz.auth.dto.UserRoleCode;
 import com.cyxz.auth.entity.SysUserPO;
 import com.cyxz.auth.mapper.SysUserMapper;
@@ -11,9 +13,13 @@ import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,6 +35,7 @@ public class UserAdminService {
 
     private final SysUserMapper sysUserMapper;
     private final SysUserRoleMapper sysUserRoleMapper;
+    private final RabbitTemplate rabbitTemplate;
 
     /**
      * 查询所有用户列表
@@ -64,6 +71,28 @@ public class UserAdminService {
         guardSiteOwner(id);
         user.setStatus(0);
         sysUserMapper.updateById(user);
+        // 发布审计事件：用户封禁
+        Long operatorId = SecurityUtils.currentUserId();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    AuditEvent auditEvent = AuditEvent.builder()
+                            .operatorId(operatorId)
+                            .operatorName(null)
+                            .action(AuditConstants.ACTION_USER_DISABLE)
+                            .targetType("USER")
+                            .targetId(id)
+                            .detail(null)
+                            .ip(null)
+                            .createTime(LocalDateTime.now())
+                            .build();
+                    rabbitTemplate.convertAndSend(AuditConstants.EXCHANGE, AuditConstants.ROUTING_KEY, auditEvent);
+                } catch (Exception e) {
+                    log.error("发布审计事件失败: action={}, targetId={}", AuditConstants.ACTION_USER_DISABLE, id, e);
+                }
+            }
+        });
         log.info("管理员禁用用户: userId={}, username={}", id, user.getUsername());
     }
 
@@ -82,6 +111,28 @@ public class UserAdminService {
         guardSiteOwner(id);
         user.setStatus(1);
         sysUserMapper.updateById(user);
+        // 发布审计事件：用户解禁
+        Long operatorId = SecurityUtils.currentUserId();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    AuditEvent auditEvent = AuditEvent.builder()
+                            .operatorId(operatorId)
+                            .operatorName(null)
+                            .action(AuditConstants.ACTION_USER_ENABLE)
+                            .targetType("USER")
+                            .targetId(id)
+                            .detail(null)
+                            .ip(null)
+                            .createTime(LocalDateTime.now())
+                            .build();
+                    rabbitTemplate.convertAndSend(AuditConstants.EXCHANGE, AuditConstants.ROUTING_KEY, auditEvent);
+                } catch (Exception e) {
+                    log.error("发布审计事件失败: action={}, targetId={}", AuditConstants.ACTION_USER_ENABLE, id, e);
+                }
+            }
+        });
         log.info("管理员启用用户: userId={}, username={}", id, user.getUsername());
     }
 

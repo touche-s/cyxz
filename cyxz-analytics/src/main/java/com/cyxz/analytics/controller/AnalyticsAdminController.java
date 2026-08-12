@@ -8,6 +8,7 @@ import com.cyxz.common.web.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -35,6 +36,7 @@ public class AnalyticsAdminController {
      */
     @Operation(summary = "看板概览")
     @GetMapping("/dashboard")
+    @PreAuthorize("hasAuthority('admin')")
     public Result<DashboardVO> dashboard(@CurrentUser Long userId) {
         return Result.success(analyticsService.getDashboard());
     }
@@ -49,6 +51,7 @@ public class AnalyticsAdminController {
      */
     @Operation(summary = "单指标趋势")
     @GetMapping("/trend")
+    @PreAuthorize("hasAuthority('admin')")
     public Result<List<TrendVO>> trend(@RequestParam("metric") String metric,
                                         @RequestParam(value = "days", defaultValue = "7") int days,
                                         @CurrentUser Long userId) {

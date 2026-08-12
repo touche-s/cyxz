@@ -35,6 +35,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -139,6 +140,17 @@ public class PostCommandService {
                     postReviewService.handleReviewFailure(postId, e);
                 }
             }, aiReviewExecutor);
+            // 发布统计事件：新增帖子数 +1
+            try {
+                AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                        .metric(AnalyticsConstants.METRIC_NEW_POST)
+                        .value(1)
+                        .statDate(LocalDate.now())
+                        .build();
+                rabbitTemplate.convertAndSend(AnalyticsConstants.EXCHANGE, AnalyticsConstants.ROUTING_KEY, analyticsEvent);
+            } catch (Exception e) {
+                log.error("发布统计事件失败: metric={}", AnalyticsConstants.METRIC_NEW_POST, e);
+            }
         }
         log.info("创建帖子成功: postId={}, userId={}", po.getId(), userId);
         return po.getId();
