@@ -28,6 +28,7 @@ public class PostEsSyncService {
 
     /** Redis 失败队列 key：List 结构，LPUSH 入队、RPOP 出队 */
     private static final String FAILED_QUEUE_KEY = "post:es:sync:failed";
+    private static final String FAILED_COUNT_QUEUE_KEY = "post:count:sync:failed";
 
     private final RabbitTemplate rabbitTemplate;
     private final StringRedisTemplate stringRedisTemplate;
@@ -107,11 +108,11 @@ public class PostEsSyncService {
         }
     }
 
-    private String toJson(PostEsSyncEvent event) {
+    private String toJson(Object event) {
         try {
             return OBJECT_MAPPER.writeValueAsString(event);
         } catch (Exception e) {
-            log.error("PostEsSyncEvent 序列化失败: postId={}", event.getPostId(), e);
+            log.error("事件序列化失败: {}", event.getClass().getSimpleName(), e);
             return "{}";
         }
     }
@@ -149,15 +150,54 @@ public class PostEsSyncService {
         if (po.getCircleId() == null) {
             return;
         }
+        PostCountEvent event = PostCountEvent.builder()
+                .action(action)
+                .postId(po.getId())
+                .circleId(po.getCircleId())
+                .build();
         try {
-            PostCountEvent event = PostCountEvent.builder()
-                    .action(action)
-                    .postId(po.getId())
-                    .circleId(po.getCircleId())
-                    .build();
             rabbitTemplate.convertAndSend(PostCountConstants.EXCHANGE, PostCountConstants.ROUTING_KEY, event);
         } catch (Exception e) {
-            log.error("发送帖子计数事件失败: postId={}, circleId={}, action={}", po.getId(), po.getCircleId(), action, e);
+            log.error("发送帖子计数事件失败，已入失败队列等待重试: postId={}, circleId={}, action={}",
+                    po.getId(), po.getCircleId(), action, e);
+            enqueueFailedCountSync(event);
+        }
+    }
+
+    /**
+     * 定时重试失败队列中的计数同步消息
+     */
+    @Scheduled(fixedDelay = 30_000L, initialDelay = 90_000L)
+    public void retryFailedCountSync() {
+        int maxRetry = 50;
+        int succeeded = 0;
+        int failed = 0;
+        for (int i = 0; i < maxRetry; i++) {
+            String json = stringRedisTemplate.opsForList().rightPop(FAILED_COUNT_QUEUE_KEY);
+            if (json == null) {
+                break;
+            }
+            try {
+                rabbitTemplate.convertAndSend(PostCountConstants.EXCHANGE, PostCountConstants.ROUTING_KEY, json);
+                succeeded++;
+            } catch (Exception e) {
+                stringRedisTemplate.opsForList().leftPush(FAILED_COUNT_QUEUE_KEY, json);
+                failed++;
+                log.warn("帖子计数同步重试失败，已放回队列: {}", json, e);
+                break;
+            }
+        }
+        if (succeeded > 0 || failed > 0) {
+            log.info("帖子计数同步失败队列重试完成: succeeded={}, failed={}", succeeded, failed);
+        }
+    }
+
+    private void enqueueFailedCountSync(PostCountEvent event) {
+        try {
+            stringRedisTemplate.opsForList().leftPush(FAILED_COUNT_QUEUE_KEY, toJson(event));
+        } catch (Exception redisEx) {
+            log.error("写入计数同步失败队列失败，计数可能丢失: postId={}, circleId={}",
+                    event.getPostId(), event.getCircleId(), redisEx);
         }
     }
 }
