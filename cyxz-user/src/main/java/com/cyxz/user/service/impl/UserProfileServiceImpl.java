@@ -1,8 +1,6 @@
 package com.cyxz.user.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.cyxz.common.base.BusinessException;
-import com.cyxz.common.base.ErrorCode;
 import com.cyxz.user.dto.UpdateProfileRequest;
 import com.cyxz.user.entity.UserProfilePO;
 import com.cyxz.user.mapper.UserProfileMapper;
@@ -21,7 +19,9 @@ import java.util.stream.Collectors;
 
 /**
  * 用户资料服务实现
- * <p>管理 user_profile 表的查询、更新与初始化。
+ * <p>管理 user_profile 表的查询与更新。
+ * <p>注册时不创建 profile，前端以 username 作为昵称降级展示；
+ * 用户首次修改资料时懒加载创建记录。
  */
 @Slf4j
 @Service
@@ -33,16 +33,16 @@ public class UserProfileServiceImpl implements UserProfileService {
 
     /**
      * 根据用户 ID 查询资料
-     * <p>查不到则抛出 USER_NOT_FOUND 异常。
+     * <p>查不到返回 null，调用方（前端）以 username 作为昵称降级展示。
      *
      * @param userId 用户 ID
-     * @return 用户资料视图
+     * @return 用户资料视图，无资料时返回 null
      */
     @Override
     public UserProfileVO getByUserId(Long userId) {
         UserProfilePO po = profileMapper.selectById(userId);
         if (po == null) {
-            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+            return null;
         }
         UserProfileVO vo = new UserProfileVO();
         BeanUtils.copyProperties(po, vo);
@@ -83,6 +83,7 @@ public class UserProfileServiceImpl implements UserProfileService {
     /**
      * 修改用户资料
      * <p>仅更新传入的非 null 字段，不做全量覆盖。
+     * <p>如果用户资料不存在（新用户首次修改），则懒加载创建记录。
      *
      * @param userId  当前登录用户 ID
      * @param request 更新请求（字段可为 null）
@@ -91,7 +92,19 @@ public class UserProfileServiceImpl implements UserProfileService {
     public void updateProfile(Long userId, UpdateProfileRequest request) {
         UserProfilePO po = profileMapper.selectById(userId);
         if (po == null) {
-            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+            // 新用户首次修改资料，懒加载创建记录
+            po = new UserProfilePO();
+            po.setUserId(userId);
+            po.setNickname(request.getNickname());
+            po.setAvatar(request.getAvatar() != null ? request.getAvatar() : "");
+            po.setGender(request.getGender() != null ? request.getGender() : 0);
+            po.setBio(request.getBio() != null ? request.getBio() : "");
+            if (request.getBirthday() != null && !request.getBirthday().isEmpty()) {
+                po.setBirthday(LocalDate.parse(request.getBirthday()));
+            }
+            profileMapper.insert(po);
+            log.info("懒加载创建用户资料: userId={}", userId);
+            return;
         }
         if (request.getNickname() != null) {
             po.setNickname(request.getNickname());
@@ -109,59 +122,6 @@ public class UserProfileServiceImpl implements UserProfileService {
             po.setBirthday(LocalDate.parse(request.getBirthday()));
         }
         profileMapper.updateById(po);
-    }
-
-    /**
-     * 创建默认资料
-     * <p>新用户注册时调用，默认昵称为注册用户名。
-     *
-     * @param userId   用户 ID
-     * @param username 注册用户名
-     */
-    @Override
-    public void initDefaultProfile(Long userId, String username) {
-        // 幂等：如果资料已存在则跳过
-        UserProfilePO exist = profileMapper.selectOne(
-                new LambdaQueryWrapper<UserProfilePO>().eq(UserProfilePO::getUserId, userId)
-        );
-        if (exist != null) {
-            log.debug("用户资料已存在，跳过初始化: userId={}", userId);
-            return;
-        }
-        UserProfilePO po = new UserProfilePO();
-        po.setUserId(userId);
-        po.setNickname(username);
-        po.setAvatar("");
-        po.setGender(0);
-        po.setBio("");
-        profileMapper.insert(po);
-        log.info("创建默认用户资料: userId={}, username={}", userId, username);
-    }
-
-    /**
-     * 查询当前登录用户的资料，查不到则兜底初始化
-     * <p>如果资料不存在则自动创建默认资料（昵称"用户+ID"）再返回。
-     * 确保注册后进个人空间能立刻查到资料。
-     *
-     * @param userId 当前登录用户 ID（来自 X-User-Id Header）
-     * @return 用户资料视图对象
-     */
-    @Override
-    public UserProfileVO getOrInitMyProfile(Long userId) {
-        UserProfilePO po = profileMapper.selectOne(
-                new LambdaQueryWrapper<UserProfilePO>().eq(UserProfilePO::getUserId, userId)
-        );
-        if (po == null) {
-            initDefaultProfile(userId, "用户" + userId);
-            po = profileMapper.selectOne(
-                    new LambdaQueryWrapper<UserProfilePO>().eq(UserProfilePO::getUserId, userId)
-            );
-        }
-        if (po == null) {
-            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
-        }
-        UserProfileVO vo = toVO(po);
-        return vo;
     }
 
     /**

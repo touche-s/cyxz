@@ -98,8 +98,8 @@ JWT 精简为仅存 userId，角色/权限码通过 Redis Cache-Aside 按需加�
 ```
 cyxz/
 ├── cyxz-gateway/        # API 网关（路由、JWT 验签、注入 X-User-Id）
-├── cyxz-auth/           # 认证服务（登录注册、Token、登出清缓存）
-├── cyxz-user/           # 用户服务（资料、关注关系）
+├── cyxz-auth/           # 认证服务（登录注册、JWT、RBAC 角色权限）
+├── cyxz-user/           # 用户服务（资料懒加载、关注关系）
 ├── cyxz-post/           # 帖子服务（发布、审核、互动、AI 审核）
 ├── cyxz-comment/        # 评论服务（评论、楼中楼、点赞）
 ├── cyxz-circle/         # 圈子服务（圈子、板块、成员、权限缓存失效）

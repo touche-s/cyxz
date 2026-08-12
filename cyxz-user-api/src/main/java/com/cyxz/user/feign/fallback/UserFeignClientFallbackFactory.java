@@ -30,12 +30,6 @@ public class UserFeignClientFallbackFactory extends AbstractFeignFallbackFactory
     protected UserFeignClient createFallback(Throwable cause) {
         return new UserFeignClient() {
             @Override
-            public Result<Void> initDefaultProfile(Long userId, String username) {
-                log.error("初始化用户资料降级（需人工补偿）: userId={}, username={}", userId, username);
-                return Result.fail("用户服务不可用");
-            }
-
-            @Override
             public Result<Map<Long, UserProfileVO>> batchGetUserProfiles(List<Long> userIds) {
                 return Result.success(Collections.emptyMap());
             }

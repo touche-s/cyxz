@@ -59,17 +59,16 @@ public class UserProfileController {
     }
 
     /**
-     * 查询当前登录用户的资料（兜底初始化）
-     * <p>从 X-User-Id 取当前登录用户 ID，查不到资料则自动创建默认资料。
-     * 用于注册后进个人空间、个人中心等场景。
+     * 查询当前登录用户的资料
+     * <p>从 X-User-Id 取当前登录用户 ID，查不到资料返回 null，前端以 username 降级展示。
      *
      * @param userId 当前登录用户 ID（由 Gateway 注入）
-     * @return 当前用户资料
+     * @return 当前用户资料（可能为 null）
      */
-    @Operation(summary = "查询当前登录用户的资料（兜底初始化）")
+    @Operation(summary = "查询当前登录用户的资料")
     @GetMapping("/profile/me")
     public Result<UserProfileVO> getMyProfile(@CurrentUser Long userId) {
-        return Result.success(profileService.getOrInitMyProfile(userId));
+        return Result.success(profileService.getByUserId(userId));
     }
 
     /**
@@ -82,20 +81,6 @@ public class UserProfileController {
     @PostMapping("/internal/profile/batch")
     public Result<Map<Long, UserProfileVO>> batchGetUserProfiles(@RequestBody List<Long> userIds) {
         return Result.success(profileService.batchGetUserProfiles(userIds));
-    }
-
-    /**
-     * 创建默认资料（内部接口，注册时 auth 服务通过 Feign 调用）
-     *
-     * @param userId 用户 ID
-     * @param username 用户名
-     * @return 操作结果
-     */
-    @Operation(summary = "创建默认资料（内部接口，注册时 auth 服务通过 Feign 调用）")
-    @PostMapping("/internal/profile/init/{userId}/{username}")
-    public Result<Void> initDefault(@PathVariable("userId") Long userId, @PathVariable("username") String username) {
-        profileService.initDefaultProfile(userId, username);
-        return Result.success();
     }
 
     /**

@@ -7,6 +7,8 @@
 -- 1. cyxz_auth  —— 认证服务
 --    表: sys_user（用户登录凭据、状态）
 --        sys_role / sys_permission / sys_role_permission / sys_user_role（RBAC 权限体系）
+--    说明: 注册时不创建 user_profile，前端以 username 作为昵称降级展示；
+--          用户首次修改资料时由 cyxz-user 懒加载创建 profile。
 -- ============================================================
 CREATE DATABASE IF NOT EXISTS cyxz_auth DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 
@@ -128,6 +130,7 @@ INSERT INTO sys_role_permission(role_id, permission_id) VALUES
 -- ============================================================
 -- 2. cyxz_user  —— 用户服务
 --    表: user_profile（用户资料）、user_follow（关注关系）
+--    说明: profile 不在注册时创建；用户首次修改资料时懒加载创建。
 -- ============================================================
 CREATE DATABASE IF NOT EXISTS cyxz_user DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 
