@@ -56,14 +56,14 @@ public abstract class AbstractManualAckRabbitListener<T> {
         }
         try {
             handle(event);
+            channel.basicAck(tag, false);
         } catch (Exception e) {
             log.error("事件消费失败，进入死信: {}", describe(event), e);
             channel.basicReject(tag, false);
-            return;
-        }
-        channel.basicAck(tag, false);
-        if (traceId != null) {
-            MDC.remove("traceId");
+        } finally {
+            if (traceId != null) {
+                MDC.remove("traceId");
+            }
         }
     }
 }
