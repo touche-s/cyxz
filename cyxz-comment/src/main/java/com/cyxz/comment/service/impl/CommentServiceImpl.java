@@ -127,6 +127,8 @@ public class CommentServiceImpl implements CommentService {
 
             stringRedisTemplate.opsForHash()
                     .increment(CacheKeyConstants.POST_COMMENT_DELTA, po.getPostId().toString(), 1);
+            stringRedisTemplate.opsForValue()
+                    .increment(CacheKeyConstants.POST_COMMENT_COUNT_PREFIX + po.getPostId());
 
             List<NotificationEvent> events = new ArrayList<>();
             if (!userId.equals(po.getPostAuthorId())) {
@@ -191,6 +193,12 @@ public class CommentServiceImpl implements CommentService {
         // Redis 增量：帖子评论数 -(1 + 子回复数)
         stringRedisTemplate.opsForHash()
                 .increment(CacheKeyConstants.POST_COMMENT_DELTA, po.getPostId().toString(), -(1 + replyCount));
+        long count = stringRedisTemplate.opsForValue()
+                .decrement(CacheKeyConstants.POST_COMMENT_COUNT_PREFIX + po.getPostId(), 1 + replyCount);
+        if (count <= 0) {
+            String key = CacheKeyConstants.POST_COMMENT_COUNT_PREFIX + po.getPostId();
+            stringRedisTemplate.delete(key);
+        }
         log.info("删除评论成功: commentId={}, userId={}, 级联删除子回复={}", commentId, userId, replyCount);
     }
 
@@ -212,6 +220,12 @@ public class CommentServiceImpl implements CommentService {
         int replyCount = commentMapper.cascadeDeleteReplies(commentId);
         stringRedisTemplate.opsForHash()
                 .increment(CacheKeyConstants.POST_COMMENT_DELTA, po.getPostId().toString(), -(1 + replyCount));
+        long count = stringRedisTemplate.opsForValue()
+                .decrement(CacheKeyConstants.POST_COMMENT_COUNT_PREFIX + po.getPostId(), 1 + replyCount);
+        if (count <= 0) {
+            String key = CacheKeyConstants.POST_COMMENT_COUNT_PREFIX + po.getPostId();
+            stringRedisTemplate.delete(key);
+        }
         log.info("管理员删除评论: commentId={}, 级联删除子回复={}", commentId, replyCount);
     }
 
@@ -271,10 +285,18 @@ public class CommentServiceImpl implements CommentService {
             return vo;
         }).collect(Collectors.toList());
 
-        // Step 6: total 返回该帖子全部评论数（顶级 + 子回复），用于详情页展示
-        LambdaQueryWrapper<CommentPO> countWrapper = new LambdaQueryWrapper<>();
-        countWrapper.eq(CommentPO::getPostId, postId).eq(CommentPO::getStatus, CommonStatus.ACTIVE);
-        Long totalComments = commentMapper.selectCount(countWrapper);
+        // Step 6: 从 Redis 读评论总数，不存在时回退 DB COUNT 并回填缓存
+        String countKey = CacheKeyConstants.POST_COMMENT_COUNT_PREFIX + postId;
+        String cached = stringRedisTemplate.opsForValue().get(countKey);
+        long totalComments;
+        if (cached != null) {
+            totalComments = Long.parseLong(cached);
+        } else {
+            LambdaQueryWrapper<CommentPO> countWrapper = new LambdaQueryWrapper<>();
+            countWrapper.eq(CommentPO::getPostId, postId).eq(CommentPO::getStatus, CommonStatus.ACTIVE);
+            totalComments = commentMapper.selectCount(countWrapper);
+            stringRedisTemplate.opsForValue().set(countKey, String.valueOf(totalComments));
+        }
 
         return PageResult.of(result, totalComments, page, size);
     }

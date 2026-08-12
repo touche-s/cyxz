@@ -2,14 +2,14 @@ package com.cyxz.auth.controller;
 
 import com.cyxz.auth.service.UserAdminService;
 import com.cyxz.auth.vo.UserAdminVO;
+import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 /**
  * 用户管理（管理员端）
@@ -25,15 +25,19 @@ public class UserAdminController {
     private final UserAdminService userAdminService;
 
     /**
-     * 查询全部用户列表
+     * 分页查询用户列表
      *
-     * @return 用户管理视图对象列表
+     * @param page 页码（从 1 开始，默认 1）
+     * @param size 每页条数（默认 20）
+     * @return 分页用户管理视图对象列表
      */
-    @Operation(summary = "查询全部用户列表")
+    @Operation(summary = "分页查询用户列表")
     @GetMapping("/list")
     @PreAuthorize("hasAuthority('user:manage:list')")
-    public Result<List<UserAdminVO>> list() {
-        return Result.success(userAdminService.listAll());
+    public Result<PageResult<UserAdminVO>> list(
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "每页条数") @RequestParam(defaultValue = "20") int size) {
+        return Result.success(userAdminService.listAll(page, size));
     }
 
     /**

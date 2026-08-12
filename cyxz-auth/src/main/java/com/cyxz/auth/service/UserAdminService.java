@@ -1,6 +1,7 @@
 package com.cyxz.auth.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cyxz.audit.api.constant.AuditConstants;
 import com.cyxz.audit.api.event.AuditEvent;
 import com.cyxz.auth.dto.UserRoleCode;
@@ -10,6 +11,8 @@ import com.cyxz.auth.mapper.SysUserRoleMapper;
 import com.cyxz.auth.vo.UserAdminVO;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
+import com.cyxz.common.base.PageResult;
+import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,13 +41,16 @@ public class UserAdminService {
     private final RabbitTemplate rabbitTemplate;
 
     /**
-     * 查询所有用户列表
-     * <p>按创建时间倒序返回，排除 password 字段，角色从 sys_user_role 关联查询
+     * 分页查询用户列表
+     * <p>按创建时间倒序，排除 password 字段，角色从 sys_user_role 关联查询
      *
-     * @return 用户管理 VO 列表（不含密码）
+     * @param page 页码（从 1 开始）
+     * @param size 每页条数
+     * @return 分页用户管理 VO 列表（不含密码）
      */
-    public List<UserAdminVO> listAll() {
-        List<SysUserPO> users = sysUserMapper.selectList(
+    public PageResult<UserAdminVO> listAll(int page, int size) {
+        Page<SysUserPO> pageResult = sysUserMapper.selectPage(
+                PageConstants.pageOf(page, size),
                 new LambdaQueryWrapper<SysUserPO>()
                         .select(SysUserPO::getId, SysUserPO::getUsername,
                                 SysUserPO::getStatus, SysUserPO::getCreateTime)
@@ -53,7 +59,10 @@ public class UserAdminService {
         // 批量查询全局角色映射，避免 N+1
         Map<Long, String> roleMap = sysUserRoleMapper.selectAllUserGlobalRoles().stream()
                 .collect(Collectors.toMap(UserRoleCode::getUserId, UserRoleCode::getRoleCode, (a, b) -> a));
-        return users.stream().map(po -> toVO(po, roleMap.getOrDefault(po.getId(), "USER"))).collect(Collectors.toList());
+        List<UserAdminVO> voList = pageResult.getRecords().stream()
+                .map(po -> toVO(po, roleMap.getOrDefault(po.getId(), "USER")))
+                .collect(Collectors.toList());
+        return PageResult.of(voList, pageResult.getTotal(), page, size);
     }
 
     /**

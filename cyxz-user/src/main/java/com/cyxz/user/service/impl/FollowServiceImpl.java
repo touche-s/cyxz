@@ -178,9 +178,11 @@ public class FollowServiceImpl implements FollowService {
         int offset = (page - 1) * size;
         List<FollowUserVO> records = followMapper.selectFollowersPage(userId, offset, size);
 
-        // 查当前用户已关注的用户 ID 集合，批量补 following 字段
-        List<Long> followingIds = followMapper.selectFollowingIds(userId);
-        Set<Long> followingSet = followingIds.stream().collect(Collectors.toSet());
+        // 仅查当前页粉丝是否被回关，避免全量拉取关注列表
+        Set<Long> followerIds = records.stream()
+                .map(FollowUserVO::getUserId)
+                .collect(Collectors.toSet());
+        Set<Long> followingSet = followMapper.selectFollowingIdsAmong(userId, followerIds);
         records.forEach(vo -> vo.setFollowing(followingSet.contains(vo.getUserId())));
 
         return PageResult.of(records, total, page, size);
