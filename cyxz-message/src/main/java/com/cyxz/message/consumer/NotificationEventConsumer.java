@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rabbitmq.client.Channel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -28,8 +29,8 @@ public class NotificationEventConsumer extends AbstractManualAckRabbitListener<N
     private final ObjectMapper objectMapper;
 
     @RabbitListener(queues = NotificationConstants.QUEUE, ackMode = "MANUAL")
-    public void onEvent(NotificationEvent event, Channel channel, @Header(AmqpHeaders.DELIVERY_TAG) long tag) throws IOException {
-        processWithManualAck(event, channel, tag);
+    public void onEvent(NotificationEvent event, Channel channel, @Header(AmqpHeaders.DELIVERY_TAG) long tag, Message message) throws IOException {
+        processWithManualAck(event, channel, tag, message);
     }
 
     @Override

@@ -15,6 +15,8 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 /**
  * 帖子 ES 索引同步服务
  * <p>将帖子变更通过 MQ 事件通知 cyxz-search 服务同步 ES 索引。
@@ -154,6 +156,7 @@ public class PostEsSyncService {
                 .action(action)
                 .postId(po.getId())
                 .circleId(po.getCircleId())
+                .eventId(UUID.randomUUID().toString())
                 .build();
         try {
             rabbitTemplate.convertAndSend(PostCountConstants.EXCHANGE, PostCountConstants.ROUTING_KEY, event);

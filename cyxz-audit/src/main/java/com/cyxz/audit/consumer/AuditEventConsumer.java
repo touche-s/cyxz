@@ -8,8 +8,10 @@ import com.cyxz.common.consumer.AbstractManualAckRabbitListener;
 import com.rabbitmq.client.Channel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.support.AmqpHeaders;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
@@ -29,8 +31,8 @@ public class AuditEventConsumer extends AbstractManualAckRabbitListener<AuditEve
 
     @RabbitListener(queues = AuditConstants.QUEUE, ackMode = "MANUAL")
     public void onEvent(AuditEvent event, Channel channel,
-                        @Header(AmqpHeaders.DELIVERY_TAG) long tag) throws IOException {
-        processWithManualAck(event, channel, tag);
+                        @Header(AmqpHeaders.DELIVERY_TAG) long tag, Message message) throws IOException {
+        processWithManualAck(event, channel, tag, message);
     }
 
     /**
@@ -52,9 +54,15 @@ public class AuditEventConsumer extends AbstractManualAckRabbitListener<AuditEve
         po.setTargetId(event.getTargetId());
         po.setDetail(event.getDetail());
         po.setIp(event.getIp());
-        auditLogMapper.insert(po);
-        log.info("审计日志落库: action={}, operatorId={}, targetType={}, targetId={}",
-                event.getAction(), event.getOperatorId(), event.getTargetType(), event.getTargetId());
+        po.setEventId(event.getEventId());
+        // event_id 唯一约束防重复消费
+        try {
+            auditLogMapper.insert(po);
+        } catch (DuplicateKeyException e) {
+            log.debug("审计事件重复跳过: eventId={}, action={}", event.getEventId(), event.getAction());
+            return;
+        }
+        log.debug("审计日志落库: eventId={}, action={}, operatorId={}", event.getEventId(), event.getAction(), event.getOperatorId());
     }
 
     @Override

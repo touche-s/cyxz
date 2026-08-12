@@ -492,10 +492,12 @@ CREATE TABLE IF NOT EXISTS audit_log (
     target_id     BIGINT       NULL     COMMENT '目标 ID',
     detail        TEXT         NULL     COMMENT '操作详情 JSON',
     ip            VARCHAR(50)  NULL     COMMENT '操作 IP',
+    event_id      VARCHAR(64)  NULL     COMMENT '事件唯一标识（UUID），消费端幂等去重',
     create_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '记录时间',
     INDEX idx_operator (operator_id),
     INDEX idx_action (action),
-    INDEX idx_create_time (create_time)
+    INDEX idx_create_time (create_time),
+    UNIQUE INDEX uk_event_id (event_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='管理员操作审计日志';
 
 -- ============================================================

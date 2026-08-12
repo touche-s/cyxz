@@ -24,4 +24,7 @@ public class PostCountEvent implements Serializable {
 
     private Long postId;
     private Long circleId;
+
+    /** 事件唯一标识（UUID），用于消费端幂等去重 */
+    private String eventId;
 }
