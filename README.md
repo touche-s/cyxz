@@ -123,13 +123,14 @@ cyxz/
 
 - **权限 Cache-Aside**：JWT 精简为仅存 userId，角色/权限码通过 `GlobalPermissionProvider` 从 Redis 加载（Cache-Aside 模式），角色变更 / 圈子成员变更 / 登出时旁路删 key 失效缓存，避免权限头伪造风险
 - **统一响应与异常处理**：`Result` + `BusinessException` + `GlobalExceptionHandler`，全局错误码管理，避免 try-catch 散落
-- **Redis 缓存策略**：帖子详情 + 权限缓存均采用 Cache-Aside（写后失效），统一 key 命名规范（`CacheKeyConstants`）
+- **Redis 缓存策略**：帖子详情 + 列表 + 权限缓存均采用 Cache-Aside（写后失效），列表缓存命中仅补填 liked/collected 用户态，统一 key 命名规范（`CacheKeyConstants`）
 - **RabbitMQ 异步解耦**：通知发送、ES 索引同步、AI 审核走 MQ，死信队列兜底消费失败消息
 - **Feign 服务间调用**：`FallbackFactory` 统一降级，返回安全默认值，避免调用方异常处理模板
 - **帖子状态机**：`PostStatus` 流转规则表 + `canTransition` 校验，乐观锁条件更新防止并发覆盖
 - **跨服务最终一致性**：`TransactionSynchronizationManager.afterCommit` 事务提交后执行 Feign 调用与 MQ 发送，避免长事务持有 DB 连接及事务回滚后的幻象副作用；权限缓存删除统一走 `TransactionUtils.afterCommit` 封装
 - **线程池隔离防雪崩**：AI 审核（秒级慢 HTTP）与帖子详情并行查询（毫秒级快任务）使用独立线程池（`aiReviewExecutor` / `postQueryExecutor`），避免 `ForkJoinPool.commonPool` 快慢任务混跑导致雪崩；RestTemplate 强制超时防止线程无限阻塞
 - **ES 同步失败补偿**：MQ 发送失败时写入 Redis 失败队列，定时任务自动重试，避免生产端发送失败导致 DB-ES 永久不一致
+- **消费端幂等保护**：Analytics 用 ON DUPLICATE KEY 原子 UPSERT、Audit 用 event_id 唯一索引、PostCount 用 Redis SETNX、ES 用 _id 天然幂等，消息重复投递不产生脏数据
 - **权限提升防护**：站主（SITE_OWNER）账号禁止被平台管理员禁用/提权，内置角色权限禁止修改，角色分配受层级约束
 - **MyBatis-Plus 自动填充**：`BaseEntity` 抽取公共字段 + `MyMetaObjectHandler` 自动填充创建/更新时间
 - **定时计数汇总**：帖子/评论/圈子计数异步累加 + 定时刷库，避免实时写压力
