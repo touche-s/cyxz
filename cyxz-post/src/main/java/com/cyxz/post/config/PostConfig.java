@@ -53,7 +53,7 @@ public class PostConfig {
     /**
      * 帖子详情并行查询池：快任务（Feign + DB，毫秒级）
      * <p>core=8 并发查询作者/圈子/板块/点赞/收藏，max=16 兜底，queue=500 缓冲，
-     * AbortPolicy 让超载请求快速失败而非拖垮服务。
+     * CallerRunsPolicy 让线程池满载时由提交线程自己执行，宁慢不报错。
      */
     @Bean("postQueryExecutor")
     public ExecutorService postQueryExecutor() {
@@ -62,7 +62,7 @@ public class PostConfig {
                 60L, TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(500),
                 new CustomizableThreadFactory("post-query-"),
-                new ThreadPoolExecutor.AbortPolicy()
+                new ThreadPoolExecutor.CallerRunsPolicy()
         );
     }
 }

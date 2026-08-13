@@ -22,6 +22,9 @@ spring:
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 3000
   data:
     redis:
       host: ${REDIS_HOST:127.0.0.1}

@@ -24,6 +24,7 @@ import com.cyxz.user.utils.UserFeignHelper;
 import com.cyxz.user.vo.UserProfileVO;
 import com.cyxz.post.vo.PostVO;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -135,6 +136,15 @@ public class PostQueryService {
      * 分页查询帖子列表（仅已发布）
      */
     public PageResult<PostVO> listPosts(Long sectionId, Long circleId, String sortBy, int page, int size, Long currentUserId) {
+        String cacheKey = CacheKeyConstants.getPostListKey(sectionId, circleId, sortBy, page, size);
+        // 读缓存：命中后仅补填当前用户互动状态，避免列表热点反复查 DB + Feign
+        @SuppressWarnings("unchecked")
+        PageResult<PostVO> cached = (PageResult<PostVO>) redisTemplate.opsForValue().get(cacheKey);
+        if (cached != null) {
+            fillInteractionStatus(cached.getRecords(), currentUserId);
+            return cached;
+        }
+
         Page<PostPO> pageParam = PageConstants.pageOf(page, size);
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostPO::getStatus, PostStatus.APPROVED);
@@ -159,7 +169,35 @@ public class PostQueryService {
         List<PostVO> vos = fillPostVOList(result.getRecords(), currentUserId);
         // 全局列表不应暴露个人置顶状态
         vos.forEach(vo -> vo.setPinned(false));
+
+        // 缓存干净副本（liked/collected=false），避免用户态污染缓存
+        List<PostVO> cleanRecords = vos.stream().map(vo -> {
+            PostVO clean = new PostVO();
+            BeanUtils.copyProperties(vo, clean);
+            clean.setLiked(false);
+            clean.setCollected(false);
+            return clean;
+        }).collect(Collectors.toList());
+        redisTemplate.opsForValue().set(cacheKey, PageResult.of(cleanRecords, result.getTotal(), page, size), Duration.ofSeconds(30));
+
         return PageResult.of(vos, result.getTotal(), page, size);
+    }
+
+    /**
+     * 补填列表/详情缓存命中后的当前用户互动状态（liked/collected）
+     * <p>缓存存的是无用户态的干净副本，命中后仅查当前页帖子 ID 的点赞/收藏关系。
+     */
+    private void fillInteractionStatus(List<PostVO> vos, Long currentUserId) {
+        if (currentUserId == null || vos == null || vos.isEmpty()) {
+            return;
+        }
+        Set<Long> postIds = vos.stream().map(PostVO::getId).collect(Collectors.toSet());
+        Set<Long> likedPostIds = getLikedPostIds(currentUserId, postIds);
+        Set<Long> collectedPostIds = getCollectedPostIds(currentUserId, postIds);
+        vos.forEach(vo -> {
+            vo.setLiked(likedPostIds.contains(vo.getId()));
+            vo.setCollected(collectedPostIds.contains(vo.getId()));
+        });
     }
 
     /**

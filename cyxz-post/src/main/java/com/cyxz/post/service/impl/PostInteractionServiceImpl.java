@@ -1,7 +1,5 @@
 package com.cyxz.post.service.impl;
 
-import com.cyxz.common.base.BusinessException;
-import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.post.constant.PostStatus;
 import com.cyxz.common.utils.IpUtil;
@@ -42,11 +40,6 @@ public class PostInteractionServiceImpl implements PostInteractionService {
     private final StringRedisTemplate stringRedisTemplate;
     private final RabbitTemplate rabbitTemplate;
 
-    /** 帖子是否允许互动（仅已发布 PostStatus.APPROVED） */
-    private boolean isInteractable(PostPO po) {
-        return po != null && po.getStatus() == PostStatus.APPROVED;
-    }
-
     // ==================== 点赞 ====================
 
     /**
@@ -56,16 +49,15 @@ public class PostInteractionServiceImpl implements PostInteractionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void likePost(Long userId, Long postId) {
-        PostPO po = postMapper.selectById(postId);
-        if (po == null || !isInteractable(po)) {
-            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
-        }
-
         int rows = postLikeMapper.upsertLike(postId, userId);
         if (rows == 1) {
             incrementLikeDelta(postId, 1);
             log.debug("点赞帖子: postId={}, userId={}", postId, userId);
-            sendLikeNotification(postId, userId, po);
+            // 仅新点赞才需要帖子作者发通知，此时才查
+            PostPO po = postMapper.selectById(postId);
+            if (po != null) {
+                sendLikeNotification(postId, userId, po);
+            }
         } else if (rows == 2) {
             incrementLikeDelta(postId, 1);
             log.debug("点赞帖子(恢复): postId={}, userId={}", postId, userId);
@@ -79,11 +71,6 @@ public class PostInteractionServiceImpl implements PostInteractionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void unlikePost(Long userId, Long postId) {
-        PostPO po = postMapper.selectById(postId);
-        if (po == null || !isInteractable(po)) {
-            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
-        }
-
         int rows = postLikeMapper.deactivateLike(postId, userId);
         if (rows > 0) {
             incrementLikeDelta(postId, -1);
@@ -100,11 +87,6 @@ public class PostInteractionServiceImpl implements PostInteractionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void collectPost(Long userId, Long postId) {
-        PostPO po = postMapper.selectById(postId);
-        if (po == null || !isInteractable(po)) {
-            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
-        }
-
         int rows = postCollectMapper.upsertCollect(postId, userId);
         if (rows > 0) {
             incrementCollectDelta(postId, 1);
@@ -119,11 +101,6 @@ public class PostInteractionServiceImpl implements PostInteractionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void uncollectPost(Long userId, Long postId) {
-        PostPO po = postMapper.selectById(postId);
-        if (po == null || !isInteractable(po)) {
-            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
-        }
-
         int rows = postCollectMapper.deactivateCollect(postId, userId);
         if (rows > 0) {
             incrementCollectDelta(postId, -1);

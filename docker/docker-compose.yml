@@ -43,6 +43,7 @@ services:
   # ============================
   mysql:
     image: mysql:8.0
+    command: --max-connections=300
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?请复制 .env.example 为 .env 并配置 DB_PASSWORD}
     volumes:

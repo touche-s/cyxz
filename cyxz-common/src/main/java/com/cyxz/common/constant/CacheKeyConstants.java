@@ -175,6 +175,22 @@ public final class CacheKeyConstants {
     }
 
     /**
+     * 获取帖子列表缓存 Key
+     *
+     * @param sectionId 板块 ID（可为 null）
+     * @param circleId  圈子 ID（可为 null）
+     * @param sortBy    排序方式（latest/hot）
+     * @param page      页码
+     * @param size      每页条数
+     * @return Redis Key
+     */
+    public static String getPostListKey(Long sectionId, Long circleId, String sortBy, int page, int size) {
+        return POST_LIST_PREFIX + (sectionId == null ? "all" : sectionId) + ":"
+                + (circleId == null ? "all" : circleId) + ":"
+                + (sortBy == null ? "latest" : sortBy) + ":" + page + ":" + size;
+    }
+
+    /**
      * 获取验证码缓存 Key
      *
      * @param uuid 验证码唯一标识
