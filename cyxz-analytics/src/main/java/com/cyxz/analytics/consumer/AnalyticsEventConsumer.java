@@ -1,5 +1,6 @@
 package com.cyxz.analytics.consumer;
 
+import com.cyxz.analytics.entity.DailyStatisticPO;
 import com.cyxz.analytics.mapper.DailyStatisticMapper;
 import com.cyxz.common.constant.AnalyticsConstants;
 import com.cyxz.common.consumer.AbstractManualAckRabbitListener;
