@@ -5,7 +5,6 @@ import com.cyxz.common.constant.EsSyncConstants;
 import com.cyxz.common.event.PostEsSyncEvent;
 import com.cyxz.post.entity.PostPO;
 import com.cyxz.post.mapper.PostMapper;
-import com.cyxz.search.repository.PostSearchRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -26,7 +25,6 @@ public class EsFullSyncRunner implements ApplicationRunner {
 
     private final PostMapper postMapper;
     private final RabbitTemplate rabbitTemplate;
-    private final PostSearchRepository repository;
 
     /**
      * 启动时全量同步已通过帖子到 ES（失败仅记日志，不影响主流程）
@@ -34,11 +32,6 @@ public class EsFullSyncRunner implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         try {
-            long esCount = repository.count();
-            if (esCount > 0) {
-                log.info("ES 索引已有 {} 条数据，跳过全量同步", esCount);
-                return;
-            }
             List<PostPO> posts = postMapper.selectList(
                     new LambdaQueryWrapper<PostPO>()
                             .eq(PostPO::getStatus, 2)); // STATUS_APPROVED
