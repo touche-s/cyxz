@@ -20,7 +20,6 @@ import com.cyxz.post.mapper.PostLikeMapper;
 import com.cyxz.post.mapper.PostMapper;
 import com.cyxz.circle.feign.CircleFeignClient;
 import com.cyxz.user.feign.UserFeignClient;
-import com.cyxz.user.utils.UserFeignHelper;
 import com.cyxz.user.vo.UserProfileVO;
 import com.cyxz.post.vo.PostVO;
 import lombok.extern.slf4j.Slf4j;
@@ -114,7 +113,7 @@ public class PostQueryService {
                     throw new BusinessException(ErrorCode.POST_NOT_INTERACTABLE);
             }
         }
-        Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, Set.of(po.getUserId()));
+        Map<Long, UserProfileVO> userMap = getUserProfileMapWithCache(Set.of(po.getUserId()));
         Map<Long, String> circleNameMap = extractCircleNameMap(List.of(po));
         Map<Long, String> sectionNameMap = extractSectionNameMap(List.of(po));
         Set<Long> likedPostIds = getLikedPostIds(currentUserId, Set.of(postId));
@@ -216,7 +215,7 @@ public class PostQueryService {
 
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
 
-        Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, result.getRecords().stream().map(PostPO::getUserId).collect(Collectors.toSet()));
+        Map<Long, UserProfileVO> userMap = getUserProfileMapWithCache(result.getRecords().stream().map(PostPO::getUserId).collect(Collectors.toSet()));
         Map<Long, String> circleNameMap = extractCircleNameMap(result.getRecords());
         Map<Long, String> sectionNameMap = extractSectionNameMap(result.getRecords());
         Set<Long> postIds = result.getRecords().stream().map(PostPO::getId).collect(Collectors.toSet());
@@ -356,7 +355,7 @@ public class PostQueryService {
         Set<Long> postIds = posts.stream().map(PostPO::getId).collect(Collectors.toSet());
 
         CompletableFuture<Map<Long, UserProfileVO>> userFuture =
-                CompletableFuture.supplyAsync(RequestContextUtil.wrap(() -> UserFeignHelper.batchGetUsers(userFeignClient, userIds)), postQueryExecutor);
+                CompletableFuture.supplyAsync(RequestContextUtil.wrap(() -> getUserProfileMapWithCache(userIds)), postQueryExecutor);
         CompletableFuture<Map<Long, String>> circleFuture =
                 CompletableFuture.supplyAsync(RequestContextUtil.wrap(() -> extractCircleNameMap(posts)), postQueryExecutor);
         CompletableFuture<Map<Long, String>> sectionFuture =
@@ -452,31 +451,117 @@ public class PostQueryService {
     }
 
     /**
-     * 从帖子列表中提取圈子 ID 集合并批量查名称
+     * 从帖子列表中提取圈子 ID 集合并批量查名称（带 Redis 缓存）
      */
     public Map<Long, String> extractCircleNameMap(List<PostPO> posts) {
         Set<Long> circleIds = posts.stream()
                 .map(PostPO::getCircleId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
-        if (circleIds.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        return FeignResults.unwrapOrEmptyMap(circleFeignClient.batchGetNames(circleIds));
+        return getNameMapWithCache(circleIds, true);
     }
 
     /**
-     * 从帖子列表中提取板块 ID 集合并批量查名称
+     * 从帖子列表中提取板块 ID 集合并批量查名称（带 Redis 缓存）
      */
     public Map<Long, String> extractSectionNameMap(List<PostPO> posts) {
         Set<Long> sectionIds = posts.stream()
                 .map(PostPO::getSectionId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
-        if (sectionIds.isEmpty()) {
+        return getNameMapWithCache(sectionIds, false);
+    }
+
+    /**
+     * 批量获取圈子/板块名称（先查 Redis，miss 再 Feign 并回填缓存）
+     * <p>圈子/板块名称是全局静态数据，缓存命中率极高，避免列表/详情每次跨服务查 circle。
+     *
+     * @param ids      圈子 ID 或板块 ID 集合
+     * @param isCircle true=圈子名称，false=板块名称
+     * @return ID -> 名称 映射
+     */
+    private Map<Long, String> getNameMapWithCache(Set<Long> ids, boolean isCircle) {
+        if (ids.isEmpty()) {
             return Collections.emptyMap();
         }
-        return FeignResults.unwrapOrEmptyMap(circleFeignClient.batchGetSectionNames(sectionIds));
+
+        List<Long> idList = new ArrayList<>(ids);
+        List<String> keys = idList.stream()
+                .map(id -> isCircle
+                        ? CacheKeyConstants.getCircleNameKey(id)
+                        : CacheKeyConstants.getSectionNameKey(id))
+                .collect(Collectors.toList());
+
+        Map<Long, String> result = new HashMap<>();
+        Set<Long> missedIds = new HashSet<>();
+
+        List<Object> cachedValues = redisTemplate.opsForValue().multiGet(keys);
+        for (int i = 0; i < idList.size(); i++) {
+            Object value = cachedValues.get(i);
+            if (value != null) {
+                result.put(idList.get(i), value.toString());
+            } else {
+                missedIds.add(idList.get(i));
+            }
+        }
+
+        if (!missedIds.isEmpty()) {
+            Map<Long, String> feignResult = isCircle
+                    ? FeignResults.unwrapOrEmptyMap(circleFeignClient.batchGetNames(missedIds))
+                    : FeignResults.unwrapOrEmptyMap(circleFeignClient.batchGetSectionNames(missedIds));
+            for (Map.Entry<Long, String> entry : feignResult.entrySet()) {
+                String key = isCircle
+                        ? CacheKeyConstants.getCircleNameKey(entry.getKey())
+                        : CacheKeyConstants.getSectionNameKey(entry.getKey());
+                redisTemplate.opsForValue().set(key, entry.getValue(), Duration.ofMinutes(CacheKeyConstants.NAME_CACHE_TTL_MINUTES));
+                result.put(entry.getKey(), entry.getValue());
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * 批量获取用户资料（先查 Redis，miss 再 Feign 并回填缓存）
+     * <p>用户昵称/头像等资料变更频率低，缓存命中率极高，避免列表/详情每次跨服务查 user。
+     *
+     * @param userIds 用户 ID 集合
+     * @return userId -> UserProfileVO 映射
+     */
+    private Map<Long, UserProfileVO> getUserProfileMapWithCache(Set<Long> userIds) {
+        if (userIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        List<Long> idList = new ArrayList<>(userIds);
+        List<String> keys = idList.stream()
+                .map(CacheKeyConstants::getUserProfileKey)
+                .collect(Collectors.toList());
+
+        Map<Long, UserProfileVO> result = new HashMap<>();
+        Set<Long> missedIds = new HashSet<>();
+
+        List<Object> cachedValues = redisTemplate.opsForValue().multiGet(keys);
+        for (int i = 0; i < idList.size(); i++) {
+            Object value = cachedValues.get(i);
+            if (value != null) {
+                result.put(idList.get(i), (UserProfileVO) value);
+            } else {
+                missedIds.add(idList.get(i));
+            }
+        }
+
+        if (!missedIds.isEmpty()) {
+            Map<Long, UserProfileVO> feignResult =
+                    FeignResults.unwrapOrEmptyMap(userFeignClient.batchGetUserProfiles(new ArrayList<>(missedIds)));
+            for (Map.Entry<Long, UserProfileVO> entry : feignResult.entrySet()) {
+                String key = CacheKeyConstants.getUserProfileKey(entry.getKey());
+                redisTemplate.opsForValue().set(key, entry.getValue(), Duration.ofMinutes(CacheKeyConstants.USER_PROFILE_TTL_MINUTES));
+                result.put(entry.getKey(), entry.getValue());
+            }
+        }
+
+        return result;
     }
 
     /**

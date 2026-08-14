@@ -35,6 +35,21 @@ public final class CacheKeyConstants {
     /** 帖子详情缓存 Key 集合（用于批量管理） */
     public static final String POST_DETAIL_KEYS_SET = NS + "post:detail:keys";
 
+    /** 圈子名称缓存前缀 */
+    public static final String CIRCLE_NAME_PREFIX = NS + "circle:name:";
+
+    /** 板块名称缓存前缀 */
+    public static final String SECTION_NAME_PREFIX = NS + "section:name:";
+
+    /** 圈子/板块名称缓存过期时间（分钟） */
+    public static final long NAME_CACHE_TTL_MINUTES = 60;
+
+    /** 用户资料缓存前缀 */
+    public static final String USER_PROFILE_PREFIX = NS + "user:profile:";
+
+    /** 用户资料缓存过期时间（分钟） */
+    public static final long USER_PROFILE_TTL_MINUTES = 60;
+
     /** 用户点赞缓存前缀 */
     public static final String USER_LIKED_PREFIX = NS + "user:liked:";
 
@@ -188,6 +203,36 @@ public final class CacheKeyConstants {
         return POST_LIST_PREFIX + (sectionId == null ? "all" : sectionId) + ":"
                 + (circleId == null ? "all" : circleId) + ":"
                 + (sortBy == null ? "latest" : sortBy) + ":" + page + ":" + size;
+    }
+
+    /**
+     * 获取圈子名称缓存 Key
+     *
+     * @param circleId 圈子 ID
+     * @return Redis Key
+     */
+    public static String getCircleNameKey(Long circleId) {
+        return CIRCLE_NAME_PREFIX + circleId;
+    }
+
+    /**
+     * 获取板块名称缓存 Key
+     *
+     * @param sectionId 板块 ID
+     * @return Redis Key
+     */
+    public static String getSectionNameKey(Long sectionId) {
+        return SECTION_NAME_PREFIX + sectionId;
+    }
+
+    /**
+     * 获取用户资料缓存 Key
+     *
+     * @param userId 用户 ID
+     * @return Redis Key
+     */
+    public static String getUserProfileKey(Long userId) {
+        return USER_PROFILE_PREFIX + userId;
     }
 
     /**
