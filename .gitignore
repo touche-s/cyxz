@@ -64,4 +64,5 @@ db/cyxz_*.sql
 
 # 压测产物（含 JWT token，禁止入库）
 scripts/benchmark/tokens.txt
+scripts/benchmark/*.csv
 scripts/benchmark/__pycache__/
