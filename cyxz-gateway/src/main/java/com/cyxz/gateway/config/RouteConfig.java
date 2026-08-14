@@ -1,5 +1,7 @@
 package com.cyxz.gateway.config;
 
+import org.springframework.cloud.gateway.filter.ratelimit.KeyResolver;
+import org.springframework.cloud.gateway.filter.ratelimit.RedisRateLimiter;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
@@ -14,7 +16,9 @@ import org.springframework.context.annotation.Configuration;
 public class RouteConfig {
 
     @Bean
-    public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
+    public RouteLocator customRouteLocator(RouteLocatorBuilder builder,
+                                           RedisRateLimiter redisRateLimiter,
+                                           KeyResolver ipKeyResolver) {
         return builder.routes()
                 .route("auth", r -> r.path("/api/auth/**")
                         .and().not(p -> p.path("/api/*/internal/**"))
@@ -30,7 +34,10 @@ public class RouteConfig {
                         .uri("lb://cyxz-post"))
                 .route("post", r -> r.path("/api/post/**", "/api/posts/**")
                         .and().not(p -> p.path("/api/*/internal/**"))
-                        .filters(f -> f.stripPrefix(1))
+                        .filters(f -> f.stripPrefix(1)
+                                .requestRateLimiter(c -> c
+                                        .setRateLimiter(redisRateLimiter)
+                                        .setKeyResolver(ipKeyResolver)))
                         .uri("lb://cyxz-post"))
                 .route("circle", r -> r.path("/api/circle/**", "/api/admin/circle/**", "/api/section/**", "/api/admin/section-template/**",
                                 "/api/circle-application/**", "/api/admin/circle-application/**",
