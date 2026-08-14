@@ -66,3 +66,5 @@ db/cyxz_*.sql
 scripts/benchmark/tokens.txt
 scripts/benchmark/*.csv
 scripts/benchmark/__pycache__/
+scripts/benchmark/k6-bin/
+scripts/benchmark/k6-result.json
