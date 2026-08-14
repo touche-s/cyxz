@@ -14,7 +14,7 @@ COPY . .
 
 ARG SERVICE_NAME
 
-# 编译：依赖大部分已在 maven-deps 镜像中，缺失的从阿里云补下载
+# 编译：依赖大部分已在 maven-deps 镜像的本地仓库中，缺失的（如 spring-boot 打包插件）联网补下载
 # 不用 -am：公共模块 jar 已 install 到本地仓库，直接引用
 RUN mvn package -Dmaven.test.skip=true -pl ${SERVICE_NAME} -q -s /tmp/maven-settings.xml
 

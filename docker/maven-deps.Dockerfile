@@ -54,7 +54,9 @@ COPY cyxz-governance/pom.xml cyxz-governance/
 COPY cyxz-audit/pom.xml cyxz-audit/
 COPY cyxz-analytics/pom.xml cyxz-analytics/
 
-RUN mvn dependency:go-offline -B -s /tmp/maven-settings.xml || true
+# 从现有完整依赖镜像复制 ~/.m2，避免每次重新下载依赖
+# 注意：依赖现有 cyxz-maven-deps:latest 镜像已构建；首次构建需先执行一次 go-offline
+COPY --from=cyxz-maven-deps:latest /root/.m2 /root/.m2
 
 # ---- 第二层：编译安装公共模块到本地仓库 ----
 # 公共模块源码没变时，这层缓存命中
@@ -71,4 +73,4 @@ COPY cyxz-audit-api/src cyxz-audit-api/src
 
 RUN mvn install -Dmaven.test.skip=true \
     -pl cyxz-common,cyxz-security,cyxz-user-api,cyxz-auth-api,cyxz-post-api,cyxz-comment-api,cyxz-message-api,cyxz-circle-api,cyxz-governance-api,cyxz-audit-api \
-    -am -s /tmp/maven-settings.xml -q
+    -am -o -s /tmp/maven-settings.xml -q
