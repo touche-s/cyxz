@@ -18,11 +18,11 @@ import java.util.Objects;
 public class RateLimitConfig {
 
     /** 每秒补充令牌数（QPS 上限） */
-    @Value("${app.rate-limit.replenish-rate:200}")
+    @Value("${app.rate-limit.replenish-rate:500}")
     private int replenishRate;
 
     /** 突发容量（允许的瞬时峰值） */
-    @Value("${app.rate-limit.burst-capacity:400}")
+    @Value("${app.rate-limit.burst-capacity:600}")
     private int burstCapacity;
 
     /**
