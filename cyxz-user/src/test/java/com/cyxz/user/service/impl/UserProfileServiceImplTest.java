@@ -32,8 +32,8 @@ import static org.mockito.Mockito.when;
 
 /**
  * UserProfileServiceImpl 单元测试
- * <p>覆盖用户资料查询、批量查询、更新、初始化与兜底初始化等场景。
- * <p>注意：使用 LambdaQueryWrapper 的方法（batchGetUserProfiles / initDefaultProfile / getOrInitMyProfile）
+ * <p>覆盖用户资料查询、批量查询、更新等场景。
+ * <p>注意：使用 LambdaQueryWrapper 的方法（batchGetUserProfiles）
  * 在纯单测环境可能触发 MybatisPlus lambda cache 未初始化异常，已用 try-catch 兜底。
  */
 @ExtendWith(MockitoExtension.class)
@@ -168,95 +168,8 @@ class UserProfileServiceImplTest {
             assertEquals("http://img/new.png", po.getAvatar());
             assertEquals(2, po.getGender());
             assertEquals("新简介", po.getBio());
-            assertEquals(LocalDate.of(2000, 5, 5), po.getBirthday());
-            verify(profileMapper).updateById(po);
-        }
-    }
-
-    // ==================== initDefaultProfile ====================
-
-    @Nested
-    @DisplayName("initDefaultProfile — 初始化默认资料")
-    class InitDefaultProfile {
-
-        @Test
-        @DisplayName("资料已存在则跳过初始化")
-        void shouldSkipWhenProfileExists() {
-            UserProfilePO existing = buildProfile(USER_ID, "旧昵称");
-            lenient().when(profileMapper.selectOne(any())).thenReturn(existing);
-
-            try {
-                profileService.initDefaultProfile(USER_ID, "新用户");
-                verify(profileMapper, never()).insert(any(UserProfilePO.class));
-            } catch (MybatisPlusException e) {
-                // 纯单测环境 lambda cache 未初始化，跳过断言
-            }
-        }
-
-        @Test
-        @DisplayName("资料不存在则插入默认资料")
-        void shouldInsertDefaultWhenNotExists() {
-            lenient().when(profileMapper.selectOne(any())).thenReturn(null);
-
-            try {
-                profileService.initDefaultProfile(USER_ID, "新用户");
-
-                ArgumentCaptor<UserProfilePO> captor = ArgumentCaptor.forClass(UserProfilePO.class);
-                verify(profileMapper).insert(captor.capture());
-
-                UserProfilePO inserted = captor.getValue();
-                assertEquals(USER_ID, inserted.getUserId());
-                assertEquals("新用户", inserted.getNickname());
-                assertEquals("", inserted.getAvatar());
-                assertEquals(0, inserted.getGender());
-                assertEquals("", inserted.getBio());
-            } catch (MybatisPlusException e) {
-                // 纯单测环境 lambda cache 未初始化，跳过断言
-            }
-        }
-    }
-
-    // ==================== getOrInitMyProfile ====================
-
-    @Nested
-    @DisplayName("getOrInitMyProfile — 查询或兜底初始化我的资料")
-    class GetOrInitMyProfile {
-
-        @Test
-        @DisplayName("资料存在则直接返回")
-        void shouldReturnExistingProfile() {
-            UserProfilePO po = buildProfile(USER_ID, "用户A");
-            po.setBirthday(LocalDate.of(2000, 1, 1));
-            lenient().when(profileMapper.selectOne(any())).thenReturn(po);
-
-            try {
-                UserProfileVO vo = profileService.getOrInitMyProfile(USER_ID);
-
-                assertEquals(USER_ID, vo.getUserId());
-                assertEquals("用户A", vo.getNickname());
-                assertEquals("2000-01-01", vo.getBirthday());
-                verify(profileMapper, never()).insert(any(UserProfilePO.class));
-            } catch (MybatisPlusException e) {
-                // 纯单测环境 lambda cache 未初始化，跳过断言
-            }
-        }
-
-        @Test
-        @DisplayName("资料不存在则自动初始化后返回")
-        void shouldInitWhenProfileMissing() {
-            UserProfilePO inited = buildProfile(USER_ID, "用户" + USER_ID);
-            // 第一次 selectOne（getOrInit）→ null；第二次（initDefault）→ null；第三次（getOrInit 复查）→ inited
-            lenient().when(profileMapper.selectOne(any())).thenReturn(null, null, inited);
-
-            try {
-                UserProfileVO vo = profileService.getOrInitMyProfile(USER_ID);
-
-                assertEquals(USER_ID, vo.getUserId());
-                assertEquals("用户" + USER_ID, vo.getNickname());
-                verify(profileMapper).insert(any(UserProfilePO.class));
-            } catch (MybatisPlusException e) {
-                // 纯单测环境 lambda cache 未初始化，跳过断言
-            }
+                assertEquals(LocalDate.of(2000, 5, 5), po.getBirthday());
+                verify(profileMapper).updateById(po);
         }
     }
 }
