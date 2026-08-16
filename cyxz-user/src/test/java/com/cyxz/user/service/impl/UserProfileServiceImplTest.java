@@ -1,8 +1,6 @@
 package com.cyxz.user.service.impl;
 
 import com.baomidou.mybatisplus.core.exceptions.MybatisPlusException;
-import com.cyxz.common.base.BusinessException;
-import com.cyxz.common.base.ErrorCode;
 import com.cyxz.user.dto.UpdateProfileRequest;
 import com.cyxz.user.entity.UserProfilePO;
 import com.cyxz.user.mapper.UserProfileMapper;
@@ -65,14 +63,13 @@ class UserProfileServiceImplTest {
     class GetByUserId {
 
         @Test
-        @DisplayName("用户不存在抛 USER_NOT_FOUND")
-        void shouldThrowWhenUserNotFound() {
+        @DisplayName("用户不存在返回 null")
+        void shouldReturnNullWhenUserNotFound() {
             when(profileMapper.selectById(USER_ID)).thenReturn(null);
 
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> profileService.getByUserId(USER_ID));
+            UserProfileVO vo = profileService.getByUserId(USER_ID);
 
-            assertEquals(ErrorCode.USER_NOT_FOUND.getCode(), ex.getCode());
+            assertNull(vo);
             verify(followService, never()).countFollowing(anyLong());
         }
 
@@ -136,16 +133,18 @@ class UserProfileServiceImplTest {
     class UpdateProfile {
 
         @Test
-        @DisplayName("用户不存在抛 USER_NOT_FOUND")
-        void shouldThrowWhenUserNotFound() {
+        @DisplayName("用户不存在时懒加载创建")
+        void shouldLazyCreateWhenUserNotFound() {
             when(profileMapper.selectById(USER_ID)).thenReturn(null);
             UpdateProfileRequest request = new UpdateProfileRequest();
             request.setNickname("新昵称");
 
-            BusinessException ex = assertThrows(BusinessException.class,
-                    () -> profileService.updateProfile(USER_ID, request));
+            profileService.updateProfile(USER_ID, request);
 
-            assertEquals(ErrorCode.USER_NOT_FOUND.getCode(), ex.getCode());
+            ArgumentCaptor<UserProfilePO> captor = ArgumentCaptor.forClass(UserProfilePO.class);
+            verify(profileMapper).insert(captor.capture());
+            assertEquals(USER_ID, captor.getValue().getUserId());
+            assertEquals("新昵称", captor.getValue().getNickname());
             verify(profileMapper, never()).updateById(any(UserProfilePO.class));
         }
 

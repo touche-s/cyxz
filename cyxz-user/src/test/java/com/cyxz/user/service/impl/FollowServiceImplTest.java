@@ -19,6 +19,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -248,7 +249,7 @@ class FollowServiceImplTest {
             when(followMapper.selectFollowersPage(eq(USER_ID), anyInt(), anyInt()))
                     .thenReturn(List.of(fan1, fan2));
             // 当前用户已关注 TARGET_ID，未关注 300
-            when(followMapper.selectFollowingIds(USER_ID)).thenReturn(List.of(TARGET_ID));
+            when(followMapper.selectFollowingIdsAmong(eq(USER_ID), anySet())).thenReturn(Set.of(TARGET_ID));
 
             PageResult<FollowUserVO> result = followService.listFollowers(USER_ID, 1, 20);
 

@@ -29,7 +29,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.*;
 
@@ -111,18 +110,10 @@ class PostServiceImplTest {
         postStatsService = new PostStatsService(
                 postMapper, postLikeMapper, userFeignClient, commentFeignClient, postQueryService,
                 postQueryExecutor);
-
-        // 手动开启事务同步，供 hardDeletePost / batchOperate 注册 afterCommit 回调
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.initSynchronization();
-        }
     }
 
     @org.junit.jupiter.api.AfterEach
     void tearDown() {
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.clearSynchronization();
-        }
         aiReviewExecutor.shutdownNow();
         postQueryExecutor.shutdownNow();
     }
@@ -641,12 +632,13 @@ class PostServiceImplTest {
         void shouldApprovePendingPost() {
             PostPO po = buildPost(PostStatus.PENDING);
             when(postMapper.selectById(POST_ID)).thenReturn(po);
+            when(postMapper.update(any(PostPO.class), any(Wrapper.class))).thenReturn(1);
 
             reviewService.approvePost(POST_ID);
 
             assertEquals(PostStatus.APPROVED, po.getStatus());
             assertNull(po.getReviewReason());
-            verify(postMapper).updateById(po);
+            verify(postMapper).update(any(PostPO.class), any(Wrapper.class));
             verify(postQueryService).evictDetailCache(POST_ID);
             verify(postEsSyncService).syncPostToEs(po);
         }
@@ -659,7 +651,7 @@ class PostServiceImplTest {
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> reviewService.approvePost(POST_ID));
-            assertTrue(ex.getMessage().contains("不在待审核状态"));
+            assertTrue(ex.getMessage().contains("不允许从"));
         }
 
         @Test
@@ -667,12 +659,13 @@ class PostServiceImplTest {
         void shouldRejectPendingPost() {
             PostPO po = buildPost(PostStatus.PENDING);
             when(postMapper.selectById(POST_ID)).thenReturn(po);
+            when(postMapper.update(any(PostPO.class), any(Wrapper.class))).thenReturn(1);
 
             reviewService.rejectPost(POST_ID, "内容违规");
 
             assertEquals(PostStatus.REJECTED, po.getStatus());
             assertEquals("内容违规", po.getReviewReason());
-            verify(postMapper).updateById(po);
+            verify(postMapper).update(any(PostPO.class), any(Wrapper.class));
             verify(postQueryService).evictDetailCache(POST_ID);
         }
     }

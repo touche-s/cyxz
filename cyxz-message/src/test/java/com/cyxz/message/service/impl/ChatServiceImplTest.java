@@ -18,6 +18,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -38,6 +40,7 @@ class ChatServiceImplTest {
     @Mock private UserFeignClient userFeignClient;
     @Mock private WebSocketSessionManager sessionManager;
     @Mock private ObjectMapper objectMapper;
+    @Mock private TransactionTemplate transactionTemplate;
 
     @InjectMocks
     private ChatServiceImpl chatService;
@@ -54,6 +57,14 @@ class ChatServiceImplTest {
         conv.setUnreadCount1(0);
         conv.setUnreadCount2(2);
         return conv;
+    }
+
+    /** 让 transactionTemplate.execute 立即同步执行回调，避免真实事务 */
+    private void mockTransactionTemplateExecute() {
+        when(transactionTemplate.execute(any())).thenAnswer(inv -> {
+            TransactionCallback<?> callback = inv.getArgument(0);
+            return callback.doInTransaction(null);
+        });
     }
 
     // ==================== sendMessage ====================
@@ -118,6 +129,7 @@ class ChatServiceImplTest {
             when(conversationMapper.selectOne(any())).thenReturn(buildConversation());
             when(sessionManager.isOnline(USER2)).thenReturn(true);
             when(objectMapper.writeValueAsString(any())).thenReturn("{}");
+            mockTransactionTemplateExecute();
 
             ChatMessageVO vo = chatService.sendMessage(USER1, USER2, "你好");
 
@@ -135,6 +147,7 @@ class ChatServiceImplTest {
                     .thenReturn(Result.success(true));
             when(conversationMapper.selectOne(any())).thenReturn(buildConversation());
             when(sessionManager.isOnline(USER2)).thenReturn(false);
+            mockTransactionTemplateExecute();
 
             chatService.sendMessage(USER1, USER2, "你好");
 
@@ -148,6 +161,7 @@ class ChatServiceImplTest {
                     .thenReturn(Result.success(true));
             when(conversationMapper.selectOne(any())).thenReturn(null);
             when(sessionManager.isOnline(USER2)).thenReturn(false);
+            mockTransactionTemplateExecute();
 
             chatService.sendMessage(USER1, USER2, "你好");
 
