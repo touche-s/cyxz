@@ -19,8 +19,8 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build & Test (cyxz-post)
-        run: mvn test -pl cyxz-post,cyxz-common -am -B
+      - name: Build & Test (all modules)
+        run: mvn test -B
 
   frontend:
     runs-on: ubuntu-latest
