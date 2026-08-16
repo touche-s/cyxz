@@ -36,6 +36,7 @@ import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -242,6 +243,7 @@ public class AuthServiceImpl implements AuthService {
         // 发布统计事件：新增用户数 +1
         try {
             AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                    .eventId(UUID.randomUUID().toString())
                     .metric(AnalyticsConstants.METRIC_NEW_USER)
                     .value(1)
                     .statDate(LocalDate.now())

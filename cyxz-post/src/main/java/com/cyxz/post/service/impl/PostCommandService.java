@@ -143,6 +143,7 @@ public class PostCommandService {
             // 发布统计事件：新增帖子数 +1
             try {
                 AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                        .eventId(UUID.randomUUID().toString())
                         .metric(AnalyticsConstants.METRIC_NEW_POST)
                         .value(1)
                         .statDate(LocalDate.now())

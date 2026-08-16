@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * 圈子创建申请服务实现
@@ -141,6 +142,7 @@ public class CircleApplicationServiceImpl implements CircleApplicationService {
         // 发布审计事件：建圈申请审核通过
         try {
             AuditEvent auditEvent = AuditEvent.builder()
+                    .eventId(UUID.randomUUID().toString())
                     .operatorId(reviewerId)
                     .operatorName(null)
                     .action(AuditConstants.ACTION_CIRCLE_APPROVE)
@@ -176,6 +178,7 @@ public class CircleApplicationServiceImpl implements CircleApplicationService {
         // 发布审计事件：建圈申请审核驳回
         try {
             AuditEvent auditEvent = AuditEvent.builder()
+                    .eventId(UUID.randomUUID().toString())
                     .operatorId(reviewerId)
                     .operatorName(null)
                     .action(AuditConstants.ACTION_CIRCLE_REJECT)

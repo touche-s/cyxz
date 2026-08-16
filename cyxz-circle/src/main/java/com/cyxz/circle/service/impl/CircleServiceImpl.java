@@ -41,6 +41,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -122,6 +123,7 @@ public class CircleServiceImpl implements CircleService {
             public void afterCommit() {
                 try {
                     AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                            .eventId(UUID.randomUUID().toString())
                             .metric(AnalyticsConstants.METRIC_NEW_JOIN)
                             .value(1)
                             .statDate(LocalDate.now())
@@ -283,6 +285,7 @@ public class CircleServiceImpl implements CircleService {
                 }
                 try {
                     AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                            .eventId(UUID.randomUUID().toString())
                             .metric(AnalyticsConstants.METRIC_NEW_CIRCLE)
                             .value(1)
                             .statDate(LocalDate.now())

@@ -28,6 +28,7 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * 举报服务实现
@@ -176,6 +177,7 @@ public class ReportServiceImpl implements ReportService {
     private void publishAuditEvent(Long operatorId, String action, String targetType, Long targetId) {
         try {
             AuditEvent auditEvent = AuditEvent.builder()
+                    .eventId(UUID.randomUUID().toString())
                     .operatorId(operatorId)
                     .operatorName(null)
                     .action(action)
@@ -194,6 +196,7 @@ public class ReportServiceImpl implements ReportService {
     private void publishAnalyticsEvent(String metric) {
         try {
             AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                    .eventId(UUID.randomUUID().toString())
                     .metric(metric)
                     .value(1)
                     .statDate(LocalDate.now())

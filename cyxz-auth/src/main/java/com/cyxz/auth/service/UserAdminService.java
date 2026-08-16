@@ -26,6 +26,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -87,6 +88,7 @@ public class UserAdminService {
             public void afterCommit() {
                 try {
                     AuditEvent auditEvent = AuditEvent.builder()
+                            .eventId(UUID.randomUUID().toString())
                             .operatorId(operatorId)
                             .operatorName(null)
                             .action(AuditConstants.ACTION_USER_DISABLE)
@@ -127,6 +129,7 @@ public class UserAdminService {
             public void afterCommit() {
                 try {
                     AuditEvent auditEvent = AuditEvent.builder()
+                            .eventId(UUID.randomUUID().toString())
                             .operatorId(operatorId)
                             .operatorName(null)
                             .action(AuditConstants.ACTION_USER_ENABLE)

@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * 帖子审核服务
@@ -74,6 +75,7 @@ public class PostReviewService {
         // 发布审计事件：帖子审核通过（操作人为系统）
         try {
             AuditEvent auditEvent = AuditEvent.builder()
+                    .eventId(UUID.randomUUID().toString())
                     .operatorId(0L)
                     .operatorName(null)
                     .action(AuditConstants.ACTION_POST_APPROVE)
@@ -90,6 +92,7 @@ public class PostReviewService {
         // 发布统计事件：帖子审核通过数 +1
         try {
             AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                    .eventId(UUID.randomUUID().toString())
                     .metric(AnalyticsConstants.METRIC_POST_APPROVED)
                     .value(1)
                     .statDate(LocalDate.now())
@@ -133,6 +136,7 @@ public class PostReviewService {
         // 发布审计事件：帖子审核拒绝（操作人为系统）
         try {
             AuditEvent auditEvent = AuditEvent.builder()
+                    .eventId(UUID.randomUUID().toString())
                     .operatorId(0L)
                     .operatorName(null)
                     .action(AuditConstants.ACTION_POST_REJECT)
@@ -149,6 +153,7 @@ public class PostReviewService {
         // 发布统计事件：帖子审核驳回数 +1
         try {
             AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                    .eventId(UUID.randomUUID().toString())
                     .metric(AnalyticsConstants.METRIC_POST_REJECTED)
                     .value(1)
                     .statDate(LocalDate.now())
