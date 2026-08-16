@@ -42,13 +42,13 @@ public class PostEsSyncService {
      * 同步帖子到 ES：APPROVED 状态写入，其他状态删除
      */
     public void syncPostToEs(PostPO po) {
+        String action = po.getStatus() != null && po.getStatus() == PostStatus.APPROVED ? "CREATE" : "DELETE";
+        PostEsSyncEvent event = buildSyncEvent(po, action);
         try {
-            String action = po.getStatus() != null && po.getStatus() == PostStatus.APPROVED ? "CREATE" : "DELETE";
-            PostEsSyncEvent event = buildSyncEvent(po, action);
             rabbitTemplate.convertAndSend(EsSyncConstants.EXCHANGE, EsSyncConstants.ROUTING_KEY, event);
         } catch (Exception e) {
             log.error("ES 同步消息发送失败，已入失败队列等待重试: postId={}", po.getId(), e);
-            enqueueFailedSync(buildSyncEvent(po, "CREATE"));
+            enqueueFailedSync(event);
         }
     }
 
