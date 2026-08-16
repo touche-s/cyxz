@@ -987,7 +987,7 @@ const filteredAdminPosts = computed(() => {
 async function loadAdminPosts() {
   adminPostLoading.value = true
   try {
-    const res = await request.get('/post/admin/list', {
+    const res = await request.get('/admin/post/list', {
       params: { status: adminPostStatusFilter.value, page: adminPostPage.value, size: 20 }
     }) as any
     adminPosts.value = res.records || []
@@ -999,7 +999,7 @@ async function loadAdminPosts() {
 async function adminDeletePost(p: AdminPost) {
   try {
     await ElMessageBox.confirm(`确定删除帖子"${p.title}"吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' })
-    await request.delete(`/post/admin/${p.id}`)
+    await request.delete(`/admin/post/${p.id}`)
     ElMessage.success('删除成功')
     await loadAdminPosts()
   } catch (action: any) { if (action !== 'cancel') ElMessage.error('删除失败') }
@@ -1120,7 +1120,7 @@ async function toggleCircleStatus(c: CircleVO) {
   const action = (c as any).status === 1 ? '禁用' : '启用'
   try {
     await ElMessageBox.confirm(`确定${action}圈子"${c.name}"吗？`, `确认${action}`, { confirmButtonText: action, cancelButtonText: '取消', type: 'warning' })
-    await request.put(`/circle/${c.id}/status`, { status: (c as any).status === 1 ? 0 : 1 })
+    await request.put(`/admin/circle/${c.id}/status`, { status: (c as any).status === 1 ? 0 : 1 })
     ElMessage.success(`${action}成功`)
     await loadCircles()
   } catch (action: any) { if (action !== 'cancel') ElMessage.error('操作失败') }

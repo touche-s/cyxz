@@ -267,17 +267,17 @@ export const batchOperate = (data: { postIds: string[]; action: string }) => {
 
 /** 待审核帖子列表 */
 export const listPendingReview = (params: { page?: number; size?: number }): Promise<PageResult<PostVO>> => {
-  return request.get('/post/admin/review/pending', { params })
+  return request.get('/admin/post/review/pending', { params })
 }
 
 /** 审核通过 */
 export const approvePost = (postId: string) => {
-  return request.put(`/post/admin/review/${postId}/approve`)
+  return request.put(`/admin/post/review/${postId}/approve`)
 }
 
 /** 审核拒绝 */
 export const rejectPost = (postId: string, reason: string) => {
-  return request.put(`/post/admin/review/${postId}/reject`, { reason })
+  return request.put(`/admin/post/review/${postId}/reject`, { reason })
 }
 
 // ===== 圈子维度审核（圈子管理员/圈主） =====

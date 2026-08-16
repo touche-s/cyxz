@@ -48,7 +48,7 @@ export const getManagedCircles = (): Promise<CircleVO[]> => {
 
 /** 管理员全量圈子列表（含禁用状态），用于平台管理后台 */
 export const getAdminCircleList = (): Promise<CircleVO[]> => {
-  return request.get('/circle/admin/list')
+  return request.get('/admin/circle/list')
 }
 
 export interface CircleSectionVO {
