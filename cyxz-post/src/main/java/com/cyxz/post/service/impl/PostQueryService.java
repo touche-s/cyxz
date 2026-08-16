@@ -27,6 +27,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -34,6 +35,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -51,6 +53,7 @@ public class PostQueryService {
     private final UserFeignClient userFeignClient;
     private final CircleFeignClient circleFeignClient;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final StringRedisTemplate stringRedisTemplate;
     private final ExecutorService postQueryExecutor;
 
     public PostQueryService(PostMapper postMapper,
@@ -59,6 +62,7 @@ public class PostQueryService {
                             UserFeignClient userFeignClient,
                             CircleFeignClient circleFeignClient,
                             RedisTemplate<String, Object> redisTemplate,
+                            StringRedisTemplate stringRedisTemplate,
                             @Qualifier("postQueryExecutor") ExecutorService postQueryExecutor) {
         this.postMapper = postMapper;
         this.postLikeMapper = postLikeMapper;
@@ -66,6 +70,7 @@ public class PostQueryService {
         this.userFeignClient = userFeignClient;
         this.circleFeignClient = circleFeignClient;
         this.redisTemplate = redisTemplate;
+        this.stringRedisTemplate = stringRedisTemplate;
         this.postQueryExecutor = postQueryExecutor;
     }
 
@@ -571,15 +576,8 @@ public class PostQueryService {
         if (userId == null || postIds == null || postIds.isEmpty()) {
             return Collections.emptySet();
         }
-        LambdaQueryWrapper<PostLikePO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PostLikePO::getUserId, userId)
-                .in(PostLikePO::getPostId, postIds)
-                .eq(PostLikePO::getStatus, CommonStatus.ACTIVE)
-                .select(PostLikePO::getPostId);
-        List<PostLikePO> list = postLikeMapper.selectList(wrapper);
-        return list.stream()
-                .map(PostLikePO::getPostId)
-                .collect(Collectors.toSet());
+        Set<Long> likedAll = loadRelationSet(CacheKeyConstants.getUserLikedPostsKey(userId), () -> queryLikedPostIds(userId));
+        return postIds.stream().filter(likedAll::contains).collect(Collectors.toSet());
     }
 
     /**
@@ -589,13 +587,53 @@ public class PostQueryService {
         if (userId == null || postIds == null || postIds.isEmpty()) {
             return Collections.emptySet();
         }
+        Set<Long> collectedAll = loadRelationSet(CacheKeyConstants.getUserCollectedPostsKey(userId), () -> queryCollectedPostIds(userId));
+        return postIds.stream().filter(collectedAll::contains).collect(Collectors.toSet());
+    }
+
+    /**
+     * 读关系缓存：命中直接返回，未命中查 DB 重建并回填（空集合用哨兵占位防穿透）
+     */
+    private Set<Long> loadRelationSet(String key, Supplier<Set<Long>> dbLoader) {
+        Set<String> members = stringRedisTemplate.opsForSet().members(key);
+        if (members != null && !members.isEmpty()) {
+            return members.stream()
+                    .filter(m -> !CacheKeyConstants.EMPTY_SET_PLACEHOLDER.equals(m))
+                    .map(Long::valueOf)
+                    .collect(Collectors.toSet());
+        }
+        Set<Long> ids = dbLoader.get();
+        if (ids.isEmpty()) {
+            stringRedisTemplate.opsForSet().add(key, CacheKeyConstants.EMPTY_SET_PLACEHOLDER);
+        } else {
+            stringRedisTemplate.opsForSet().add(key, ids.stream().map(String::valueOf).toArray(String[]::new));
+        }
+        stringRedisTemplate.expire(key, Duration.ofDays(CacheKeyConstants.RELATION_CACHE_TTL_DAYS));
+        return ids;
+    }
+
+    /**
+     * 查当前用户所有已点赞的帖子 ID
+     */
+    private Set<Long> queryLikedPostIds(Long userId) {
+        LambdaQueryWrapper<PostLikePO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PostLikePO::getUserId, userId)
+                .eq(PostLikePO::getStatus, CommonStatus.ACTIVE)
+                .select(PostLikePO::getPostId);
+        return postLikeMapper.selectList(wrapper).stream()
+                .map(PostLikePO::getPostId)
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * 查当前用户所有已收藏的帖子 ID
+     */
+    private Set<Long> queryCollectedPostIds(Long userId) {
         LambdaQueryWrapper<PostCollectPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostCollectPO::getUserId, userId)
-                .in(PostCollectPO::getPostId, postIds)
                 .eq(PostCollectPO::getStatus, CommonStatus.ACTIVE)
                 .select(PostCollectPO::getPostId);
-        List<PostCollectPO> list = postCollectMapper.selectList(wrapper);
-        return list.stream()
+        return postCollectMapper.selectList(wrapper).stream()
                 .map(PostCollectPO::getPostId)
                 .collect(Collectors.toSet());
     }

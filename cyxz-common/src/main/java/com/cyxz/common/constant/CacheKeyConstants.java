@@ -62,6 +62,15 @@ public final class CacheKeyConstants {
     /** 用户收藏缓存前缀 */
     public static final String USER_COLLECTED_PREFIX = NS + "user:collected:";
 
+    /** 用户收藏帖子集合前缀 */
+    public static final String USER_COLLECTED_POSTS = NS + "user:collected:posts:";
+
+    /** 点赞/收藏关系缓存过期时间（天） */
+    public static final long RELATION_CACHE_TTL_DAYS = 30;
+
+    /** 空集合占位哨兵值（Set 为空时占位，避免缓存穿透） */
+    public static final String EMPTY_SET_PLACEHOLDER = "__empty__";
+
     /** 用户获赞数缓存前缀 */
     public static final String USER_LIKES_COUNT_PREFIX = NS + "user:likesCount:";
 
@@ -136,6 +145,26 @@ public final class CacheKeyConstants {
      */
     public static String getUserCollectedKey(Long userId, Long postId) {
         return USER_COLLECTED_PREFIX + userId + ":" + postId;
+    }
+
+    /**
+     * 获取用户点赞帖子集合 Key（Set 结构，成员为帖子 ID）
+     *
+     * @param userId 用户 ID
+     * @return Redis Key
+     */
+    public static String getUserLikedPostsKey(Long userId) {
+        return USER_LIKED_POSTS + userId;
+    }
+
+    /**
+     * 获取用户收藏帖子集合 Key（Set 结构，成员为帖子 ID）
+     *
+     * @param userId 用户 ID
+     * @return Redis Key
+     */
+    public static String getUserCollectedPostsKey(Long userId) {
+        return USER_COLLECTED_POSTS + userId;
     }
 
     /**

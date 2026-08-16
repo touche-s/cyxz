@@ -3,6 +3,7 @@ package com.cyxz.post.service.impl;
 import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.post.constant.PostStatus;
 import com.cyxz.common.utils.IpUtil;
+import com.cyxz.common.utils.TransactionUtils;
 import com.cyxz.message.enums.NotificationTargetType;
 import com.cyxz.message.enums.NotificationType;
 import com.cyxz.message.event.NotificationEvent;
@@ -52,6 +53,7 @@ public class PostInteractionServiceImpl implements PostInteractionService {
         int rows = postLikeMapper.upsertLike(postId, userId);
         if (rows == 1) {
             incrementLikeDelta(postId, 1);
+            syncRelationSet(CacheKeyConstants.getUserLikedPostsKey(userId), postId, true);
             log.debug("点赞帖子: postId={}, userId={}", postId, userId);
             // 仅新点赞才需要帖子作者发通知，此时才查
             PostPO po = postMapper.selectById(postId);
@@ -60,6 +62,7 @@ public class PostInteractionServiceImpl implements PostInteractionService {
             }
         } else if (rows == 2) {
             incrementLikeDelta(postId, 1);
+            syncRelationSet(CacheKeyConstants.getUserLikedPostsKey(userId), postId, true);
             log.debug("点赞帖子(恢复): postId={}, userId={}", postId, userId);
         }
     }
@@ -74,6 +77,7 @@ public class PostInteractionServiceImpl implements PostInteractionService {
         int rows = postLikeMapper.deactivateLike(postId, userId);
         if (rows > 0) {
             incrementLikeDelta(postId, -1);
+            syncRelationSet(CacheKeyConstants.getUserLikedPostsKey(userId), postId, false);
             log.debug("取消点赞帖子: postId={}, userId={}", postId, userId);
         }
     }
@@ -90,6 +94,7 @@ public class PostInteractionServiceImpl implements PostInteractionService {
         int rows = postCollectMapper.upsertCollect(postId, userId);
         if (rows > 0) {
             incrementCollectDelta(postId, 1);
+            syncRelationSet(CacheKeyConstants.getUserCollectedPostsKey(userId), postId, true);
             log.debug("收藏帖子{}: postId={}, userId={}", rows == 1 ? "" : "(恢复)", postId, userId);
         }
     }
@@ -104,6 +109,7 @@ public class PostInteractionServiceImpl implements PostInteractionService {
         int rows = postCollectMapper.deactivateCollect(postId, userId);
         if (rows > 0) {
             incrementCollectDelta(postId, -1);
+            syncRelationSet(CacheKeyConstants.getUserCollectedPostsKey(userId), postId, false);
             log.info("取消收藏帖子: postId={}, userId={}", postId, userId);
         }
     }
@@ -136,14 +142,62 @@ public class PostInteractionServiceImpl implements PostInteractionService {
 
     // ==================== Redis Delta ====================
 
+    /**
+     * 注册事务提交后的点赞增量，避免事务回滚后 Redis 残留脏增量被刷库任务写入
+     */
     private void incrementLikeDelta(Long postId, int delta) {
-        stringRedisTemplate.opsForHash()
-                .increment(CacheKeyConstants.POST_LIKE_DELTA, postId.toString(), delta);
+        TransactionUtils.afterCommit(() -> {
+            try {
+                stringRedisTemplate.opsForHash()
+                        .increment(CacheKeyConstants.POST_LIKE_DELTA, postId.toString(), delta);
+            } catch (Exception e) {
+                log.error("点赞增量写入失败，本周期计数可能偏少: postId={}, delta={}", postId, delta, e);
+            }
+        });
     }
 
+    /**
+     * 注册事务提交后的收藏增量，避免事务回滚后 Redis 残留脏增量被刷库任务写入
+     */
     private void incrementCollectDelta(Long postId, int delta) {
-        stringRedisTemplate.opsForHash()
-                .increment(CacheKeyConstants.POST_COLLECT_DELTA, postId.toString(), delta);
+        TransactionUtils.afterCommit(() -> {
+            try {
+                stringRedisTemplate.opsForHash()
+                        .increment(CacheKeyConstants.POST_COLLECT_DELTA, postId.toString(), delta);
+            } catch (Exception e) {
+                log.error("收藏增量写入失败，本周期计数可能偏少: postId={}, delta={}", postId, delta, e);
+            }
+        });
+    }
+
+    // ==================== 关系缓存 ====================
+
+    /**
+     * 事务提交后同步关系缓存（点赞/收藏 Set）
+     * <p>DB 事务提交成功才写 Redis，避免回滚导致缓存脏数据；写失败仅记日志（DB 是事实来源，读路径可兜底重建）。
+     *
+     * @param key    关系集合 Key
+     * @param postId 帖子 ID
+     * @param add    true=加入集合(SADD)，false=移除集合(SREM)
+     */
+    private void syncRelationSet(String key, Long postId, boolean add) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    if (add) {
+                        // 先移除空占位哨兵，再加入真实成员
+                        stringRedisTemplate.opsForSet().remove(key, CacheKeyConstants.EMPTY_SET_PLACEHOLDER);
+                        stringRedisTemplate.opsForSet().add(key, postId.toString());
+                    } else {
+                        stringRedisTemplate.opsForSet().remove(key, postId.toString());
+                    }
+                    stringRedisTemplate.expire(key, Duration.ofDays(CacheKeyConstants.RELATION_CACHE_TTL_DAYS));
+                } catch (Exception e) {
+                    log.warn("同步关系缓存失败: key={}, postId={}, add={}", key, postId, add, e);
+                }
+            }
+        });
     }
 
     // ==================== 通知辅助方法 ====================
