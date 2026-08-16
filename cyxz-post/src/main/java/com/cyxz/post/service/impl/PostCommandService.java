@@ -10,6 +10,7 @@ import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.AnalyticsConstants;
 import com.cyxz.common.constant.PostCountConstants;
 import com.cyxz.common.event.AnalyticsEvent;
+import com.cyxz.common.utils.TransactionUtils;
 import com.cyxz.post.constant.PostStatus;
 import com.cyxz.post.constant.PostType;
 import com.cyxz.circle.feign.CircleFeignClient;
@@ -31,8 +32,6 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
@@ -372,18 +371,15 @@ public class PostCommandService {
 
         // ES 同步删除 + 跨服务评论清理均放到事务提交后执行：
         // 避免事务回滚后 ES 已删/评论已清导致的不可恢复不一致，同时缩短事务持有 DB 连接的时间
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                postEsSyncService.syncPostToEsDelete(postId);
-                try {
-                    Result<Void> commentResult = commentFeignClient.deleteByPostId(postId);
-                    if (commentResult == null || !commentResult.isSuccess()) {
-                        log.warn("删除帖子关联评论失败: postId={}, result={}", postId, commentResult);
-                    }
-                } catch (Exception e) {
-                    log.error("删除帖子关联评论异常: postId={}", postId, e);
+        TransactionUtils.afterCommit(() -> {
+            postEsSyncService.syncPostToEsDelete(postId);
+            try {
+                Result<Void> commentResult = commentFeignClient.deleteByPostId(postId);
+                if (commentResult == null || !commentResult.isSuccess()) {
+                    log.warn("删除帖子关联评论失败: postId={}, result={}", postId, commentResult);
                 }
+            } catch (Exception e) {
+                log.error("删除帖子关联评论异常: postId={}", postId, e);
             }
         });
         log.info("彻底删除帖子成功: postId={}, userId={}", postId, userId);
@@ -458,9 +454,7 @@ public class PostCommandService {
                 final String content = po.getContent();
                 List<String> imgs = po.getImages() != null && !po.getImages().isBlank()
                         ? Arrays.asList(po.getImages().split(",")) : Collections.emptyList();
-                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
+                TransactionUtils.afterCommit(() ->
                         CompletableFuture.runAsync(() -> {
                             try {
                                 AiReviewResult result = aiReviewService.review(pid, title, content, imgs);
@@ -468,9 +462,7 @@ public class PostCommandService {
                             } catch (Exception e) {
                                 postReviewService.handleReviewFailure(pid, e);
                             }
-                        }, aiReviewExecutor);
-                    }
-                });
+                        }, aiReviewExecutor));
             }
             if (!validPostIds.isEmpty()) {
                 // 仅草稿(DRAFT)帖子可转发布，防止已发布帖被打回 PENDING

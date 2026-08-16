@@ -5,6 +5,7 @@ import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
+import com.cyxz.common.utils.TransactionUtils;
 import com.cyxz.message.enums.NotificationTargetType;
 import com.cyxz.message.enums.NotificationType;
 import com.cyxz.message.event.NotificationEvent;
@@ -63,12 +64,7 @@ public class FollowServiceImpl implements FollowService {
             NotificationEvent event = NotificationPublisher.of(
                     targetUserId, userId, NotificationType.USER_FOLLOWED,
                     "有人关注了你", NotificationTargetType.USER, targetUserId);
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    NotificationPublisher.publish(rabbitTemplate, event);
-                }
-            });
+            TransactionUtils.afterCommit(() -> NotificationPublisher.publish(rabbitTemplate, event));
         } else if (rows == 2) {
             log.info("恢复关注: userId={}, followUserId={}", userId, targetUserId);
         }

@@ -1,7 +1,7 @@
 package com.cyxz.circle.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cyxz.audit.api.constant.AuditConstants;
 import com.cyxz.audit.api.event.AuditEvent;
@@ -31,8 +31,6 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
@@ -118,20 +116,17 @@ public class CircleServiceImpl implements CircleService {
         circleRoleAssignmentMapper.assignRole(userId, CircleRoleConstants.CIRCLE_MEMBER_ROLE_ID, circleId);
         invalidateCirclePermissionCache(userId, circleId);
         // 发布统计事件与新加入成员数，放到事务提交后执行（避免从CircleJoinApplicationService调用时重复计数）
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                try {
-                    AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
-                            .eventId(UUID.randomUUID().toString())
-                            .metric(AnalyticsConstants.METRIC_NEW_JOIN)
-                            .value(1)
-                            .statDate(LocalDate.now())
-                            .build();
-                    rabbitTemplate.convertAndSend(AnalyticsConstants.EXCHANGE, AnalyticsConstants.ROUTING_KEY, analyticsEvent);
-                } catch (Exception e) {
-                    log.error("发布统计事件失败: metric={}", AnalyticsConstants.METRIC_NEW_JOIN, e);
-                }
+        TransactionUtils.afterCommit(() -> {
+            try {
+                AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                        .eventId(UUID.randomUUID().toString())
+                        .metric(AnalyticsConstants.METRIC_NEW_JOIN)
+                        .value(1)
+                        .statDate(LocalDate.now())
+                        .build();
+                rabbitTemplate.convertAndSend(AnalyticsConstants.EXCHANGE, AnalyticsConstants.ROUTING_KEY, analyticsEvent);
+            } catch (Exception e) {
+                log.error("发布统计事件失败: metric={}", AnalyticsConstants.METRIC_NEW_JOIN, e);
             }
         });
     }
@@ -265,35 +260,32 @@ public class CircleServiceImpl implements CircleService {
         }
         // 发布审计事件与统计事件，放到事务提交后执行
         final Long circleId = po.getId();
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                try {
-                    AuditEvent auditEvent = AuditEvent.builder()
-                            .operatorId(ownerId)
-                            .operatorName(null)
-                            .action(AuditConstants.ACTION_CIRCLE_APPROVE)
-                            .targetType("CIRCLE")
-                            .targetId(circleId)
-                            .detail(null)
-                            .ip(null)
-                            .createTime(LocalDateTime.now())
-                            .build();
-                    rabbitTemplate.convertAndSend(AuditConstants.EXCHANGE, AuditConstants.ROUTING_KEY, auditEvent);
-                } catch (Exception e) {
-                    log.error("发布审计事件失败: action={}, targetId={}", AuditConstants.ACTION_CIRCLE_APPROVE, circleId, e);
-                }
-                try {
-                    AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
-                            .eventId(UUID.randomUUID().toString())
-                            .metric(AnalyticsConstants.METRIC_NEW_CIRCLE)
-                            .value(1)
-                            .statDate(LocalDate.now())
-                            .build();
-                    rabbitTemplate.convertAndSend(AnalyticsConstants.EXCHANGE, AnalyticsConstants.ROUTING_KEY, analyticsEvent);
-                } catch (Exception e) {
-                    log.error("发布统计事件失败: metric={}", AnalyticsConstants.METRIC_NEW_CIRCLE, e);
-                }
+        TransactionUtils.afterCommit(() -> {
+            try {
+                AuditEvent auditEvent = AuditEvent.builder()
+                        .operatorId(ownerId)
+                        .operatorName(null)
+                        .action(AuditConstants.ACTION_CIRCLE_APPROVE)
+                        .targetType("CIRCLE")
+                        .targetId(circleId)
+                        .detail(null)
+                        .ip(null)
+                        .createTime(LocalDateTime.now())
+                        .build();
+                rabbitTemplate.convertAndSend(AuditConstants.EXCHANGE, AuditConstants.ROUTING_KEY, auditEvent);
+            } catch (Exception e) {
+                log.error("发布审计事件失败: action={}, targetId={}", AuditConstants.ACTION_CIRCLE_APPROVE, circleId, e);
+            }
+            try {
+                AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                        .eventId(UUID.randomUUID().toString())
+                        .metric(AnalyticsConstants.METRIC_NEW_CIRCLE)
+                        .value(1)
+                        .statDate(LocalDate.now())
+                        .build();
+                rabbitTemplate.convertAndSend(AnalyticsConstants.EXCHANGE, AnalyticsConstants.ROUTING_KEY, analyticsEvent);
+            } catch (Exception e) {
+                log.error("发布统计事件失败: metric={}", AnalyticsConstants.METRIC_NEW_CIRCLE, e);
             }
         });
         log.info("创建圈子并指定圈主: circleId={}, ownerId={}", po.getId(), ownerId);
@@ -314,10 +306,10 @@ public class CircleServiceImpl implements CircleService {
         circleMapper.updateById(po);
 
         // 级联软删成员关系，避免残留孤儿数据
-        LambdaUpdateWrapper<CircleMemberPO> memberWrapper = new LambdaUpdateWrapper<>();
-        memberWrapper.eq(CircleMemberPO::getCircleId, circleId)
-                .eq(CircleMemberPO::getStatus, CommonStatus.ACTIVE)
-                .set(CircleMemberPO::getStatus, CommonStatus.DELETED);
+        UpdateWrapper<CircleMemberPO> memberWrapper = new UpdateWrapper<>();
+        memberWrapper.eq("circle_id", circleId)
+                .eq("status", CommonStatus.ACTIVE)
+                .set("status", CommonStatus.DELETED);
         circleMemberMapper.update(null, memberWrapper);
 
         log.info("删除圈子并级联清理: circleId={}, 成员关系已软删", circleId);
