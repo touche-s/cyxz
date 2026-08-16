@@ -9,8 +9,8 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
  * Feign 请求拦截器
- * <p>在 Feign 发起跨服务调用时，透传 X-User-Id 头到下游服务，
- * 实现调用链上的用户身份传递。
+ * <p>在 Feign 发起跨服务调用时，透传 X-User-Id 与 X-Token-Remaining 头到下游服务，
+ * 实现调用链上的用户身份与 Token 剩余时间传递（下游据此为权限缓存设置 TTL）。
  */
 @Configuration
 @ConditionalOnClass(RequestInterceptor.class)
@@ -28,6 +28,10 @@ public class FeignConfig implements RequestInterceptor {
             String userId = attributes.getRequest().getHeader("X-User-Id");
             if (userId != null) {
                 template.header("X-User-Id", userId);
+            }
+            String tokenRemaining = attributes.getRequest().getHeader("X-Token-Remaining");
+            if (tokenRemaining != null) {
+                template.header("X-Token-Remaining", tokenRemaining);
             }
         }
     }
