@@ -17,6 +17,7 @@ import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.utils.FeignResults;
+import com.cyxz.common.utils.TransactionUtils;
 import com.cyxz.circle.feign.CircleFeignClient;
 import com.cyxz.circle.vo.PublishableResult;
 import com.cyxz.message.enums.NotificationTargetType;
@@ -125,10 +126,7 @@ public class CommentServiceImpl implements CommentService {
         transactionTemplate.executeWithoutResult(status -> {
             commentMapper.insert(po);
 
-            stringRedisTemplate.opsForHash()
-                    .increment(CacheKeyConstants.POST_COMMENT_DELTA, po.getPostId().toString(), 1);
-            stringRedisTemplate.opsForValue()
-                    .increment(CacheKeyConstants.POST_COMMENT_COUNT_PREFIX + po.getPostId());
+            applyCommentCountDelta(po.getPostId(), 1);
 
             List<NotificationEvent> events = new ArrayList<>();
             if (!userId.equals(po.getPostAuthorId())) {
@@ -191,14 +189,7 @@ public class CommentServiceImpl implements CommentService {
         // 级联逻辑删除子回复
         int replyCount = commentMapper.cascadeDeleteReplies(commentId);
         // Redis 增量：帖子评论数 -(1 + 子回复数)
-        stringRedisTemplate.opsForHash()
-                .increment(CacheKeyConstants.POST_COMMENT_DELTA, po.getPostId().toString(), -(1 + replyCount));
-        long count = stringRedisTemplate.opsForValue()
-                .decrement(CacheKeyConstants.POST_COMMENT_COUNT_PREFIX + po.getPostId(), 1 + replyCount);
-        if (count <= 0) {
-            String key = CacheKeyConstants.POST_COMMENT_COUNT_PREFIX + po.getPostId();
-            stringRedisTemplate.delete(key);
-        }
+        applyCommentCountDelta(po.getPostId(), -(1 + replyCount));
         log.info("删除评论成功: commentId={}, userId={}, 级联删除子回复={}", commentId, userId, replyCount);
     }
 
@@ -218,14 +209,7 @@ public class CommentServiceImpl implements CommentService {
         po.setStatus(CommonStatus.DELETED);
         commentMapper.updateById(po);
         int replyCount = commentMapper.cascadeDeleteReplies(commentId);
-        stringRedisTemplate.opsForHash()
-                .increment(CacheKeyConstants.POST_COMMENT_DELTA, po.getPostId().toString(), -(1 + replyCount));
-        long count = stringRedisTemplate.opsForValue()
-                .decrement(CacheKeyConstants.POST_COMMENT_COUNT_PREFIX + po.getPostId(), 1 + replyCount);
-        if (count <= 0) {
-            String key = CacheKeyConstants.POST_COMMENT_COUNT_PREFIX + po.getPostId();
-            stringRedisTemplate.delete(key);
-        }
+        applyCommentCountDelta(po.getPostId(), -(1 + replyCount));
         log.info("管理员删除评论: commentId={}, 级联删除子回复={}", commentId, replyCount);
     }
 
@@ -299,6 +283,35 @@ public class CommentServiceImpl implements CommentService {
         }
 
         return PageResult.of(result, totalComments, page, size);
+    }
+
+    /**
+     * 注册事务提交后的评论计数增量（Redis Hash 增量 + 计数缓存同步增减），
+     * 避免事务回滚后 Redis 残留脏增量被刷库任务写入。
+     * <p>减量后计数缓存不大于 0 时直接删除，交由读路径回源 DB 重建。
+     *
+     * @param postId 帖子 ID
+     * @param delta  评论数变化（新增为正，删除为负）
+     */
+    private void applyCommentCountDelta(Long postId, int delta) {
+        TransactionUtils.afterCommit(() -> {
+            try {
+                stringRedisTemplate.opsForHash()
+                        .increment(CacheKeyConstants.POST_COMMENT_DELTA, postId.toString(), delta);
+                if (delta < 0) {
+                    long count = stringRedisTemplate.opsForValue()
+                            .decrement(CacheKeyConstants.POST_COMMENT_COUNT_PREFIX + postId, -delta);
+                    if (count <= 0) {
+                        stringRedisTemplate.delete(CacheKeyConstants.POST_COMMENT_COUNT_PREFIX + postId);
+                    }
+                } else {
+                    stringRedisTemplate.opsForValue()
+                            .increment(CacheKeyConstants.POST_COMMENT_COUNT_PREFIX + postId, delta);
+                }
+            } catch (Exception e) {
+                log.error("评论计数增量写入失败，本周期计数可能偏差: postId={}, delta={}", postId, delta, e);
+            }
+        });
     }
 
     /**
