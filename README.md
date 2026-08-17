@@ -202,10 +202,12 @@ cd docker && docker compose up -d mysql redis rabbitmq nacos elasticsearch minio
 
 ### 产品设计（`docs/产品设计/`）
 - `产品设计.md` — 产品方向、用户画像、差异化定位与功能矩阵
+- `产品现状诊断.md` — 用户旅程断点、垂直化兑现度、冷启动就绪度诊断
 
 ### 架构设计（`docs/架构设计/`）
 - `模块架构与B端演进.md` — 模块职责、架构亮点、演进路线
 - `技术亮点详解.md` — 14 项技术亮点卡片：问题 / 方案 / 反事实 / 追问预演
+- `B端能力与模块划分评审.md` — B 端能力完整度与模块边界评审
 - `数据库索引设计.md` — 24 张业务表、58 个索引设计
 
 ### 功能设计（`docs/功能设计/`）
@@ -218,6 +220,16 @@ cd docker && docker compose up -d mysql redis rabbitmq nacos elasticsearch minio
 - `权限设计.md` — 多租户 RBAC + SpringSecurity 方法级授权 + Cache-Aside 权限缓存
 - `社区氛围功能设计.md` — 互动反馈层已实现 + 签到/成就/排行规划
 - `多语言演进路线图.md` — 跨语言架构现状（Java + Python）与演进规划
+
+### 开发计划（`docs/开发计划/`）
+- `后续待办清单.md` — P0-P3 优先级任务与修复记录
+
+### 测试报告（`docs/测试报告/`）
+- `代码审查与修复总结报告.md` — 六维审查 + 5 阶段修复总记录
+- `压测报告.md` / `压测优化分析报告.md` — 压测结果与瓶颈定位、优化方案
+- `缓存优化验证报告.md` / `限流与压测验证报告.md` — 缓存命中率与限流阈值验证
+
+> 完整索引与各文档同步状态见 [docs/README.md](docs/README.md)。
 
 ## License
 
