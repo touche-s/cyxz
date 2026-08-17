@@ -1,5 +1,6 @@
 package com.cyxz.message.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -135,8 +137,12 @@ class ChatServiceImplTest {
 
             assertNotNull(vo);
             verify(messageMapper).insert(any(PrivateMessagePO.class));
-            // USER2 是 userId2，未读数 2→3
-            verify(conversationMapper).updateById(argThat(c -> c.getUnreadCount2() == 3));
+            // USER2 是 userId2，未读数原子自增 unread_count_2
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<LambdaUpdateWrapper<ConversationPO>> captor =
+                    ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+            verify(conversationMapper).update(captor.capture());
+            assertTrue(captor.getValue().getSqlSet().contains("unread_count_2 = unread_count_2 + 1"));
             verify(sessionManager).sendToUser(eq(USER2), any(String.class));
         }
 
@@ -240,7 +246,11 @@ class ChatServiceImplTest {
             // 纯单测环境未初始化时会抛 MybatisPlusException，这里验证"不抛 BusinessException"即可
             try {
                 chatService.markRead(USER2, CONVERSATION_ID);
-                verify(conversationMapper).updateById(argThat(c -> c.getUnreadCount2() == 0));
+                @SuppressWarnings("unchecked")
+                ArgumentCaptor<LambdaUpdateWrapper<ConversationPO>> captor =
+                        ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+                verify(conversationMapper).update(captor.capture());
+                assertTrue(captor.getValue().getSqlSet().contains("unread_count_2 = 0"));
             } catch (com.baomidou.mybatisplus.core.exceptions.MybatisPlusException e) {
                 // MybatisPlus lambda cache 未初始化，单测环境已知限制，跳过断言
             }

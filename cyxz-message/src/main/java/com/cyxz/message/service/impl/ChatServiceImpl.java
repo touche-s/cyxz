@@ -117,12 +117,17 @@ public class ChatServiceImpl implements ChatService {
 
             conv.setLastMessage(content);
             conv.setLastMessageAt(msg.getCreateTime());
+            // 未读数原子自增（单条 UPDATE，避免读改写丢更新）
+            LambdaUpdateWrapper<ConversationPO> unreadWrapper = new LambdaUpdateWrapper<>();
+            unreadWrapper.eq(ConversationPO::getId, conv.getId())
+                    .set(ConversationPO::getLastMessage, content)
+                    .set(ConversationPO::getLastMessageAt, msg.getCreateTime());
             if (conv.getUserId1().equals(receiverId)) {
-                conv.setUnreadCount1(conv.getUnreadCount1() + 1);
+                unreadWrapper.setSql("unread_count_1 = unread_count_1 + 1");
             } else {
-                conv.setUnreadCount2(conv.getUnreadCount2() + 1);
+                unreadWrapper.setSql("unread_count_2 = unread_count_2 + 1");
             }
-            conversationMapper.updateById(conv);
+            conversationMapper.update(unreadWrapper);
 
             return toMessageVO(msg);
         });
@@ -162,13 +167,15 @@ public class ChatServiceImpl implements ChatService {
                 .set(PrivateMessagePO::getIsRead, 1);
         messageMapper.update(msgWrapper);
 
-        // 清零会话未读数
+        // 清零会话未读数（单条 UPDATE，避免与并发发消息的原子自增互相覆盖）
+        LambdaUpdateWrapper<ConversationPO> unreadWrapper = new LambdaUpdateWrapper<>();
+        unreadWrapper.eq(ConversationPO::getId, conversationId);
         if (conv.getUserId1().equals(userId)) {
-            conv.setUnreadCount1(0);
+            unreadWrapper.setSql("unread_count_1 = 0");
         } else {
-            conv.setUnreadCount2(0);
+            unreadWrapper.setSql("unread_count_2 = 0");
         }
-        conversationMapper.updateById(conv);
+        conversationMapper.update(unreadWrapper);
     }
 
     /** 查询当前用户的私信总未读数 */
