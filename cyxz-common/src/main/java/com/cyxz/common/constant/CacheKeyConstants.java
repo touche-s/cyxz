@@ -304,4 +304,14 @@ public final class CacheKeyConstants {
     public static String getPostViewDedupKey(Long postId, String identity) {
         return POST_VIEW_DEDUP_PREFIX + postId + ":" + identity;
     }
+
+    /**
+     * 获取用户禁用标记 Key
+     *
+     * @param userId 用户 ID
+     * @return Redis Key
+     */
+    public static String getUserDisabledKey(Long userId) {
+        return USER_DISABLED_PREFIX + userId;
+    }
 }
