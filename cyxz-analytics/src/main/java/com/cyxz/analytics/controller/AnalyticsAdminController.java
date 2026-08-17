@@ -18,7 +18,7 @@ import java.util.List;
 
 /**
  * 数据统计看板控制器（平台管理员）
- * <p>提供看板概览与单指标趋势查询，权限码暂未接入，仅校验登录态。
+ * <p>提供看板概览与单指标趋势查询，权限码 analytics:view（平台管理员）。
  */
 @Tag(name = "数据统计看板（平台管理员）")
 @RestController
@@ -36,7 +36,7 @@ public class AnalyticsAdminController {
      */
     @Operation(summary = "看板概览")
     @GetMapping("/dashboard")
-    @PreAuthorize("hasAuthority('admin')")
+    @PreAuthorize("hasAuthority('analytics:view')")
     public Result<DashboardVO> dashboard(@CurrentUser Long userId) {
         return Result.success(analyticsService.getDashboard());
     }
@@ -51,7 +51,7 @@ public class AnalyticsAdminController {
      */
     @Operation(summary = "单指标趋势")
     @GetMapping("/trend")
-    @PreAuthorize("hasAuthority('admin')")
+    @PreAuthorize("hasAuthority('analytics:view')")
     public Result<List<TrendVO>> trend(@RequestParam("metric") String metric,
                                         @RequestParam(value = "days", defaultValue = "7") int days,
                                         @CurrentUser Long userId) {
