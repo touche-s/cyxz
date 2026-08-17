@@ -1,6 +1,7 @@
 package com.cyxz.governance.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cyxz.audit.api.constant.AuditConstants;
 import com.cyxz.audit.api.event.AuditEvent;
@@ -20,11 +21,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeanUtils;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -102,17 +106,23 @@ public class ReportServiceImpl implements ReportService {
     @Transactional(rollbackFor = Exception.class)
     public void approveReport(Long id, Long handlerId, String note) {
         ReportPO po = checkPending(id);
-        po.setStatus(GovernanceConstants.STATUS_APPROVED);
-        po.setHandlerId(handlerId);
-        po.setHandlerNote(note);
-        po.setHandledAt(LocalDateTime.now());
-        reportMapper.updateById(po);
+        // 乐观锁更新：仅 PENDING → APPROVED 原子写，防并发重复审核互相覆盖
+        LambdaUpdateWrapper<ReportPO> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(ReportPO::getId, id)
+               .eq(ReportPO::getStatus, GovernanceConstants.STATUS_PENDING);
+        ReportPO update = new ReportPO();
+        update.setStatus(GovernanceConstants.STATUS_APPROVED);
+        update.setHandlerId(handlerId);
+        update.setHandlerNote(note);
+        update.setHandledAt(LocalDateTime.now());
+        int rows = reportMapper.update(update, wrapper);
+        if (rows == 0) {
+            throw new BusinessException(ErrorCode.REPORT_ALREADY_HANDLED);
+        }
 
         // MQ 发送放到事务提交后：先保证 DB 状态落库，再发事件
-        final Long targetId = po.getTargetId();
         final String targetType = po.getTargetType();
-        final Long reporterId = po.getReporterId();
-        final Long reportId = po.getId();
+        final Long targetId = po.getTargetId();
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
@@ -129,11 +139,19 @@ public class ReportServiceImpl implements ReportService {
     @Transactional(rollbackFor = Exception.class)
     public void rejectReport(Long id, Long handlerId, String note) {
         ReportPO po = checkPending(id);
-        po.setStatus(GovernanceConstants.STATUS_REJECTED);
-        po.setHandlerId(handlerId);
-        po.setHandlerNote(note);
-        po.setHandledAt(LocalDateTime.now());
-        reportMapper.updateById(po);
+        // 乐观锁更新：仅 PENDING → REJECTED 原子写，防并发重复审核互相覆盖
+        LambdaUpdateWrapper<ReportPO> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(ReportPO::getId, id)
+               .eq(ReportPO::getStatus, GovernanceConstants.STATUS_PENDING);
+        ReportPO update = new ReportPO();
+        update.setStatus(GovernanceConstants.STATUS_REJECTED);
+        update.setHandlerId(handlerId);
+        update.setHandlerNote(note);
+        update.setHandledAt(LocalDateTime.now());
+        int rows = reportMapper.update(update, wrapper);
+        if (rows == 0) {
+            throw new BusinessException(ErrorCode.REPORT_ALREADY_HANDLED);
+        }
 
         // MQ 发送放到事务提交后
         final String targetType = po.getTargetType();
@@ -169,8 +187,29 @@ public class ReportServiceImpl implements ReportService {
                     .build();
             rabbitTemplate.convertAndSend(GovernanceConstants.EXCHANGE, GovernanceConstants.ROUTING_KEY, event);
         } catch (Exception e) {
-            log.error("发布内容处置事件失败: reportId={}, targetType={}, targetId={}",
+            // 发送失败写入 Redis 补偿队列，由 TakedownRetryTask 定时重发，避免举报通过但内容未下架
+            log.error("发布内容处置事件失败，已入补偿队列等待重试: reportId={}, targetType={}, targetId={}",
                     po.getId(), po.getTargetType(), po.getTargetId(), e);
+            enqueueTakedownRetry(po, operatorId);
+        }
+    }
+
+    /**
+     * 将处置事件 JSON 写入 Redis 补偿队列（LPUSH），供定时任务重发。
+     */
+    private void enqueueTakedownRetry(ReportPO po, Long operatorId) {
+        try {
+            ContentTakedownEvent event = ContentTakedownEvent.builder()
+                    .targetType(po.getTargetType())
+                    .targetId(po.getTargetId())
+                    .reportId(po.getId())
+                    .operatorId(operatorId)
+                    .reporterId(po.getReporterId())
+                    .build();
+            stringRedisTemplate.opsForList().leftPush(
+                    GovernanceConstants.TAKEDOWN_FAILED_QUEUE_KEY, OBJECT_MAPPER.writeValueAsString(event));
+        } catch (Exception ex) {
+            log.error("写入内容处置事件补偿队列失败: reportId={}", po.getId(), ex);
         }
     }
 

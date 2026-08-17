@@ -26,4 +26,7 @@ public final class GovernanceConstants {
     public static final String STATUS_PENDING = "PENDING";
     public static final String STATUS_APPROVED = "APPROVED";
     public static final String STATUS_REJECTED = "REJECTED";
+
+    /** 内容处置事件发送失败时的 Redis 补偿队列（List 结构） */
+    public static final String TAKEDOWN_FAILED_QUEUE_KEY = "governance:takedown:failed";
 }
