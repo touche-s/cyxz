@@ -11,6 +11,7 @@ export interface NotificationVO {
   actionText: string
   targetId: number
   targetType: string
+  relatedId: number
   targetTitle: string
   content: string
   isRead: boolean
