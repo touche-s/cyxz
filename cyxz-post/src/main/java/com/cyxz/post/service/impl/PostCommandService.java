@@ -471,16 +471,22 @@ public class PostCommandService {
                         validPostIds.size(), rows, userId);
             }
         } else if ("delete".equals(action)) {
-            // 先查出 APPROVED 状态的帖子，批量删除后发计数事件（post_count -1）
-            List<PostPO> approvedPosts = postMapper.selectList(
-                    new LambdaQueryWrapper<PostPO>()
-                            .eq(PostPO::getUserId, userId)
-                            .in(PostPO::getId, postIds)
-                            .eq(PostPO::getStatus, PostStatus.APPROVED));
+            // 查出用户选中的帖子（含各状态），删除后统一清理缓存、同步 ES 删除索引、发计数事件。
+            // 副作用放事务提交后执行，避免回滚后残留（缓存失效/ES 删除/计数事件）。
+            List<PostPO> ownedPosts = postMapper.selectBatchIds(postIds).stream()
+                    .filter(po -> po.getUserId().equals(userId))
+                    .toList();
             postMapper.batchUpdateStatus(userId, postIds, PostStatus.DELETED, null);
-            for (PostPO po : approvedPosts) {
-                postEsSyncService.publishCountEvent(po, PostCountConstants.ACTION_DELETE);
-            }
+            final List<PostPO> deletedPosts = ownedPosts;
+            TransactionUtils.afterCommit(() -> {
+                for (PostPO po : deletedPosts) {
+                    postQueryService.evictDetailCache(po.getId());
+                    postEsSyncService.syncPostToEsDelete(po.getId());
+                    if (po.getStatus() == PostStatus.APPROVED) {
+                        postEsSyncService.publishCountEvent(po, PostCountConstants.ACTION_DELETE);
+                    }
+                }
+            });
         } else {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "不支持的操作类型: " + action);
         }
