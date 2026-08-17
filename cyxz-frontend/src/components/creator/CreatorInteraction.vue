@@ -2,11 +2,42 @@
   <div class="page-container">
     <header class="page-header">
       <div class="header-left">
-        <h1>评论管理</h1>
-        <p>管理你作品下的评论内容</p>
+        <h1>互动管理</h1>
+        <p>收到的赞与评论、作品评论管理</p>
       </div>
     </header>
 
+    <div class="interaction-tabs">
+      <button
+        class="interaction-tab"
+        :class="{ active: interactionTab === 'likes' }"
+        @click="interactionTab = 'likes'"
+      >
+        <Icon icon="ph:heart-straight" class="tab-icon" />
+        收到的赞
+      </button>
+      <button
+        class="interaction-tab"
+        :class="{ active: interactionTab === 'comments' }"
+        @click="interactionTab = 'comments'"
+      >
+        <Icon icon="ph:chat-circle-dots" class="tab-icon" />
+        收到的评论
+      </button>
+      <button
+        class="interaction-tab"
+        :class="{ active: interactionTab === 'manage' }"
+        @click="interactionTab = 'manage'"
+      >
+        <Icon icon="ph:list-bullets" class="tab-icon" />
+        评论管理
+      </button>
+    </div>
+
+    <CreatorReceivedLikes v-if="interactionTab === 'likes'" />
+    <CreatorReceivedComments v-if="interactionTab === 'comments'" />
+
+    <template v-if="interactionTab === 'manage'">
     <div class="filter-bar">
       <div class="filter-group comment-filter-group">
         <el-select
@@ -79,6 +110,7 @@
     <EmptyState v-else :icon="iconEmpty" :title="commentSearchKeyword ? '没有匹配的评论' : (selectedCommentPostId ? '当前帖子还没有评论' : '当前还没有人给你的作品留言')" />
 
     <Pagination :current="commentPage" :total="commentsTotal" :page-size="commentPageSize" @change="handleCommentPageChange" />
+    </template>
   </div>
 </template>
 
@@ -93,6 +125,8 @@ import { getManagedComments } from '@/api/comment'
 import { getUserPosts } from '@/api/post'
 import type { CommentVO } from '@/api/comment'
 import type { PostVO } from '@/api/post'
+import CreatorReceivedLikes from '@/components/creator/CreatorReceivedLikes.vue'
+import CreatorReceivedComments from '@/components/creator/CreatorReceivedComments.vue'
 import { formatTime } from '@/utils/format'
 import { useNavigate } from '@/composables/useNavigate'
 import UserAvatar from '@/components/UserAvatar.vue'
@@ -103,6 +137,8 @@ const emit = defineEmits<{
 }>()
 
 const { open } = useNavigate()
+
+const interactionTab = ref<'likes' | 'comments' | 'manage'>('manage')
 
 const posts = ref<PostVO[]>([])
 const managedCommentsList = ref<CommentVO[]>([])
@@ -206,6 +242,46 @@ onMounted(() => {
   padding: 28px;
   border: 1.5px solid var(--border);
   box-shadow: 0 4px 12px rgba(180, 132, 255, 0.06);
+}
+
+/* ===== 互动 tab 栏 ===== */
+.interaction-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.interaction-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  color: var(--text-dim);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.interaction-tab:hover {
+  border-color: var(--brand-purple, #9b6dff);
+  color: var(--brand-purple, #9b6dff);
+}
+
+.interaction-tab.active {
+  background: var(--gradient-brand, linear-gradient(135deg, #ff8fb8, #9b6dff));
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(180, 132, 255, 0.25);
+}
+
+.tab-icon {
+  font-size: 15px;
 }
 
 .page-header {
