@@ -6,7 +6,7 @@
 
 ## 一、Docker 一键部署（推荐）
 
-只需安装 Docker Desktop，无需本地配置 JDK / MySQL / Redis 等环境。编排 18 个服务：7 基础设施（含 minio-init one-shot）+ 9 Java 微服务 + 前端 + AI 审核，稳态运行 17 个容器。
+只需安装 Docker Desktop，无需本地配置 JDK / MySQL / Redis 等环境。编排 21 个服务：7 基础设施（含 minio-init one-shot）+ 12 Java 微服务 + 前端 + AI 审核，稳态运行 20 个容器。
 
 ### 前置条件
 
@@ -26,7 +26,7 @@ cp .env.example .env
 #     MINIO_ACCESS_KEY   MinIO 访问密钥
 #     MINIO_SECRET_KEY   MinIO 访问密钥（≥ 8 位）
 #     JWT_SECRET         JWT 签名密钥（≥ 32 字节，否则启动报错）
-#     LLM_API_KEY        AI 审核密钥（留空则自动放行，不影响发帖）
+#     LLM_API_KEY        AI 审核密钥（留空则默认拒绝/转人工审核，fail-closed；如需自动放行可设 AUTO_PASS_WITHOUT_KEY=true）
 
 # 3. 一键构建并启动（PowerShell）
 .\deploy.ps1
@@ -36,14 +36,14 @@ cp .env.example .env
 
 # 4. 验证（首次构建约 10-15 分钟）
 docker compose ps
-#   17 个容器 Up / Healthy 即成功（minio-init 执行完退出，属正常）
+#   20 个容器 Up / Healthy 即成功（minio-init 执行完退出，属正常）
 ```
 
 ### 访问地址
 
 | 服务 | 地址 | 账号 |
 |------|------|------|
-| 前端 | http://localhost:80 | 注册即可用 |
+| 前端 | http://localhost:80 | 注册即可用；内置站主 `admin / Admin@123`（演示账号，请尽快改密） |
 | API 网关 | http://localhost:8080 | - |
 | Nacos 控制台 | http://localhost:8848/nacos | nacos / nacos |
 | RabbitMQ 管理台 | http://localhost:15672 | guest / guest |
@@ -92,7 +92,7 @@ docker compose down -v
 | 层级 | 服务 | 依赖 |
 |------|------|------|
 | 基础设施 | mysql, redis, rabbitmq, minio, minio-init, elasticsearch, nacos | - |
-| 微服务 | gateway, auth, user, post, comment, circle, message, search, upload | nacos + 各自中间件 |
+| 微服务 | gateway, auth, user, post, comment, circle, message, search, upload, governance, audit, analytics | nacos + 各自中间件 |
 | AI 审核 | ai | rabbitmq |
 | 前端 | frontend | gateway |
 
@@ -108,7 +108,7 @@ docker compose down -v
 
 ### 前置条件
 
-- JDK 17、Maven 3.9+、Node.js 20
+- JDK 17、Maven 3.9+、Node.js 22
 - Docker Desktop（仅用于启动中间件）
 
 ### 1. 启动中间件
@@ -145,7 +145,12 @@ mvn spring-boot:run -pl cyxz-circle       # 6. 圈子
 mvn spring-boot:run -pl cyxz-message      # 7. 消息
 mvn spring-boot:run -pl cyxz-search       # 8. 搜索
 mvn spring-boot:run -pl cyxz-upload       # 9. 上传
+mvn spring-boot:run -pl cyxz-governance   # 10. 治理
+mvn spring-boot:run -pl cyxz-audit        # 11. 审计
+mvn spring-boot:run -pl cyxz-analytics    # 12. 统计
 ```
+
+> 本地开发端口：gateway 8080、auth 9001、user 9002、post 9003、comment 9004、circle 9005、upload 9006、message 9007、search 9008、governance 9009、audit 9010、analytics 9011。同时启动多个服务需保证端口互不冲突。
 
 ### 3. 启动 AI 审核服务（可选）
 
@@ -155,7 +160,7 @@ pip install -r requirements.txt
 python main.py    # http://127.0.0.1:8000
 ```
 
-未启动 AI 服务时，帖子发布自动放行，不影响功能。
+未启动 AI 服务或未配置 LLM_API_KEY 时，默认 fail-closed（拒绝/转人工审核），帖子仍可正常发布（进入待审核状态）。如需无 AI 时自动放行，设置 `AUTO_PASS_WITHOUT_KEY=true`。
 
 ### 4. 启动前端
 
