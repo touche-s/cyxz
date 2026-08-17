@@ -1097,7 +1097,7 @@ html.dark .profile-summary {
 }
 
 .summary-info p {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text-dim);
   margin: 0;
   overflow: hidden;
@@ -1381,7 +1381,7 @@ html.dark .form-sticky {
 }
 
 .form-sticky-hint {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--text-dim);
   margin-right: auto;
 }

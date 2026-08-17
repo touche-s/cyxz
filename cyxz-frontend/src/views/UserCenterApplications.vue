@@ -129,7 +129,7 @@ onMounted(() => load())
   border: 1.5px solid var(--border);
   background: var(--card);
   color: var(--text-dim);
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -218,14 +218,14 @@ onMounted(() => load())
 }
 
 .app-item-note {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--text-dim);
   margin-top: 4px;
 }
 
 .app-item-time {
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--text-dim);
 }
 </style>
