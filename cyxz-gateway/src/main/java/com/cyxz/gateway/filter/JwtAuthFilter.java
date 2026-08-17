@@ -2,6 +2,7 @@ package com.cyxz.gateway.filter;
 
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
+import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.common.utils.TokenUtil;
 import com.cyxz.auth.utils.JwtUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -12,6 +13,7 @@ import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -42,6 +44,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
     private final JwtUtil jwtUtil;
     private final ObjectMapper objectMapper;
+    private final StringRedisTemplate stringRedisTemplate;
 
     private static final AntPathMatcher pathMatcher = new AntPathMatcher();
 
