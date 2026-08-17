@@ -19,6 +19,7 @@ import com.cyxz.common.constant.AnalyticsConstants;
 import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.common.event.AnalyticsEvent;
 import com.cyxz.common.utils.IpUtil;
+import com.cyxz.common.utils.TransactionUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -240,18 +241,20 @@ public class AuthServiceImpl implements AuthService {
 
         log.info("用户注册成功: userId={}, username={}", user.getId(), user.getUsername());
 
-        // 发布统计事件：新增用户数 +1
-        try {
-            AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
-                    .eventId(UUID.randomUUID().toString())
-                    .metric(AnalyticsConstants.METRIC_NEW_USER)
-                    .value(1)
-                    .statDate(LocalDate.now())
-                    .build();
-            rabbitTemplate.convertAndSend(AnalyticsConstants.EXCHANGE, AnalyticsConstants.ROUTING_KEY, analyticsEvent);
-        } catch (Exception e) {
-            log.error("发布统计事件失败: metric={}", AnalyticsConstants.METRIC_NEW_USER, e);
-        }
+        // 发布统计事件：新增用户数 +1（事务提交后发送，避免回滚后残留）
+        TransactionUtils.afterCommit(() -> {
+            try {
+                AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                        .eventId(UUID.randomUUID().toString())
+                        .metric(AnalyticsConstants.METRIC_NEW_USER)
+                        .value(1)
+                        .statDate(LocalDate.now())
+                        .build();
+                rabbitTemplate.convertAndSend(AnalyticsConstants.EXCHANGE, AnalyticsConstants.ROUTING_KEY, analyticsEvent);
+            } catch (Exception e) {
+                log.error("发布统计事件失败: metric={}", AnalyticsConstants.METRIC_NEW_USER, e);
+            }
+        });
     }
 
     /**
