@@ -308,7 +308,7 @@ onMounted(() => {
 }
 
 .header-left p {
-  font-size: 14px;
+  font-size: var(--fs-md);
   color: var(--text-dim);
 }
 
@@ -412,7 +412,7 @@ onMounted(() => {
   min-width: 52px;
   padding: 2px 8px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   line-height: 1.4;
 }
@@ -457,7 +457,7 @@ onMounted(() => {
   border-radius: 6px;
   background: transparent;
   color: var(--text-dim);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   cursor: pointer;
   transition: all 0.15s;
   display: inline-flex;
@@ -563,7 +563,7 @@ onMounted(() => {
 }
 
 .comment-content {
-  font-size: 14px;
+  font-size: var(--fs-md);
   color: var(--text);
   word-break: break-word;
 }

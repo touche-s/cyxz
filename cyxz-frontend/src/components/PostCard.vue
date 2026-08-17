@@ -288,7 +288,7 @@ const getGradient = (id: string | number) => {
 .card-body { padding: 14px 16px; }
 
 .card-title {
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 700;
   line-height: 1.5;
   overflow: hidden;
@@ -549,11 +549,11 @@ const getGradient = (id: string | number) => {
 }
 
 .card--small .article-title {
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .card--small .article-summary {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   -webkit-line-clamp: 2;
 }
 </style>

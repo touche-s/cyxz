@@ -118,7 +118,7 @@ onMounted(() => load())
 }
 
 .received-desc {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text-secondary, #666);
 }
 

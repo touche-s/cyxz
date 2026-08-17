@@ -115,19 +115,19 @@ onMounted(() => load())
 }
 
 .received-time {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--text-dim);
 }
 
 .received-content {
-  font-size: 14px;
+  font-size: var(--fs-md);
   color: var(--text);
   line-height: 1.5;
   word-break: break-word;
 }
 
 .received-context {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--text-dim);
   margin-top: 4px;
 }
