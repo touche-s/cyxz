@@ -12,11 +12,13 @@ import com.cyxz.auth.vo.UserAdminVO;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
+import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -27,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -87,6 +90,13 @@ public class UserAdminService {
             @Override
             public void afterCommit() {
                 try {
+                    // 写入禁用标记，网关实时拦截其未过期 JWT；TTL 覆盖 Token 最长有效期
+                    stringRedisTemplate.opsForValue().set(CacheKeyConstants.getUserDisabledKey(id), "1",
+                            CacheKeyConstants.USER_DISABLED_TTL_DAYS, TimeUnit.DAYS);
+                } catch (Exception e) {
+                    log.error("写入用户禁用标记失败，禁用可能不即时生效: userId={}", id, e);
+                }
+                try {
                     AuditEvent auditEvent = AuditEvent.builder()
                             .eventId(UUID.randomUUID().toString())
                             .operatorId(operatorId)
@@ -127,6 +137,12 @@ public class UserAdminService {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
+                try {
+                    // 解禁后移除禁用标记，恢复访问
+                    stringRedisTemplate.delete(CacheKeyConstants.getUserDisabledKey(id));
+                } catch (Exception e) {
+                    log.error("删除用户禁用标记失败: userId={}", id, e);
+                }
                 try {
                     AuditEvent auditEvent = AuditEvent.builder()
                             .eventId(UUID.randomUUID().toString())
