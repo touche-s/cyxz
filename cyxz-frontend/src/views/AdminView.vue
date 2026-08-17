@@ -16,47 +16,47 @@
         </button>
       </div>
       <nav class="sidebar-nav">
-        <button class="nav-item" :class="{ active: activeTab === 'circles' }" @click="activeTab = 'circles'">
+        <button v-if="hasPermission('circle:admin:list')" class="nav-item" :class="{ active: activeTab === 'circles' }" @click="activeTab = 'circles'">
           <Icon icon="ph:circles-three" class="nav-icon" />
           <span>圈子管理</span>
         </button>
-        <button class="nav-item" :class="{ active: activeTab === 'sectionTemplates' }" @click="activeTab = 'sectionTemplates'">
+        <button v-if="hasPermission('circle:template:manage')" class="nav-item" :class="{ active: activeTab === 'sectionTemplates' }" @click="activeTab = 'sectionTemplates'">
           <Icon icon="ph:stack" class="nav-icon" />
           <span>板块模板</span>
         </button>
-        <button class="nav-item" :class="{ active: activeTab === 'review' }" @click="activeTab = 'review'">
+        <button v-if="hasPermission('post:review:list')" class="nav-item" :class="{ active: activeTab === 'review' }" @click="activeTab = 'review'">
           <Icon icon="ph:shield-check" class="nav-icon" />
           <span>内容审核</span>
         </button>
-        <button class="nav-item" :class="{ active: activeTab === 'users' }" @click="activeTab = 'users'">
+        <button v-if="hasPermission('user:manage:list')" class="nav-item" :class="{ active: activeTab === 'users' }" @click="activeTab = 'users'">
           <Icon icon="ph:users" class="nav-icon" />
           <span>用户管理</span>
         </button>
-        <button class="nav-item" :class="{ active: activeTab === 'posts' }" @click="activeTab = 'posts'">
+        <button v-if="hasPermission('post:admin:list')" class="nav-item" :class="{ active: activeTab === 'posts' }" @click="activeTab = 'posts'">
           <Icon icon="ph:article" class="nav-icon" />
           <span>帖子管理</span>
         </button>
-        <button class="nav-item" :class="{ active: activeTab === 'reports' }" @click="activeTab = 'reports'">
+        <button v-if="hasPermission('report:review:list')" class="nav-item" :class="{ active: activeTab === 'reports' }" @click="activeTab = 'reports'">
           <Icon icon="ph:flag" class="nav-icon" />
           <span>举报管理</span>
         </button>
-        <button class="nav-item" :class="{ active: activeTab === 'audit' }" @click="activeTab = 'audit'">
+        <button v-if="hasPermission('audit:log:list')" class="nav-item" :class="{ active: activeTab === 'audit' }" @click="activeTab = 'audit'">
           <Icon icon="ph:clipboard-text" class="nav-icon" />
           <span>审计日志</span>
         </button>
-        <button class="nav-item" :class="{ active: activeTab === 'dashboard' }" @click="activeTab = 'dashboard'">
+        <button v-if="hasPermission('analytics:view')" class="nav-item" :class="{ active: activeTab === 'dashboard' }" @click="activeTab = 'dashboard'">
           <Icon icon="ph:chart-bar" class="nav-icon" />
           <span>数据看板</span>
         </button>
-        <button class="nav-item" :class="{ active: activeTab === 'circleApps' }" @click="activeTab = 'circleApps'">
+        <button v-if="hasPermission('circle:application:review:list')" class="nav-item" :class="{ active: activeTab === 'circleApps' }" @click="activeTab = 'circleApps'">
           <Icon icon="ph:buildings" class="nav-icon" />
           <span>建圈申请</span>
         </button>
-        <button class="nav-item" :class="{ active: activeTab === 'joinApps' }" @click="activeTab = 'joinApps'">
+        <button v-if="hasPermission('circle:join:review:list')" class="nav-item" :class="{ active: activeTab === 'joinApps' }" @click="activeTab = 'joinApps'">
           <Icon icon="ph:user-plus" class="nav-icon" />
           <span>入圈申请</span>
         </button>
-        <button class="nav-item" :class="{ active: activeTab === 'roles' }" @click="activeTab = 'roles'">
+        <button v-if="hasPermission('role:manage:list')" class="nav-item" :class="{ active: activeTab === 'roles' }" @click="activeTab = 'roles'">
           <Icon icon="ph:shield-star" class="nav-icon" />
           <span>角色权限</span>
         </button>
@@ -618,9 +618,11 @@ import CircleApplicationReview from '@/views/admin/CircleApplicationReview.vue'
 import CircleJoinApplicationReview from '@/views/admin/CircleJoinApplicationReview.vue'
 import request from '@/utils/request'
 import { pickApiMessage } from '@/utils/errorCode'
+import { usePermission } from '@/composables/usePermission'
 
 const { to } = useNavigate()
 const userStore = useUserStore()
+const { hasPermission } = usePermission()
 
 const activeTab = ref<'circles' | 'sectionTemplates' | 'review' | 'users' | 'posts' | 'roles' | 'reports' | 'audit' | 'dashboard' | 'circleApps' | 'joinApps'>('circles')
 
