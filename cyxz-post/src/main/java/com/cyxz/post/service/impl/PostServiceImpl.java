@@ -140,6 +140,16 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    public void approvePostByCircle(Long circleId, Long postId) {
+        postReviewService.approvePostByCircle(circleId, postId);
+    }
+
+    @Override
+    public void rejectPostByCircle(Long circleId, Long postId, String reason) {
+        postReviewService.rejectPostByCircle(circleId, postId, reason);
+    }
+
+    @Override
     public PostStatsVO getPostStats(Long userId) {
         return postStatsService.getPostStats(userId);
     }
