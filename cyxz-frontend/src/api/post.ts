@@ -18,6 +18,7 @@ export interface PostVO {
   images: string[]
   tags: string[]
   status: number
+  reviewReason: string
   likes: number
   comments: number
   views: number
