@@ -49,4 +49,7 @@ public class AuditEvent implements Serializable {
 
     /** 操作时间 */
     private LocalDateTime createTime;
+
+    /** 事件唯一标识（UUID），用于消费端幂等去重 */
+    private String eventId;
 }

@@ -3,6 +3,7 @@ package com.cyxz.circle.service.impl;
 import com.cyxz.circle.entity.CirclePO;
 import com.cyxz.circle.mapper.CircleMapper;
 import com.cyxz.circle.mapper.CircleMemberMapper;
+import com.cyxz.circle.mapper.CircleRoleAssignmentMapper;
 import com.cyxz.circle.service.CircleSectionService;
 import com.cyxz.circle.vo.CircleVO;
 import com.cyxz.circle.vo.PublishableResult;
@@ -31,6 +32,7 @@ class CircleServiceImplTest {
 
     @Mock private CircleMapper circleMapper;
     @Mock private CircleMemberMapper circleMemberMapper;
+    @Mock private CircleRoleAssignmentMapper circleRoleAssignmentMapper;
     @Mock private CircleSectionService circleSectionService;
 
     @InjectMocks

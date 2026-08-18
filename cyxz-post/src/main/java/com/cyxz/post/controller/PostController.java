@@ -504,7 +504,7 @@ public class PostController {
     @PreAuthorize("@circlePerm.hasAuthority('circle:post:review', #circleId)")
     @PutMapping("/circle/{circleId}/admin/review/{postId}/approve")
     public Result<Void> approvePostByCircle(@PathVariable Long circleId, @PathVariable Long postId) {
-        postService.approvePost(postId);
+        postService.approvePostByCircle(circleId, postId);
         return Result.success("审核通过");
     }
 
@@ -521,7 +521,7 @@ public class PostController {
     @PutMapping("/circle/{circleId}/admin/review/{postId}/reject")
     public Result<Void> rejectPostByCircle(@PathVariable Long circleId, @PathVariable Long postId,
                                             @Valid @RequestBody RejectPostRequest request) {
-        postService.rejectPost(postId, request.getReason());
+        postService.rejectPostByCircle(circleId, postId, request.getReason());
         return Result.success("已拒绝");
     }
 

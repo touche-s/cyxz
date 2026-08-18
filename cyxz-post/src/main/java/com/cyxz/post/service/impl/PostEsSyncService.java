@@ -1,17 +1,22 @@
 package com.cyxz.post.service.impl;
 
+import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.common.constant.EsSyncConstants;
 import com.cyxz.common.constant.PostCountConstants;
 import com.cyxz.common.event.PostCountEvent;
 import com.cyxz.common.event.PostEsSyncEvent;
 import com.cyxz.post.constant.PostStatus;
 import com.cyxz.post.entity.PostPO;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+
+import java.util.UUID;
 
 /**
  * 帖子 ES 索引同步服务
@@ -26,21 +31,25 @@ public class PostEsSyncService {
 
     /** Redis 失败队列 key：List 结构，LPUSH 入队、RPOP 出队 */
     private static final String FAILED_QUEUE_KEY = "post:es:sync:failed";
+    private static final String FAILED_COUNT_QUEUE_KEY = "post:count:sync:failed";
 
     private final RabbitTemplate rabbitTemplate;
     private final StringRedisTemplate stringRedisTemplate;
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
+            .registerModule(new JavaTimeModule());
 
     /**
      * 同步帖子到 ES：APPROVED 状态写入，其他状态删除
      */
     public void syncPostToEs(PostPO po) {
+        String action = po.getStatus() != null && po.getStatus() == PostStatus.APPROVED ? "CREATE" : "DELETE";
+        PostEsSyncEvent event = buildSyncEvent(po, action);
         try {
-            String action = po.getStatus() != null && po.getStatus() == PostStatus.APPROVED ? "CREATE" : "DELETE";
-            PostEsSyncEvent event = buildSyncEvent(po, action);
             rabbitTemplate.convertAndSend(EsSyncConstants.EXCHANGE, EsSyncConstants.ROUTING_KEY, event);
         } catch (Exception e) {
             log.error("ES 同步消息发送失败，已入失败队列等待重试: postId={}", po.getId(), e);
-            enqueueFailedSync(buildSyncEvent(po, "CREATE"));
+            enqueueFailedSync(event);
         }
     }
 
@@ -72,7 +81,7 @@ public class PostEsSyncService {
         int succeeded = 0;
         int failed = 0;
         for (int i = 0; i < maxRetry; i++) {
-            String json = stringRedisTemplate.opsForList().rightPop(FAILED_QUEUE_KEY);
+            String json = stringRedisTemplate.opsForList().rightPop(CacheKeyConstants.POST_ES_SYNC_FAILED_QUEUE);
             if (json == null) {
                 break;
             }
@@ -82,7 +91,7 @@ public class PostEsSyncService {
                 succeeded++;
             } catch (Exception e) {
                 // 重试失败：放回队首，留待下次
-                stringRedisTemplate.opsForList().leftPush(FAILED_QUEUE_KEY, json);
+                stringRedisTemplate.opsForList().leftPush(CacheKeyConstants.POST_ES_SYNC_FAILED_QUEUE, json);
                 failed++;
                 log.warn("ES 同步重试失败，已放回队列: {}", json, e);
                 break;
@@ -102,31 +111,13 @@ public class PostEsSyncService {
         }
     }
 
-    private String toJson(PostEsSyncEvent event) {
-        // 简单 JSON 序列化：避免引入 Jackson 依赖到此处；重试任务的消费者按 JSON 字符串接收
-        StringBuilder sb = new StringBuilder("{");
-        sb.append("\"action\":\"").append(event.getAction()).append("\"");
-        sb.append(",\"postId\":").append(event.getPostId());
-        if (event.getUserId() != null) sb.append(",\"userId\":").append(event.getUserId());
-        if (event.getCircleId() != null) sb.append(",\"circleId\":").append(event.getCircleId());
-        if (event.getSectionId() != null) sb.append(",\"sectionId\":").append(event.getSectionId());
-        if (event.getPostType() != null) sb.append(",\"postType\":\"").append(event.getPostType()).append("\"");
-        if (event.getTitle() != null) sb.append(",\"title\":\"").append(escape(event.getTitle())).append("\"");
-        if (event.getContent() != null) sb.append(",\"content\":\"").append(escape(event.getContent())).append("\"");
-        if (event.getCover() != null) sb.append(",\"cover\":\"").append(escape(event.getCover())).append("\"");
-        if (event.getTags() != null) sb.append(",\"tags\":\"").append(escape(event.getTags())).append("\"");
-        if (event.getStatus() != null) sb.append(",\"status\":").append(event.getStatus());
-        if (event.getLikes() != null) sb.append(",\"likes\":").append(event.getLikes());
-        if (event.getComments() != null) sb.append(",\"comments\":").append(event.getComments());
-        if (event.getViews() != null) sb.append(",\"views\":").append(event.getViews());
-        if (event.getCollections() != null) sb.append(",\"collections\":").append(event.getCollections());
-        if (event.getCreateTime() != null) sb.append(",\"createTime\":").append(event.getCreateTime());
-        sb.append("}");
-        return sb.toString();
-    }
-
-    private String escape(String s) {
-        return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r");
+    private String toJson(Object event) {
+        try {
+            return OBJECT_MAPPER.writeValueAsString(event);
+        } catch (Exception e) {
+            log.error("事件序列化失败: {}", event.getClass().getSimpleName(), e);
+            return "{}";
+        }
     }
 
     private PostEsSyncEvent buildSyncEvent(PostPO po, String action) {
@@ -162,15 +153,55 @@ public class PostEsSyncService {
         if (po.getCircleId() == null) {
             return;
         }
+        PostCountEvent event = PostCountEvent.builder()
+                .action(action)
+                .postId(po.getId())
+                .circleId(po.getCircleId())
+                .eventId(UUID.randomUUID().toString())
+                .build();
         try {
-            PostCountEvent event = PostCountEvent.builder()
-                    .action(action)
-                    .postId(po.getId())
-                    .circleId(po.getCircleId())
-                    .build();
             rabbitTemplate.convertAndSend(PostCountConstants.EXCHANGE, PostCountConstants.ROUTING_KEY, event);
         } catch (Exception e) {
-            log.error("发送帖子计数事件失败: postId={}, circleId={}, action={}", po.getId(), po.getCircleId(), action, e);
+            log.error("发送帖子计数事件失败，已入失败队列等待重试: postId={}, circleId={}, action={}",
+                    po.getId(), po.getCircleId(), action, e);
+            enqueueFailedCountSync(event);
+        }
+    }
+
+    /**
+     * 定时重试失败队列中的计数同步消息
+     */
+    @Scheduled(fixedDelay = 30_000L, initialDelay = 90_000L)
+    public void retryFailedCountSync() {
+        int maxRetry = 50;
+        int succeeded = 0;
+        int failed = 0;
+        for (int i = 0; i < maxRetry; i++) {
+            String json = stringRedisTemplate.opsForList().rightPop(CacheKeyConstants.POST_COUNT_SYNC_FAILED_QUEUE);
+            if (json == null) {
+                break;
+            }
+            try {
+                rabbitTemplate.convertAndSend(PostCountConstants.EXCHANGE, PostCountConstants.ROUTING_KEY, json);
+                succeeded++;
+            } catch (Exception e) {
+                stringRedisTemplate.opsForList().leftPush(FAILED_COUNT_QUEUE_KEY, json);
+                failed++;
+                log.warn("帖子计数同步重试失败，已放回队列: {}", json, e);
+                break;
+            }
+        }
+        if (succeeded > 0 || failed > 0) {
+            log.info("帖子计数同步失败队列重试完成: succeeded={}, failed={}", succeeded, failed);
+        }
+    }
+
+    private void enqueueFailedCountSync(PostCountEvent event) {
+        try {
+            stringRedisTemplate.opsForList().leftPush(CacheKeyConstants.POST_COUNT_SYNC_FAILED_QUEUE, toJson(event));
+        } catch (Exception redisEx) {
+            log.error("写入计数同步失败队列失败，计数可能丢失: postId={}, circleId={}",
+                    event.getPostId(), event.getCircleId(), redisEx);
         }
     }
 }

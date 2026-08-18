@@ -1,8 +1,13 @@
 package com.cyxz.post.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.cyxz.audit.api.constant.AuditConstants;
+import com.cyxz.audit.api.event.AuditEvent;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
+import com.cyxz.common.constant.AnalyticsConstants;
 import com.cyxz.common.constant.PostCountConstants;
+import com.cyxz.common.event.AnalyticsEvent;
 import com.cyxz.post.constant.PostStatus;
 import com.cyxz.post.entity.PostPO;
 import com.cyxz.post.mapper.PostMapper;
@@ -18,6 +23,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * 帖子审核服务
@@ -36,27 +42,40 @@ public class PostReviewService {
 
     /**
      * 人工审核通过
+     * <p>使用 CAS 更新防止并发重复审核：仅当原状态为 PENDING 时才对 status 做原子写，
+     * rows=0 表示已被其他审核员并发处理，抛出状态冲突异常要求刷新。
      */
     public void approvePost(Long postId) {
         PostPO po = postMapper.selectById(postId);
         if (po == null) throw new BusinessException(ErrorCode.POST_NOT_FOUND);
-        if (po.getStatus() != PostStatus.PENDING) {
-            throw new BusinessException(ErrorCode.PARAM_ERROR, "该帖子不在待审核状态");
-        }
         if (!PostStatus.canTransition(po.getStatus(), PostStatus.APPROVED)) {
             throw new BusinessException(ErrorCode.PARAM_ERROR,
                     "不允许从 " + PostStatus.label(po.getStatus()) + " 直接变更为 " + PostStatus.label(PostStatus.APPROVED));
         }
         int from = po.getStatus();
+
+        // CAS 更新：仅 PENDING → APPROVED 原子写，防并发重复审核
+        LambdaUpdateWrapper<PostPO> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(PostPO::getId, postId)
+               .eq(PostPO::getStatus, PostStatus.PENDING);
+        PostPO update = new PostPO();
+        update.setStatus(PostStatus.APPROVED);
+        update.setReviewReason(null);
+        int rows = postMapper.update(update, wrapper);
+        if (rows == 0) {
+            log.warn("帖子审核CAS失败(已被并发处理): postId={}", postId);
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "该帖子已被处理，请刷新列表");
+        }
+        // 补全 po 的状态供后续事件使用
         po.setStatus(PostStatus.APPROVED);
         po.setReviewReason(null);
-        postMapper.updateById(po);
         postQueryService.evictDetailCache(postId);
         postEsSyncService.syncPostToEs(po);
         postEsSyncService.publishCountEvent(po, PostCountConstants.ACTION_PUBLISH);
         // 发布审计事件：帖子审核通过（操作人为系统）
         try {
             AuditEvent auditEvent = AuditEvent.builder()
+                    .eventId(UUID.randomUUID().toString())
                     .operatorId(0L)
                     .operatorName(null)
                     .action(AuditConstants.ACTION_POST_APPROVE)
@@ -73,6 +92,7 @@ public class PostReviewService {
         // 发布统计事件：帖子审核通过数 +1
         try {
             AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                    .eventId(UUID.randomUUID().toString())
                     .metric(AnalyticsConstants.METRIC_POST_APPROVED)
                     .value(1)
                     .statDate(LocalDate.now())
@@ -87,6 +107,7 @@ public class PostReviewService {
 
     /**
      * 人工审核拒绝
+     * <p>使用 CAS 更新防止并发重复审核。
      */
     public void rejectPost(Long postId, String reason) {
         PostPO po = postMapper.selectById(postId);
@@ -96,13 +117,26 @@ public class PostReviewService {
                     "不允许从 " + PostStatus.label(po.getStatus()) + " 直接变更为 " + PostStatus.label(PostStatus.REJECTED));
         }
         int from = po.getStatus();
+
+        // CAS 更新：仅 PENDING → REJECTED 原子写，防并发重复审核
+        LambdaUpdateWrapper<PostPO> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(PostPO::getId, postId)
+               .eq(PostPO::getStatus, PostStatus.PENDING);
+        PostPO update = new PostPO();
+        update.setStatus(PostStatus.REJECTED);
+        update.setReviewReason(reason);
+        int rows = postMapper.update(update, wrapper);
+        if (rows == 0) {
+            log.warn("帖子审核CAS失败(已被并发处理): postId={}", postId);
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "该帖子已被处理，请刷新列表");
+        }
         po.setStatus(PostStatus.REJECTED);
         po.setReviewReason(reason);
-        postMapper.updateById(po);
         postQueryService.evictDetailCache(postId);
         // 发布审计事件：帖子审核拒绝（操作人为系统）
         try {
             AuditEvent auditEvent = AuditEvent.builder()
+                    .eventId(UUID.randomUUID().toString())
                     .operatorId(0L)
                     .operatorName(null)
                     .action(AuditConstants.ACTION_POST_REJECT)
@@ -119,6 +153,7 @@ public class PostReviewService {
         // 发布统计事件：帖子审核驳回数 +1
         try {
             AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                    .eventId(UUID.randomUUID().toString())
                     .metric(AnalyticsConstants.METRIC_POST_REJECTED)
                     .value(1)
                     .statDate(LocalDate.now())
@@ -132,6 +167,41 @@ public class PostReviewService {
     }
 
     /**
+     * 圈子维度审核通过（圈主/圈子管理员），校验帖子归属当前圈子
+     *
+     * @param circleId 圈子 ID
+     * @param postId   帖子 ID
+     */
+    public void approvePostByCircle(Long circleId, Long postId) {
+        PostPO po = postMapper.selectById(postId);
+        if (po == null) {
+            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
+        }
+        if (!circleId.equals(po.getCircleId())) {
+            throw new BusinessException(ErrorCode.POST_NOT_IN_CIRCLE);
+        }
+        approvePost(postId);
+    }
+
+    /**
+     * 圈子维度审核拒绝（圈主/圈子管理员），校验帖子归属当前圈子
+     *
+     * @param circleId 圈子 ID
+     * @param postId   帖子 ID
+     * @param reason   拒绝原因
+     */
+    public void rejectPostByCircle(Long circleId, Long postId, String reason) {
+        PostPO po = postMapper.selectById(postId);
+        if (po == null) {
+            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
+        }
+        if (!circleId.equals(po.getCircleId())) {
+            throw new BusinessException(ErrorCode.POST_NOT_IN_CIRCLE);
+        }
+        rejectPost(postId, reason);
+    }
+
+    /**
      * 处理 AI 审核结果
      * <p>通过：更新状态为已通过，清除缓存，发通知
      * <p>拒绝：更新状态为拒绝并记录原因，清除缓存，发通知
@@ -142,10 +212,26 @@ public class PostReviewService {
             log.info("帖子 {} 状态已变更，跳过审核结果处理", postId);
             return;
         }
+        // CAS 更新：仅 PENDING → 目标状态 原子写，防止 AI 回调晚到覆盖人工审核结果
+        LambdaUpdateWrapper<PostPO> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(PostPO::getId, postId)
+               .eq(PostPO::getStatus, PostStatus.PENDING);
+        PostPO update = new PostPO();
+        if (result.isPassed()) {
+            update.setStatus(PostStatus.APPROVED);
+            update.setReviewReason(null);
+        } else {
+            update.setStatus(PostStatus.REJECTED);
+            update.setReviewReason(result.getReason());
+        }
+        int rows = postMapper.update(update, wrapper);
+        if (rows == 0) {
+            log.info("帖子 {} 已被并发处理（人工审核优先），跳过 AI 审核结果", postId);
+            return;
+        }
         if (result.isPassed()) {
             po.setStatus(PostStatus.APPROVED);
             po.setReviewReason(null);
-            postMapper.updateById(po);
             postQueryService.evictDetailCache(postId);
             postEsSyncService.syncPostToEs(po);
             postEsSyncService.publishCountEvent(po, PostCountConstants.ACTION_PUBLISH);
@@ -154,7 +240,6 @@ public class PostReviewService {
         } else {
             po.setStatus(PostStatus.REJECTED);
             po.setReviewReason(result.getReason());
-            postMapper.updateById(po);
             postQueryService.evictDetailCache(postId);
             sendReviewNotify(authorId, NotificationType.POST_REJECTED, result.getReason(), postId, title);
             log.warn("AI 审核拒绝: postId={}, reason={}", postId, result.getReason());

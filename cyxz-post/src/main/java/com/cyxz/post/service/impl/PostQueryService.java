@@ -20,13 +20,14 @@ import com.cyxz.post.mapper.PostLikeMapper;
 import com.cyxz.post.mapper.PostMapper;
 import com.cyxz.circle.feign.CircleFeignClient;
 import com.cyxz.user.feign.UserFeignClient;
-import com.cyxz.user.utils.UserFeignHelper;
 import com.cyxz.user.vo.UserProfileVO;
 import com.cyxz.post.vo.PostVO;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -34,6 +35,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -51,6 +53,7 @@ public class PostQueryService {
     private final UserFeignClient userFeignClient;
     private final CircleFeignClient circleFeignClient;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final StringRedisTemplate stringRedisTemplate;
     private final ExecutorService postQueryExecutor;
 
     public PostQueryService(PostMapper postMapper,
@@ -59,6 +62,7 @@ public class PostQueryService {
                             UserFeignClient userFeignClient,
                             CircleFeignClient circleFeignClient,
                             RedisTemplate<String, Object> redisTemplate,
+                            StringRedisTemplate stringRedisTemplate,
                             @Qualifier("postQueryExecutor") ExecutorService postQueryExecutor) {
         this.postMapper = postMapper;
         this.postLikeMapper = postLikeMapper;
@@ -66,6 +70,7 @@ public class PostQueryService {
         this.userFeignClient = userFeignClient;
         this.circleFeignClient = circleFeignClient;
         this.redisTemplate = redisTemplate;
+        this.stringRedisTemplate = stringRedisTemplate;
         this.postQueryExecutor = postQueryExecutor;
     }
 
@@ -113,7 +118,7 @@ public class PostQueryService {
                     throw new BusinessException(ErrorCode.POST_NOT_INTERACTABLE);
             }
         }
-        Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, Set.of(po.getUserId()));
+        Map<Long, UserProfileVO> userMap = getUserProfileMapWithCache(Set.of(po.getUserId()));
         Map<Long, String> circleNameMap = extractCircleNameMap(List.of(po));
         Map<Long, String> sectionNameMap = extractSectionNameMap(List.of(po));
         Set<Long> likedPostIds = getLikedPostIds(currentUserId, Set.of(postId));
@@ -135,6 +140,15 @@ public class PostQueryService {
      * 分页查询帖子列表（仅已发布）
      */
     public PageResult<PostVO> listPosts(Long sectionId, Long circleId, String sortBy, int page, int size, Long currentUserId) {
+        String cacheKey = CacheKeyConstants.getPostListKey(sectionId, circleId, sortBy, page, size);
+        // 读缓存：命中后仅补填当前用户互动状态，避免列表热点反复查 DB + Feign
+        @SuppressWarnings("unchecked")
+        PageResult<PostVO> cached = (PageResult<PostVO>) redisTemplate.opsForValue().get(cacheKey);
+        if (cached != null) {
+            fillInteractionStatus(cached.getRecords(), currentUserId);
+            return cached;
+        }
+
         Page<PostPO> pageParam = PageConstants.pageOf(page, size);
         LambdaQueryWrapper<PostPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostPO::getStatus, PostStatus.APPROVED);
@@ -159,7 +173,35 @@ public class PostQueryService {
         List<PostVO> vos = fillPostVOList(result.getRecords(), currentUserId);
         // 全局列表不应暴露个人置顶状态
         vos.forEach(vo -> vo.setPinned(false));
+
+        // 缓存干净副本（liked/collected=false），避免用户态污染缓存
+        List<PostVO> cleanRecords = vos.stream().map(vo -> {
+            PostVO clean = new PostVO();
+            BeanUtils.copyProperties(vo, clean);
+            clean.setLiked(false);
+            clean.setCollected(false);
+            return clean;
+        }).collect(Collectors.toList());
+        redisTemplate.opsForValue().set(cacheKey, PageResult.of(cleanRecords, result.getTotal(), page, size), Duration.ofSeconds(30));
+
         return PageResult.of(vos, result.getTotal(), page, size);
+    }
+
+    /**
+     * 补填列表/详情缓存命中后的当前用户互动状态（liked/collected）
+     * <p>缓存存的是无用户态的干净副本，命中后仅查当前页帖子 ID 的点赞/收藏关系。
+     */
+    private void fillInteractionStatus(List<PostVO> vos, Long currentUserId) {
+        if (currentUserId == null || vos == null || vos.isEmpty()) {
+            return;
+        }
+        Set<Long> postIds = vos.stream().map(PostVO::getId).collect(Collectors.toSet());
+        Set<Long> likedPostIds = getLikedPostIds(currentUserId, postIds);
+        Set<Long> collectedPostIds = getCollectedPostIds(currentUserId, postIds);
+        vos.forEach(vo -> {
+            vo.setLiked(likedPostIds.contains(vo.getId()));
+            vo.setCollected(collectedPostIds.contains(vo.getId()));
+        });
     }
 
     /**
@@ -178,7 +220,7 @@ public class PostQueryService {
 
         Page<PostPO> result = postMapper.selectPage(pageParam, wrapper);
 
-        Map<Long, UserProfileVO> userMap = UserFeignHelper.batchGetUsers(userFeignClient, result.getRecords().stream().map(PostPO::getUserId).collect(Collectors.toSet()));
+        Map<Long, UserProfileVO> userMap = getUserProfileMapWithCache(result.getRecords().stream().map(PostPO::getUserId).collect(Collectors.toSet()));
         Map<Long, String> circleNameMap = extractCircleNameMap(result.getRecords());
         Map<Long, String> sectionNameMap = extractSectionNameMap(result.getRecords());
         Set<Long> postIds = result.getRecords().stream().map(PostPO::getId).collect(Collectors.toSet());
@@ -318,7 +360,7 @@ public class PostQueryService {
         Set<Long> postIds = posts.stream().map(PostPO::getId).collect(Collectors.toSet());
 
         CompletableFuture<Map<Long, UserProfileVO>> userFuture =
-                CompletableFuture.supplyAsync(RequestContextUtil.wrap(() -> UserFeignHelper.batchGetUsers(userFeignClient, userIds)), postQueryExecutor);
+                CompletableFuture.supplyAsync(RequestContextUtil.wrap(() -> getUserProfileMapWithCache(userIds)), postQueryExecutor);
         CompletableFuture<Map<Long, String>> circleFuture =
                 CompletableFuture.supplyAsync(RequestContextUtil.wrap(() -> extractCircleNameMap(posts)), postQueryExecutor);
         CompletableFuture<Map<Long, String>> sectionFuture =
@@ -414,31 +456,117 @@ public class PostQueryService {
     }
 
     /**
-     * 从帖子列表中提取圈子 ID 集合并批量查名称
+     * 从帖子列表中提取圈子 ID 集合并批量查名称（带 Redis 缓存）
      */
     public Map<Long, String> extractCircleNameMap(List<PostPO> posts) {
         Set<Long> circleIds = posts.stream()
                 .map(PostPO::getCircleId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
-        if (circleIds.isEmpty()) {
-            return Collections.emptyMap();
-        }
-        return FeignResults.unwrapOrEmptyMap(circleFeignClient.batchGetNames(circleIds));
+        return getNameMapWithCache(circleIds, true);
     }
 
     /**
-     * 从帖子列表中提取板块 ID 集合并批量查名称
+     * 从帖子列表中提取板块 ID 集合并批量查名称（带 Redis 缓存）
      */
     public Map<Long, String> extractSectionNameMap(List<PostPO> posts) {
         Set<Long> sectionIds = posts.stream()
                 .map(PostPO::getSectionId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
-        if (sectionIds.isEmpty()) {
+        return getNameMapWithCache(sectionIds, false);
+    }
+
+    /**
+     * 批量获取圈子/板块名称（先查 Redis，miss 再 Feign 并回填缓存）
+     * <p>圈子/板块名称是全局静态数据，缓存命中率极高，避免列表/详情每次跨服务查 circle。
+     *
+     * @param ids      圈子 ID 或板块 ID 集合
+     * @param isCircle true=圈子名称，false=板块名称
+     * @return ID -> 名称 映射
+     */
+    private Map<Long, String> getNameMapWithCache(Set<Long> ids, boolean isCircle) {
+        if (ids.isEmpty()) {
             return Collections.emptyMap();
         }
-        return FeignResults.unwrapOrEmptyMap(circleFeignClient.batchGetSectionNames(sectionIds));
+
+        List<Long> idList = new ArrayList<>(ids);
+        List<String> keys = idList.stream()
+                .map(id -> isCircle
+                        ? CacheKeyConstants.getCircleNameKey(id)
+                        : CacheKeyConstants.getSectionNameKey(id))
+                .collect(Collectors.toList());
+
+        Map<Long, String> result = new HashMap<>();
+        Set<Long> missedIds = new HashSet<>();
+
+        List<Object> cachedValues = redisTemplate.opsForValue().multiGet(keys);
+        for (int i = 0; i < idList.size(); i++) {
+            Object value = cachedValues.get(i);
+            if (value != null) {
+                result.put(idList.get(i), value.toString());
+            } else {
+                missedIds.add(idList.get(i));
+            }
+        }
+
+        if (!missedIds.isEmpty()) {
+            Map<Long, String> feignResult = isCircle
+                    ? FeignResults.unwrapOrEmptyMap(circleFeignClient.batchGetNames(missedIds))
+                    : FeignResults.unwrapOrEmptyMap(circleFeignClient.batchGetSectionNames(missedIds));
+            for (Map.Entry<Long, String> entry : feignResult.entrySet()) {
+                String key = isCircle
+                        ? CacheKeyConstants.getCircleNameKey(entry.getKey())
+                        : CacheKeyConstants.getSectionNameKey(entry.getKey());
+                redisTemplate.opsForValue().set(key, entry.getValue(), Duration.ofMinutes(CacheKeyConstants.NAME_CACHE_TTL_MINUTES));
+                result.put(entry.getKey(), entry.getValue());
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * 批量获取用户资料（先查 Redis，miss 再 Feign 并回填缓存）
+     * <p>用户昵称/头像等资料变更频率低，缓存命中率极高，避免列表/详情每次跨服务查 user。
+     *
+     * @param userIds 用户 ID 集合
+     * @return userId -> UserProfileVO 映射
+     */
+    private Map<Long, UserProfileVO> getUserProfileMapWithCache(Set<Long> userIds) {
+        if (userIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        List<Long> idList = new ArrayList<>(userIds);
+        List<String> keys = idList.stream()
+                .map(CacheKeyConstants::getUserProfileKey)
+                .collect(Collectors.toList());
+
+        Map<Long, UserProfileVO> result = new HashMap<>();
+        Set<Long> missedIds = new HashSet<>();
+
+        List<Object> cachedValues = redisTemplate.opsForValue().multiGet(keys);
+        for (int i = 0; i < idList.size(); i++) {
+            Object value = cachedValues.get(i);
+            if (value != null) {
+                result.put(idList.get(i), (UserProfileVO) value);
+            } else {
+                missedIds.add(idList.get(i));
+            }
+        }
+
+        if (!missedIds.isEmpty()) {
+            Map<Long, UserProfileVO> feignResult =
+                    FeignResults.unwrapOrEmptyMap(userFeignClient.batchGetUserProfiles(new ArrayList<>(missedIds)));
+            for (Map.Entry<Long, UserProfileVO> entry : feignResult.entrySet()) {
+                String key = CacheKeyConstants.getUserProfileKey(entry.getKey());
+                redisTemplate.opsForValue().set(key, entry.getValue(), Duration.ofMinutes(CacheKeyConstants.USER_PROFILE_TTL_MINUTES));
+                result.put(entry.getKey(), entry.getValue());
+            }
+        }
+
+        return result;
     }
 
     /**
@@ -448,15 +576,8 @@ public class PostQueryService {
         if (userId == null || postIds == null || postIds.isEmpty()) {
             return Collections.emptySet();
         }
-        LambdaQueryWrapper<PostLikePO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PostLikePO::getUserId, userId)
-                .in(PostLikePO::getPostId, postIds)
-                .eq(PostLikePO::getStatus, CommonStatus.ACTIVE)
-                .select(PostLikePO::getPostId);
-        List<PostLikePO> list = postLikeMapper.selectList(wrapper);
-        return list.stream()
-                .map(PostLikePO::getPostId)
-                .collect(Collectors.toSet());
+        Set<Long> likedAll = loadRelationSet(CacheKeyConstants.getUserLikedPostsKey(userId), () -> queryLikedPostIds(userId));
+        return postIds.stream().filter(likedAll::contains).collect(Collectors.toSet());
     }
 
     /**
@@ -466,13 +587,53 @@ public class PostQueryService {
         if (userId == null || postIds == null || postIds.isEmpty()) {
             return Collections.emptySet();
         }
+        Set<Long> collectedAll = loadRelationSet(CacheKeyConstants.getUserCollectedPostsKey(userId), () -> queryCollectedPostIds(userId));
+        return postIds.stream().filter(collectedAll::contains).collect(Collectors.toSet());
+    }
+
+    /**
+     * 读关系缓存：命中直接返回，未命中查 DB 重建并回填（空集合用哨兵占位防穿透）
+     */
+    private Set<Long> loadRelationSet(String key, Supplier<Set<Long>> dbLoader) {
+        Set<String> members = stringRedisTemplate.opsForSet().members(key);
+        if (members != null && !members.isEmpty()) {
+            return members.stream()
+                    .filter(m -> !CacheKeyConstants.EMPTY_SET_PLACEHOLDER.equals(m))
+                    .map(Long::valueOf)
+                    .collect(Collectors.toSet());
+        }
+        Set<Long> ids = dbLoader.get();
+        if (ids.isEmpty()) {
+            stringRedisTemplate.opsForSet().add(key, CacheKeyConstants.EMPTY_SET_PLACEHOLDER);
+        } else {
+            stringRedisTemplate.opsForSet().add(key, ids.stream().map(String::valueOf).toArray(String[]::new));
+        }
+        stringRedisTemplate.expire(key, Duration.ofDays(CacheKeyConstants.RELATION_CACHE_TTL_DAYS));
+        return ids;
+    }
+
+    /**
+     * 查当前用户所有已点赞的帖子 ID
+     */
+    private Set<Long> queryLikedPostIds(Long userId) {
+        LambdaQueryWrapper<PostLikePO> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(PostLikePO::getUserId, userId)
+                .eq(PostLikePO::getStatus, CommonStatus.ACTIVE)
+                .select(PostLikePO::getPostId);
+        return postLikeMapper.selectList(wrapper).stream()
+                .map(PostLikePO::getPostId)
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * 查当前用户所有已收藏的帖子 ID
+     */
+    private Set<Long> queryCollectedPostIds(Long userId) {
         LambdaQueryWrapper<PostCollectPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(PostCollectPO::getUserId, userId)
-                .in(PostCollectPO::getPostId, postIds)
                 .eq(PostCollectPO::getStatus, CommonStatus.ACTIVE)
                 .select(PostCollectPO::getPostId);
-        List<PostCollectPO> list = postCollectMapper.selectList(wrapper);
-        return list.stream()
+        return postCollectMapper.selectList(wrapper).stream()
                 .map(PostCollectPO::getPostId)
                 .collect(Collectors.toSet());
     }

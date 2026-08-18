@@ -16,27 +16,47 @@
         </button>
       </div>
       <nav class="sidebar-nav">
-        <button class="nav-item" :class="{ active: activeTab === 'circles' }" @click="activeTab = 'circles'">
+        <button v-if="hasPermission('circle:admin:list')" class="nav-item" :class="{ active: activeTab === 'circles' }" @click="activeTab = 'circles'">
           <Icon icon="ph:circles-three" class="nav-icon" />
           <span>圈子管理</span>
         </button>
-        <button class="nav-item" :class="{ active: activeTab === 'sectionTemplates' }" @click="activeTab = 'sectionTemplates'">
+        <button v-if="hasPermission('circle:template:manage')" class="nav-item" :class="{ active: activeTab === 'sectionTemplates' }" @click="activeTab = 'sectionTemplates'">
           <Icon icon="ph:stack" class="nav-icon" />
           <span>板块模板</span>
         </button>
-        <button class="nav-item" :class="{ active: activeTab === 'review' }" @click="activeTab = 'review'">
+        <button v-if="hasPermission('post:review:list')" class="nav-item" :class="{ active: activeTab === 'review' }" @click="activeTab = 'review'">
           <Icon icon="ph:shield-check" class="nav-icon" />
           <span>内容审核</span>
         </button>
-        <button class="nav-item" :class="{ active: activeTab === 'users' }" @click="activeTab = 'users'">
+        <button v-if="hasPermission('user:manage:list')" class="nav-item" :class="{ active: activeTab === 'users' }" @click="activeTab = 'users'">
           <Icon icon="ph:users" class="nav-icon" />
           <span>用户管理</span>
         </button>
-        <button class="nav-item" :class="{ active: activeTab === 'posts' }" @click="activeTab = 'posts'">
+        <button v-if="hasPermission('post:admin:list')" class="nav-item" :class="{ active: activeTab === 'posts' }" @click="activeTab = 'posts'">
           <Icon icon="ph:article" class="nav-icon" />
           <span>帖子管理</span>
         </button>
-        <button class="nav-item" :class="{ active: activeTab === 'roles' }" @click="activeTab = 'roles'">
+        <button v-if="hasPermission('report:review:list')" class="nav-item" :class="{ active: activeTab === 'reports' }" @click="activeTab = 'reports'">
+          <Icon icon="ph:flag" class="nav-icon" />
+          <span>举报管理</span>
+        </button>
+        <button v-if="hasPermission('audit:log:list')" class="nav-item" :class="{ active: activeTab === 'audit' }" @click="activeTab = 'audit'">
+          <Icon icon="ph:clipboard-text" class="nav-icon" />
+          <span>审计日志</span>
+        </button>
+        <button v-if="hasPermission('analytics:view')" class="nav-item" :class="{ active: activeTab === 'dashboard' }" @click="activeTab = 'dashboard'">
+          <Icon icon="ph:chart-bar" class="nav-icon" />
+          <span>数据看板</span>
+        </button>
+        <button v-if="hasPermission('circle:application:review:list')" class="nav-item" :class="{ active: activeTab === 'circleApps' }" @click="activeTab = 'circleApps'">
+          <Icon icon="ph:buildings" class="nav-icon" />
+          <span>建圈申请</span>
+        </button>
+        <button v-if="hasPermission('circle:join:review:list')" class="nav-item" :class="{ active: activeTab === 'joinApps' }" @click="activeTab = 'joinApps'">
+          <Icon icon="ph:user-plus" class="nav-icon" />
+          <span>入圈申请</span>
+        </button>
+        <button v-if="hasPermission('role:manage:list')" class="nav-item" :class="{ active: activeTab === 'roles' }" @click="activeTab = 'roles'">
           <Icon icon="ph:shield-star" class="nav-icon" />
           <span>角色权限</span>
         </button>
@@ -411,6 +431,20 @@
           </div>
         </div>
       </section>
+      <!-- 举报管理 -->
+      <ReportManagement v-if="activeTab === 'reports'" v-model:search-keyword="searchKeyword" />
+
+      <!-- 审计日志 -->
+      <AuditLog v-if="activeTab === 'audit'" v-model:search-keyword="searchKeyword" />
+
+      <!-- 数据看板 -->
+      <AnalyticsDashboard v-if="activeTab === 'dashboard'" :search-keyword="searchKeyword" />
+
+      <!-- 建圈申请审核 -->
+      <CircleApplicationReview v-if="activeTab === 'circleApps'" v-model:search-keyword="searchKeyword" />
+
+      <!-- 入圈申请审核 -->
+      <CircleJoinApplicationReview v-if="activeTab === 'joinApps'" v-model:search-keyword="searchKeyword" />
     </main>
 
     <!-- 圈子编辑/新建弹窗 -->
@@ -577,13 +611,20 @@ import type { PostVO } from '@/api/post'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SearchInput from '@/components/SearchInput.vue'
+import ReportManagement from '@/views/admin/ReportManagement.vue'
+import AuditLog from '@/views/admin/AuditLog.vue'
+import AnalyticsDashboard from '@/views/admin/AnalyticsDashboard.vue'
+import CircleApplicationReview from '@/views/admin/CircleApplicationReview.vue'
+import CircleJoinApplicationReview from '@/views/admin/CircleJoinApplicationReview.vue'
 import request from '@/utils/request'
 import { pickApiMessage } from '@/utils/errorCode'
+import { usePermission } from '@/composables/usePermission'
 
 const { to } = useNavigate()
 const userStore = useUserStore()
+const { hasPermission } = usePermission()
 
-const activeTab = ref<'circles' | 'sectionTemplates' | 'review' | 'users' | 'posts' | 'roles'>('circles')
+const activeTab = ref<'circles' | 'sectionTemplates' | 'review' | 'users' | 'posts' | 'roles' | 'reports' | 'audit' | 'dashboard' | 'circleApps' | 'joinApps'>('circles')
 
 // 暗色模式
 const isDark = ref(false)
@@ -605,6 +646,10 @@ const searchPlaceholder = computed(() => {
     users: '搜索用户名或昵称...',
     posts: '搜索帖子标题...',
     roles: '搜索角色...',
+    reports: '搜索举报原因...',
+    audit: '搜索操作人或详情...',
+    circleApps: '搜索圈子名称...',
+    joinApps: '搜索申请理由...',
   }
   return map[activeTab.value] || '搜索...'
 })
@@ -617,6 +662,11 @@ function refreshCurrentTab() {
     users: loadUsers,
     posts: loadAdminPosts,
     roles: () => { if (roles.value.length === 0) loadRoles() },
+    reports: () => {},
+    audit: () => {},
+    dashboard: () => {},
+    circleApps: () => {},
+    joinApps: () => {},
   }
   loader[activeTab.value]?.()
 }
@@ -939,7 +989,7 @@ const filteredAdminPosts = computed(() => {
 async function loadAdminPosts() {
   adminPostLoading.value = true
   try {
-    const res = await request.get('/post/admin/list', {
+    const res = await request.get('/admin/post/list', {
       params: { status: adminPostStatusFilter.value, page: adminPostPage.value, size: 20 }
     }) as any
     adminPosts.value = res.records || []
@@ -951,7 +1001,7 @@ async function loadAdminPosts() {
 async function adminDeletePost(p: AdminPost) {
   try {
     await ElMessageBox.confirm(`确定删除帖子"${p.title}"吗？`, '确认删除', { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' })
-    await request.delete(`/post/admin/${p.id}`)
+    await request.delete(`/admin/post/${p.id}`)
     ElMessage.success('删除成功')
     await loadAdminPosts()
   } catch (action: any) { if (action !== 'cancel') ElMessage.error('删除失败') }
@@ -1072,7 +1122,7 @@ async function toggleCircleStatus(c: CircleVO) {
   const action = (c as any).status === 1 ? '禁用' : '启用'
   try {
     await ElMessageBox.confirm(`确定${action}圈子"${c.name}"吗？`, `确认${action}`, { confirmButtonText: action, cancelButtonText: '取消', type: 'warning' })
-    await request.put(`/circle/${c.id}/status`, { status: (c as any).status === 1 ? 0 : 1 })
+    await request.put(`/admin/circle/${c.id}/status`, { status: (c as any).status === 1 ? 0 : 1 })
     ElMessage.success(`${action}成功`)
     await loadCircles()
   } catch (action: any) { if (action !== 'cancel') ElMessage.error('操作失败') }
@@ -1087,6 +1137,11 @@ watch(activeTab, (tab) => {
     users: () => { if (users.value.length === 0) loadUsers() },
     posts: loadAdminPosts,
     roles: () => { if (roles.value.length === 0) loadRoles() },
+    reports: () => {},
+    audit: () => {},
+    dashboard: () => {},
+    circleApps: () => {},
+    joinApps: () => {},
   }
   loaders[tab]?.()
 })
@@ -1142,7 +1197,7 @@ onMounted(() => {
 .sidebar-user-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
 .sidebar-user-fb {
-  font-size: 18px;
+  font-size: var(--fs-xl);
   font-weight: 700;
   color: #fff;
 }
@@ -1155,7 +1210,7 @@ onMounted(() => {
 }
 
 .sidebar-user-hi { font-size: 11px; color: var(--text-dim); }
-.sidebar-user-name { font-size: 14px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-user-name { font-size: var(--fs-md); font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sidebar-user-role { font-size: 11px; padding: 1px 8px; border-radius: 6px; font-weight: 500; width: fit-content; }
 .role-admin { background: rgba(255, 107, 157, 0.12); color: var(--pink); }
 .role-user { background: var(--pink-bg); color: var(--text-dim); }
@@ -1175,7 +1230,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 500;
   color: var(--text-dim);
   transition: all 0.2s;
@@ -1207,7 +1262,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: var(--fs-lg);
   color: var(--text-dim);
   transition: all 0.2s;
   padding: 0;
@@ -1230,7 +1285,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text-dim);
   transition: all 0.2s;
 }
@@ -1244,8 +1299,6 @@ onMounted(() => {
   min-height: 100vh;
 }
 
-.admin-section { }
-
 /* ===== 标题 ===== */
 .section-head {
   display: flex;
@@ -1255,14 +1308,14 @@ onMounted(() => {
 }
 
 .section-head h2 {
-  font-size: 20px;
+  font-size: var(--fs-2xl);
   font-weight: 700;
   color: var(--text);
   margin: 0;
 }
 
 .section-desc {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text-dim);
   margin: 6px 0 0;
 }
@@ -1288,7 +1341,7 @@ onMounted(() => {
   border-radius: 12px;
   background: var(--brand-gradient);
   color: var(--white);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   border: none;
   cursor: pointer;
@@ -1308,7 +1361,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: var(--fs-lg);
   color: var(--text-dim);
   transition: all 0.15s;
 }
@@ -1327,7 +1380,7 @@ onMounted(() => {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 13px;
+  font-size: var(--fs-sm);
 }
 
 .data-table thead th {
@@ -1335,7 +1388,7 @@ onMounted(() => {
   text-align: left;
   font-weight: 600;
   color: #fff !important;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   background: var(--brand) !important;
   letter-spacing: 0.2px;
   white-space: nowrap;
@@ -1368,7 +1421,7 @@ onMounted(() => {
 
 .td-id {
   color: var(--text-dim);
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-family: 'SF Mono', 'Menlo', monospace;
 }
 
@@ -1376,13 +1429,14 @@ onMounted(() => {
 
 .td-intro {
   color: var(--text-dim);
+  font-size: var(--fs-sm);
   max-width: 240px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.td-time { color: var(--text-dim); font-size: 12px; }
+.td-time { color: var(--text-dim); font-size: var(--fs-xs); }
 
 .td-actions { display: flex; gap: 12px; }
 
@@ -1392,7 +1446,7 @@ onMounted(() => {
   border: none;
   background: none;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 500;
   color: var(--pink);
   transition: color 0.12s;
@@ -1414,7 +1468,7 @@ onMounted(() => {
   display: inline-block;
   padding: 2px 10px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 500;
 }
 
@@ -1450,7 +1504,7 @@ onMounted(() => {
 .avatar-32 img { width: 100%; height: 100%; object-fit: cover; }
 
 .avatar-32-fb {
-  font-size: 14px;
+  font-size: var(--fs-md);
   font-weight: 700;
   color: #fff;
 }
@@ -1464,13 +1518,13 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.form-card h3 { font-size: 16px; font-weight: 700; color: var(--text); margin: 0 0 18px; }
+.form-card h3 { font-size: var(--fs-lg); font-weight: 700; color: var(--text); margin: 0 0 18px; }
 
 .form-row { margin-bottom: 16px; }
 
 .form-row label {
   display: block;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text);
   margin-bottom: 6px;
@@ -1481,7 +1535,7 @@ onMounted(() => {
   padding: 10px 14px;
   border-radius: 8px;
   border: 1px solid var(--border);
-  font-size: 14px;
+  font-size: var(--fs-md);
   color: var(--text);
   background: var(--bg);
   transition: border-color 0.2s;
@@ -1495,7 +1549,7 @@ onMounted(() => {
   padding: 10px 14px;
   border-radius: 8px;
   border: 1px solid var(--border);
-  font-size: 14px;
+  font-size: var(--fs-md);
   color: var(--text);
   background: var(--bg);
   resize: vertical;
@@ -1513,7 +1567,7 @@ onMounted(() => {
   border: 1px solid var(--border);
   background: transparent;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text-dim);
 }
 
@@ -1522,7 +1576,7 @@ onMounted(() => {
   border-radius: 8px;
   background: var(--gradient-brand);
   color: var(--white);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   border: none;
   cursor: pointer;
@@ -1564,7 +1618,7 @@ onMounted(() => {
 }
 
 .avatar-fallback {
-  font-size: 24px;
+  font-size: var(--fs-3xl);
   font-weight: 700;
   color: #fff;
 }
@@ -1574,7 +1628,7 @@ onMounted(() => {
   padding: 8px 16px;
   border-radius: 8px;
   border: 1px solid var(--border);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text-dim);
   cursor: pointer;
   transition: all 0.2s;
@@ -1589,7 +1643,7 @@ onMounted(() => {
   border: 1px solid var(--border);
   background: transparent;
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--text-dim);
 }
 
@@ -1624,7 +1678,7 @@ onMounted(() => {
   border-bottom: 1px solid var(--border-light);
 }
 
-.modal-header h3 { font-size: 16px; font-weight: 700; color: var(--text); margin: 0; }
+.modal-header h3 { font-size: var(--fs-lg); font-weight: 700; color: var(--text); margin: 0; }
 
 .modal-close {
   background: none;
@@ -1637,7 +1691,7 @@ onMounted(() => {
 
 .modal-body { padding: 20px 24px; overflow-y: auto; flex: 1; }
 
-.modal-hint { font-size: 12px; color: var(--text-dim); margin: 0 0 16px; }
+.modal-hint { font-size: var(--fs-xs); color: var(--text-dim); margin: 0 0 16px; }
 
 .modal-footer {
   display: flex;
@@ -1665,7 +1719,7 @@ onMounted(() => {
 
 .section-config-left { display: flex; align-items: center; gap: 10px; cursor: pointer; flex: 1; }
 
-.section-config-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.section-config-name { font-size: var(--fs-md); font-weight: 600; color: var(--text); }
 
 .section-config-type {
   font-size: 11px;
@@ -1708,7 +1762,7 @@ onMounted(() => {
 .sc-default-wrap { display: flex; align-items: center; gap: 4px; cursor: pointer; }
 .sc-default-wrap input[type="radio"] { accent-color: var(--purple); }
 
-.default-label { font-size: 12px; color: var(--text-dim); }
+.default-label { font-size: var(--fs-xs); color: var(--text-dim); }
 
 .op-btn-danger-bg { background: var(--error) !important; }
 
@@ -1718,7 +1772,7 @@ onMounted(() => {
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--card);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text);
   cursor: pointer;
   outline: none;
@@ -1742,7 +1796,7 @@ onMounted(() => {
   border: 1px solid var(--border);
   background: var(--card);
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text-dim);
   transition: all 0.2s;
 }
@@ -1750,7 +1804,7 @@ onMounted(() => {
 .page-btn:hover:not(:disabled) { border-color: var(--pink); color: var(--pink); }
 .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.page-info { font-size: 13px; color: var(--text-dim); }
+.page-info { font-size: var(--fs-sm); color: var(--text-dim); }
 
 /* ===== RBAC 角色权限管理 ===== */
 .rbac-layout {
@@ -1774,7 +1828,7 @@ onMounted(() => {
 
 .rbac-roles-hd {
   padding: 14px 16px;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: #fff;
   background: var(--brand);
@@ -1806,7 +1860,7 @@ onMounted(() => {
 .rbac-role-item.active { background: linear-gradient(135deg, rgba(255, 107, 157, 0.08), rgba(180, 132, 255, 0.08)); }
 
 .rbac-role-info { display: flex; flex-direction: column; gap: 2px; }
-.rbac-role-label { font-size: 14px; font-weight: 600; color: var(--text); }
+.rbac-role-label { font-size: var(--fs-md); font-weight: 600; color: var(--text); }
 .rbac-role-code { font-size: 11px; color: var(--text-dim); font-family: 'SF Mono', monospace; }
 
 .rbac-role-scope {
@@ -1835,7 +1889,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: #fff;
   background: var(--brand);
@@ -1855,7 +1909,7 @@ onMounted(() => {
 .rbac-perm-group:last-child { margin-bottom: 0; }
 
 .rbac-perm-group-hd {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   color: var(--text-dim);
   text-transform: uppercase;
@@ -1873,7 +1927,7 @@ onMounted(() => {
 
 .rbac-perm-group-hd:hover { color: var(--pink); }
 
-.rbac-group-arrow { font-size: 14px; flex-shrink: 0; }
+.rbac-group-arrow { font-size: var(--fs-md); flex-shrink: 0; }
 
 .rbac-perm-items {
   display: flex;
@@ -1895,7 +1949,7 @@ onMounted(() => {
 .rbac-perm-toggle:hover { border-color: var(--pink); background: rgba(255, 107, 157, 0.03); }
 
 .rbac-toggle-info { display: flex; align-items: center; gap: 10px; }
-.rbac-toggle-label { font-size: 13px; font-weight: 500; color: var(--text); }
+.rbac-toggle-label { font-size: var(--fs-sm); font-weight: 500; color: var(--text); }
 .rbac-toggle-code { font-size: 11px; color: var(--text-dim); font-family: 'SF Mono', monospace; }
 
 .rbac-toggle-switch {

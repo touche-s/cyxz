@@ -21,6 +21,8 @@ declare module 'vue' {
     CreatorHome: typeof import('./src/components/creator/CreatorHome.vue')['default']
     CreatorInteraction: typeof import('./src/components/creator/CreatorInteraction.vue')['default']
     CreatorMagic: typeof import('./src/components/creator/CreatorMagic.vue')['default']
+    CreatorReceivedComments: typeof import('./src/components/creator/CreatorReceivedComments.vue')['default']
+    CreatorReceivedLikes: typeof import('./src/components/creator/CreatorReceivedLikes.vue')['default']
     EmptyState: typeof import('./src/components/EmptyState.vue')['default']
     FollowButton: typeof import('./src/components/FollowButton.vue')['default']
     HeaderBar: typeof import('./src/components/HeaderBar.vue')['default']

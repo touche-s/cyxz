@@ -234,6 +234,25 @@ public interface PostService {
     void rejectPost(Long postId, String reason);
 
     /**
+     * 圈子维度审核通过帖子（圈主/圈子管理员使用）
+     * <p>校验帖子归属当前圈子后执行审核。
+     *
+     * @param circleId 圈子 ID
+     * @param postId   帖子 ID
+     */
+    void approvePostByCircle(Long circleId, Long postId);
+
+    /**
+     * 圈子维度审核拒绝帖子（圈主/圈子管理员使用）
+     * <p>校验帖子归属当前圈子后执行审核。
+     *
+     * @param circleId 圈子 ID
+     * @param postId   帖子 ID
+     * @param reason   拒绝原因
+     */
+    void rejectPostByCircle(Long circleId, Long postId, String reason);
+
+    /**
      * 查询待审核帖子列表
      */
     PageResult<PostVO> listPendingReview(int page, int size);

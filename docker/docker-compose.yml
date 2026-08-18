@@ -18,8 +18,8 @@ x-common-env: &common-env
   NACOS_SERVER_ADDR: nacos:8848
   RABBITMQ_HOST: rabbitmq
   RABBITMQ_PORT: "5672"
-  RABBITMQ_USERNAME: guest
-  RABBITMQ_PASSWORD: guest
+  RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+  RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
   MINIO_ENDPOINT: http://minio:9000
   MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?请复制 .env.example 为 .env 并配置 MINIO_ACCESS_KEY}
   MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?请复制 .env.example 为 .env 并配置 MINIO_SECRET_KEY}
@@ -43,6 +43,7 @@ services:
   # ============================
   mysql:
     image: mysql:8.0
+    command: --max-connections=300
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?请复制 .env.example 为 .env 并配置 DB_PASSWORD}
     volumes:
@@ -78,6 +79,9 @@ services:
 
   rabbitmq:
     image: rabbitmq:3.13-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     ports:
@@ -180,6 +184,12 @@ services:
       dockerfile: docker/microservice.Dockerfile
       args:
         SERVICE_NAME: cyxz-gateway
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
     ports:
       - "${GATEWAY_PORT:-8080}:8080"
     depends_on:
@@ -193,6 +203,12 @@ services:
       dockerfile: docker/microservice.Dockerfile
       args:
         SERVICE_NAME: cyxz-auth
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9001'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
     depends_on:
       mysql: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -205,6 +221,12 @@ services:
       dockerfile: docker/microservice.Dockerfile
       args:
         SERVICE_NAME: cyxz-user
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9002'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
     depends_on:
       mysql: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -218,6 +240,12 @@ services:
       dockerfile: docker/microservice.Dockerfile
       args:
         SERVICE_NAME: cyxz-post
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9003'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
     depends_on:
       mysql: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -231,6 +259,12 @@ services:
       dockerfile: docker/microservice.Dockerfile
       args:
         SERVICE_NAME: cyxz-comment
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9004'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
     depends_on:
       mysql: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -244,6 +278,12 @@ services:
       dockerfile: docker/microservice.Dockerfile
       args:
         SERVICE_NAME: cyxz-circle
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9005'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
     depends_on:
       mysql: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -256,6 +296,12 @@ services:
       dockerfile: docker/microservice.Dockerfile
       args:
         SERVICE_NAME: cyxz-upload
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9006'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
     depends_on:
       mysql: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -269,6 +315,12 @@ services:
       dockerfile: docker/microservice.Dockerfile
       args:
         SERVICE_NAME: cyxz-message
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9007'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
     depends_on:
       mysql: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -282,8 +334,69 @@ services:
       dockerfile: docker/microservice.Dockerfile
       args:
         SERVICE_NAME: cyxz-search
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9008'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
     depends_on:
       elasticsearch: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      nacos: { condition: service_healthy }
+
+  governance:
+    <<: *microservice
+    build:
+      context: ..
+      dockerfile: docker/microservice.Dockerfile
+      args:
+        SERVICE_NAME: cyxz-governance
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9009'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    depends_on:
+      mysql: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      nacos: { condition: service_healthy }
+
+  audit:
+    <<: *microservice
+    build:
+      context: ..
+      dockerfile: docker/microservice.Dockerfile
+      args:
+        SERVICE_NAME: cyxz-audit
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9010'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    depends_on:
+      mysql: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      nacos: { condition: service_healthy }
+
+  analytics:
+    <<: *microservice
+    build:
+      context: ..
+      dockerfile: docker/microservice.Dockerfile
+      args:
+        SERVICE_NAME: cyxz-analytics
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9011'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    depends_on:
+      mysql: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
       nacos: { condition: service_healthy }
 
@@ -298,14 +411,20 @@ services:
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_API_URL: ${LLM_API_URL:-https://api.deepseek.com/v1/chat/completions}
       LLM_MODEL: ${LLM_MODEL:-deepseek-chat}
-      AUTO_PASS_WITHOUT_KEY: ${AUTO_PASS_WITHOUT_KEY:-true}
+      AUTO_PASS_WITHOUT_KEY: ${AUTO_PASS_WITHOUT_KEY:-false}
       QWEN_VL_API_KEY: ${QWEN_VL_API_KEY:-}
       QWEN_VL_API_URL: ${QWEN_VL_API_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions}
       QWEN_VL_MODEL: ${QWEN_VL_MODEL:-qwen3.7-plus}
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: "5672"
-      RABBITMQ_USERNAME: guest
-      RABBITMQ_PASSWORD: guest
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     depends_on:
       rabbitmq: { condition: service_healthy }
     restart: unless-stopped
@@ -322,7 +441,7 @@ services:
     ports:
       - "${FRONTEND_PORT:-80}:80"
     depends_on:
-      - gateway
+      gateway: { condition: service_healthy }
     restart: unless-stopped
     networks:
       - cyxz-net

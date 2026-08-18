@@ -16,6 +16,7 @@ import java.util.List;
 
 /**
  * 启动时将已有已通过帖子全量同步到 ES
+ * <p>仅当 ES 索引为空时才执行全量同步，避免重复推送。
  */
 @Slf4j
 @Component

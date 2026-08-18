@@ -4,13 +4,15 @@ import com.cyxz.auth.dto.AuthResponse;
 import com.cyxz.auth.dto.ChangePasswordRequest;
 import com.cyxz.auth.dto.LoginRequest;
 import com.cyxz.auth.dto.RegisterRequest;
+import com.cyxz.auth.entity.SysRolePO;
 import com.cyxz.auth.entity.SysUserPO;
+import com.cyxz.auth.entity.SysUserRolePO;
+import com.cyxz.auth.mapper.SysRoleMapper;
 import com.cyxz.auth.mapper.SysUserMapper;
+import com.cyxz.auth.mapper.SysUserRoleMapper;
 import com.cyxz.auth.utils.JwtUtil;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
-import com.cyxz.common.base.Result;
-import com.cyxz.user.feign.UserFeignClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -28,12 +30,16 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import java.util.Collections;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -53,7 +59,8 @@ class AuthServiceImplTest {
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private StringRedisTemplate stringRedisTemplate;
     @Mock private RabbitTemplate rabbitTemplate;
-    @Mock private UserFeignClient userFeignClient;
+    @Mock private SysUserRoleMapper sysUserRoleMapper;
+    @Mock private SysRoleMapper sysRoleMapper;
     @Mock private ValueOperations<String, String> valueOps;
 
     @InjectMocks
@@ -93,13 +100,12 @@ class AuthServiceImplTest {
         return req;
     }
 
-    private SysUserPO buildSysUser(Long id, String username, String password, Integer status, String role) {
+    private SysUserPO buildSysUser(Long id, String username, String password, Integer status) {
         SysUserPO user = new SysUserPO();
         user.setId(id);
         user.setUsername(username);
         user.setPassword(password);
         user.setStatus(status);
-        user.setRole(role);
         return user;
     }
 
@@ -107,6 +113,12 @@ class AuthServiceImplTest {
     private void mockValidCaptcha() {
         when(stringRedisTemplate.opsForValue()).thenReturn(valueOps);
         when(valueOps.get(anyString())).thenReturn(VALID_CAPTCHA);
+    }
+
+    /** 模拟全局角色/权限查询（登录与刷新 Token 时调用） */
+    private void mockGlobalRole(String roleCode) {
+        lenient().when(sysUserRoleMapper.selectGlobalRoleCodes(USER_ID)).thenReturn(List.of(roleCode));
+        lenient().when(sysUserRoleMapper.selectGlobalPermissionCodes(USER_ID)).thenReturn(Collections.emptyList());
     }
 
     // ==================== login ====================
@@ -187,7 +199,7 @@ class AuthServiceImplTest {
         @DisplayName("用户被禁用（status!=1）抛 USER_DISABLED")
         void shouldThrowUserDisabledWhenStatusNotActive() {
             mockValidCaptcha();
-            SysUserPO user = buildSysUser(USER_ID, "user123", "hashed", 0, "user");
+            SysUserPO user = buildSysUser(USER_ID, "user123", "hashed", 0);
             lenient().when(sysUserMapper.selectOne(any())).thenReturn(user);
             LoginRequest req = buildLoginRequest("user123", "pass123", VALID_CAPTCHA, CAPTCHA_UUID);
 
@@ -205,7 +217,7 @@ class AuthServiceImplTest {
         @DisplayName("密码错误抛 PASSWORD_ERROR")
         void shouldThrowPasswordErrorWhenPasswordWrong() {
             mockValidCaptcha();
-            SysUserPO user = buildSysUser(USER_ID, "user123", "hashed", 1, "user");
+            SysUserPO user = buildSysUser(USER_ID, "user123", "hashed", 1);
             lenient().when(sysUserMapper.selectOne(any())).thenReturn(user);
             lenient().when(passwordEncoder.matches("pass123", "hashed")).thenReturn(false);
             LoginRequest req = buildLoginRequest("user123", "pass123", VALID_CAPTCHA, CAPTCHA_UUID);
@@ -224,10 +236,11 @@ class AuthServiceImplTest {
         @DisplayName("登录成功返回 AuthResponse（验证 token/userId/username/role）")
         void shouldReturnAuthResponseOnSuccess() {
             mockValidCaptcha();
-            SysUserPO user = buildSysUser(USER_ID, "user123", "hashed", 1, "admin");
+            mockGlobalRole("admin");
+            SysUserPO user = buildSysUser(USER_ID, "user123", "hashed", 1);
             lenient().when(sysUserMapper.selectOne(any())).thenReturn(user);
             lenient().when(passwordEncoder.matches("pass123", "hashed")).thenReturn(true);
-            lenient().when(jwtUtil.generateToken(USER_ID, "admin")).thenReturn("token123");
+            lenient().when(jwtUtil.generateToken(USER_ID)).thenReturn("token123");
             lenient().when(jwtUtil.getExpirationSeconds()).thenReturn(7200L);
             LoginRequest req = buildLoginRequest("user123", "pass123", VALID_CAPTCHA, CAPTCHA_UUID);
 
@@ -242,7 +255,7 @@ class AuthServiceImplTest {
                 assertEquals("user123", resp.getUsername());
                 assertEquals("admin", resp.getRole());
                 verify(stringRedisTemplate).delete(anyString());
-                verify(jwtUtil).generateToken(USER_ID, "admin");
+                verify(jwtUtil).generateToken(USER_ID);
             } catch (com.baomidou.mybatisplus.core.exceptions.MybatisPlusException e) {
                 // LambdaQueryWrapper lambda cache 未初始化，单测环境已知限制
             }
@@ -306,7 +319,7 @@ class AuthServiceImplTest {
         }
 
         @Test
-        @DisplayName("正常注册：BCrypt 加密 + insert + initDefaultProfile")
+        @DisplayName("正常注册：BCrypt 加密 + insert + 分配默认角色")
         void shouldRegisterSuccessfully() {
             mockValidCaptcha();
             lenient().when(sysUserMapper.selectCount(any())).thenReturn(0L);
@@ -316,7 +329,10 @@ class AuthServiceImplTest {
                 po.setId(USER_ID);
                 return 1;
             });
-            lenient().when(userFeignClient.initDefaultProfile(USER_ID, "user123")).thenReturn(Result.success());
+            SysRolePO userRole = new SysRolePO();
+            userRole.setId(2L);
+            userRole.setCode("USER");
+            lenient().when(sysRoleMapper.selectOne(any())).thenReturn(userRole);
             RegisterRequest req = buildRegisterRequest("user123", "pass123", "pass123", VALID_CAPTCHA, CAPTCHA_UUID);
 
             try {
@@ -325,7 +341,7 @@ class AuthServiceImplTest {
 
                 verify(passwordEncoder).encode("pass123");
                 verify(sysUserMapper).insert(any(SysUserPO.class));
-                verify(userFeignClient).initDefaultProfile(USER_ID, "user123");
+                verify(sysUserRoleMapper).insert(any(SysUserRolePO.class));
             } catch (com.baomidou.mybatisplus.core.exceptions.MybatisPlusException e) {
                 // LambdaQueryWrapper lambda cache 未初始化，单测环境已知限制
             }
@@ -352,8 +368,8 @@ class AuthServiceImplTest {
         }
 
         @Test
-        @DisplayName("initDefaultProfile 失败不阻塞注册")
-        void shouldNotBlockWhenInitDefaultProfileFails() {
+        @DisplayName("统计事件发布失败不阻塞注册")
+        void shouldNotBlockWhenAnalyticsPublishFails() {
             mockValidCaptcha();
             lenient().when(sysUserMapper.selectCount(any())).thenReturn(0L);
             lenient().when(passwordEncoder.encode(anyString())).thenReturn("$2a$10$encoded");
@@ -362,8 +378,9 @@ class AuthServiceImplTest {
                 po.setId(USER_ID);
                 return 1;
             });
-            lenient().when(userFeignClient.initDefaultProfile(USER_ID, "user123"))
-                    .thenReturn(Result.fail("feign error"));
+            lenient().when(sysRoleMapper.selectOne(any())).thenReturn(null);
+            doThrow(new RuntimeException("mq down"))
+                    .when(rabbitTemplate).convertAndSend(anyString(), anyString(), any(Object.class));
             RegisterRequest req = buildRegisterRequest("user123", "pass123", "pass123", VALID_CAPTCHA, CAPTCHA_UUID);
 
             try {
@@ -371,7 +388,7 @@ class AuthServiceImplTest {
                 triggerAfterCommit();
 
                 verify(sysUserMapper).insert(any(SysUserPO.class));
-                verify(userFeignClient).initDefaultProfile(USER_ID, "user123");
+                verify(rabbitTemplate).convertAndSend(anyString(), anyString(), any(Object.class));
             } catch (com.baomidou.mybatisplus.core.exceptions.MybatisPlusException e) {
                 // LambdaQueryWrapper lambda cache 未初始化，单测环境已知限制
             }
@@ -410,7 +427,7 @@ class AuthServiceImplTest {
         @Test
         @DisplayName("旧密码错误抛 PASSWORD_ERROR")
         void shouldThrowPasswordErrorWhenOldPasswordWrong() {
-            SysUserPO user = buildSysUser(USER_ID, "user123", "hashed", 1, "user");
+            SysUserPO user = buildSysUser(USER_ID, "user123", "hashed", 1);
             when(sysUserMapper.selectById(USER_ID)).thenReturn(user);
             when(passwordEncoder.matches("old123", "hashed")).thenReturn(false);
             ChangePasswordRequest req = buildChangePasswordRequest("old123", "new123", "new123");
@@ -424,7 +441,7 @@ class AuthServiceImplTest {
         @Test
         @DisplayName("新旧密码相同被拒，抛 PARAM_ERROR")
         void shouldRejectWhenNewPasswordSameAsOld() {
-            SysUserPO user = buildSysUser(USER_ID, "user123", "hashed", 1, "user");
+            SysUserPO user = buildSysUser(USER_ID, "user123", "hashed", 1);
             when(sysUserMapper.selectById(USER_ID)).thenReturn(user);
             when(passwordEncoder.matches("pass123", "hashed")).thenReturn(true);
             ChangePasswordRequest req = buildChangePasswordRequest("pass123", "pass123", "pass123");
@@ -438,7 +455,7 @@ class AuthServiceImplTest {
         @Test
         @DisplayName("正常修改密码：加密后 updateById")
         void shouldChangePasswordSuccessfully() {
-            SysUserPO user = buildSysUser(USER_ID, "user123", "oldHashed", 1, "user");
+            SysUserPO user = buildSysUser(USER_ID, "user123", "oldHashed", 1);
             when(sysUserMapper.selectById(USER_ID)).thenReturn(user);
             when(passwordEncoder.matches("old123", "oldHashed")).thenReturn(true);
             when(passwordEncoder.matches("new123", "oldHashed")).thenReturn(false);
@@ -501,7 +518,7 @@ class AuthServiceImplTest {
             when(jwtUtil.validateToken("old-token")).thenReturn(true);
             when(jwtUtil.isExpired("old-token")).thenReturn(false);
             when(jwtUtil.getUserId("old-token")).thenReturn(USER_ID);
-            SysUserPO user = buildSysUser(USER_ID, "user123", "hashed", 0, "user");
+            SysUserPO user = buildSysUser(USER_ID, "user123", "hashed", 0);
             when(sysUserMapper.selectById(USER_ID)).thenReturn(user);
 
             BusinessException ex = assertThrows(BusinessException.class,
@@ -516,9 +533,10 @@ class AuthServiceImplTest {
             when(jwtUtil.validateToken("old-token")).thenReturn(true);
             when(jwtUtil.isExpired("old-token")).thenReturn(false);
             when(jwtUtil.getUserId("old-token")).thenReturn(USER_ID);
-            SysUserPO user = buildSysUser(USER_ID, "user123", "hashed", 1, "admin");
+            SysUserPO user = buildSysUser(USER_ID, "user123", "hashed", 1);
             when(sysUserMapper.selectById(USER_ID)).thenReturn(user);
-            when(jwtUtil.generateToken(USER_ID, "admin")).thenReturn("new-token");
+            mockGlobalRole("admin");
+            when(jwtUtil.generateToken(USER_ID)).thenReturn("new-token");
             when(jwtUtil.getExpirationSeconds()).thenReturn(7200L);
 
             AuthResponse resp = authService.refreshToken("old-token");
@@ -531,7 +549,7 @@ class AuthServiceImplTest {
             assertEquals("user123", resp.getUsername());
             assertEquals("admin", resp.getRole());
             verify(jwtUtil).blacklistToken("old-token");
-            verify(jwtUtil).generateToken(USER_ID, "admin");
+            verify(jwtUtil).generateToken(USER_ID);
         }
     }
 

@@ -1,5 +1,6 @@
 package com.cyxz.message.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
@@ -15,9 +16,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -38,6 +42,7 @@ class ChatServiceImplTest {
     @Mock private UserFeignClient userFeignClient;
     @Mock private WebSocketSessionManager sessionManager;
     @Mock private ObjectMapper objectMapper;
+    @Mock private TransactionTemplate transactionTemplate;
 
     @InjectMocks
     private ChatServiceImpl chatService;
@@ -54,6 +59,14 @@ class ChatServiceImplTest {
         conv.setUnreadCount1(0);
         conv.setUnreadCount2(2);
         return conv;
+    }
+
+    /** 让 transactionTemplate.execute 立即同步执行回调，避免真实事务 */
+    private void mockTransactionTemplateExecute() {
+        when(transactionTemplate.execute(any())).thenAnswer(inv -> {
+            TransactionCallback<?> callback = inv.getArgument(0);
+            return callback.doInTransaction(null);
+        });
     }
 
     // ==================== sendMessage ====================
@@ -118,13 +131,18 @@ class ChatServiceImplTest {
             when(conversationMapper.selectOne(any())).thenReturn(buildConversation());
             when(sessionManager.isOnline(USER2)).thenReturn(true);
             when(objectMapper.writeValueAsString(any())).thenReturn("{}");
+            mockTransactionTemplateExecute();
 
             ChatMessageVO vo = chatService.sendMessage(USER1, USER2, "你好");
 
             assertNotNull(vo);
             verify(messageMapper).insert(any(PrivateMessagePO.class));
-            // USER2 是 userId2，未读数 2→3
-            verify(conversationMapper).updateById(argThat(c -> c.getUnreadCount2() == 3));
+            // USER2 是 userId2，未读数原子自增 unread_count_2
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<UpdateWrapper<ConversationPO>> captor =
+                    ArgumentCaptor.forClass(UpdateWrapper.class);
+            verify(conversationMapper).update(captor.capture());
+            assertTrue(captor.getValue().getSqlSet().contains("unread_count_2 = unread_count_2 + 1"));
             verify(sessionManager).sendToUser(eq(USER2), any(String.class));
         }
 
@@ -135,6 +153,7 @@ class ChatServiceImplTest {
                     .thenReturn(Result.success(true));
             when(conversationMapper.selectOne(any())).thenReturn(buildConversation());
             when(sessionManager.isOnline(USER2)).thenReturn(false);
+            mockTransactionTemplateExecute();
 
             chatService.sendMessage(USER1, USER2, "你好");
 
@@ -148,6 +167,7 @@ class ChatServiceImplTest {
                     .thenReturn(Result.success(true));
             when(conversationMapper.selectOne(any())).thenReturn(null);
             when(sessionManager.isOnline(USER2)).thenReturn(false);
+            mockTransactionTemplateExecute();
 
             chatService.sendMessage(USER1, USER2, "你好");
 
@@ -222,14 +242,13 @@ class ChatServiceImplTest {
             ConversationPO conv = buildConversation();
             when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(conv);
 
-            // markRead 内部构造 LambdaUpdateWrapper，需要 MybatisPlus lambda cache，
-            // 纯单测环境未初始化时会抛 MybatisPlusException，这里验证"不抛 BusinessException"即可
-            try {
-                chatService.markRead(USER2, CONVERSATION_ID);
-                verify(conversationMapper).updateById(argThat(c -> c.getUnreadCount2() == 0));
-            } catch (com.baomidou.mybatisplus.core.exceptions.MybatisPlusException e) {
-                // MybatisPlus lambda cache 未初始化，单测环境已知限制，跳过断言
-            }
+            // markRead 内部构造 UpdateWrapper（字符串列名，避免单测依赖 MybatisPlus lambda cache）
+            chatService.markRead(USER2, CONVERSATION_ID);
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<UpdateWrapper<ConversationPO>> captor =
+                    ArgumentCaptor.forClass(UpdateWrapper.class);
+            verify(conversationMapper).update(captor.capture());
+            assertTrue(captor.getValue().getSqlSet().contains("unread_count_2 = 0"));
         }
     }
 

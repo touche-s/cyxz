@@ -337,7 +337,7 @@ const doPublish = async () => {
     postToPublish.value = null
     contentRef.value?.refreshPosts()
   }, { onError: (e) => {
-    const msg = e?.response?.data?.msg
+    const msg = e?.message
     ElMessage.error(msg || '发布失败')
   }})
 }

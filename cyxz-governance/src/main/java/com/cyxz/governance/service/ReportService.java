@@ -30,6 +30,17 @@ public interface ReportService {
     PageResult<ReportVO> listForAdmin(String status, String targetType, int page, int size);
 
     /**
+     * 当前用户的举报记录（分页）
+     *
+     * @param reporterId 举报人用户 ID
+     * @param status     状态筛选（null=全部）
+     * @param page       页码
+     * @param size       每页条数
+     * @return 举报分页列表
+     */
+    PageResult<ReportVO> listMine(Long reporterId, String status, int page, int size);
+
+    /**
      * 举报详情
      *
      * @param id 举报记录 ID

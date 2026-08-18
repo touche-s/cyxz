@@ -11,7 +11,7 @@
     <div class="header-center" :class="{ 'header-center--hidden': $route.path === '/search' }">
       <SearchInput v-model="searchText" variant="header" placeholder="搜索感兴趣的内容..." @search="goToSearch" />
     </div>
-    <nav class="nav">
+    <nav class="nav" aria-label="主导航">
       <router-link to="/" :class="{ active: $route.path === '/' }">首页</router-link>
       <router-link to="/discover" :class="{ active: $route.path === '/discover' }">次元街</router-link>
       <router-link to="/following" :class="{ active: $route.path === '/following' }">关注</router-link>
@@ -71,22 +71,22 @@
         <span>登录</span>
       </div>
       <div class="header-icons">
-        <button class="header-action" @click="goPrivateMessages">
+        <button class="header-action" @click="goPrivateMessages" aria-label="私信">
           <Icon icon="ph:chat-circle-text" class="action-iconify" />
           <span class="action-label">私信</span>
         </button>
-        <button class="header-action" @click="goMessages">
+        <button class="header-action" @click="goMessages" aria-label="通知">
           <div class="action-icon-wrap">
             <Icon icon="ph:bell" class="action-iconify" />
             <span class="action-badge" v-if="unreadCount > 0">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
           </div>
           <span class="action-label">通知</span>
         </button>
-        <button class="header-action" @click="goFavorites">
+        <button class="header-action" @click="goFavorites" aria-label="收藏">
           <Icon icon="ph:star" class="action-iconify" />
           <span class="action-label">收藏</span>
         </button>
-        <button class="header-action" @click="toggleDarkMode">
+        <button class="header-action" @click="toggleDarkMode" aria-label="切换主题">
           <Icon icon="ph:moon" v-if="!isDark" class="action-iconify" />
           <Icon icon="ph:sun" v-else class="action-iconify" />
         </button>
@@ -347,7 +347,7 @@ html.dark .header-bar {
 .nav a {
   text-decoration: none;
   color: var(--text-dim);
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   padding: 8px 16px;
   border-radius: 12px;
@@ -434,7 +434,7 @@ html.dark .header-bar {
  }
 
 .login-circle span {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   color: var(--pink);
   line-height: 1;
@@ -630,13 +630,13 @@ html.dark .user-dropdown.open .avatar-trigger {
 }
 
 .stat-num {
-  font-size: 18px;
+  font-size: var(--fs-xl);
   font-weight: 800;
   color: var(--text);
 }
 
 .stat-label {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--text-dim);
 }
 
@@ -726,11 +726,5 @@ html.dark .btn-create {
 
 html.dark .btn-create:hover {
   box-shadow: 0 6px 24px rgba(180, 132, 255, 0.28);
-}
-
-html.dark .nav-mobile {
-  background: rgba(30, 26, 50, 0.96);
-  border-color: rgba(255, 107, 157, 0.1);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
 }
 </style>

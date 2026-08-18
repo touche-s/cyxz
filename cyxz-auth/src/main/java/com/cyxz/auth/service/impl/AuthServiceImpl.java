@@ -15,27 +15,29 @@ import com.cyxz.auth.service.AuthService;
 import com.cyxz.auth.utils.JwtUtil;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
-import com.cyxz.common.base.Result;
+import com.cyxz.common.constant.AnalyticsConstants;
 import com.cyxz.common.constant.CacheKeyConstants;
+import com.cyxz.common.event.AnalyticsEvent;
 import com.cyxz.common.utils.IpUtil;
-import com.cyxz.user.feign.UserFeignClient;
+import com.cyxz.common.utils.TransactionUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -54,7 +56,6 @@ public class AuthServiceImpl implements AuthService {
     private final JwtUtil jwtUtil;
     private final PasswordEncoder passwordEncoder;
     private final StringRedisTemplate stringRedisTemplate;
-    private final UserFeignClient userFeignClient;
     private final RabbitTemplate rabbitTemplate;
 
     /** dummy BCrypt 哈希，用于用户不存在时平衡响应时间（防时间侧信道），懒加载 */
@@ -193,9 +194,10 @@ public class AuthServiceImpl implements AuthService {
 
     /**
      * 用户注册
-     * <p>1. 校验验证码 2. 校验两次密码一致 3. 查重 4. BCrypt 加密入库 5. 分配默认角色 6. 初始化用户资料
-     * <p>步骤 4-5 在同一事务内，确保用户记录与角色绑定原子性；
-     * 步骤 6（Feign 跨服务）放在事务提交后执行，避免分布式事务并保证库已落盘才发通知。
+     * <p>1. 校验验证码 2. 校验两次密码一致 3. 查重 4. BCrypt 加密入库 5. 分配默认角色
+     * <p>步骤 4-5 在同一事务内，确保用户记录与角色绑定原子性。
+     * <p>用户资料（昵称、头像等）不在此处初始化：前端展示时以 username 作为昵称降级，
+     * 用户首次修改资料或访问个人空间时再懒加载创建 user_profile 记录。
      *
      * @param request 注册请求
      */
@@ -239,29 +241,18 @@ public class AuthServiceImpl implements AuthService {
 
         log.info("用户注册成功: userId={}, username={}", user.getId(), user.getUsername());
 
-        // 初始化默认资料（Feign 跨服务）放到事务提交后执行：
-        // 1) 避免跨服务调用占用本事务的 DB 连接；
-        // 2) 保证用户与角色已落盘才触发下游，防止"幻影通知"。
-        final Long userId = user.getId();
-        final String username = user.getUsername();
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                Result<Void> initResult = userFeignClient.initDefaultProfile(userId, username);
-                if (initResult == null || !initResult.isSuccess()) {
-                    log.error("初始化用户资料失败，需人工补偿: userId={}, username={}", userId, username);
-                }
-                // 发布统计事件：新增用户数 +1
-                try {
-                    AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
-                            .metric(AnalyticsConstants.METRIC_NEW_USER)
-                            .value(1)
-                            .statDate(LocalDate.now())
-                            .build();
-                    rabbitTemplate.convertAndSend(AnalyticsConstants.EXCHANGE, AnalyticsConstants.ROUTING_KEY, analyticsEvent);
-                } catch (Exception e) {
-                    log.error("发布统计事件失败: metric={}", AnalyticsConstants.METRIC_NEW_USER, e);
-                }
+        // 发布统计事件：新增用户数 +1（事务提交后发送，避免回滚后残留）
+        TransactionUtils.afterCommit(() -> {
+            try {
+                AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                        .eventId(UUID.randomUUID().toString())
+                        .metric(AnalyticsConstants.METRIC_NEW_USER)
+                        .value(1)
+                        .statDate(LocalDate.now())
+                        .build();
+                rabbitTemplate.convertAndSend(AnalyticsConstants.EXCHANGE, AnalyticsConstants.ROUTING_KEY, analyticsEvent);
+            } catch (Exception e) {
+                log.error("发布统计事件失败: metric={}", AnalyticsConstants.METRIC_NEW_USER, e);
             }
         });
     }

@@ -1,14 +1,15 @@
 package com.cyxz.circle.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cyxz.audit.api.constant.AuditConstants;
 import com.cyxz.audit.api.event.AuditEvent;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
-import com.cyxz.common.constant.AnalyticsConstants;
-import com.cyxz.common.event.AnalyticsEvent;
+import com.cyxz.common.utils.TransactionUtils;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import com.cyxz.circle.constant.CircleApplicationConstants;
 import com.cyxz.circle.dto.CreateCircleJoinRequest;
 import com.cyxz.circle.entity.CircleJoinApplicationPO;
@@ -24,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * 入圈申请服务实现
@@ -133,40 +135,42 @@ public class CircleJoinApplicationServiceImpl implements CircleJoinApplicationSe
     @Transactional(rollbackFor = Exception.class)
     public void approveApplication(Long id, Long reviewerId, String reviewNote) {
         CircleJoinApplicationPO po = checkPending(id);
-        po.setStatus(CircleApplicationConstants.STATUS_APPROVED);
-        po.setReviewerId(reviewerId);
-        po.setReviewNote(reviewNote);
-        po.setReviewedAt(LocalDateTime.now());
-        applicationMapper.updateById(po);
+        // 乐观锁更新：仅 PENDING → APPROVED 原子写，防并发重复审核互相覆盖
+        LambdaUpdateWrapper<CircleJoinApplicationPO> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(CircleJoinApplicationPO::getId, id)
+               .eq(CircleJoinApplicationPO::getStatus, CircleApplicationConstants.STATUS_PENDING);
+        CircleJoinApplicationPO update = new CircleJoinApplicationPO();
+        update.setStatus(CircleApplicationConstants.STATUS_APPROVED);
+        update.setReviewerId(reviewerId);
+        update.setReviewNote(reviewNote);
+        update.setReviewedAt(LocalDateTime.now());
+        int rows = applicationMapper.update(update, wrapper);
+        if (rows == 0) {
+            throw new BusinessException(ErrorCode.CIRCLE_JOIN_APPLICATION_ALREADY_HANDLED);
+        }
         // 同模块内同步加入圈子，事务保证一致性
         circleService.joinCircle(po.getApplicantId(), po.getCircleId());
-        // 发布审计事件：入圈申请审核通过
-        try {
-            AuditEvent auditEvent = AuditEvent.builder()
-                    .operatorId(reviewerId)
-                    .operatorName(null)
-                    .action(AuditConstants.ACTION_CIRCLE_JOIN_APPROVE)
-                    .targetType("CIRCLE")
-                    .targetId(po.getCircleId())
-                    .detail(null)
-                    .ip(null)
-                    .createTime(LocalDateTime.now())
-                    .build();
-            rabbitTemplate.convertAndSend(AuditConstants.EXCHANGE, AuditConstants.ROUTING_KEY, auditEvent);
-        } catch (Exception e) {
-            log.error("发布审计事件失败: action={}, targetId={}", AuditConstants.ACTION_CIRCLE_JOIN_APPROVE, po.getCircleId(), e);
-        }
-        // 发布统计事件：新增加入圈子数 +1
-        try {
-            AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
-                    .metric(AnalyticsConstants.METRIC_NEW_JOIN)
-                    .value(1)
-                    .statDate(LocalDate.now())
-                    .build();
-            rabbitTemplate.convertAndSend(AnalyticsConstants.EXCHANGE, AnalyticsConstants.ROUTING_KEY, analyticsEvent);
-        } catch (Exception e) {
-            log.error("发布统计事件失败: metric={}", AnalyticsConstants.METRIC_NEW_JOIN, e);
-        }
+        // 审计事件：事务提交后发送（无事务时立即发送），避免回滚后残留
+        final Long appId = id;
+        final Long reviewer = reviewerId;
+        TransactionUtils.afterCommit(() -> {
+            try {
+                AuditEvent auditEvent = AuditEvent.builder()
+                        .eventId(UUID.randomUUID().toString())
+                        .operatorId(reviewer)
+                        .operatorName(null)
+                        .action(AuditConstants.ACTION_CIRCLE_JOIN_APPROVE)
+                        .targetType("CIRCLE_JOIN_APPLICATION")
+                        .targetId(appId)
+                        .detail(null)
+                        .ip(null)
+                        .createTime(LocalDateTime.now())
+                        .build();
+                rabbitTemplate.convertAndSend(AuditConstants.EXCHANGE, AuditConstants.ROUTING_KEY, auditEvent);
+            } catch (Exception e) {
+                log.error("发布审计事件失败: action={}, targetId={}", AuditConstants.ACTION_CIRCLE_JOIN_APPROVE, appId, e);
+            }
+        });
         log.info("入圈申请审核通过并加入圈子完成: applicationId={}, reviewerId={}, circleId={}, applicantId={}",
                 id, reviewerId, po.getCircleId(), po.getApplicantId());
     }
@@ -181,27 +185,40 @@ public class CircleJoinApplicationServiceImpl implements CircleJoinApplicationSe
     @Override
     public void rejectApplication(Long id, Long reviewerId, String reviewNote) {
         CircleJoinApplicationPO po = checkPending(id);
-        po.setStatus(CircleApplicationConstants.STATUS_REJECTED);
-        po.setReviewerId(reviewerId);
-        po.setReviewNote(reviewNote);
-        po.setReviewedAt(LocalDateTime.now());
-        applicationMapper.updateById(po);
-        // 发布审计事件：入圈申请审核驳回
-        try {
-            AuditEvent auditEvent = AuditEvent.builder()
-                    .operatorId(reviewerId)
-                    .operatorName(null)
-                    .action(AuditConstants.ACTION_CIRCLE_JOIN_REJECT)
-                    .targetType("CIRCLE")
-                    .targetId(po.getCircleId())
-                    .detail(null)
-                    .ip(null)
-                    .createTime(LocalDateTime.now())
-                    .build();
-            rabbitTemplate.convertAndSend(AuditConstants.EXCHANGE, AuditConstants.ROUTING_KEY, auditEvent);
-        } catch (Exception e) {
-            log.error("发布审计事件失败: action={}, targetId={}", AuditConstants.ACTION_CIRCLE_JOIN_REJECT, po.getCircleId(), e);
+        // 乐观锁更新：仅 PENDING → REJECTED 原子写，防并发重复审核互相覆盖
+        LambdaUpdateWrapper<CircleJoinApplicationPO> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(CircleJoinApplicationPO::getId, id)
+               .eq(CircleJoinApplicationPO::getStatus, CircleApplicationConstants.STATUS_PENDING);
+        CircleJoinApplicationPO update = new CircleJoinApplicationPO();
+        update.setStatus(CircleApplicationConstants.STATUS_REJECTED);
+        update.setReviewerId(reviewerId);
+        update.setReviewNote(reviewNote);
+        update.setReviewedAt(LocalDateTime.now());
+        int rows = applicationMapper.update(update, wrapper);
+        if (rows == 0) {
+            throw new BusinessException(ErrorCode.CIRCLE_JOIN_APPLICATION_ALREADY_HANDLED);
         }
+        // 审计事件：事务提交后发送（无事务时立即发送），避免回滚后残留
+        final Long appId = id;
+        final Long reviewer = reviewerId;
+        TransactionUtils.afterCommit(() -> {
+            try {
+                AuditEvent auditEvent = AuditEvent.builder()
+                        .eventId(UUID.randomUUID().toString())
+                        .operatorId(reviewer)
+                        .operatorName(null)
+                        .action(AuditConstants.ACTION_CIRCLE_JOIN_REJECT)
+                        .targetType("CIRCLE_JOIN_APPLICATION")
+                        .targetId(appId)
+                        .detail(null)
+                        .ip(null)
+                        .createTime(LocalDateTime.now())
+                        .build();
+                rabbitTemplate.convertAndSend(AuditConstants.EXCHANGE, AuditConstants.ROUTING_KEY, auditEvent);
+            } catch (Exception e) {
+                log.error("发布审计事件失败: action={}, targetId={}", AuditConstants.ACTION_CIRCLE_JOIN_REJECT, appId, e);
+            }
+        });
         log.info("入圈申请审核驳回: applicationId={}, reviewerId={}", id, reviewerId);
     }
 

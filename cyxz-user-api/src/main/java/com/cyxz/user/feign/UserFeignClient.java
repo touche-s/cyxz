@@ -16,16 +16,7 @@ import java.util.Map;
 @FeignClient(name = "cyxz-user", fallbackFactory = UserFeignClientFallbackFactory.class)
 public interface UserFeignClient {
 
-    /**
-     * 创建默认用户资料
-     *
-     * @param userId   用户 ID
-     * @param username 用户名
-     */
-    @PostMapping("/user/internal/profile/init/{userId}/{username}")
-    Result<Void> initDefaultProfile(@PathVariable("userId") Long userId, @PathVariable("username") String username);
-
-    /**
+        /**
      * 批量查询用户资料（内部接口，供 post/comment 等服务调用）
      *
      * @param userIds 用户 ID 列表（最多 200 个）

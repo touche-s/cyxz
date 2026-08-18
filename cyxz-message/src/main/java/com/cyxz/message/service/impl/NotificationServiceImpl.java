@@ -139,6 +139,7 @@ public class NotificationServiceImpl implements NotificationService {
         vo.setType(po.getType());
         vo.setTargetId(po.getTargetId());
         vo.setTargetType(po.getTargetType());
+        vo.setRelatedId(po.getRelatedId());
         vo.setContent(po.getContent());
         vo.setIsRead(po.getIsRead() != null && po.getIsRead() == 1);
         vo.setCreateTime(po.getCreateTime());

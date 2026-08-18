@@ -11,7 +11,7 @@ import lombok.Data;
 public class LoginRequest {
 
     @NotBlank(message = "账号不能为空")
-    @Size(min = 6, max = 11, message = "账号长度6-11位")
+    @Size(min = 5, max = 11, message = "账号长度5-11位")
     private String username;
 
     @NotBlank(message = "密码不能为空")

@@ -17,12 +17,14 @@ public interface PostLikeMapper extends BaseMapper<PostLikePO> {
 
     /**
      * UPSERT 帖子点赞：不存在则插入，存在则恢复为 status=1
+     * <p>通过 SELECT ... FROM post 校验帖子存在且已通过(APPROVED=2)，rows=0 表示帖子不存在或已是点赞态。
      * @param postId 帖子 ID
      * @param userId 点赞用户 ID
-     * @return 1=新增, 2=恢复(0→1), 0=幂等(已是1)
+     * @return 1=新增, 2=恢复(0→1), 0=帖子不存在或幂等(已是1)
      */
     @Insert("INSERT INTO post_like(post_id, user_id, status) " +
-            "VALUES(#{postId}, #{userId}, 1) " +
+            "SELECT #{postId}, #{userId}, 1 " +
+            "FROM post WHERE id = #{postId} AND status = 2 " +
             "ON DUPLICATE KEY UPDATE status = 1")
     int upsertLike(@Param("postId") Long postId, @Param("userId") Long userId);
 

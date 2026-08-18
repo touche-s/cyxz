@@ -1,10 +1,15 @@
 package com.cyxz.governance.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cyxz.audit.api.constant.AuditConstants;
+import com.cyxz.audit.api.event.AuditEvent;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
+import com.cyxz.common.constant.AnalyticsConstants;
+import com.cyxz.common.event.AnalyticsEvent;
 import com.cyxz.governance.api.constant.GovernanceConstants;
 import com.cyxz.governance.api.event.ContentTakedownEvent;
 import com.cyxz.governance.dto.CreateReportRequest;
@@ -16,11 +21,18 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeanUtils;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * 举报服务实现
@@ -34,6 +46,9 @@ public class ReportServiceImpl implements ReportService {
 
     private final ReportMapper reportMapper;
     private final RabbitTemplate rabbitTemplate;
+    private final StringRedisTemplate stringRedisTemplate;
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Override
     public Long createReport(Long reporterId, CreateReportRequest request) {
@@ -72,6 +87,16 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
+    public PageResult<ReportVO> listMine(Long reporterId, String status, int page, int size) {
+        LambdaQueryWrapper<ReportPO> wrapper = new LambdaQueryWrapper<ReportPO>()
+                .eq(ReportPO::getReporterId, reporterId)
+                .eq(StringUtils.hasText(status), ReportPO::getStatus, status)
+                .orderByDesc(ReportPO::getCreateTime);
+        Page<ReportPO> p = reportMapper.selectPage(new Page<>(page, size), wrapper);
+        return PageResult.of(p.getRecords().stream().map(this::toVO).toList(), p.getTotal(), page, size);
+    }
+
+    @Override
     public ReportVO getReportDetail(Long id) {
         ReportPO po = reportMapper.selectById(id);
         if (po == null) {
@@ -81,69 +106,65 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void approveReport(Long id, Long handlerId, String note) {
         ReportPO po = checkPending(id);
-        po.setStatus(GovernanceConstants.STATUS_APPROVED);
-        po.setHandlerId(handlerId);
-        po.setHandlerNote(note);
-        po.setHandledAt(LocalDateTime.now());
-        reportMapper.updateById(po);
-        publishTakedownEvent(po, handlerId);
-        // 发布审计事件：举报审核通过
-        try {
-            AuditEvent auditEvent = AuditEvent.builder()
-                    .operatorId(handlerId)
-                    .operatorName(null)
-                    .action(AuditConstants.ACTION_REPORT_APPROVE)
-                    .targetType(po.getTargetType())
-                    .targetId(po.getTargetId())
-                    .detail(null)
-                    .ip(null)
-                    .createTime(LocalDateTime.now())
-                    .build();
-            rabbitTemplate.convertAndSend(AuditConstants.EXCHANGE, AuditConstants.ROUTING_KEY, auditEvent);
-        } catch (Exception e) {
-            log.error("发布审计事件失败: action={}, targetId={}", AuditConstants.ACTION_REPORT_APPROVE, po.getTargetId(), e);
+        // 乐观锁更新：仅 PENDING → APPROVED 原子写，防并发重复审核互相覆盖
+        LambdaUpdateWrapper<ReportPO> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(ReportPO::getId, id)
+               .eq(ReportPO::getStatus, GovernanceConstants.STATUS_PENDING);
+        ReportPO update = new ReportPO();
+        update.setStatus(GovernanceConstants.STATUS_APPROVED);
+        update.setHandlerId(handlerId);
+        update.setHandlerNote(note);
+        update.setHandledAt(LocalDateTime.now());
+        int rows = reportMapper.update(update, wrapper);
+        if (rows == 0) {
+            throw new BusinessException(ErrorCode.REPORT_ALREADY_HANDLED);
         }
-        // 发布统计事件：举报处理数 +1
-        try {
-            AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
-                    .metric(AnalyticsConstants.METRIC_REPORT_HANDLED)
-                    .value(1)
-                    .statDate(LocalDate.now())
-                    .build();
-            rabbitTemplate.convertAndSend(AnalyticsConstants.EXCHANGE, AnalyticsConstants.ROUTING_KEY, analyticsEvent);
-        } catch (Exception e) {
-            log.error("发布统计事件失败: metric={}", AnalyticsConstants.METRIC_REPORT_HANDLED, e);
-        }
+
+        // MQ 发送放到事务提交后：先保证 DB 状态落库，再发事件
+        final String targetType = po.getTargetType();
+        final Long targetId = po.getTargetId();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                publishTakedownEvent(po, handlerId);
+                publishAuditEvent(handlerId, AuditConstants.ACTION_REPORT_APPROVE, targetType, targetId);
+                publishAnalyticsEvent(AnalyticsConstants.METRIC_REPORT_HANDLED);
+            }
+        });
         log.info("举报审核通过: reportId={}, handlerId={}, targetType={}, targetId={}",
-                id, handlerId, po.getTargetType(), po.getTargetId());
+                id, handlerId, targetType, targetId);
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void rejectReport(Long id, Long handlerId, String note) {
         ReportPO po = checkPending(id);
-        po.setStatus(GovernanceConstants.STATUS_REJECTED);
-        po.setHandlerId(handlerId);
-        po.setHandlerNote(note);
-        po.setHandledAt(LocalDateTime.now());
-        reportMapper.updateById(po);
-        // 发布审计事件：举报审核驳回
-        try {
-            AuditEvent auditEvent = AuditEvent.builder()
-                    .operatorId(handlerId)
-                    .operatorName(null)
-                    .action(AuditConstants.ACTION_REPORT_REJECT)
-                    .targetType(po.getTargetType())
-                    .targetId(po.getTargetId())
-                    .detail(null)
-                    .ip(null)
-                    .createTime(LocalDateTime.now())
-                    .build();
-            rabbitTemplate.convertAndSend(AuditConstants.EXCHANGE, AuditConstants.ROUTING_KEY, auditEvent);
-        } catch (Exception e) {
-            log.error("发布审计事件失败: action={}, targetId={}", AuditConstants.ACTION_REPORT_REJECT, po.getTargetId(), e);
+        // 乐观锁更新：仅 PENDING → REJECTED 原子写，防并发重复审核互相覆盖
+        LambdaUpdateWrapper<ReportPO> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(ReportPO::getId, id)
+               .eq(ReportPO::getStatus, GovernanceConstants.STATUS_PENDING);
+        ReportPO update = new ReportPO();
+        update.setStatus(GovernanceConstants.STATUS_REJECTED);
+        update.setHandlerId(handlerId);
+        update.setHandlerNote(note);
+        update.setHandledAt(LocalDateTime.now());
+        int rows = reportMapper.update(update, wrapper);
+        if (rows == 0) {
+            throw new BusinessException(ErrorCode.REPORT_ALREADY_HANDLED);
         }
+
+        // MQ 发送放到事务提交后
+        final String targetType = po.getTargetType();
+        final Long targetId = po.getTargetId();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                publishAuditEvent(handlerId, AuditConstants.ACTION_REPORT_REJECT, targetType, targetId);
+            }
+        });
         log.info("举报审核驳回: reportId={}, handlerId={}", id, handlerId);
     }
 
@@ -169,8 +190,62 @@ public class ReportServiceImpl implements ReportService {
                     .build();
             rabbitTemplate.convertAndSend(GovernanceConstants.EXCHANGE, GovernanceConstants.ROUTING_KEY, event);
         } catch (Exception e) {
-            log.error("发布内容处置事件失败: reportId={}, targetType={}, targetId={}",
+            // 发送失败写入 Redis 补偿队列，由 TakedownRetryTask 定时重发，避免举报通过但内容未下架
+            log.error("发布内容处置事件失败，已入补偿队列等待重试: reportId={}, targetType={}, targetId={}",
                     po.getId(), po.getTargetType(), po.getTargetId(), e);
+            enqueueTakedownRetry(po, operatorId);
+        }
+    }
+
+    /**
+     * 将处置事件 JSON 写入 Redis 补偿队列（LPUSH），供定时任务重发。
+     */
+    private void enqueueTakedownRetry(ReportPO po, Long operatorId) {
+        try {
+            ContentTakedownEvent event = ContentTakedownEvent.builder()
+                    .targetType(po.getTargetType())
+                    .targetId(po.getTargetId())
+                    .reportId(po.getId())
+                    .operatorId(operatorId)
+                    .reporterId(po.getReporterId())
+                    .build();
+            stringRedisTemplate.opsForList().leftPush(
+                    GovernanceConstants.TAKEDOWN_FAILED_QUEUE_KEY, OBJECT_MAPPER.writeValueAsString(event));
+        } catch (Exception ex) {
+            log.error("写入内容处置事件补偿队列失败: reportId={}", po.getId(), ex);
+        }
+    }
+
+    private void publishAuditEvent(Long operatorId, String action, String targetType, Long targetId) {
+        try {
+            AuditEvent auditEvent = AuditEvent.builder()
+                    .eventId(UUID.randomUUID().toString())
+                    .operatorId(operatorId)
+                    .operatorName(null)
+                    .action(action)
+                    .targetType(targetType)
+                    .targetId(targetId)
+                    .detail(null)
+                    .ip(null)
+                    .createTime(LocalDateTime.now())
+                    .build();
+            rabbitTemplate.convertAndSend(AuditConstants.EXCHANGE, AuditConstants.ROUTING_KEY, auditEvent);
+        } catch (Exception e) {
+            log.error("发布审计事件失败: action={}, targetId={}", action, targetId, e);
+        }
+    }
+
+    private void publishAnalyticsEvent(String metric) {
+        try {
+            AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                    .eventId(UUID.randomUUID().toString())
+                    .metric(metric)
+                    .value(1)
+                    .statDate(LocalDate.now())
+                    .build();
+            rabbitTemplate.convertAndSend(AnalyticsConstants.EXCHANGE, AnalyticsConstants.ROUTING_KEY, analyticsEvent);
+        } catch (Exception e) {
+            log.error("发布统计事件失败: metric={}", metric, e);
         }
     }
 

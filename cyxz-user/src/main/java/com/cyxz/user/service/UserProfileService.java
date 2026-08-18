@@ -34,22 +34,4 @@ public interface UserProfileService {
      * @param request 更新请求
      */
     void updateProfile(Long userId, UpdateProfileRequest request);
-
-    /**
-     * 创建默认资料（内部接口，注册时 auth 服务通过 Feign 调用）
-     *
-     * @param userId   用户 ID
-     * @param username 用户名
-     */
-    void initDefaultProfile(Long userId, String username);
-
-    /**
-     * 查询当前登录用户的资料，查不到则兜底初始化
-     * <p>用 X-User-Id 查，如果资料不存在则自动创建默认资料再返回。
-     * 确保注册后进个人空间能立刻查到资料。
-     *
-     * @param userId 当前登录用户 ID（来自 X-User-Id Header）
-     * @return 用户资料
-     */
-    UserProfileVO getOrInitMyProfile(Long userId);
 }

@@ -40,4 +40,7 @@ public class AuditLogPO extends BaseEntity {
 
     /** 操作来源 IP */
     private String ip;
+
+    /** 事件唯一标识（用于幂等去重） */
+    private String eventId;
 }

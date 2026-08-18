@@ -5,6 +5,7 @@ import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
+import com.cyxz.common.utils.TransactionUtils;
 import com.cyxz.message.enums.NotificationTargetType;
 import com.cyxz.message.enums.NotificationType;
 import com.cyxz.message.event.NotificationEvent;
@@ -63,12 +64,7 @@ public class FollowServiceImpl implements FollowService {
             NotificationEvent event = NotificationPublisher.of(
                     targetUserId, userId, NotificationType.USER_FOLLOWED,
                     "有人关注了你", NotificationTargetType.USER, targetUserId);
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    NotificationPublisher.publish(rabbitTemplate, event);
-                }
-            });
+            TransactionUtils.afterCommit(() -> NotificationPublisher.publish(rabbitTemplate, event));
         } else if (rows == 2) {
             log.info("恢复关注: userId={}, followUserId={}", userId, targetUserId);
         }
@@ -178,9 +174,11 @@ public class FollowServiceImpl implements FollowService {
         int offset = (page - 1) * size;
         List<FollowUserVO> records = followMapper.selectFollowersPage(userId, offset, size);
 
-        // 查当前用户已关注的用户 ID 集合，批量补 following 字段
-        List<Long> followingIds = followMapper.selectFollowingIds(userId);
-        Set<Long> followingSet = followingIds.stream().collect(Collectors.toSet());
+        // 仅查当前页粉丝是否被回关，避免全量拉取关注列表
+        Set<Long> followerIds = records.stream()
+                .map(FollowUserVO::getUserId)
+                .collect(Collectors.toSet());
+        Set<Long> followingSet = followMapper.selectFollowingIdsAmong(userId, followerIds);
         records.forEach(vo -> vo.setFollowing(followingSet.contains(vo.getUserId())));
 
         return PageResult.of(records, total, page, size);

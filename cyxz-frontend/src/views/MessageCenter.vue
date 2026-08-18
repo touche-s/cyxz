@@ -133,11 +133,15 @@ const loading = ref(false)
 // 类型到前端的映射
 const typeConfig: Record<string, { label: string; frontType: string }> = {
   POST_LIKED: { label: '赞了你的帖子', frontType: 'like' },
+  POST_COLLECTED: { label: '收藏了你的帖子', frontType: 'like' },
   POST_COMMENTED: { label: '评论了你的帖子', frontType: 'comment' },
   COMMENT_REPLIED: { label: '回复了你的评论', frontType: 'reply' },
   USER_FOLLOWED: { label: '关注了你', frontType: 'follow' },
   POST_APPROVED: { label: '审核通过', frontType: 'system' },
   POST_REJECTED: { label: '审核未通过', frontType: 'system' },
+  POST_TAKEDOWN: { label: '你的帖子因违规被下架', frontType: 'system' },
+  COMMENT_TAKEDOWN: { label: '你的评论因违规被删除', frontType: 'system' },
+  REPORT_RESULT: { label: '举报处理结果', frontType: 'system' },
 }
 
 const commentUnread = computed(() => notifications.value.filter(m => (m.type === 'comment' || m.type === 'reply') && !m.isRead).length)
@@ -280,7 +284,8 @@ function mapNotification(n: NotificationVO): NotificationVO & { timeText: string
   const isSystem = cfg.frontType === 'system'
   return {
     ...n,
-    actionText: cfg.label,
+    // 优先使用后端下发的动作文案（含审核拒绝原因等动态内容），无则回退类型映射
+    actionText: n.actionText || cfg.label,
     senderName: isSystem ? '系统通知' : (n.senderName || '用户'),
     senderAvatar: isSystem ? '' : (n.senderAvatar || ''),
     isRead: n.isRead,

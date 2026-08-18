@@ -79,6 +79,7 @@ function mapToPostVO(r: PostSearchVO): PostVO {
     images: [],
     tags: r.tags || [],
     status: r.status || 0,
+    reviewReason: '',
     likes: r.likes || 0,
     comments: r.comments || 0,
     views: r.views || 0,

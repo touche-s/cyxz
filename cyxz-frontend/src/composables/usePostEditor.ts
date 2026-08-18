@@ -217,7 +217,7 @@ export function usePostEditor(postType: PostType) {
       dirty.value = false
       return true
     }, { onError: (e: any) => {
-      const msg = e?.response?.data?.msg || (isEditingPublished.value ? '更新失败' : '发布失败')
+      const msg = e?.message || (isEditingPublished.value ? '更新失败' : '发布失败')
       ElMessage.error(msg)
     }})
 
@@ -256,7 +256,7 @@ export function usePostEditor(postType: PostType) {
       ElMessage.success('草稿保存成功')
       return true
     }, { onError: (e: any) => {
-      const msg = e?.response?.data?.msg || '保存失败'
+      const msg = e?.message || '保存失败'
       ElMessage.error(msg)
     }})
 

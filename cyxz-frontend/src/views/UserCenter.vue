@@ -52,6 +52,18 @@
               <span>隐私设置</span>
             </a>
           </div>
+
+          <div class="nav-group">
+            <span class="nav-group-label">我的申请</span>
+            <a
+              class="nav-link"
+              :class="{ active: activeTab === 'applications' }"
+              @click="activeTab = 'applications'"
+            >
+              <Icon icon="ph:document-text" />
+              <span>举报与申请</span>
+            </a>
+          </div>
         </nav>
 
         <div class="sidebar-footer">
@@ -330,6 +342,8 @@
             </div>
           </div>
         </template>
+
+        <UserCenterApplications v-if="activeTab === 'applications'" />
       </main>
     </div>
 
@@ -393,6 +407,7 @@ import { pickApiMessage } from '@/utils/errorCode'
 import ImageCropper from '@/components/ImageCropper.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import UserAvatar from '@/components/UserAvatar.vue'
+import UserCenterApplications from '@/views/UserCenterApplications.vue'
 
 const userStore = useUserStore()
 const route = useRoute()
@@ -415,6 +430,7 @@ const allTabs = [
   { key: 'info', label: '我的信息', icon: 'ph:pencil-simple-line' },
   { key: 'avatar', label: '我的头像', icon: 'ph:camera' },
   { key: 'privacy', label: '隐私设置', icon: 'ph:shield-check' },
+  { key: 'applications', label: '举报与申请', icon: 'ph:document-text' },
 ]
 
 const genderOptions = [
@@ -428,6 +444,7 @@ const pageTitles: Record<string, string> = {
   info: '我的信息',
   avatar: '我的头像',
   privacy: '隐私设置',
+  applications: '举报与申请',
 }
 
 const pageSubs: Record<string, string> = {
@@ -435,6 +452,7 @@ const pageSubs: Record<string, string> = {
   info: '编辑你的基本资料与个人展示信息',
   avatar: '上传和管理你的头像',
   privacy: '控制你的个人信息可见范围与交互权限',
+  applications: '查看我的举报与建圈/入圈申请进度',
 }
 
 const currentPageTitle = computed(() => pageTitles[activeTab.value] || '账户设置')
@@ -1079,7 +1097,7 @@ html.dark .profile-summary {
 }
 
 .summary-info p {
-  font-size: 13px;
+  font-size: var(--fs-sm);
   color: var(--text-dim);
   margin: 0;
   overflow: hidden;
@@ -1363,7 +1381,7 @@ html.dark .form-sticky {
 }
 
 .form-sticky-hint {
-  font-size: 12px;
+  font-size: var(--fs-xs);
   color: var(--text-dim);
   margin-right: auto;
 }

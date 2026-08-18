@@ -74,21 +74,36 @@ public class UploadController {
         }
         String objectName = url.substring(prefix.length());
 
-        // 校验文件归属：avatar/{userId}/... 和 post/image/{userId}/...
-        if (objectName.startsWith("avatar/") || objectName.startsWith("post/image/")) {
-            String pathPrefix = objectName.startsWith("avatar/") ? "avatar/" : "post/image/";
-            String remaining = objectName.substring(pathPrefix.length());
-            int slashIdx = remaining.indexOf('/');
-            if (slashIdx > 0) {
-                String ownerIdStr = remaining.substring(0, slashIdx);
-                if (!String.valueOf(userId).equals(ownerIdStr)) {
-                    return Result.fail(ErrorCode.FORBIDDEN.getCode(), "无权删除他人的文件");
-                }
-            }
+        // 仅允许删除自己的头像与帖子图片，其余前缀（含 circle/ 圈子资源）一律拒绝，防止越权删除
+        String ownerId = extractOwnerId(objectName);
+        if (ownerId == null || !String.valueOf(userId).equals(ownerId)) {
+            return Result.fail(ErrorCode.FORBIDDEN.getCode(), "无权删除该文件");
         }
 
         uploadService.deleteFile(objectName);
         return Result.success("操作成功", null);
+    }
+
+    /**
+     * 从对象名中解析资源归属 userId。
+     * <p>仅支持 avatar/{userId}/... 与 post/image/{userId}/... 两种个人资源前缀，
+     * 其余前缀（如 circle/ 圈子资源）返回 null，由调用方拒绝删除。
+     *
+     * @param objectName MinIO 对象名
+     * @return 归属 userId，无法解析或非个人资源时返回 null
+     */
+    private String extractOwnerId(String objectName) {
+        String prefix;
+        if (objectName.startsWith("avatar/")) {
+            prefix = "avatar/";
+        } else if (objectName.startsWith("post/image/")) {
+            prefix = "post/image/";
+        } else {
+            return null;
+        }
+        String remaining = objectName.substring(prefix.length());
+        int slashIdx = remaining.indexOf('/');
+        return slashIdx > 0 ? remaining.substring(0, slashIdx) : null;
     }
 
     /**

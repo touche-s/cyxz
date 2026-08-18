@@ -34,4 +34,7 @@ public class AnalyticsEvent implements Serializable {
 
     /** 统计日期（null 时由消费端按当天补齐） */
     private LocalDate statDate;
+
+    /** 事件唯一标识（UUID），用于消费端幂等去重 */
+    private String eventId;
 }

@@ -1,7 +1,7 @@
 package com.cyxz.message.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
@@ -49,9 +49,9 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public List<ConversationVO> listConversations(Long userId) {
-        LambdaQueryWrapper<ConversationPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ConversationPO::getUserId1, userId).or().eq(ConversationPO::getUserId2, userId);
-        wrapper.orderByDesc(ConversationPO::getLastMessageAt);
+        QueryWrapper<ConversationPO> wrapper = new QueryWrapper<>();
+        wrapper.eq("user_id_1", userId).or().eq("user_id_2", userId);
+        wrapper.orderByDesc("last_message_at");
         List<ConversationPO> conversations = conversationMapper.selectList(wrapper);
         if (conversations.isEmpty()) {
             return Collections.emptyList();
@@ -77,9 +77,9 @@ public class ChatServiceImpl implements ChatService {
             throw new BusinessException(ErrorCode.NOT_CONVERSATION_MEMBER, "无权查看此会话");
         }
 
-        LambdaQueryWrapper<PrivateMessagePO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(PrivateMessagePO::getConversationId, conversationId);
-        wrapper.orderByDesc(PrivateMessagePO::getCreateTime);
+        QueryWrapper<PrivateMessagePO> wrapper = new QueryWrapper<>();
+        wrapper.eq("conversation_id", conversationId);
+        wrapper.orderByDesc("create_time");
         Page<PrivateMessagePO> pageResult = messageMapper.selectPage(PageConstants.pageOf(page, size), wrapper);
 
         List<ChatMessageVO> records = pageResult.getRecords().stream()
@@ -117,12 +117,17 @@ public class ChatServiceImpl implements ChatService {
 
             conv.setLastMessage(content);
             conv.setLastMessageAt(msg.getCreateTime());
+            // 未读数原子自增（单条 UPDATE，避免读改写丢更新）
+            UpdateWrapper<ConversationPO> unreadWrapper = new UpdateWrapper<>();
+            unreadWrapper.eq("id", conv.getId())
+                    .set("last_message", content)
+                    .set("last_message_at", msg.getCreateTime());
             if (conv.getUserId1().equals(receiverId)) {
-                conv.setUnreadCount1(conv.getUnreadCount1() + 1);
+                unreadWrapper.setSql("unread_count_1 = unread_count_1 + 1");
             } else {
-                conv.setUnreadCount2(conv.getUnreadCount2() + 1);
+                unreadWrapper.setSql("unread_count_2 = unread_count_2 + 1");
             }
-            conversationMapper.updateById(conv);
+            conversationMapper.update(unreadWrapper);
 
             return toMessageVO(msg);
         });
@@ -155,27 +160,29 @@ public class ChatServiceImpl implements ChatService {
         }
 
         // 标记消息已读
-        LambdaUpdateWrapper<PrivateMessagePO> msgWrapper = new LambdaUpdateWrapper<>();
-        msgWrapper.eq(PrivateMessagePO::getConversationId, conversationId)
-                .eq(PrivateMessagePO::getReceiverId, userId)
-                .eq(PrivateMessagePO::getIsRead, 0)
-                .set(PrivateMessagePO::getIsRead, 1);
+        UpdateWrapper<PrivateMessagePO> msgWrapper = new UpdateWrapper<>();
+        msgWrapper.eq("conversation_id", conversationId)
+                .eq("receiver_id", userId)
+                .eq("is_read", 0)
+                .set("is_read", 1);
         messageMapper.update(msgWrapper);
 
-        // 清零会话未读数
+        // 清零会话未读数（单条 UPDATE，避免与并发发消息的原子自增互相覆盖）
+        UpdateWrapper<ConversationPO> unreadWrapper = new UpdateWrapper<>();
+        unreadWrapper.eq("id", conversationId);
         if (conv.getUserId1().equals(userId)) {
-            conv.setUnreadCount1(0);
+            unreadWrapper.setSql("unread_count_1 = 0");
         } else {
-            conv.setUnreadCount2(0);
+            unreadWrapper.setSql("unread_count_2 = 0");
         }
-        conversationMapper.updateById(conv);
+        conversationMapper.update(unreadWrapper);
     }
 
     /** 查询当前用户的私信总未读数 */
     @Override
     public int unreadTotal(Long userId) {
-        LambdaQueryWrapper<ConversationPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ConversationPO::getUserId1, userId).or().eq(ConversationPO::getUserId2, userId);
+        QueryWrapper<ConversationPO> wrapper = new QueryWrapper<>();
+        wrapper.eq("user_id_1", userId).or().eq("user_id_2", userId);
         List<ConversationPO> conversations = conversationMapper.selectList(wrapper);
         int total = 0;
         for (ConversationPO conv : conversations) {
@@ -191,8 +198,8 @@ public class ChatServiceImpl implements ChatService {
     private ConversationPO getOrCreateConversation(Long user1, Long user2) {
         Long minId = Math.min(user1, user2);
         Long maxId = Math.max(user1, user2);
-        LambdaQueryWrapper<ConversationPO> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(ConversationPO::getUserId1, minId).eq(ConversationPO::getUserId2, maxId);
+        QueryWrapper<ConversationPO> wrapper = new QueryWrapper<>();
+        wrapper.eq("user_id_1", minId).eq("user_id_2", maxId);
         ConversationPO conv = conversationMapper.selectOne(wrapper);
         if (conv == null) {
             conv = new ConversationPO();

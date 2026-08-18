@@ -9,6 +9,7 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * 用户关注关系 Mapper
@@ -101,6 +102,16 @@ public interface UserFollowMapper extends BaseMapper<UserFollowPO> {
      */
     @Select("SELECT follow_user_id FROM user_follow WHERE user_id = #{userId} AND status = 1")
     List<Long> selectFollowingIds(@Param("userId") Long userId);
+
+    /**
+     * 查询当前用户是否关注了指定集合中的用户（仅返回已关注的 ID）
+     *
+     * @param userId    用户 ID
+     * @param targetIds 待检查的用户 ID 集合
+     * @return 已关注的用户 ID 列表
+     */
+    @Select("<script>SELECT follow_user_id FROM user_follow WHERE user_id = #{userId} AND status = 1 AND follow_user_id IN <foreach collection='targetIds' item='id' open='(' separator=',' close=')'>#{id}</foreach></script>")
+    Set<Long> selectFollowingIdsAmong(@Param("userId") Long userId, @Param("targetIds") Set<Long> targetIds);
 
     /**
      * 统计今日新增粉丝数（关注时间在今天及之后）

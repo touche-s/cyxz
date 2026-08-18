@@ -1,15 +1,19 @@
 package com.cyxz.circle.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.cyxz.audit.api.constant.AuditConstants;
+import com.cyxz.audit.api.event.AuditEvent;
 import com.cyxz.circle.mapper.CircleRoleAssignmentMapper;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
+import com.cyxz.common.constant.AnalyticsConstants;
 import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.constant.PageConstants;
+import com.cyxz.common.event.AnalyticsEvent;
 import com.cyxz.common.utils.TransactionUtils;
 import com.cyxz.circle.constant.CircleRoleConstants;
 import com.cyxz.circle.entity.CircleMemberPO;
@@ -23,15 +27,19 @@ import com.cyxz.circle.vo.MemberVO;
 import com.cyxz.circle.vo.PublishableResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -47,6 +55,7 @@ public class CircleServiceImpl implements CircleService {
     private final CircleRoleAssignmentMapper circleRoleAssignmentMapper;
     private final CircleSectionService circleSectionService;
     private final StringRedisTemplate stringRedisTemplate;
+    private final RabbitTemplate rabbitTemplate;
 
     /**
      * 查询全量启用圈子列表并回填当前用户加入状态
@@ -106,6 +115,20 @@ public class CircleServiceImpl implements CircleService {
         // 分配圈子成员角色（幂等），同一 MySQL 实例跨库写入参与本事务
         circleRoleAssignmentMapper.assignRole(userId, CircleRoleConstants.CIRCLE_MEMBER_ROLE_ID, circleId);
         invalidateCirclePermissionCache(userId, circleId);
+        // 发布统计事件与新加入成员数，放到事务提交后执行（避免从CircleJoinApplicationService调用时重复计数）
+        TransactionUtils.afterCommit(() -> {
+            try {
+                AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                        .eventId(UUID.randomUUID().toString())
+                        .metric(AnalyticsConstants.METRIC_NEW_JOIN)
+                        .value(1)
+                        .statDate(LocalDate.now())
+                        .build();
+                rabbitTemplate.convertAndSend(AnalyticsConstants.EXCHANGE, AnalyticsConstants.ROUTING_KEY, analyticsEvent);
+            } catch (Exception e) {
+                log.error("发布统计事件失败: metric={}", AnalyticsConstants.METRIC_NEW_JOIN, e);
+            }
+        });
     }
 
     /**
@@ -235,6 +258,36 @@ public class CircleServiceImpl implements CircleService {
         if (ownerId != null) {
             circleRoleAssignmentMapper.assignRole(ownerId, CircleRoleConstants.CIRCLE_OWNER_ROLE_ID, po.getId());
         }
+        // 发布审计事件与统计事件，放到事务提交后执行
+        final Long circleId = po.getId();
+        TransactionUtils.afterCommit(() -> {
+            try {
+                AuditEvent auditEvent = AuditEvent.builder()
+                        .operatorId(ownerId)
+                        .operatorName(null)
+                        .action(AuditConstants.ACTION_CIRCLE_APPROVE)
+                        .targetType("CIRCLE")
+                        .targetId(circleId)
+                        .detail(null)
+                        .ip(null)
+                        .createTime(LocalDateTime.now())
+                        .build();
+                rabbitTemplate.convertAndSend(AuditConstants.EXCHANGE, AuditConstants.ROUTING_KEY, auditEvent);
+            } catch (Exception e) {
+                log.error("发布审计事件失败: action={}, targetId={}", AuditConstants.ACTION_CIRCLE_APPROVE, circleId, e);
+            }
+            try {
+                AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                        .eventId(UUID.randomUUID().toString())
+                        .metric(AnalyticsConstants.METRIC_NEW_CIRCLE)
+                        .value(1)
+                        .statDate(LocalDate.now())
+                        .build();
+                rabbitTemplate.convertAndSend(AnalyticsConstants.EXCHANGE, AnalyticsConstants.ROUTING_KEY, analyticsEvent);
+            } catch (Exception e) {
+                log.error("发布统计事件失败: metric={}", AnalyticsConstants.METRIC_NEW_CIRCLE, e);
+            }
+        });
         log.info("创建圈子并指定圈主: circleId={}, ownerId={}", po.getId(), ownerId);
         return toVO(po, null);
     }
@@ -253,10 +306,10 @@ public class CircleServiceImpl implements CircleService {
         circleMapper.updateById(po);
 
         // 级联软删成员关系，避免残留孤儿数据
-        LambdaUpdateWrapper<CircleMemberPO> memberWrapper = new LambdaUpdateWrapper<>();
-        memberWrapper.eq(CircleMemberPO::getCircleId, circleId)
-                .eq(CircleMemberPO::getStatus, CommonStatus.ACTIVE)
-                .set(CircleMemberPO::getStatus, CommonStatus.DELETED);
+        UpdateWrapper<CircleMemberPO> memberWrapper = new UpdateWrapper<>();
+        memberWrapper.eq("circle_id", circleId)
+                .eq("status", CommonStatus.ACTIVE)
+                .set("status", CommonStatus.DELETED);
         circleMemberMapper.update(null, memberWrapper);
 
         log.info("删除圈子并级联清理: circleId={}, 成员关系已软删", circleId);

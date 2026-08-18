@@ -36,6 +36,9 @@ public class NotificationVO {
     /** 目标类型（post / comment） */
     private String targetType;
 
+    /** 关联 ID（评论所属帖子 ID，供前端评论通知跳转） */
+    private Long relatedId;
+
     /** 目标标题（帖子标题 / 评论内容摘要） */
     private String targetTitle;
 

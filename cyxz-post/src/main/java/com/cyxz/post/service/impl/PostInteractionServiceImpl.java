@@ -5,6 +5,7 @@ import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.post.constant.PostStatus;
 import com.cyxz.common.utils.IpUtil;
+import com.cyxz.common.utils.TransactionUtils;
 import com.cyxz.message.enums.NotificationTargetType;
 import com.cyxz.message.enums.NotificationType;
 import com.cyxz.message.event.NotificationEvent;
@@ -21,8 +22,6 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Duration;
 
@@ -42,11 +41,6 @@ public class PostInteractionServiceImpl implements PostInteractionService {
     private final StringRedisTemplate stringRedisTemplate;
     private final RabbitTemplate rabbitTemplate;
 
-    /** 帖子是否允许互动（仅已发布 PostStatus.APPROVED） */
-    private boolean isInteractable(PostPO po) {
-        return po != null && po.getStatus() == PostStatus.APPROVED;
-    }
-
     // ==================== 点赞 ====================
 
     /**
@@ -56,18 +50,16 @@ public class PostInteractionServiceImpl implements PostInteractionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void likePost(Long userId, Long postId) {
-        PostPO po = postMapper.selectById(postId);
-        if (po == null || !isInteractable(po)) {
-            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
-        }
-
+        PostPO po = requirePublishedPost(postId);
         int rows = postLikeMapper.upsertLike(postId, userId);
         if (rows == 1) {
             incrementLikeDelta(postId, 1);
+            syncRelationSet(CacheKeyConstants.getUserLikedPostsKey(userId), postId, true);
             log.debug("点赞帖子: postId={}, userId={}", postId, userId);
             sendLikeNotification(postId, userId, po);
         } else if (rows == 2) {
             incrementLikeDelta(postId, 1);
+            syncRelationSet(CacheKeyConstants.getUserLikedPostsKey(userId), postId, true);
             log.debug("点赞帖子(恢复): postId={}, userId={}", postId, userId);
         }
     }
@@ -79,14 +71,11 @@ public class PostInteractionServiceImpl implements PostInteractionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void unlikePost(Long userId, Long postId) {
-        PostPO po = postMapper.selectById(postId);
-        if (po == null || !isInteractable(po)) {
-            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
-        }
-
+        requirePublishedPost(postId);
         int rows = postLikeMapper.deactivateLike(postId, userId);
         if (rows > 0) {
             incrementLikeDelta(postId, -1);
+            syncRelationSet(CacheKeyConstants.getUserLikedPostsKey(userId), postId, false);
             log.debug("取消点赞帖子: postId={}, userId={}", postId, userId);
         }
     }
@@ -100,14 +89,11 @@ public class PostInteractionServiceImpl implements PostInteractionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void collectPost(Long userId, Long postId) {
-        PostPO po = postMapper.selectById(postId);
-        if (po == null || !isInteractable(po)) {
-            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
-        }
-
+        requirePublishedPost(postId);
         int rows = postCollectMapper.upsertCollect(postId, userId);
         if (rows > 0) {
             incrementCollectDelta(postId, 1);
+            syncRelationSet(CacheKeyConstants.getUserCollectedPostsKey(userId), postId, true);
             log.debug("收藏帖子{}: postId={}, userId={}", rows == 1 ? "" : "(恢复)", postId, userId);
         }
     }
@@ -119,14 +105,11 @@ public class PostInteractionServiceImpl implements PostInteractionService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void uncollectPost(Long userId, Long postId) {
-        PostPO po = postMapper.selectById(postId);
-        if (po == null || !isInteractable(po)) {
-            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
-        }
-
+        requirePublishedPost(postId);
         int rows = postCollectMapper.deactivateCollect(postId, userId);
         if (rows > 0) {
             incrementCollectDelta(postId, -1);
+            syncRelationSet(CacheKeyConstants.getUserCollectedPostsKey(userId), postId, false);
             log.info("取消收藏帖子: postId={}, userId={}", postId, userId);
         }
     }
@@ -157,16 +140,77 @@ public class PostInteractionServiceImpl implements PostInteractionService {
         }
     }
 
-    // ==================== Redis Delta ====================
+    // ==================== 校验 ====================
 
-    private void incrementLikeDelta(Long postId, int delta) {
-        stringRedisTemplate.opsForHash()
-                .increment(CacheKeyConstants.POST_LIKE_DELTA, postId.toString(), delta);
+    /**
+     * 校验帖子存在且已发布，否则拒绝互动操作
+     *
+     * @param postId 帖子 ID
+     * @return 已发布的帖子实体
+     */
+    private PostPO requirePublishedPost(Long postId) {
+        PostPO po = postMapper.selectById(postId);
+        if (po == null || po.getStatus() != PostStatus.APPROVED) {
+            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
+        }
+        return po;
     }
 
+    // ==================== Redis Delta ====================
+
+    /**
+     * 注册事务提交后的点赞增量，避免事务回滚后 Redis 残留脏增量被刷库任务写入
+     */
+    private void incrementLikeDelta(Long postId, int delta) {
+        TransactionUtils.afterCommit(() -> {
+            try {
+                stringRedisTemplate.opsForHash()
+                        .increment(CacheKeyConstants.POST_LIKE_DELTA, postId.toString(), delta);
+            } catch (Exception e) {
+                log.error("点赞增量写入失败，本周期计数可能偏少: postId={}, delta={}", postId, delta, e);
+            }
+        });
+    }
+
+    /**
+     * 注册事务提交后的收藏增量，避免事务回滚后 Redis 残留脏增量被刷库任务写入
+     */
     private void incrementCollectDelta(Long postId, int delta) {
-        stringRedisTemplate.opsForHash()
-                .increment(CacheKeyConstants.POST_COLLECT_DELTA, postId.toString(), delta);
+        TransactionUtils.afterCommit(() -> {
+            try {
+                stringRedisTemplate.opsForHash()
+                        .increment(CacheKeyConstants.POST_COLLECT_DELTA, postId.toString(), delta);
+            } catch (Exception e) {
+                log.error("收藏增量写入失败，本周期计数可能偏少: postId={}, delta={}", postId, delta, e);
+            }
+        });
+    }
+
+    // ==================== 关系缓存 ====================
+
+    /**
+     * 事务提交后同步关系缓存（点赞/收藏 Set）
+     * <p>DB 事务提交成功才写 Redis，避免回滚导致缓存脏数据；写失败仅记日志（DB 是事实来源，读路径可兜底重建）。
+     *
+     * @param key    关系集合 Key
+     * @param postId 帖子 ID
+     * @param add    true=加入集合(SADD)，false=移除集合(SREM)
+     */
+    private void syncRelationSet(String key, Long postId, boolean add) {
+        TransactionUtils.afterCommit(() -> {
+            try {
+                if (add) {
+                    // 先移除空占位哨兵，再加入真实成员
+                    stringRedisTemplate.opsForSet().remove(key, CacheKeyConstants.EMPTY_SET_PLACEHOLDER);
+                    stringRedisTemplate.opsForSet().add(key, postId.toString());
+                } else {
+                    stringRedisTemplate.opsForSet().remove(key, postId.toString());
+                }
+                stringRedisTemplate.expire(key, Duration.ofDays(CacheKeyConstants.RELATION_CACHE_TTL_DAYS));
+            } catch (Exception e) {
+                log.warn("同步关系缓存失败: key={}, postId={}, add={}", key, postId, add, e);
+            }
+        });
     }
 
     // ==================== 通知辅助方法 ====================
@@ -183,12 +227,7 @@ public class PostInteractionServiceImpl implements PostInteractionService {
         NotificationEvent event = NotificationPublisher.of(
                 po.getUserId(), userId, NotificationType.POST_LIKED,
                 "有人赞了你的帖子", NotificationTargetType.POST, postId);
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                NotificationPublisher.publish(rabbitTemplate, event);
-            }
-        });
+        TransactionUtils.afterCommit(() -> NotificationPublisher.publish(rabbitTemplate, event));
     }
 
 }

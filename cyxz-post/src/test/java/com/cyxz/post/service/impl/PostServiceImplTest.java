@@ -8,6 +8,7 @@ import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.CommonStatus;
+import com.cyxz.common.constant.PostCountConstants;
 import com.cyxz.post.constant.PostStatus;
 import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
@@ -29,7 +30,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.*;
 
@@ -111,18 +111,10 @@ class PostServiceImplTest {
         postStatsService = new PostStatsService(
                 postMapper, postLikeMapper, userFeignClient, commentFeignClient, postQueryService,
                 postQueryExecutor);
-
-        // 手动开启事务同步，供 hardDeletePost / batchOperate 注册 afterCommit 回调
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.initSynchronization();
-        }
     }
 
     @org.junit.jupiter.api.AfterEach
     void tearDown() {
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.clearSynchronization();
-        }
         aiReviewExecutor.shutdownNow();
         postQueryExecutor.shutdownNow();
     }
@@ -533,13 +525,33 @@ class PostServiceImplTest {
         }
 
         @Test
-        @DisplayName("批量删除：直接调用 batchUpdateStatus")
+        @DisplayName("批量删除：清缓存、同步 ES 删除索引、仅 APPROVED 发计数事件")
         void shouldBatchDelete() {
             List<Long> ids = List.of(1L, 2L, 3L);
+
+            PostPO approved = new PostPO();
+            approved.setId(1L);
+            approved.setUserId(USER_ID);
+            approved.setStatus(PostStatus.APPROVED);
+            approved.setCircleId(10L);
+
+            PostPO draft = new PostPO();
+            draft.setId(2L);
+            draft.setUserId(USER_ID);
+            draft.setStatus(PostStatus.DRAFT);
+
+            when(postMapper.selectBatchIds(ids)).thenReturn(List.of(approved, draft));
 
             postCommandService.batchOperate(USER_ID, ids, "delete");
 
             verify(postMapper).batchUpdateStatus(eq(USER_ID), eq(ids), eq(PostStatus.DELETED), isNull());
+            // 每个帖子都清理详情缓存并同步 ES 删除索引，避免批量删除后仍可被搜索命中
+            verify(postQueryService).evictDetailCache(1L);
+            verify(postQueryService).evictDetailCache(2L);
+            verify(postEsSyncService).syncPostToEsDelete(1L);
+            verify(postEsSyncService).syncPostToEsDelete(2L);
+            // 仅 APPROVED 帖子发计数事件（圈子 post_count -1）
+            verify(postEsSyncService).publishCountEvent(eq(approved), eq(PostCountConstants.ACTION_DELETE));
         }
 
         @Test
@@ -641,12 +653,13 @@ class PostServiceImplTest {
         void shouldApprovePendingPost() {
             PostPO po = buildPost(PostStatus.PENDING);
             when(postMapper.selectById(POST_ID)).thenReturn(po);
+            when(postMapper.update(any(PostPO.class), any(Wrapper.class))).thenReturn(1);
 
             reviewService.approvePost(POST_ID);
 
             assertEquals(PostStatus.APPROVED, po.getStatus());
             assertNull(po.getReviewReason());
-            verify(postMapper).updateById(po);
+            verify(postMapper).update(any(PostPO.class), any(Wrapper.class));
             verify(postQueryService).evictDetailCache(POST_ID);
             verify(postEsSyncService).syncPostToEs(po);
         }
@@ -659,7 +672,7 @@ class PostServiceImplTest {
 
             BusinessException ex = assertThrows(BusinessException.class,
                     () -> reviewService.approvePost(POST_ID));
-            assertTrue(ex.getMessage().contains("不在待审核状态"));
+            assertTrue(ex.getMessage().contains("不允许从"));
         }
 
         @Test
@@ -667,12 +680,13 @@ class PostServiceImplTest {
         void shouldRejectPendingPost() {
             PostPO po = buildPost(PostStatus.PENDING);
             when(postMapper.selectById(POST_ID)).thenReturn(po);
+            when(postMapper.update(any(PostPO.class), any(Wrapper.class))).thenReturn(1);
 
             reviewService.rejectPost(POST_ID, "内容违规");
 
             assertEquals(PostStatus.REJECTED, po.getStatus());
             assertEquals("内容违规", po.getReviewReason());
-            verify(postMapper).updateById(po);
+            verify(postMapper).update(any(PostPO.class), any(Wrapper.class));
             verify(postQueryService).evictDetailCache(POST_ID);
         }
     }

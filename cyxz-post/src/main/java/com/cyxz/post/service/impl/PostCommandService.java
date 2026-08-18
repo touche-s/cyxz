@@ -7,7 +7,10 @@ import com.cyxz.audit.api.event.AuditEvent;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
+import com.cyxz.common.constant.AnalyticsConstants;
 import com.cyxz.common.constant.PostCountConstants;
+import com.cyxz.common.event.AnalyticsEvent;
+import com.cyxz.common.utils.TransactionUtils;
 import com.cyxz.post.constant.PostStatus;
 import com.cyxz.post.constant.PostType;
 import com.cyxz.circle.feign.CircleFeignClient;
@@ -29,10 +32,9 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -137,6 +139,18 @@ public class PostCommandService {
                     postReviewService.handleReviewFailure(postId, e);
                 }
             }, aiReviewExecutor);
+            // 发布统计事件：新增帖子数 +1
+            try {
+                AnalyticsEvent analyticsEvent = AnalyticsEvent.builder()
+                        .eventId(UUID.randomUUID().toString())
+                        .metric(AnalyticsConstants.METRIC_NEW_POST)
+                        .value(1)
+                        .statDate(LocalDate.now())
+                        .build();
+                rabbitTemplate.convertAndSend(AnalyticsConstants.EXCHANGE, AnalyticsConstants.ROUTING_KEY, analyticsEvent);
+            } catch (Exception e) {
+                log.error("发布统计事件失败: metric={}", AnalyticsConstants.METRIC_NEW_POST, e);
+            }
         }
         log.info("创建帖子成功: postId={}, userId={}", po.getId(), userId);
         return po.getId();
@@ -357,18 +371,15 @@ public class PostCommandService {
 
         // ES 同步删除 + 跨服务评论清理均放到事务提交后执行：
         // 避免事务回滚后 ES 已删/评论已清导致的不可恢复不一致，同时缩短事务持有 DB 连接的时间
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                postEsSyncService.syncPostToEsDelete(postId);
-                try {
-                    Result<Void> commentResult = commentFeignClient.deleteByPostId(postId);
-                    if (commentResult == null || !commentResult.isSuccess()) {
-                        log.warn("删除帖子关联评论失败: postId={}, result={}", postId, commentResult);
-                    }
-                } catch (Exception e) {
-                    log.error("删除帖子关联评论异常: postId={}", postId, e);
+        TransactionUtils.afterCommit(() -> {
+            postEsSyncService.syncPostToEsDelete(postId);
+            try {
+                Result<Void> commentResult = commentFeignClient.deleteByPostId(postId);
+                if (commentResult == null || !commentResult.isSuccess()) {
+                    log.warn("删除帖子关联评论失败: postId={}, result={}", postId, commentResult);
                 }
+            } catch (Exception e) {
+                log.error("删除帖子关联评论异常: postId={}", postId, e);
             }
         });
         log.info("彻底删除帖子成功: postId={}, userId={}", postId, userId);
@@ -443,9 +454,7 @@ public class PostCommandService {
                 final String content = po.getContent();
                 List<String> imgs = po.getImages() != null && !po.getImages().isBlank()
                         ? Arrays.asList(po.getImages().split(",")) : Collections.emptyList();
-                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                    @Override
-                    public void afterCommit() {
+                TransactionUtils.afterCommit(() ->
                         CompletableFuture.runAsync(() -> {
                             try {
                                 AiReviewResult result = aiReviewService.review(pid, title, content, imgs);
@@ -453,9 +462,7 @@ public class PostCommandService {
                             } catch (Exception e) {
                                 postReviewService.handleReviewFailure(pid, e);
                             }
-                        }, aiReviewExecutor);
-                    }
-                });
+                        }, aiReviewExecutor));
             }
             if (!validPostIds.isEmpty()) {
                 // 仅草稿(DRAFT)帖子可转发布，防止已发布帖被打回 PENDING
@@ -464,16 +471,22 @@ public class PostCommandService {
                         validPostIds.size(), rows, userId);
             }
         } else if ("delete".equals(action)) {
-            // 先查出 APPROVED 状态的帖子，批量删除后发计数事件（post_count -1）
-            List<PostPO> approvedPosts = postMapper.selectList(
-                    new LambdaQueryWrapper<PostPO>()
-                            .eq(PostPO::getUserId, userId)
-                            .in(PostPO::getId, postIds)
-                            .eq(PostPO::getStatus, PostStatus.APPROVED));
+            // 查出用户选中的帖子（含各状态），删除后统一清理缓存、同步 ES 删除索引、发计数事件。
+            // 副作用放事务提交后执行，避免回滚后残留（缓存失效/ES 删除/计数事件）。
+            List<PostPO> ownedPosts = postMapper.selectBatchIds(postIds).stream()
+                    .filter(po -> po.getUserId().equals(userId))
+                    .toList();
             postMapper.batchUpdateStatus(userId, postIds, PostStatus.DELETED, null);
-            for (PostPO po : approvedPosts) {
-                postEsSyncService.publishCountEvent(po, PostCountConstants.ACTION_DELETE);
-            }
+            final List<PostPO> deletedPosts = ownedPosts;
+            TransactionUtils.afterCommit(() -> {
+                for (PostPO po : deletedPosts) {
+                    postQueryService.evictDetailCache(po.getId());
+                    postEsSyncService.syncPostToEsDelete(po.getId());
+                    if (po.getStatus() == PostStatus.APPROVED) {
+                        postEsSyncService.publishCountEvent(po, PostCountConstants.ACTION_DELETE);
+                    }
+                }
+            });
         } else {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "不支持的操作类型: " + action);
         }

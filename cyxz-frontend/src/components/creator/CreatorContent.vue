@@ -99,6 +99,11 @@
           <span class="status-tag" :class="'status-' + post.status">
             {{ statusText(post.status) }}
           </span>
+          <span
+            v-if="post.reviewReason"
+            class="review-reason"
+            :title="post.reviewReason"
+          >{{ post.reviewReason }}</span>
         </div>
         <div class="content-actions">
           <button v-if="isApproved(post.status) && !post.pinned" class="action-btn pin" @click="handlePin(post.id)" title="置顶">
@@ -306,7 +311,7 @@ const handleBatchPublish = async () => {
     loadPosts()
   } catch (error: any) {
     if (error !== 'cancel') {
-      const msg = error?.response?.data?.msg || '批量发布失败'
+      const msg = error?.message || '批量发布失败'
       ElMessage.error(msg)
     }
   }
@@ -657,7 +662,21 @@ html.dark .filter-count {
 }
 
 .content-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
   flex-shrink: 0;
+  max-width: 160px;
+}
+
+.review-reason {
+  font-size: 11px;
+  color: var(--danger-color, #f56c6c);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .content-actions {

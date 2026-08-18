@@ -85,7 +85,7 @@ class CommentServiceImplTest {
         when(stringRedisTemplate.opsForHash()).thenReturn(hashOps);
 
         // 模拟编程式事务：立即执行回调并触发 afterCommit（模拟事务提交成功）
-        lenient().when(transactionTemplate.executeWithoutResult(any())).thenAnswer(inv -> {
+        lenient().doAnswer(inv -> {
             Consumer<org.springframework.transaction.TransactionStatus> consumer = inv.getArgument(0);
             TransactionSynchronizationManager.initSynchronization();
             consumer.accept(null);
@@ -94,7 +94,7 @@ class CommentServiceImplTest {
             }
             TransactionSynchronizationManager.clearSynchronization();
             return null;
-        });
+        }).when(transactionTemplate).executeWithoutResult(any());
     }
 
     @AfterEach

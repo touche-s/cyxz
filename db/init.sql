@@ -1,12 +1,14 @@
 -- ============================================================
 -- Cyxz 项目数据库初始化脚本（全新部署用）
--- 包含 6 个微服务库 + 圈子/板块种子数据
+-- 包含 9 个微服务库 + 圈子/板块种子数据 + 默认站主账号
 -- ============================================================
 
 -- ============================================================
 -- 1. cyxz_auth  —— 认证服务
 --    表: sys_user（用户登录凭据、状态）
 --        sys_role / sys_permission / sys_role_permission / sys_user_role（RBAC 权限体系）
+--    说明: 注册时不创建 user_profile，前端以 username 作为昵称降级展示；
+--          用户首次修改资料时由 cyxz-user 懒加载创建 profile。
 -- ============================================================
 CREATE DATABASE IF NOT EXISTS cyxz_auth DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 
@@ -73,7 +75,7 @@ INSERT INTO sys_role(id, code, label, scope, description, built_in, sort) VALUES
 (5, 'CIRCLE_ADMIN',   '圈子管理员',    'CIRCLE', '圈子内管理权限，不可任命管理员',     1, 1),
 (6, 'CIRCLE_MEMBER',  '圈子成员',      'CIRCLE', '普通成员',                          1, 2);
 
--- ---- RBAC 预设数据：权限点（22 个） ----
+-- ---- RBAC 预设数据：权限点（35 个） ----
 INSERT INTO sys_permission(id, code, label, resource, action) VALUES
 (1,  'user:manage:list',         '查看用户列表',   'user',    'list'),
 (2,  'user:manage:disable',      '禁用用户',       'user',    'disable'),
@@ -96,15 +98,28 @@ INSERT INTO sys_permission(id, code, label, resource, action) VALUES
 (19, 'post:review:approve',      '审核通过',       'post',    'approve'),
 (20, 'post:review:reject',       '审核拒绝',       'post',    'reject'),
 (21, 'post:admin:list',          '全局帖子列表',   'post',    'admin_list'),
-(22, 'post:admin:delete',        '全局删除帖子',   'post',    'admin_delete');
+(22, 'post:admin:delete',        '全局删除帖子',   'post',    'admin_delete'),
+(23, 'report:review:list',          '举报审核列表',   'report',  'review_list'),
+(24, 'report:review:approve',       '举报审核通过',   'report',  'approve'),
+(25, 'report:review:reject',        '举报审核拒绝',   'report',  'reject'),
+(26, 'circle:application:review:list',   '建圈申请列表',   'circle',   'application_list'),
+(27, 'circle:application:review:approve','建圈申请通过',   'circle',   'application_approve'),
+(28, 'circle:application:review:reject', '建圈申请拒绝',   'circle',   'application_reject'),
+(29, 'circle:join:review:list',         '入圈申请列表',   'circle',   'join_list'),
+(30, 'circle:join:review:approve',      '入圈申请通过',   'circle',   'join_approve'),
+(31, 'circle:join:review:reject',       '入圈申请拒绝',   'circle',   'join_reject'),
+(32, 'audit:log:list',                  '审计日志查看',   'audit',    'list'),
+(33, 'analytics:view',                  '数据看板查看',   'analytics','view'),
+(34, 'role:manage:list',                '角色权限查看',   'role',     'list'),
+(35, 'role:manage:assign',              '角色权限分配',   'role',     'assign');
 
 -- ---- RBAC 预设数据：角色-权限分配 ----
--- 站主：全部权限（1-22）
+-- 站主：全部权限（1-35）
 INSERT INTO sys_role_permission(role_id, permission_id) VALUES
-(1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(1,8),(1,9),(1,10),(1,11),(1,12),(1,13),(1,14),(1,15),(1,16),(1,17),(1,18),(1,19),(1,20),(1,21),(1,22);
--- 平台管理员：全局管理权限（1-5,12-22），不能管理成员(9)
+(1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(1,8),(1,9),(1,10),(1,11),(1,12),(1,13),(1,14),(1,15),(1,16),(1,17),(1,18),(1,19),(1,20),(1,21),(1,22),(1,23),(1,24),(1,25),(1,26),(1,27),(1,28),(1,29),(1,30),(1,31),(1,32),(1,33),(1,34),(1,35);
+-- 平台管理员：全局管理权限（1-5,12-35），不能管理圈子成员(9)
 INSERT INTO sys_role_permission(role_id, permission_id) VALUES
-(2,1),(2,2),(2,3),(2,4),(2,5),(2,12),(2,13),(2,14),(2,15),(2,16),(2,17),(2,18),(2,19),(2,20),(2,21),(2,22);
+(2,1),(2,2),(2,3),(2,4),(2,5),(2,12),(2,13),(2,14),(2,15),(2,16),(2,17),(2,18),(2,19),(2,20),(2,21),(2,22),(2,23),(2,24),(2,25),(2,26),(2,27),(2,28),(2,29),(2,30),(2,31),(2,32),(2,33),(2,34),(2,35);
 -- 圈主：圈子内全部管理权限（6-11,15-16）
 INSERT INTO sys_role_permission(role_id, permission_id) VALUES
 (4,6),(4,7),(4,8),(4,9),(4,10),(4,11),(4,15),(4,16);
@@ -116,9 +131,20 @@ INSERT INTO sys_role_permission(role_id, permission_id) VALUES
 (6,15),(6,16);
 -- 普通用户：无管理权限，不插数据
 
+-- ---- 默认站主账号（种子数据）----
+-- 用户名: admin  密码: Admin@123（演示账号，首次登录后请立即在管理后台修改密码）
+-- password 列为 BCrypt("Admin@123")，与 auth 服务 BCryptPasswordEncoder 匹配
+INSERT INTO sys_user(id, username, password, status, create_time, update_time) VALUES
+(1, 'admin', '$2b$10$RTaqT/hm.4l3yjVulj/0E.7QIYKUUNHM/fYxJjb8MG0HiR4v365O.', 1, NOW(), NOW());
+
+-- 绑定 SITE_OWNER（circle_id=0 表示全局角色），解决"站主只能由站主分配"的引导问题
+INSERT INTO sys_user_role(user_id, role_id, circle_id, create_time) VALUES
+(1, 1, 0, NOW());
+
 -- ============================================================
 -- 2. cyxz_user  —— 用户服务
 --    表: user_profile（用户资料）、user_follow（关注关系）
+--    说明: profile 不在注册时创建；用户首次修改资料时懒加载创建。
 -- ============================================================
 CREATE DATABASE IF NOT EXISTS cyxz_user DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 
@@ -136,7 +162,7 @@ CREATE TABLE IF NOT EXISTS user_profile (
 ) ENGINE=InnoDB COMMENT='用户资料表';
 
 CREATE TABLE IF NOT EXISTS user_follow (
-    id BIGINT PRIMARY KEY COMMENT '主键（雪花算法）',
+    id INT AUTO_INCREMENT PRIMARY KEY COMMENT '主键（自增）',
     user_id BIGINT NOT NULL COMMENT '关注者 ID',
     follow_user_id BIGINT NOT NULL COMMENT '被关注者 ID',
     status TINYINT NOT NULL DEFAULT 1 COMMENT '1=已关注 0=已取消',
@@ -183,7 +209,7 @@ CREATE TABLE IF NOT EXISTS post (
 ) ENGINE=InnoDB COMMENT='帖子表';
 
 CREATE TABLE IF NOT EXISTS post_like (
-    id BIGINT PRIMARY KEY COMMENT '主键（雪花算法）',
+    id INT AUTO_INCREMENT PRIMARY KEY COMMENT '主键（自增）',
     post_id BIGINT NOT NULL COMMENT '帖子 ID',
     user_id BIGINT NOT NULL COMMENT '用户 ID',
     status TINYINT NOT NULL DEFAULT 1 COMMENT '1=已点赞 0=已取消',
@@ -195,7 +221,7 @@ CREATE TABLE IF NOT EXISTS post_like (
 ) ENGINE=InnoDB COMMENT='帖子点赞关系表';
 
 CREATE TABLE IF NOT EXISTS post_collect (
-    id BIGINT PRIMARY KEY COMMENT '主键（雪花算法）',
+    id INT AUTO_INCREMENT PRIMARY KEY COMMENT '主键（自增）',
     post_id BIGINT NOT NULL COMMENT '帖子 ID',
     user_id BIGINT NOT NULL COMMENT '用户 ID',
     status TINYINT NOT NULL DEFAULT 1 COMMENT '1=已收藏 0=已取消',
@@ -237,7 +263,7 @@ CREATE TABLE IF NOT EXISTS circle (
 ) ENGINE=InnoDB COMMENT='圈子表';
 
 CREATE TABLE IF NOT EXISTS circle_member (
-    id BIGINT PRIMARY KEY COMMENT '主键（雪花算法）',
+    id INT AUTO_INCREMENT PRIMARY KEY COMMENT '主键（自增）',
     circle_id BIGINT NOT NULL COMMENT '圈子 ID',
     user_id BIGINT NOT NULL COMMENT '用户 ID',
     status TINYINT NOT NULL DEFAULT 1 COMMENT '1=已加入 0=已退出',
@@ -376,7 +402,7 @@ CREATE TABLE IF NOT EXISTS comment (
 ) ENGINE=InnoDB COMMENT='评论表';
 
 CREATE TABLE IF NOT EXISTS comment_like (
-    id BIGINT PRIMARY KEY COMMENT '主键（雪花算法）',
+    id INT AUTO_INCREMENT PRIMARY KEY COMMENT '主键（自增）',
     comment_id BIGINT NOT NULL COMMENT '评论 ID',
     user_id BIGINT NOT NULL COMMENT '用户 ID',
     status TINYINT NOT NULL DEFAULT 1 COMMENT '1=已点赞 0=已取消',
@@ -480,10 +506,12 @@ CREATE TABLE IF NOT EXISTS audit_log (
     target_id     BIGINT       NULL     COMMENT '目标 ID',
     detail        TEXT         NULL     COMMENT '操作详情 JSON',
     ip            VARCHAR(50)  NULL     COMMENT '操作 IP',
+    event_id      VARCHAR(64)  NULL     COMMENT '事件唯一标识（UUID），消费端幂等去重',
     create_time   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '记录时间',
     INDEX idx_operator (operator_id),
     INDEX idx_action (action),
-    INDEX idx_create_time (create_time)
+    INDEX idx_create_time (create_time),
+    UNIQUE INDEX uk_event_id (event_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='管理员操作审计日志';
 
 -- ============================================================

@@ -62,14 +62,14 @@ $total = $running + $exited
 Write-Host ""
 if ($total -eq 0) {
     Write-Host "No containers found. Check: docker compose logs" -ForegroundColor Red
-} elseif ($running -ge 17) {
+} elseif ($running -ge 20) {
     Write-Host "$running containers running" -ForegroundColor Green
     if ($exited -gt 0) {
         Write-Host "  ($exited one-shot init container(s) completed)" -ForegroundColor DarkGray
     }
 } else {
-    $failed = 17 - $running
-    Write-Host "$running/17 running, $failed failed" -ForegroundColor Red
+    $failed = 20 - $running
+    Write-Host "$running/20 running, $failed failed" -ForegroundColor Red
     Write-Host "Check logs: docker compose logs <service>" -ForegroundColor Yellow
 }
 

@@ -19,9 +19,11 @@ public class ConversationPO extends BaseEntity {
     private Long id;
 
     /** 用户 ID（较小值） */
+    @TableField("user_id_1")
     private Long userId1;
 
     /** 用户 ID（较大值） */
+    @TableField("user_id_2")
     private Long userId2;
 
     /** 最后一条消息内容（冗余，会话列表预览用） */
@@ -31,8 +33,10 @@ public class ConversationPO extends BaseEntity {
     private LocalDateTime lastMessageAt;
 
     /** 用户1的未读消息数 */
+    @TableField("unread_count_1")
     private Integer unreadCount1;
 
     /** 用户2的未读消息数 */
+    @TableField("unread_count_2")
     private Integer unreadCount2;
 }

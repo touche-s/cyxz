@@ -9,13 +9,6 @@ import java.io.IOException;
 /**
  * 手动 ACK RabbitMQ 消费者抽象基类
  * <p>统一 try/handle/catch/basicReject/basicAck 模板，子类只需实现 {@link #handle} 与 {@link #describe}。
- * <p>子类的 {@code @RabbitListener} 方法只调一行 {@link #processWithManualAck}：
- * <pre>{@code
- * @RabbitListener(queues = XxxConstants.QUEUE, ackMode = "MANUAL")
- * public void onEvent(XxxEvent event, Channel channel, @Header(AmqpHeaders.DELIVERY_TAG) long tag) throws IOException {
- *     processWithManualAck(event, channel, tag);
- * }
- * }</pre>
  *
  * @param <T> 事件类型
  */
@@ -40,7 +33,7 @@ public abstract class AbstractManualAckRabbitListener<T> {
     protected abstract String describe(T event);
 
     /**
-     * 模板方法：处理事件 → 成功 ACK / 失败拒绝入死信
+     * 模板方法：handle → 成功 ACK / 失败拒绝入死信
      * <p>失败时不重新入队（requeue=false），消息进入死信队列避免丢失。
      *
      * @param event   事件
@@ -51,11 +44,10 @@ public abstract class AbstractManualAckRabbitListener<T> {
     protected final void processWithManualAck(T event, Channel channel, long tag) throws IOException {
         try {
             handle(event);
+            channel.basicAck(tag, false);
         } catch (Exception e) {
             log.error("事件消费失败，进入死信: {}", describe(event), e);
             channel.basicReject(tag, false);
-            return;
         }
-        channel.basicAck(tag, false);
     }
 }
