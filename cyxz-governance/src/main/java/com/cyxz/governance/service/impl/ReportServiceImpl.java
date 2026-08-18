@@ -46,6 +46,9 @@ public class ReportServiceImpl implements ReportService {
 
     private final ReportMapper reportMapper;
     private final RabbitTemplate rabbitTemplate;
+    private final StringRedisTemplate stringRedisTemplate;
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     @Override
     public Long createReport(Long reporterId, CreateReportRequest request) {

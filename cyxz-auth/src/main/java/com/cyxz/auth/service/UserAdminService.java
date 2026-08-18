@@ -43,6 +43,7 @@ public class UserAdminService {
     private final SysUserMapper sysUserMapper;
     private final SysUserRoleMapper sysUserRoleMapper;
     private final RabbitTemplate rabbitTemplate;
+    private final StringRedisTemplate stringRedisTemplate;
 
     /**
      * 分页查询用户列表
