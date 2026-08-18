@@ -1,11 +1,13 @@
 package com.cyxz.common.security;
 
+import com.cyxz.circle.feign.CircleExistsPort;
+import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.CacheKeyConstants;
-import com.cyxz.common.security.mapper.PermissionQueryMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -19,15 +21,18 @@ import java.util.concurrent.TimeUnit;
  * <ol>
  *   <li>未登录 → false</li>
  *   <li>全局管理员（站主/平台管理员）→ true，短路返回</li>
- *   <li>circleId 为空或圈子不存在 → false（防传不存在的 ID 绕过）</li>
- *   <li>Cache-Aside：Redis 查圈子权限 → 命中则判断；未命中 → 查 DB → 回写 Redis</li>
+ *   <li>circleId 为空 → false</li>
+ *   <li>圈子存在性经 {@link CircleExistsPort} 校验（circle 域归属，防传不存在的 ID 绕过；
+ *       circle 服务用本地实现，其他服务走 {@code CircleFeignClient} Feign 调用）</li>
+ *   <li>Cache-Aside：Redis 查圈子权限 → 命中则判断；未命中 → 经 {@link AuthPermissionPort} 查 auth → 回写 Redis</li>
  * </ol>
  */
 @Slf4j
 @RequiredArgsConstructor
 public class CirclePermissionEvaluator {
 
-    private final PermissionQueryMapper permissionQueryMapper;
+    private final AuthPermissionPort authPermissionPort;
+    private final CircleExistsPort circleExistsPort;
     private final StringRedisTemplate stringRedisTemplate;
 
     /**
@@ -49,8 +54,9 @@ public class CirclePermissionEvaluator {
         if (circleId == null) {
             return false;
         }
-        // 校验圈子真实存在，防传不存在的 ID 绕过
-        if (permissionQueryMapper.countCircleById(circleId) == 0) {
+        // 校验圈子真实存在，防传不存在的 ID 绕过（走 circle 域）
+        Result<Boolean> existsResult = circleExistsPort.exists(circleId);
+        if (existsResult == null || !existsResult.isSuccess() || !Boolean.TRUE.equals(existsResult.getData())) {
             return false;
         }
 
@@ -70,15 +76,24 @@ public class CirclePermissionEvaluator {
                 return parseCsv(cached);
             }
         } catch (Exception e) {
-            log.warn("Redis 查询圈子权限失败，降级查 DB: userId={}, circleId={}", userId, circleId, e);
+            log.warn("Redis 查询圈子权限失败，降级查 auth: userId={}, circleId={}", userId, circleId, e);
         }
-        // DB 查询
-        List<Long> roleIds = permissionQueryMapper.selectCircleRoleIds(userId, circleId);
+        // auth 查询
+        Result<List<Long>> roleResult = authPermissionPort.selectCircleRoleIds(userId, circleId);
         Set<String> permissions;
-        if (roleIds.isEmpty()) {
+        if (roleResult == null || !roleResult.isSuccess()) {
+            log.warn("auth 查询圈子角色失败或降级，视为无圈子权限: userId={}, circleId={}", userId, circleId);
             permissions = Set.of();
         } else {
-            permissions = permissionQueryMapper.selectPermissionCodes(roleIds);
+            List<Long> roleIds = roleResult.getData();
+            if (roleIds == null || roleIds.isEmpty()) {
+                permissions = Set.of();
+            } else {
+                Result<Set<String>> permResult = authPermissionPort.selectPermissionCodes(roleIds);
+                permissions = permResult != null && permResult.isSuccess() && permResult.getData() != null
+                        ? permResult.getData()
+                        : Set.of();
+            }
         }
         // 回写 Redis
         try {
@@ -94,7 +109,7 @@ public class CirclePermissionEvaluator {
     }
 
     private Set<String> parseCsv(String csv) {
-        Set<String> result = new java.util.HashSet<>();
+        Set<String> result = new HashSet<>();
         for (String part : csv.split(",")) {
             String trimmed = part.trim();
             if (!trimmed.isEmpty()) {

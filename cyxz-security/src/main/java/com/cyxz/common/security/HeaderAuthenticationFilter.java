@@ -39,6 +39,12 @@ public class HeaderAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+        // 内部接口（/internal/）不加载权限：服务间 Feign 直连时若在此加载权限，
+        // 会经 AuthPermissionPort 再次调用 auth 服务造成递归；且 internal 接口本身不依赖 SecurityContext。
+        if (request.getRequestURI() != null && request.getRequestURI().contains("/internal/")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
         String userIdHeader = request.getHeader(USER_ID_HEADER);
         if (StringUtils.hasText(userIdHeader)) {
             try {
