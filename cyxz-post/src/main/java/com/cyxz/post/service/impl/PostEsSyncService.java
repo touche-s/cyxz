@@ -1,5 +1,6 @@
 package com.cyxz.post.service.impl;
 
+import com.cyxz.common.constant.CacheKeyConstants;
 import com.cyxz.common.constant.EsSyncConstants;
 import com.cyxz.common.constant.PostCountConstants;
 import com.cyxz.common.event.PostCountEvent;
@@ -80,7 +81,7 @@ public class PostEsSyncService {
         int succeeded = 0;
         int failed = 0;
         for (int i = 0; i < maxRetry; i++) {
-            String json = stringRedisTemplate.opsForList().rightPop(FAILED_QUEUE_KEY);
+            String json = stringRedisTemplate.opsForList().rightPop(CacheKeyConstants.POST_ES_SYNC_FAILED_QUEUE);
             if (json == null) {
                 break;
             }
@@ -90,7 +91,7 @@ public class PostEsSyncService {
                 succeeded++;
             } catch (Exception e) {
                 // 重试失败：放回队首，留待下次
-                stringRedisTemplate.opsForList().leftPush(FAILED_QUEUE_KEY, json);
+                stringRedisTemplate.opsForList().leftPush(CacheKeyConstants.POST_ES_SYNC_FAILED_QUEUE, json);
                 failed++;
                 log.warn("ES 同步重试失败，已放回队列: {}", json, e);
                 break;
@@ -176,7 +177,7 @@ public class PostEsSyncService {
         int succeeded = 0;
         int failed = 0;
         for (int i = 0; i < maxRetry; i++) {
-            String json = stringRedisTemplate.opsForList().rightPop(FAILED_COUNT_QUEUE_KEY);
+            String json = stringRedisTemplate.opsForList().rightPop(CacheKeyConstants.POST_COUNT_SYNC_FAILED_QUEUE);
             if (json == null) {
                 break;
             }
@@ -197,7 +198,7 @@ public class PostEsSyncService {
 
     private void enqueueFailedCountSync(PostCountEvent event) {
         try {
-            stringRedisTemplate.opsForList().leftPush(FAILED_COUNT_QUEUE_KEY, toJson(event));
+            stringRedisTemplate.opsForList().leftPush(CacheKeyConstants.POST_COUNT_SYNC_FAILED_QUEUE, toJson(event));
         } catch (Exception redisEx) {
             log.error("写入计数同步失败队列失败，计数可能丢失: postId={}, circleId={}",
                     event.getPostId(), event.getCircleId(), redisEx);

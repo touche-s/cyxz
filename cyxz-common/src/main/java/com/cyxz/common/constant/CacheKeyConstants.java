@@ -74,6 +74,12 @@ public final class CacheKeyConstants {
     /** 用户获赞数缓存前缀 */
     public static final String USER_LIKES_COUNT_PREFIX = NS + "user:likesCount:";
 
+    /** 用户禁用标记缓存前缀（user:disabled:{userId}） */
+    public static final String USER_DISABLED_PREFIX = NS + "user:disabled:";
+
+    /** 用户禁用标记缓存过期时间（天），需覆盖 Token 最长有效期 */
+    public static final long USER_DISABLED_TTL_DAYS = 30;
+
     /** 帖子浏览增量 Hash（field=postId, value=增量） */
     public static final String POST_VIEW_DELTA = NS + "post:view:delta";
 
@@ -124,6 +130,15 @@ public final class CacheKeyConstants {
 
     /** 防重复提交 Key 前缀（prevent:repeat:{userId}:{uri}:{argsHash}） */
     public static final String PREVENT_REPEAT_PREFIX = NS + "prevent:repeat:";
+
+    /** ES 同步失败重试队列 key（List 结构） */
+    public static final String POST_ES_SYNC_FAILED_QUEUE = NS + "post:es:sync:failed";
+
+    /** 帖子计数同步失败重试队列 key（List 结构） */
+    public static final String POST_COUNT_SYNC_FAILED_QUEUE = NS + "post:count:sync:failed";
+
+    /** 内容处置事件发送失败补偿队列 key（List 结构） */
+    public static final String GOVERNANCE_TAKEDOWN_FAILED_QUEUE = NS + "governance:takedown:failed";
 
     /**
      * 获取用户点赞 Key

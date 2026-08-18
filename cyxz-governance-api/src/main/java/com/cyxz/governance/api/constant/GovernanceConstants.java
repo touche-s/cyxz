@@ -1,5 +1,7 @@
 package com.cyxz.governance.api.constant;
 
+import com.cyxz.common.constant.CacheKeyConstants;
+
 /**
  * 治理中心常量
  * <p>集中定义 RabbitMQ 交换机/队列/死信、举报目标类型与状态。
@@ -28,5 +30,5 @@ public final class GovernanceConstants {
     public static final String STATUS_REJECTED = "REJECTED";
 
     /** 内容处置事件发送失败时的 Redis 补偿队列（List 结构） */
-    public static final String TAKEDOWN_FAILED_QUEUE_KEY = "governance:takedown:failed";
+    public static final String TAKEDOWN_FAILED_QUEUE_KEY = CacheKeyConstants.GOVERNANCE_TAKEDOWN_FAILED_QUEUE;
 }
