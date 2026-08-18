@@ -4,7 +4,7 @@ import lombok.Getter;
 
 /**
  * 通知类型枚举
- * <p>定义系统支持的五种通知类型及其对应的前端展示文案和归类标识。
+ * <p>定义系统支持的十种通知类型及其对应的前端展示文案和归类标识。
  */
 @Getter
 public enum NotificationType {

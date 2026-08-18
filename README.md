@@ -228,6 +228,7 @@ cd docker && docker compose up -d mysql redis rabbitmq nacos elasticsearch minio
 - `代码审查与修复总结报告.md` — 六维审查 + 5 阶段修复总记录
 - `压测报告.md` / `压测优化分析报告.md` — 压测结果与瓶颈定位、优化方案
 - `缓存优化验证报告.md` / `限流与压测验证报告.md` — 缓存命中率与限流阈值验证
+- `收工报告.md` — 项目收尾检查（最终复查清单、Git 状态、暂缓项）
 
 > 完整索引与各文档同步状态见 [docs/README.md](docs/README.md)。
 
