@@ -1,10 +1,12 @@
 package com.cyxz.auth.config;
 
+import com.cyxz.auth.mapper.SysUserRoleMapper;
+import com.cyxz.auth.service.AuthPermissionPortImpl;
+import com.cyxz.common.security.AuthPermissionPort;
 import com.cyxz.common.security.GlobalPermissionProvider;
 import com.cyxz.common.security.GlobalPermissionProviderImpl;
 import com.cyxz.common.security.HeaderAuthenticationFilter;
 import com.cyxz.common.security.SecurityUtils;
-import com.cyxz.common.security.mapper.PermissionQueryMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -40,9 +42,14 @@ import java.io.IOException;
 public class SecurityConfig {
 
     @Bean
-    public GlobalPermissionProvider globalPermissionProvider(PermissionQueryMapper mapper,
+    public GlobalPermissionProvider globalPermissionProvider(AuthPermissionPort authPermissionPort,
                                                               StringRedisTemplate redisTemplate) {
-        return new GlobalPermissionProviderImpl(mapper, redisTemplate);
+        return new GlobalPermissionProviderImpl(authPermissionPort, redisTemplate);
+    }
+
+    @Bean
+    public AuthPermissionPort authPermissionPort(SysUserRoleMapper sysUserRoleMapper) {
+        return new AuthPermissionPortImpl(sysUserRoleMapper);
     }
 
     @Bean
@@ -65,6 +72,7 @@ public class SecurityConfig {
                                 "/auth/password"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/auth/captcha/**").permitAll()
+                        .requestMatchers("/auth/internal/**").permitAll()
                         .requestMatchers("/auth/admin/**").permitAll()
                         .requestMatchers(
                                 "/v3/api-docs/**",
