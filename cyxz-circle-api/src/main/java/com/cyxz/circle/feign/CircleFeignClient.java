@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.Set;
 
 @FeignClient(name = "cyxz-circle", fallbackFactory = CircleFeignClientFallbackFactory.class)
-public interface CircleFeignClient {
+public interface CircleFeignClient extends CircleExistsPort {
 
     @GetMapping("/circle/internal/{circleId}/publishable")
     Result<PublishableResult> checkPublishable(@PathVariable Long circleId, @RequestParam Long userId);
