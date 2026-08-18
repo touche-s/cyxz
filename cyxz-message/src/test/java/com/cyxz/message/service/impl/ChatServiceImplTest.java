@@ -1,6 +1,6 @@
 package com.cyxz.message.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.Result;
@@ -139,8 +139,8 @@ class ChatServiceImplTest {
             verify(messageMapper).insert(any(PrivateMessagePO.class));
             // USER2 是 userId2，未读数原子自增 unread_count_2
             @SuppressWarnings("unchecked")
-            ArgumentCaptor<LambdaUpdateWrapper<ConversationPO>> captor =
-                    ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
+            ArgumentCaptor<UpdateWrapper<ConversationPO>> captor =
+                    ArgumentCaptor.forClass(UpdateWrapper.class);
             verify(conversationMapper).update(captor.capture());
             assertTrue(captor.getValue().getSqlSet().contains("unread_count_2 = unread_count_2 + 1"));
             verify(sessionManager).sendToUser(eq(USER2), any(String.class));
@@ -242,18 +242,13 @@ class ChatServiceImplTest {
             ConversationPO conv = buildConversation();
             when(conversationMapper.selectById(CONVERSATION_ID)).thenReturn(conv);
 
-            // markRead 内部构造 LambdaUpdateWrapper，需要 MybatisPlus lambda cache，
-            // 纯单测环境未初始化时会抛 MybatisPlusException，这里验证"不抛 BusinessException"即可
-            try {
-                chatService.markRead(USER2, CONVERSATION_ID);
-                @SuppressWarnings("unchecked")
-                ArgumentCaptor<LambdaUpdateWrapper<ConversationPO>> captor =
-                        ArgumentCaptor.forClass(LambdaUpdateWrapper.class);
-                verify(conversationMapper).update(captor.capture());
-                assertTrue(captor.getValue().getSqlSet().contains("unread_count_2 = 0"));
-            } catch (com.baomidou.mybatisplus.core.exceptions.MybatisPlusException e) {
-                // MybatisPlus lambda cache 未初始化，单测环境已知限制，跳过断言
-            }
+            // markRead 内部构造 UpdateWrapper（字符串列名，避免单测依赖 MybatisPlus lambda cache）
+            chatService.markRead(USER2, CONVERSATION_ID);
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<UpdateWrapper<ConversationPO>> captor =
+                    ArgumentCaptor.forClass(UpdateWrapper.class);
+            verify(conversationMapper).update(captor.capture());
+            assertTrue(captor.getValue().getSqlSet().contains("unread_count_2 = 0"));
         }
     }
 
