@@ -16,7 +16,7 @@
 | AI 审核 | 独立 Python 服务（FastAPI） |
 | 前端 | Vue 3 + TypeScript + Vite + Pinia |
 | 组件库 | Element Plus + Iconify |
-| 部署 | Docker Compose 一键编排（21 服务 / 稳态 20 容器） |
+| 部署 | Docker Compose 一键编排（14 个业务服务 / 稳态 20 容器） |
 | CI | GitHub Actions |
 
 ## 系统架构
@@ -155,7 +155,7 @@ cyxz/
 - **权限提升防护**：站主（SITE_OWNER）账号禁止被平台管理员禁用/提权，内置角色权限禁止修改，角色分配受层级约束
 - **MyBatis-Plus 自动填充**：`BaseEntity` 抽取公共字段 + `MyMetaObjectHandler` 自动填充创建/更新时间
 - **定时计数汇总**：帖子/评论/圈子计数异步累加 + 定时刷库，避免实时写压力
-- **Docker 一键部署**：多阶段构建 + maven-deps 依赖预构建镜像，21 服务（稳态 20 容器）一键编排，拉代码即跑
+- **Docker 一键部署**：多阶段构建 + maven-deps 依赖预构建镜像，14 个业务服务（稳态 20 容器）一键编排，拉代码即跑
 
 ## 快速启动
 
@@ -166,7 +166,7 @@ cyxz/
 ```bash
 cd docker
 cp .env.example .env          # 编辑密码（DB_PASSWORD / MINIO / JWT_SECRET 等）
-.\deploy.ps1                  # 一键构建并启动 21 个服务（稳态 20 容器）
+.\deploy.ps1                  # 一键构建并启动 14 个业务服务（稳态 20 容器）
 docker compose ps             # 验证全部 Up / Healthy
 ```
 
