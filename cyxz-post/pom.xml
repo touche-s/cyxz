@@ -101,6 +101,10 @@
         </dependency>
         <dependency>
             <groupId>com.cyxz</groupId>
+            <artifactId>cyxz-auth-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.cyxz</groupId>
             <artifactId>cyxz-post-api</artifactId>
         </dependency>
         <dependency>
