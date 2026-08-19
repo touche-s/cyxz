@@ -16,7 +16,7 @@ import com.cyxz.post.entity.PostPO;
 import com.cyxz.post.mapper.PostCollectMapper;
 import com.cyxz.post.mapper.PostLikeMapper;
 import com.cyxz.post.mapper.PostMapper;
-import com.cyxz.post.vo.PostInfoVO;
+import com.cyxz.post.api.vo.PostInfoVO;
 import com.cyxz.post.service.AiReviewService.AiReviewResult;
 import com.cyxz.post.service.AiReviewService;
 import com.cyxz.post.service.SensitiveWordService;

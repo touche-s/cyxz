@@ -35,6 +35,16 @@ public class CircleFeignClientFallbackFactory extends AbstractFeignFallbackFacto
                         ErrorCode.SERVICE_UNAVAILABLE.getMsg());
             }
 
+            /**
+             * 圈子存在性校验不可"假成功"——圈子服务宕机时返回失败，
+             * 由调用方根据 {@link Result#isSuccess()} 区分"服务降级"与"圈子不存在"。
+             */
+            @Override
+            public Result<Boolean> exists(Long circleId) {
+                return Result.fail(ErrorCode.SERVICE_UNAVAILABLE.getCode(),
+                        ErrorCode.SERVICE_UNAVAILABLE.getMsg());
+            }
+
             @Override
             public Result<Map<Long, String>> batchGetNames(Set<Long> circleIds) {
                 return Result.success(Collections.emptyMap());

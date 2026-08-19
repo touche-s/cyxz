@@ -1,15 +1,18 @@
 package com.cyxz.circle.service.impl;
 
+import com.cyxz.auth.feign.AuthFeignClient;
+import com.cyxz.auth.feign.dto.CircleRoleRequest;
 import com.cyxz.circle.entity.CirclePO;
 import com.cyxz.circle.mapper.CircleMapper;
 import com.cyxz.circle.mapper.CircleMemberMapper;
-import com.cyxz.circle.mapper.CircleRoleAssignmentMapper;
 import com.cyxz.circle.service.CircleSectionService;
 import com.cyxz.circle.vo.CircleVO;
 import com.cyxz.circle.vo.PublishableResult;
 import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
+import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.CommonStatus;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -17,14 +20,18 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 /**
  * CircleServiceImpl 单元测试
  * <p>覆盖加入/退出圈子幂等性、发布权限校验、圈子 CRUD 等场景。
+ * <p>圈子角色分配/撤销已收归 auth 服务，经 {@link AuthFeignClient} 调用，测试中以 Mock 桩替。
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("CircleServiceImpl 圈子核心服务")
@@ -32,14 +39,23 @@ class CircleServiceImplTest {
 
     @Mock private CircleMapper circleMapper;
     @Mock private CircleMemberMapper circleMemberMapper;
-    @Mock private CircleRoleAssignmentMapper circleRoleAssignmentMapper;
+    @Mock private AuthFeignClient authFeignClient;
     @Mock private CircleSectionService circleSectionService;
+    @Mock private StringRedisTemplate stringRedisTemplate;
+    @Mock private RabbitTemplate rabbitTemplate;
 
     @InjectMocks
     private CircleServiceImpl circleService;
 
     private static final Long USER_ID = 100L;
     private static final Long CIRCLE_ID = 7L;
+
+    @BeforeEach
+    void stubRoleWrites() {
+        // lenient：角色分配/撤销桩仅 join/leave/create 相关用例使用，其余用例不触发
+        lenient().when(authFeignClient.assignCircleRole(any(CircleRoleRequest.class))).thenReturn(Result.success());
+        lenient().when(authFeignClient.removeCircleRole(any(CircleRoleRequest.class))).thenReturn(Result.success());
+    }
 
     private CirclePO buildCircle(int status) {
         CirclePO po = new CirclePO();

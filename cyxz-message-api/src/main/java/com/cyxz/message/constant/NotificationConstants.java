@@ -1,11 +1,18 @@
 package com.cyxz.message.constant;
 
 /**
- * 通知 MQ 常量，统一管理 exchange、routingKey，避免各模块散落魔数字符串
+ * 消息域常量
+ * <p>统一管理通知/私信的 MQ 交换机、路由键与已读状态取值，避免各模块散落魔数字符串。
  */
 public final class NotificationConstants {
 
     private NotificationConstants() {}
+
+    /** 未读 */
+    public static final int UNREAD = 0;
+
+    /** 已读 */
+    public static final int READ = 1;
 
     /** 通知交换机 */
     public static final String EXCHANGE = "cyxz.notification.exchange";

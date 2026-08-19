@@ -8,6 +8,7 @@ import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.PageConstants;
+import com.cyxz.message.constant.NotificationConstants;
 import com.cyxz.message.vo.ChatMessageVO;
 import com.cyxz.message.vo.ConversationVO;
 import com.cyxz.message.entity.ConversationPO;
@@ -112,7 +113,7 @@ public class ChatServiceImpl implements ChatService {
             msg.setSenderId(senderId);
             msg.setReceiverId(receiverId);
             msg.setContent(content);
-            msg.setIsRead(0);
+            msg.setIsRead(NotificationConstants.UNREAD);
             messageMapper.insert(msg);
 
             conv.setLastMessage(content);
@@ -163,8 +164,8 @@ public class ChatServiceImpl implements ChatService {
         UpdateWrapper<PrivateMessagePO> msgWrapper = new UpdateWrapper<>();
         msgWrapper.eq("conversation_id", conversationId)
                 .eq("receiver_id", userId)
-                .eq("is_read", 0)
-                .set("is_read", 1);
+                .eq("is_read", NotificationConstants.UNREAD)
+                .set("is_read", NotificationConstants.READ);
         messageMapper.update(msgWrapper);
 
         // 清零会话未读数（单条 UPDATE，避免与并发发消息的原子自增互相覆盖）
@@ -240,7 +241,7 @@ public class ChatServiceImpl implements ChatService {
         vo.setSenderId(po.getSenderId());
         vo.setReceiverId(po.getReceiverId());
         vo.setContent(po.getContent());
-        vo.setRead(po.getIsRead() != null && po.getIsRead() == 1);
+        vo.setRead(po.getIsRead() != null && po.getIsRead() == NotificationConstants.READ);
         vo.setCreateTime(po.getCreateTime());
         return vo;
     }

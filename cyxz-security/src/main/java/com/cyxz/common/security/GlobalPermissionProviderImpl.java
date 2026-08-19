@@ -1,7 +1,7 @@
 package com.cyxz.common.security;
 
+import com.cyxz.common.base.Result;
 import com.cyxz.common.constant.CacheKeyConstants;
-import com.cyxz.common.security.mapper.PermissionQueryMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -13,15 +13,15 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * 全局权限提供者实现（Cache-Aside 旁观策略）
- * <p>读链路：Redis 命中 → 直接返回；未命中 → 查 DB → 回写 Redis（TTL 对齐当前 Token 剩余时间）。
- * <p>降级：Redis 异常 → 查 DB 返回（不写缓存）；DB 异常 → 向上抛出，由 HeaderAuthenticationFilter 捕获后保持未认证状态（拒绝放行）。
+ * <p>读链路：Redis 命中 → 直接返回；未命中 → 经 {@link AuthPermissionPort} 查 auth → 回写 Redis（TTL 对齐当前 Token 剩余时间）。
+ * <p>降级：Redis 异常 → 走 auth 查询返回（不写缓存）；auth 查询失败（Feign 降级返回空集）→ 保持未认证状态（拒绝放行）。
  * <p>非自动注册组件：在需要完整权限的服务的 SecurityConfig 中通过 {@code @Bean} 手动声明。
  */
 @Slf4j
 @RequiredArgsConstructor
 public class GlobalPermissionProviderImpl implements GlobalPermissionProvider {
 
-    private final PermissionQueryMapper permissionQueryMapper;
+    private final AuthPermissionPort authPermissionPort;
     private final StringRedisTemplate stringRedisTemplate;
 
     private static final String HASH_FIELD_ROLES = "roles";
@@ -36,19 +36,26 @@ public class GlobalPermissionProviderImpl implements GlobalPermissionProvider {
                 return parseCsv(cached);
             }
         } catch (Exception e) {
-            log.warn("Redis 查询全局角色失败，降级查 DB: userId={}", userId, e);
+            log.warn("Redis 查询全局角色失败，降级查 auth: userId={}", userId, e);
         }
-        // DB 查询
-        List<String> roles = permissionQueryMapper.selectGlobalRoleCodes(userId);
-        Set<String> result = roles.isEmpty() ? Set.of("USER") : new HashSet<>(roles);
+        // auth 查询
+        Result<List<String>> result = authPermissionPort.selectGlobalRoleCodes(userId);
+        Set<String> roles;
+        if (result != null && result.isSuccess() && result.getData() != null) {
+            roles = new HashSet<>(result.getData());
+        } else {
+            log.warn("auth 查询全局角色失败或降级，保持空权限: userId={}", userId);
+            roles = Set.of();
+        }
+        Set<String> effectiveRoles = roles.isEmpty() ? Set.of("USER") : roles;
         // 回写 Redis，TTL 对齐当前 Token 剩余时间
         try {
-            stringRedisTemplate.opsForHash().put(key, HASH_FIELD_ROLES, String.join(",", result));
+            stringRedisTemplate.opsForHash().put(key, HASH_FIELD_ROLES, String.join(",", effectiveRoles));
             applyTtl(key);
         } catch (Exception e) {
             log.warn("Redis 回写全局角色失败: userId={}", userId, e);
         }
-        return result;
+        return effectiveRoles;
     }
 
     @Override
@@ -60,21 +67,25 @@ public class GlobalPermissionProviderImpl implements GlobalPermissionProvider {
                 return parseCsv(cached);
             }
         } catch (Exception e) {
-            log.warn("Redis 查询全局权限失败，降级查 DB: userId={}", userId, e);
+            log.warn("Redis 查询全局权限失败，降级查 auth: userId={}", userId, e);
         }
-        // DB 查询
-        Set<String> result = permissionQueryMapper.selectGlobalPermissionCodes(userId);
-        if (result == null) {
-            result = Set.of();
+        // auth 查询
+        Result<List<String>> result = authPermissionPort.selectGlobalPermissionCodes(userId);
+        Set<String> permissions;
+        if (result != null && result.isSuccess() && result.getData() != null) {
+            permissions = new HashSet<>(result.getData());
+        } else {
+            log.warn("auth 查询全局权限失败或降级，保持空权限: userId={}", userId);
+            permissions = Set.of();
         }
         // 回写 Redis，TTL 对齐当前 Token 剩余时间
         try {
-            stringRedisTemplate.opsForHash().put(key, HASH_FIELD_PERMS, String.join(",", result));
+            stringRedisTemplate.opsForHash().put(key, HASH_FIELD_PERMS, String.join(",", permissions));
             applyTtl(key);
         } catch (Exception e) {
             log.warn("Redis 回写全局权限失败: userId={}", userId, e);
         }
-        return result;
+        return permissions;
     }
 
     /**

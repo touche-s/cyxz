@@ -25,7 +25,7 @@ import com.cyxz.message.enums.NotificationType;
 import com.cyxz.message.event.NotificationEvent;
 import com.cyxz.message.utils.NotificationPublisher;
 import com.cyxz.post.feign.PostFeignClient;
-import com.cyxz.post.vo.PostInfoVO;
+import com.cyxz.post.api.vo.PostInfoVO;
 import com.cyxz.user.feign.UserFeignClient;
 import com.cyxz.user.utils.UserFeignHelper;
 import com.cyxz.user.vo.UserProfileVO;
@@ -39,6 +39,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -279,7 +280,8 @@ public class CommentServiceImpl implements CommentService {
             LambdaQueryWrapper<CommentPO> countWrapper = new LambdaQueryWrapper<>();
             countWrapper.eq(CommentPO::getPostId, postId).eq(CommentPO::getStatus, CommonStatus.ACTIVE);
             totalComments = commentMapper.selectCount(countWrapper);
-            stringRedisTemplate.opsForValue().set(countKey, String.valueOf(totalComments));
+            stringRedisTemplate.opsForValue().set(countKey, String.valueOf(totalComments),
+                    Duration.ofMinutes(CacheKeyConstants.POST_COMMENT_COUNT_TTL_MINUTES));
         }
 
         return PageResult.of(result, totalComments, page, size);
@@ -307,6 +309,9 @@ public class CommentServiceImpl implements CommentService {
                 } else {
                     stringRedisTemplate.opsForValue()
                             .increment(CacheKeyConstants.POST_COMMENT_COUNT_PREFIX + postId, delta);
+                    // 刷新 TTL，避免增量路径重建的 key 成为无过期时间的"永久缓存"
+                    stringRedisTemplate.expire(CacheKeyConstants.POST_COMMENT_COUNT_PREFIX + postId,
+                            Duration.ofMinutes(CacheKeyConstants.POST_COMMENT_COUNT_TTL_MINUTES));
                 }
             } catch (Exception e) {
                 log.error("评论计数增量写入失败，本周期计数可能偏差: postId={}, delta={}", postId, delta, e);

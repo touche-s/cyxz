@@ -1,4 +1,4 @@
-package com.cyxz.post.vo;
+package com.cyxz.post.api.vo;
 
 import lombok.Data;
 

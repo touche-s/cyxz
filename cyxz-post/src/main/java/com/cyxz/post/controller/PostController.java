@@ -16,7 +16,7 @@ import com.cyxz.post.service.PostInteractionService;
 import com.cyxz.post.service.PostService;
 import com.cyxz.post.service.SensitiveWordService;
 import com.cyxz.post.vo.TodayStatsVO;
-import com.cyxz.post.vo.PostInfoVO;
+import com.cyxz.post.api.vo.PostInfoVO;
 import com.cyxz.post.vo.PostStatsVO;
 import com.cyxz.post.vo.PostVO;
 import com.cyxz.post.vo.ReceivedLikeVO;

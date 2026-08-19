@@ -6,9 +6,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
-@MapperScan({"com.cyxz.post.mapper", "com.cyxz.common.security.mapper"})
-@SpringBootApplication(scanBasePackages = {"com.cyxz.post", "com.cyxz.common", "com.cyxz.user.feign", "com.cyxz.comment.feign", "com.cyxz.message.feign", "com.cyxz.circle.feign"})
-@EnableFeignClients(basePackages = {"com.cyxz.user.feign", "com.cyxz.comment.feign", "com.cyxz.message.feign", "com.cyxz.circle.feign"})
+@MapperScan("com.cyxz.post.mapper")
+@SpringBootApplication(scanBasePackages = {"com.cyxz.post", "com.cyxz.common", "com.cyxz.user.feign", "com.cyxz.comment.feign", "com.cyxz.message.feign", "com.cyxz.circle.feign", "com.cyxz.auth.feign"})
+@EnableFeignClients(basePackages = {"com.cyxz.user.feign", "com.cyxz.comment.feign", "com.cyxz.message.feign", "com.cyxz.circle.feign", "com.cyxz.auth.feign"})
 @EnableScheduling
 public class CyxzPostApplication {
 
