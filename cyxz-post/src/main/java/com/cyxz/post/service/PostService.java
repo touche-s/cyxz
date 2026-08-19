@@ -3,7 +3,7 @@ package com.cyxz.post.service;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
-import com.cyxz.post.vo.PostInfoVO;
+import com.cyxz.post.api.vo.PostInfoVO;
 import com.cyxz.post.vo.PostStatsVO;
 import com.cyxz.post.vo.PostVO;
 import com.cyxz.post.vo.ReceivedLikeVO;

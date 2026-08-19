@@ -5,7 +5,7 @@ import com.cyxz.post.dto.CreatePostRequest;
 import com.cyxz.post.dto.UpdatePostRequest;
 import com.cyxz.post.service.PostService;
 import com.cyxz.post.vo.DashboardVO;
-import com.cyxz.post.vo.PostInfoVO;
+import com.cyxz.post.api.vo.PostInfoVO;
 import com.cyxz.post.vo.PostStatsVO;
 import com.cyxz.post.vo.PostVO;
 import com.cyxz.post.vo.ReceivedLikeVO;

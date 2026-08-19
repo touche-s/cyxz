@@ -9,6 +9,7 @@ import com.cyxz.user.vo.UserProfileVO;
 import com.cyxz.post.entity.PostPO;
 import com.cyxz.post.mapper.PostLikeMapper;
 import com.cyxz.post.mapper.PostMapper;
+import com.cyxz.post.api.vo.PostInfoVO;
 import com.cyxz.post.vo.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
