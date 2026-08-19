@@ -95,6 +95,9 @@ public final class CacheKeyConstants {
     /** 帖子评论总数缓存（直接存绝对数值，用于翻页时替代 COUNT） */
     public static final String POST_COMMENT_COUNT_PREFIX = NS + "post:comment:count:";
 
+    /** 帖子评论总数缓存过期时间（分钟） */
+    public static final long POST_COMMENT_COUNT_TTL_MINUTES = 30;
+
     /** 评论点赞增量 Hash（field=commentId, value=增量） */
     public static final String COMMENT_LIKE_DELTA = NS + "comment:like:delta";
 

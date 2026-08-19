@@ -1,6 +1,8 @@
 package com.cyxz.user.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.cyxz.common.constant.CacheKeyConstants;
+import com.cyxz.common.utils.TransactionUtils;
 import com.cyxz.user.dto.UpdateProfileRequest;
 import com.cyxz.user.entity.UserProfilePO;
 import com.cyxz.user.mapper.UserProfileMapper;
@@ -10,6 +12,7 @@ import com.cyxz.user.vo.UserProfileVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -30,6 +33,7 @@ public class UserProfileServiceImpl implements UserProfileService {
 
     private final UserProfileMapper profileMapper;
     private final FollowService followService;
+    private final StringRedisTemplate stringRedisTemplate;
 
     /**
      * 根据用户 ID 查询资料
@@ -104,24 +108,32 @@ public class UserProfileServiceImpl implements UserProfileService {
             }
             profileMapper.insert(po);
             log.info("懒加载创建用户资料: userId={}", userId);
-            return;
+        } else {
+            if (request.getNickname() != null) {
+                po.setNickname(request.getNickname());
+            }
+            if (request.getAvatar() != null) {
+                po.setAvatar(request.getAvatar());
+            }
+            if (request.getGender() != null) {
+                po.setGender(request.getGender());
+            }
+            if (request.getBio() != null) {
+                po.setBio(request.getBio());
+            }
+            if (request.getBirthday() != null && !request.getBirthday().isEmpty()) {
+                po.setBirthday(LocalDate.parse(request.getBirthday()));
+            }
+            profileMapper.updateById(po);
         }
-        if (request.getNickname() != null) {
-            po.setNickname(request.getNickname());
-        }
-        if (request.getAvatar() != null) {
-            po.setAvatar(request.getAvatar());
-        }
-        if (request.getGender() != null) {
-            po.setGender(request.getGender());
-        }
-        if (request.getBio() != null) {
-            po.setBio(request.getBio());
-        }
-        if (request.getBirthday() != null && !request.getBirthday().isEmpty()) {
-            po.setBirthday(LocalDate.parse(request.getBirthday()));
-        }
-        profileMapper.updateById(po);
+        // 失效跨服务缓存（post 服务缓存了 user:profile:{userId}），避免改昵称/头像后帖子侧最长 1 小时显示旧资料
+        TransactionUtils.afterCommit(() -> {
+            try {
+                stringRedisTemplate.delete(CacheKeyConstants.getUserProfileKey(userId));
+            } catch (Exception e) {
+                log.error("删除用户资料缓存失败，资料变更可能延迟生效: userId={}", userId, e);
+            }
+        });
     }
 
     /**
