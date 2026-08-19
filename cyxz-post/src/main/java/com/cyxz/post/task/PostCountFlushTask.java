@@ -21,7 +21,8 @@ public class PostCountFlushTask {
     @Scheduled(fixedDelay = 30_000)
     public void flushAll() {
         // 多实例互斥：避免多副本同时刷库互相覆盖增量
-        if (!RedisLockUtil.tryLock(stringRedisTemplate, LOCK_KEY, 60)) {
+        String lockToken = RedisLockUtil.tryLock(stringRedisTemplate, LOCK_KEY, 60);
+        if (lockToken == null) {
             log.debug("post 计数刷库任务被其他实例持有锁，跳过本次执行");
             return;
         }
@@ -31,7 +32,7 @@ public class PostCountFlushTask {
             flushService.flushCollectCounts();
             flushService.flushCommentCounts();
         } finally {
-            RedisLockUtil.unlock(stringRedisTemplate, LOCK_KEY);
+            RedisLockUtil.unlock(stringRedisTemplate, LOCK_KEY, lockToken);
         }
     }
 }
