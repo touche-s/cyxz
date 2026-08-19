@@ -17,6 +17,7 @@ import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.constant.AnalyticsConstants;
 import com.cyxz.common.constant.CacheKeyConstants;
+import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.event.AnalyticsEvent;
 import com.cyxz.common.utils.IpUtil;
 import com.cyxz.common.utils.TransactionUtils;
@@ -88,7 +89,7 @@ public class AuthServiceImpl implements AuthService {
             recordLoginFail(clientIp);
             throw new BusinessException(ErrorCode.PASSWORD_ERROR, "账号或密码错误");
         }
-        if (user.getStatus() != null && user.getStatus() != 1) {
+        if (user.getStatus() != null && user.getStatus() != CommonStatus.ACTIVE) {
             throw new BusinessException(ErrorCode.USER_DISABLED);
         }
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
@@ -354,7 +355,7 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
         // 刷新时校验用户状态，禁用用户不能无限刷新 Token
-        if (user.getStatus() != null && user.getStatus() != 1) {
+        if (user.getStatus() != null && user.getStatus() != CommonStatus.ACTIVE) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "账号已被禁用");
         }
 

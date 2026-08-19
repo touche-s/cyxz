@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.constant.PageConstants;
+import com.cyxz.message.constant.NotificationConstants;
 import com.cyxz.message.event.NotificationEvent;
 import com.cyxz.message.vo.NotificationVO;
 import com.cyxz.message.entity.NotificationPO;
@@ -57,7 +58,7 @@ public class NotificationServiceImpl implements NotificationService {
         po.setRelatedId(event.getRelatedId());
         po.setContent(event.getContent() != null && event.getContent().length() > 200
                 ? event.getContent().substring(0, 200) : event.getContent());
-        po.setIsRead(0);
+        po.setIsRead(NotificationConstants.UNREAD);
         try {
             notificationMapper.insert(po);
             log.info("MQ 通知落库: type={}, receiverId={}", event.getType(), event.getReceiverId());
@@ -103,7 +104,7 @@ public class NotificationServiceImpl implements NotificationService {
     public int unreadCount(Long userId) {
         LambdaQueryWrapper<NotificationPO> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(NotificationPO::getReceiverId, userId)
-                .eq(NotificationPO::getIsRead, 0);
+                .eq(NotificationPO::getIsRead, NotificationConstants.UNREAD);
         return notificationMapper.selectCount(wrapper).intValue();
     }
 
@@ -115,7 +116,7 @@ public class NotificationServiceImpl implements NotificationService {
         LambdaUpdateWrapper<NotificationPO> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(NotificationPO::getReceiverId, userId)
                 .eq(NotificationPO::getId, notificationId)
-                .set(NotificationPO::getIsRead, 1);
+                .set(NotificationPO::getIsRead, NotificationConstants.READ);
         notificationMapper.update(wrapper);
     }
 
@@ -126,8 +127,8 @@ public class NotificationServiceImpl implements NotificationService {
     public void markAllRead(Long userId) {
         LambdaUpdateWrapper<NotificationPO> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(NotificationPO::getReceiverId, userId)
-                .eq(NotificationPO::getIsRead, 0)
-                .set(NotificationPO::getIsRead, 1);
+                .eq(NotificationPO::getIsRead, NotificationConstants.UNREAD)
+                .set(NotificationPO::getIsRead, NotificationConstants.READ);
         notificationMapper.update(wrapper);
     }
 
@@ -141,7 +142,7 @@ public class NotificationServiceImpl implements NotificationService {
         vo.setTargetType(po.getTargetType());
         vo.setRelatedId(po.getRelatedId());
         vo.setContent(po.getContent());
-        vo.setIsRead(po.getIsRead() != null && po.getIsRead() == 1);
+        vo.setIsRead(po.getIsRead() != null && po.getIsRead() == NotificationConstants.READ);
         vo.setCreateTime(po.getCreateTime());
 
         UserProfileVO user = userMap.get(po.getSenderId());

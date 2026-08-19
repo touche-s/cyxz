@@ -13,6 +13,7 @@ import com.cyxz.common.base.BusinessException;
 import com.cyxz.common.base.ErrorCode;
 import com.cyxz.common.base.PageResult;
 import com.cyxz.common.constant.CacheKeyConstants;
+import com.cyxz.common.constant.CommonStatus;
 import com.cyxz.common.constant.PageConstants;
 import com.cyxz.common.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
@@ -83,7 +84,7 @@ public class UserAdminService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
         }
         guardSiteOwner(id);
-        user.setStatus(0);
+        user.setStatus(CommonStatus.DELETED);
         sysUserMapper.updateById(user);
         // 发布审计事件：用户封禁
         Long operatorId = SecurityUtils.currentUserId();
@@ -131,7 +132,7 @@ public class UserAdminService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
         }
         guardSiteOwner(id);
-        user.setStatus(1);
+        user.setStatus(CommonStatus.ACTIVE);
         sysUserMapper.updateById(user);
         // 发布审计事件：用户解禁
         Long operatorId = SecurityUtils.currentUserId();

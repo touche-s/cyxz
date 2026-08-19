@@ -56,6 +56,12 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CircleServiceImpl implements CircleService {
 
+    /** 圈子状态：启用 */
+    private static final int STATUS_ENABLED = 1;
+
+    /** 圈子状态：禁用 */
+    private static final int STATUS_DISABLED = 0;
+
     private final CircleMapper circleMapper;
     private final CircleMemberMapper circleMemberMapper;
     private final CircleSectionService circleSectionService;
@@ -329,8 +335,8 @@ public class CircleServiceImpl implements CircleService {
      */
     @Override
     public void updateStatus(Long circleId, Integer status) {
-        // 圈子状态：1=启用 0=禁用，与 CommonStatus.ACTIVE/DELETED 数值一致但语义不同，保留字面量更直观
-        if (status == null || (status != 1 && status != 0)) {
+        // 圈子状态：1=启用 0=禁用（与 CommonStatus 数值一致但语义不同，独立常量更直观）
+        if (status == null || (status != STATUS_ENABLED && status != STATUS_DISABLED)) {
             throw new BusinessException(ErrorCode.PARAM_ERROR, "status 必须为 0（禁用）或 1（启用）");
         }
         CirclePO po = circleMapper.selectById(circleId);
