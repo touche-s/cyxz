@@ -2,7 +2,7 @@
 # ============================================================
 # Cyxz Maven 依赖预构建镜像
 # 把所有外部依赖 + 公共模块 jar 预装到本地仓库
-# 微服务 Dockerfile FROM 这个镜像，离线编译无需重复下载
+# 微服务 Dockerfile FROM 这个镜像，编译时无需重复下载依赖
 #
 # 构建命令:
 #   docker build -f maven-deps.Dockerfile -t cyxz-maven-deps:latest ..
@@ -10,6 +10,8 @@
 # 何时重新构建:
 #   - pom.xml 中的依赖发生变化时
 #   - 公共模块(common/security/*-api)源码发生变化时
+# 首次构建（全新环境）会联网下载全部依赖，约 10-15 分钟；
+# 之后 pom 未变时层缓存命中，秒级完成。
 # ============================================================
 
 FROM maven:3.9-eclipse-temurin-17
@@ -28,8 +30,7 @@ RUN cat > /tmp/maven-settings.xml << 'EOF'
 </settings>
 EOF
 
-# ---- 第一层：复制所有 pom.xml，下载外部依赖 ----
-# pom.xml 没变时，这层缓存命中，跳过下载
+# ---- 第一层：复制所有 pom.xml（pom 变更时此层起全部重建）----
 COPY pom.xml .
 COPY cyxz-common/pom.xml cyxz-common/
 COPY cyxz-security/pom.xml cyxz-security/
@@ -54,10 +55,6 @@ COPY cyxz-governance/pom.xml cyxz-governance/
 COPY cyxz-audit/pom.xml cyxz-audit/
 COPY cyxz-analytics/pom.xml cyxz-analytics/
 
-# 从现有完整依赖镜像复制 ~/.m2，避免每次重新下载依赖
-# 注意：依赖现有 cyxz-maven-deps:latest 镜像已构建；首次构建需先执行一次 go-offline
-COPY --from=cyxz-maven-deps:latest /root/.m2 /root/.m2
-
 # ---- 第二层：编译安装公共模块到本地仓库 ----
 # 公共模块源码没变时，这层缓存命中
 COPY cyxz-common/src cyxz-common/src
@@ -71,6 +68,8 @@ COPY cyxz-circle-api/src cyxz-circle-api/src
 COPY cyxz-governance-api/src cyxz-governance-api/src
 COPY cyxz-audit-api/src cyxz-audit-api/src
 
+# 联网模式编译安装：全新环境首次构建可正常下载依赖，
+# 依赖已存在时跳过下载，不重复拉取
 RUN mvn install -Dmaven.test.skip=true \
     -pl cyxz-common,cyxz-security,cyxz-user-api,cyxz-auth-api,cyxz-post-api,cyxz-comment-api,cyxz-message-api,cyxz-circle-api,cyxz-governance-api,cyxz-audit-api \
-    -am -o -s /tmp/maven-settings.xml -q
+    -am -s /tmp/maven-settings.xml -q
